@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Year 2 Report Comment Builder</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --border: #d1d5db;
+      --soft: #eef2ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: white;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+    }
+
+    header p {
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 900px) {
+      .grid {
+        grid-template-columns: 420px 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 1rem;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    h2, h3 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 0.75rem 0 0.25rem;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      font: inherit;
+    }
+
+    input, select, textarea {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem;
+      background: white;
+    }
+
+    textarea {
+      min-height: 190px;
+      resize: vertical;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0.6rem;
+    }
+
+    button:hover {
+      background: var(--accent-dark);
+    }
+
+    button.secondary {
+      background: #4b5563;
+    }
+
+    button.secondary:hover {
+      background: #374151;
+    }
+
+    button.danger {
+      background: #dc2626;
+    }
+
+    button.danger:hover {
+      background: #b91c1c;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .full-row {
+      grid-column: 1 / -1;
+    }
+
+    .child-list {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .child-button {
+      background: var(--soft);
+      color: var(--text);
+      text-align: left;
+      border: 1px solid #c7d2fe;
+      margin: 0;
+    }
+
+    .child-button.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .report-output {
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 280px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .small {
+      font-size: 0.85rem;
+    }
+
+    .section-title {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Year 2 Report Comment Builder</h1>
+    <p>Add children, choose comments from drop-downs, then export and re-upload your work later.</p>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Children</h2>
+      <label for="childName">Child's name</label>
+      <input id="childName" type="text" placeholder="e.g. Ahaana" />
+
+      <label for="gender">Pronouns</label>
+      <select id="gender">
+        <option value="female">she/her</option>
+        <option value="male">he/him</option>
+        <option value="neutral">they/them</option>
+      </select>
+
+      <div class="button-row">
+        <button onclick="addChild()">Add child</button>
+        <button class="secondary" onclick="saveCurrentChild()">Save child</button>
+      </div>
+
+      <div class="button-row">
+        <button class="secondary" onclick="downloadData()">Download save file</button>
+        <button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save file</button>
+      </div>
+
+      <input id="uploadFile" type="file" accept=".json" hidden onchange="uploadData(event)" />
+      <button class="danger" onclick="clearAll()">Clear all</button>
+      <p class="hint small">This stores data in your browser and can also export a JSON save file.</p>
+
+      <div id="childList" class="child-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Report Builder</h2>
+      <p class="hint">Choose comments for the selected child. You can edit the generated report before copying it.</p>
+
+      <h3 class="section-title">Literacy & Reading</h3>
+      <label for="literacyLevel">Literacy level</label>
+      <select id="literacyLevel">
+        <option value="below">below</option>
+        <option value="meeting" selected>meeting</option>
+        <option value="exceeding">exceeding</option>
+      </select>
+
+      <label for="readingComment">Reading comment</label>
+      <select id="readingComment">
+        <option value="has made pleasing progress in reading and is becoming more confident when reading familiar texts">has made pleasing progress in reading</option>
+        <option value="is becoming a more fluent reader and is beginning to read with greater accuracy and expression">becoming more fluent</option>
+        <option value="shows a good understanding of what has been read and can answer questions with increasing detail">good comprehension</option>
+        <option value="is developing confidence with decoding and will benefit from continued regular reading practice">developing decoding confidence</option>
+      </select>
+
+      <label for="writingComment">Writing comment</label>
+      <select id="writingComment">
+        <option value="produces writing that is becoming clearer and more carefully presented">clearer writing</option>
+        <option value="forms letters carefully and is developing neat, consistent handwriting">neat handwriting</option>
+        <option value="is beginning to use capital letters, full stops and conjunctions more accurately">punctuation and conjunctions</option>
+        <option value="uses interesting vocabulary and is beginning to extend ideas in writing">interesting vocabulary</option>
+      </select>
+
+      <label for="literacyNextStep">Literacy next step</label>
+      <select id="literacyNextStep">
+        <option value="With continued practice, {pronoun} will further develop {possessive} independence and confidence when writing longer pieces.">writing longer pieces</option>
+        <option value="With continued practice, {pronoun} will improve {possessive} fluency and expression when reading.">reading fluency</option>
+        <option value="With continued practice, {pronoun} will develop greater accuracy when applying spelling and punctuation independently.">spelling and punctuation</option>
+      </select>
+
+      <h3 class="section-title">Numeracy</h3>
+      <label for="numeracyLevel">Numeracy level</label>
+      <select id="numeracyLevel">
+        <option value="below">below</option>
+        <option value="meeting" selected>meeting</option>
+        <option value="exceeding">exceeding</option>
+      </select>
+
+      <label for="mathsComment">Maths comment</label>
+      <select id="mathsComment">
+        <option value="has developed a secure understanding of key number concepts and is able to apply this to calculations">secure number understanding</option>
+        <option value="is becoming more confident when solving calculations and choosing appropriate methods">calculation confidence</option>
+        <option value="is beginning to explain mathematical thinking and reasoning more clearly">reasoning clearly</option>
+        <option value="has made good progress with number facts and is developing greater fluency">number facts and fluency</option>
+      </select>
+
+      <label for="mathsNextStep">Numeracy next step</label>
+      <select id="mathsNextStep">
+        <option value="With continued practice, {pronoun} will strengthen {possessive} recall speed and confidence when solving problems.">recall speed</option>
+        <option value="With continued practice, {pronoun} will develop greater accuracy when checking answers carefully.">checking answers</option>
+        <option value="With continued practice, {pronoun} will become more confident explaining {possessive} reasoning in detail.">explaining reasoning</option>
+      </select>
+
+      <h3 class="section-title">General Comment</h3>
+      <label for="generalComment">General comment</label>
+      <select id="generalComment">
+        <option value="has approached learning with a positive attitude and should be proud of the progress made this year">positive attitude</option>
+        <option value="is a kind and considerate member of the class who works well with others">kind and considerate</option>
+        <option value="shows enthusiasm for learning and enjoys sharing ideas with others">enthusiastic learner</option>
+        <option value="has grown in confidence and is beginning to take more risks in learning">growing confidence</option>
+        <option value="is polite, respectful and has built positive relationships with peers">polite and respectful</option>
+      </select>
+
+      <label for="endingComment">Ending sentence</label>
+      <select id="endingComment">
+        <option value="We are confident {pronoun} will continue to make good progress as {pronoun} moves into Year 3.">continue to make good progress</option>
+        <option value="With continued effort, {pronoun} will thrive as {pronoun} moves into Year 3.">will thrive</option>
+        <option value="We look forward to seeing {name} continue to grow in confidence and ability in Year 3.">grow in confidence</option>
+      </select>
+
+      <div class="button-row full-row">
+        <button onclick="generateReport()">Generate report</button>
+        <button class="secondary" onclick="copyReport()">Copy report</button>
+      </div>
+
+      <label for="reportText">Generated report</label>
+      <textarea id="reportText" placeholder="Your report will appear here..."></textarea>
+    </section>
+  </main>
+
+  <script>
+    let children = JSON.parse(localStorage.getItem('reportChildren') || '[]');
+    let selectedIndex = children.length ? 0 : -1;
+
+    const fields = [
+      'gender',
+      'literacyLevel',
+      'readingComment',
+      'writingComment',
+      'literacyNextStep',
+      'numeracyLevel',
+      'mathsComment',
+      'mathsNextStep',
+      'generalComment',
+      'endingComment',
+      'reportText'
+    ];
+
+    function getPronouns(gender) {
+      if (gender === 'female') return { pronoun: 'she', possessive: 'her' };
+      if (gender === 'male') return { pronoun: 'he', possessive: 'his' };
+      return { pronoun: 'they', possessive: 'their' };
+    }
+
+    function applyTokens(text, child) {
+      const { pronoun, possessive } = getPronouns(child.gender);
+      return text
+        .replaceAll('{name}', child.name)
+        .replaceAll('{pronoun}', pronoun)
+        .replaceAll('{possessive}', possessive);
+    }
+
+    function addChild() {
+      const nameInput = document.getElementById('childName');
+      const name = nameInput.value.trim();
+      if (!name) {
+        alert('Please enter a child\'s name.');
+        return;
+      }
+
+      const child = {
+        name,
+        gender: document.getElementById('gender').value,
+        literacyLevel: 'meeting',
+        readingComment: document.getElementById('readingComment').value,
+        writingComment: document.getElementById('writingComment').value,
+        literacyNextStep: document.getElementById('literacyNextStep').value,
+        numeracyLevel: 'meeting',
+        mathsComment: document.getElementById('mathsComment').value,
+        mathsNextStep: document.getElementById('mathsNextStep').value,
+        generalComment: document.getElementById('generalComment').value,
+        endingComment: document.getElementById('endingComment').value,
+        reportText: ''
+      };
+
+      children.push(child);
+      selectedIndex = children.length - 1;
+      nameInput.value = '';
+      persist();
+      renderChildren();
+      loadSelectedChild();
+    }
+
+    function saveCurrentChild() {
+      if (selectedIndex < 0) {
+        alert('Please add or select a child first.');
+        return;
+      }
+
+      const child = children[selectedIndex];
+      fields.forEach(field => {
+        child[field] = document.getElementById(field).value;
+      });
+
+      persist();
+      renderChildren();
+      alert('Saved.');
+    }
+
+    function loadSelectedChild() {
+      if (selectedIndex < 0) return;
+      const child = children[selectedIndex];
+      document.getElementById('childName').value = child.name;
+      fields.forEach(field => {
+        if (child[field] !== undefined) {
+          document.getElementById(field).value = child[field];
+        }
+      });
+    }
+
+    function selectChild(index) {
+      selectedIndex = index;
+      renderChildren();
+      loadSelectedChild();
+    }
+
+    function renderChildren() {
+      const list = document.getElementById('childList');
+      list.innerHTML = '';
+
+      children.forEach((child, index) => {
+        const button = document.createElement('button');
+        button.className = 'child-button' + (index === selectedIndex ? ' active' : '');
+        button.textContent = child.name;
+        button.onclick = () => selectChild(index);
+        list.appendChild(button);
+      });
+    }
+
+    function generateReport() {
+      if (selectedIndex < 0) {
+        alert('Please add or select a child first.');
+        return;
+      }
+
+      saveCurrentChildWithoutAlert();
+      const child = children[selectedIndex];
+      const { pronoun, possessive } = getPronouns(child.gender);
+
+      const literacy = `${child.name} is ${child.literacyLevel} age-related expectation in literacy. ${child.name} ${child.readingComment}. ${child.name} ${child.writingComment}. ${applyTokens(child.literacyNextStep, child)}`;
+
+      const numeracy = `${child.name} is ${child.numeracyLevel} age-related expectation in numeracy. ${child.name} ${child.mathsComment}. ${applyTokens(child.mathsNextStep, child)}`;
+
+      const general = `${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2. ${child.name} ${child.generalComment}. ${applyTokens(child.endingComment, child)}`;
+
+      const report = `${literacy}\n\n${numeracy}\n\n${general}`;
+      document.getElementById('reportText').value = report;
+      child.reportText = report;
+      persist();
+    }
+
+    function saveCurrentChildWithoutAlert() {
+      if (selectedIndex < 0) return;
+      const child = children[selectedIndex];
+      fields.forEach(field => {
+        child[field] = document.getElementById(field).value;
+      });
+      persist();
+    }
+
+    function copyReport() {
+      const report = document.getElementById('reportText').value;
+      if (!report) {
+        alert('Generate or write a report first.');
+        return;
+      }
+      navigator.clipboard.writeText(report);
+      alert('Report copied.');
+    }
+
+    function downloadData() {
+      saveCurrentChildWithoutAlert();
+      const blob = new Blob([JSON.stringify(children, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'year-2-report-builder-save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) throw new Error('Invalid file');
+          children = imported;
+          selectedIndex = children.length ? 0 : -1;
+          persist();
+          renderChildren();
+          loadSelectedChild();
+          alert('Save file uploaded.');
+        } catch (error) {
+          alert('This does not look like a valid save file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAll() {
+      if (!confirm('Clear all children and reports from this browser?')) return;
+      children = [];
+      selectedIndex = -1;
+      localStorage.removeItem('reportChildren');
+      document.getElementById('childName').value = '';
+      document.getElementById('reportText').value = '';
+      renderChildren();
+    }
+
+    function persist() {
+      localStorage.setItem('reportChildren', JSON.stringify(children));
+    }
+
+    renderChildren();
+    loadSelectedChild();
+  </script>
+</body>
+</html>
