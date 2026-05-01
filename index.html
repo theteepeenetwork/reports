@@ -33,7 +33,21 @@
     <section class="card">
       <h2>Dropdown Comment Bank</h2>
       <p class="hint">These options are based on phrases and patterns from your uploaded report spreadsheet, cleaned up for spelling and consistency.</p>
+      <label for="year1ReportText">Year 1 report</label>
+      <textarea id="year1ReportText" placeholder="Paste last year's report here..."></textarea>
+      <p class="hint small">This will be included as background context for ChatGPT, rather than as a dropdown choice.</p>
+
       <div class="field-grid" id="fields"></div>
+
+      <h3 class="section-title">Custom comments</h3>
+      <label for="customLiteracy">Custom literacy comment</label>
+      <textarea id="customLiteracy" placeholder="Add any extra literacy notes here..."></textarea>
+
+      <label for="customNumeracy">Custom numeracy comment</label>
+      <textarea id="customNumeracy" placeholder="Add any extra numeracy notes here..."></textarea>
+
+      <label for="customGeneral">Custom general comment</label>
+      <textarea id="customGeneral" placeholder="Add any extra general notes here..."></textarea>
       <button onclick="generateComments()">Generate comment list</button>
     </section>
 
@@ -246,8 +260,9 @@
       ]}
     };
 
-    const order = ['year1Report','literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
+    const order = [''literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
     let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
+    const customTextFields = ['year1ReportText', 'customLiteracy', 'customNumeracy', 'customGeneral'];
     let selectedIndex = children.length ? 0 : -1;
 
     function buildFields(){
@@ -256,6 +271,12 @@
         const item=banks[key]; const div=document.createElement('div');
         const label=document.createElement('label'); label.htmlFor=key; label.textContent=item.label;
         const select=document.createElement('select'); select.id=key;
+        // add blank option first
+        const blank=document.createElement('option');
+        blank.value='';
+        blank.textContent='';
+        select.appendChild(blank);
+
         item.options.forEach(opt=>{const o=document.createElement('option'); o.value=opt; o.textContent=opt.length>76?opt.slice(0,76)+'…':opt; select.appendChild(o)});
         div.appendChild(label); div.appendChild(select); wrap.appendChild(div);
       });
@@ -266,13 +287,13 @@
 
     function addChild(){
       const name=document.getElementById('childName').value.trim(); if(!name){alert('Please enter a child\'s name.');return;}
-      const child={name,gender:document.getElementById('gender').value,selections:{}}; order.forEach(k=>child.selections[k]=document.getElementById(k).value);
+      const child={name,gender:document.getElementById('gender').value,selections:{},custom:{}}; order.forEach(k=>child.selections[k]=document.getElementById(k).value); customTextFields.forEach(k=>child.custom[k]=document.getElementById(k).value.trim());
       children.push(child); selectedIndex=children.length-1; document.getElementById('childName').value=''; persist(); renderChildren(); loadSelectedChild(); generateComments();
     }
 
     function saveCurrentChild(){ saveCurrentChildWithoutAlert(); alert('Saved.'); }
-    function saveCurrentChildWithoutAlert(){ if(selectedIndex<0)return; const child=children[selectedIndex]; child.name=document.getElementById('childName').value.trim()||child.name; child.gender=document.getElementById('gender').value; order.forEach(k=>child.selections[k]=document.getElementById(k).value); persist(); renderChildren(); }
-    function loadSelectedChild(){ if(selectedIndex<0)return; const child=children[selectedIndex]; document.getElementById('childName').value=child.name; document.getElementById('gender').value=child.gender; order.forEach(k=>{ if(child.selections && child.selections[k]) document.getElementById(k).value=child.selections[k]; }); generateComments(); }
+    function saveCurrentChildWithoutAlert(){ if(selectedIndex<0)return; const child=children[selectedIndex]; child.name=document.getElementById('childName').value.trim()||child.name; child.gender=document.getElementById('gender').value; if(!child.selections) child.selections={}; if(!child.custom) child.custom={}; order.forEach(k=>child.selections[k]=document.getElementById(k).value); customTextFields.forEach(k=>child.custom[k]=document.getElementById(k).value.trim()); persist(); renderChildren(); }
+    function loadSelectedChild(){ if(selectedIndex<0)return; const child=children[selectedIndex]; document.getElementById('childName').value=child.name; document.getElementById('gender').value=child.gender; order.forEach(k=>{ if(child.selections && child.selections[k]) document.getElementById(k).value=child.selections[k]; }); customTextFields.forEach(k=>{ document.getElementById(k).value = child.custom && child.custom[k] ? child.custom[k] : ''; }); generateComments(); }
     function selectChild(i){ selectedIndex=i; renderChildren(); loadSelectedChild(); }
     function renderChildren(){ const list=document.getElementById('childList'); list.innerHTML=''; children.forEach((child,i)=>{const b=document.createElement('button'); b.className='child-button'+(i===selectedIndex?' active':''); b.textContent=child.name; b.onclick=()=>selectChild(i); list.appendChild(b);}); }
 
@@ -280,7 +301,14 @@
       if(selectedIndex<0){ document.getElementById('commentOutput').value='Add or select a child first.'; return; }
       saveCurrentChildWithoutAlert(); const child=children[selectedIndex]; const p=getPronouns(child.gender);
       const lines=[]; lines.push(`Child: ${child.name}`); lines.push(`Pronouns: ${p.pronoun}/${p.possessive}`); lines.push('');
+      if(child.custom && child.custom.year1ReportText){ lines.push(`Year 1 report / prior context:
+${child.custom.year1ReportText}`); lines.push(''); }
       order.forEach(k=>{ const val=child.selections[k]; if(val && !val.toLowerCase().startsWith('no ')) lines.push(`${banks[k].label}: ${tokenise(val, child)}`); });
+      if(child.custom){
+        if(child.custom.customLiteracy) lines.push(`Custom literacy comment: ${child.custom.customLiteracy}`);
+        if(child.custom.customNumeracy) lines.push(`Custom numeracy comment: ${child.custom.customNumeracy}`);
+        if(child.custom.customGeneral) lines.push(`Custom general comment: ${child.custom.customGeneral}`);
+      }
       const comments=lines.join('\n'); document.getElementById('commentOutput').value=comments;
       document.getElementById('promptOutput').value = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${child.selections.literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${child.selections.numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
     }
@@ -288,7 +316,7 @@
     function copyText(id){ const el=document.getElementById(id); el.select(); navigator.clipboard.writeText(el.value); alert('Copied.'); }
     function downloadData(){ saveCurrentChildWithoutAlert(); const blob=new Blob([JSON.stringify(children,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='year-2-report-comment-builder-save.json'; a.click(); URL.revokeObjectURL(url); }
     function uploadData(event){ const file=event.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=e=>{ try{ const imported=JSON.parse(e.target.result); if(!Array.isArray(imported)) throw new Error('Invalid'); children=imported; selectedIndex=children.length?0:-1; persist(); renderChildren(); loadSelectedChild(); alert('Save file uploaded.'); }catch(err){ alert('This does not look like a valid save file.'); } }; reader.readAsText(file); }
-    function clearAll(){ if(!confirm('Clear all children and comments from this browser?'))return; children=[]; selectedIndex=-1; localStorage.removeItem('reportBuilderChildren'); document.getElementById('childName').value=''; document.getElementById('commentOutput').value=''; document.getElementById('promptOutput').value=''; renderChildren(); }
+    function clearAll(){ if(!confirm('Clear all children and comments from this browser?'))return; children=[]; selectedIndex=-1; localStorage.removeItem('reportBuilderChildren'); document.getElementById('childName').value=''; customTextFields.forEach(k=>document.getElementById(k).value=''); document.getElementById('commentOutput').value=''; document.getElementById('promptOutput').value=''; renderChildren(); }
     function persist(){ localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
 
     buildFields(); renderChildren(); loadSelectedChild();
