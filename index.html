@@ -260,7 +260,7 @@
       ]}
     };
 
-    const order = [''literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
+    const order = ['literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
     let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
     const customTextFields = ['year1ReportText', 'customLiteracy', 'customNumeracy', 'customGeneral'];
     let selectedIndex = children.length ? 0 : -1;
