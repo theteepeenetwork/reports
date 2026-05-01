@@ -5,8 +5,158 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Year 2 Report Comment Builder</title>
   <style>
-    :root{--bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--accent:#2563eb;--accent-dark:#1d4ed8;--border:#d1d5db;--soft:#eef2ff;--good:#ecfdf5}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);line-height:1.45} header{background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;padding:1.8rem 1rem;text-align:center} header h1{margin:0 0 .35rem;font-size:2rem} header p{margin:0;opacity:.95} main{max-width:1280px;margin:0 auto;padding:1rem}.grid{display:grid;grid-template-columns:1fr;gap:1rem}@media(min-width:1000px){.grid{grid-template-columns:360px 1fr 420px}}.card{background:var(--card);border-radius:16px;padding:1rem;box-shadow:0 6px 20px rgba(0,0,0,.06)}h2,h3{margin-top:0}.section-title{margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border)}label{display:block;font-weight:700;margin:.7rem 0 .25rem}input,select,textarea,button{width:100%;font:inherit}input,select,textarea{border:1px solid var(--border);border-radius:10px;padding:.6rem;background:white}textarea{min-height:250px;resize:vertical}button{border:none;border-radius:10px;padding:.7rem 1rem;background:var(--accent);color:white;font-weight:700;cursor:pointer;margin-top:.55rem}button:hover{background:var(--accent-dark)}button.secondary{background:#4b5563}button.secondary:hover{background:#374151}button.danger{background:#dc2626}.button-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.hint{color:var(--muted);font-size:.9rem}.small{font-size:.84rem}.child-list{display:grid;gap:.5rem;margin-top:1rem}.child-button{background:var(--soft);color:var(--text);text-align:left;border:1px solid #c7d2fe;margin:0}.child-button.active{background:var(--accent);color:white}.field-grid{display:grid;grid-template-columns:1fr;gap:.7rem}@media(min-width:720px){.field-grid{grid-template-columns:1fr 1fr}}.output{white-space:pre-wrap;background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:1rem;min-height:260px}.prompt{background:var(--good)}.pill{display:inline-block;background:#e0e7ff;border-radius:999px;padding:.15rem .55rem;margin:.1rem;font-size:.8rem;color:#3730a3}
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --border: #d1d5db;
+      --soft: #eef2ff;
+      --good: #ecfdf5;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    header {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: white;
+      padding: 1.8rem 1rem;
+      text-align: center;
+    }
+
+    header h1 { margin: 0 0 .35rem; font-size: 2rem; }
+    header p { margin: 0; opacity: .95; }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 1000px) {
+      .grid { grid-template-columns: 360px 1fr 420px; }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 1rem;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
+    }
+
+    h2, h3 { margin-top: 0; }
+
+    .section-title {
+      margin-top: 1.2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin: .7rem 0 .25rem;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      font: inherit;
+    }
+
+    input, select, textarea {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: .6rem;
+      background: white;
+    }
+
+    textarea {
+      min-height: 250px;
+      resize: vertical;
+    }
+
+    .small-box { min-height: 90px; }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: .7rem 1rem;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: .55rem;
+    }
+
+    button:hover { background: var(--accent-dark); }
+    button.secondary { background: #4b5563; }
+    button.secondary:hover { background: #374151; }
+    button.danger { background: #dc2626; }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .5rem;
+    }
+
+    .hint { color: var(--muted); font-size: .9rem; }
+    .small { font-size: .84rem; }
+
+    .child-list {
+      display: grid;
+      gap: .5rem;
+      margin-top: 1rem;
+    }
+
+    .child-button {
+      background: var(--soft);
+      color: var(--text);
+      text-align: left;
+      border: 1px solid #c7d2fe;
+      margin: 0;
+    }
+
+    .child-button.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: .7rem;
+    }
+
+    @media (min-width: 720px) {
+      .field-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .output {
+      white-space: pre-wrap;
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 260px;
+    }
+
+    .prompt { background: var(--good); }
   </style>
 </head>
 <body>
@@ -18,12 +168,36 @@
   <main class="grid">
     <section class="card">
       <h2>Children</h2>
+
       <label for="childName">Child's name</label>
       <input id="childName" type="text" placeholder="e.g. Ahaana" />
+
+      <label for="bulkNames">Bulk add names</label>
+      <textarea id="bulkNames" class="small-box" placeholder="Paste one child per line, e.g.&#10;Ahaana&#10;Ben&#10;Charlie"></textarea>
+      <button class="secondary" onclick="bulkAddChildren()">Bulk add children</button>
+
       <label for="gender">Pronouns</label>
-      <select id="gender"><option value="female">she/her</option><option value="male">he/him</option><option value="neutral">they/them</option></select>
-      <div class="button-row"><button onclick="addChild()">Add child</button><button class="secondary" onclick="saveCurrentChild()">Save child</button></div>
-      <div class="button-row"><button class="secondary" onclick="downloadData()">Download save</button><button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save</button></div>
+      <select id="gender">
+        <option value="female">she/her</option>
+        <option value="male">he/him</option>
+        <option value="neutral">they/them</option>
+      </select>
+
+      <div class="button-row">
+        <button onclick="addChild()">Add child</button>
+        <button class="secondary" onclick="saveCurrentChild()">Save child</button>
+      </div>
+
+      <div class="button-row">
+        <button class="secondary" onclick="previousChild()">Previous</button>
+        <button class="secondary" onclick="nextChild()">Next</button>
+      </div>
+
+      <div class="button-row">
+        <button class="secondary" onclick="downloadData()">Download save</button>
+        <button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save</button>
+      </div>
+
       <input id="uploadFile" type="file" accept=".json" hidden onchange="uploadData(event)" />
       <button class="danger" onclick="clearAll()">Clear all</button>
       <p class="hint small">Your work saves in this browser. Use the download/upload buttons to continue later or on another device.</p>
@@ -33,6 +207,7 @@
     <section class="card">
       <h2>Dropdown Comment Bank</h2>
       <p class="hint">These options are based on phrases and patterns from your uploaded report spreadsheet, cleaned up for spelling and consistency.</p>
+
       <label for="year1ReportText">Year 1 report</label>
       <textarea id="year1ReportText" placeholder="Paste last year's report here..."></textarea>
       <p class="hint small">This will be included as background context for ChatGPT, rather than as a dropdown choice.</p>
@@ -48,15 +223,20 @@
 
       <label for="customGeneral">Custom general comment</label>
       <textarea id="customGeneral" placeholder="Add any extra general notes here..."></textarea>
+
       <button onclick="generateComments()">Generate comment list</button>
+      <button class="secondary" onclick="downloadAllPrompts()">Download all prompts</button>
+      <button class="secondary" onclick="copyAllPrompts()">Copy all prompts</button>
     </section>
 
     <section class="card">
       <h2>Output for ChatGPT</h2>
       <p class="hint">Copy this into ChatGPT. It gives the chosen facts first, then the fixed prompt.</p>
+
       <label for="commentOutput">Chosen comments</label>
       <textarea id="commentOutput" class="output" placeholder="Your selected comments will appear here..."></textarea>
       <button class="secondary" onclick="copyText('commentOutput')">Copy comments</button>
+
       <label for="promptOutput">Full ChatGPT prompt</label>
       <textarea id="promptOutput" class="prompt" placeholder="Your full prompt will appear here..."></textarea>
       <button onclick="copyText('promptOutput')">Copy full prompt</button>
@@ -65,13 +245,6 @@
 
   <script>
     const banks = {
-      year1Report: { label: 'Year 1 report / prior context', options: [
-        'has made excellent progress since the start of the year and should be proud of these achievements',
-        'has grown in confidence and is now more willing to have a go',
-        'has settled well into classroom routines and responds positively to praise',
-        'has benefited from clear expectations, encouragement and regular support',
-        'has shown steady improvement and is beginning to take more ownership of learning'
-      ]},
       literacyLevel: { label: 'Literacy level', options: ['below', 'meeting', 'exceeding'] },
       sentenceStructure: { label: 'Literacy - writing - sentence structure', options: [
         'produces writing that is becoming neat and clear',
@@ -80,7 +253,7 @@
         'is attempting to write sentences independently and recognises the structure of a sentence',
         'is improving sentence structure and is beginning to extend ideas with more confidence',
         'can compose short sentences with support and is beginning to add more detail'
-      ]},
+      ] },
       handwriting: { label: 'Literacy - writing - handwriting', options: [
         'has made outstanding progress with handwriting and is joining with correct formation and spacing',
         'has made good progress with handwriting and is using correct formation more consistently',
@@ -88,7 +261,7 @@
         'has made great progress with letter formation and knows how to join writing, although consistency is still developing',
         'is developing neat presentation but needs to check the size and spacing of writing',
         'has worked hard to improve handwriting and should now focus on maintaining this quality in all pieces of work'
-      ]},
+      ] },
       punctuation: { label: 'Literacy - writing - punctuation', options: [
         'understands how to correctly use capital letters and full stops',
         'is beginning to use capital letters and full stops more consistently',
@@ -96,7 +269,7 @@
         'recognises the structure of a sentence but sometimes needs support to add capital letters and full stops',
         'writes letters and numbers of the correct size with appropriate spacing',
         'is developing greater accuracy with punctuation and presentation'
-      ]},
+      ] },
       spelling: { label: 'Literacy - writing - spelling', options: [
         'has made good improvements in spelling through Sounds-Write and is more frequently making the correct choice when spelling words',
         'has made excellent improvements in spelling and often applies the correct spelling choices independently',
@@ -104,7 +277,7 @@
         'is making plausible attempts at spelling familiar words',
         'sometimes finds it difficult to recall familiar spelling patterns and will benefit from continued practice',
         'is beginning to apply Sounds-Write strategies more confidently in independent writing'
-      ]},
+      ] },
       phonics: { label: 'Literacy - reading - phonics', options: [
         'has made excellent progress in Sounds-Write and is reading words with greater complexity',
         'has made good progress in Sounds-Write and is reading increasingly complex words with growing confidence',
@@ -112,7 +285,7 @@
         'is still consolidating the Initial Code but joins in with Extended Code lessons too',
         'recalls phonics sounds confidently and blends with increasing accuracy',
         'is recognising more sounds and beginning to blend words more accurately'
-      ]},
+      ] },
       fluency: { label: 'Literacy - reading - fluency', options: [
         'reads most Year 2 books at a steady pace, pausing for full stops and commas so the story makes sense',
         'blends new words quickly and usually fixes slip-ups straight away, keeping reading steady and easy to follow',
@@ -120,7 +293,7 @@
         'has made excellent progress with reading and is reading words with more confidence and at a higher pace',
         'is still reliant on blending unfamiliar words, which can break the flow of reading',
         'is beginning to use expression and punctuation to show feeling and meaning'
-      ]},
+      ] },
       comprehension: { label: 'Literacy - reading - comprehension', options: [
         'shows a good understanding of what has been read',
         'can explain characters’ feelings and motives and is beginning to use evidence from the text',
@@ -128,7 +301,7 @@
         'sometimes needs support to understand and explain what has been read',
         'is developing comprehension skills through discussion and adult support',
         'can talk about key events and characters in familiar texts'
-      ]},
+      ] },
       literacyNotable: { label: 'Literacy - notable', options: [
         'has made excellent progress and should be proud of these achievements',
         'has shown resilience with reading and writing tasks that can feel challenging',
@@ -136,7 +309,7 @@
         'takes pride in written work and responds well to feedback',
         'is developing confidence when sharing written ideas',
         'would benefit from continuing to check work carefully for spelling, punctuation and presentation'
-      ]},
+      ] },
       numeracyLevel: { label: 'Numeracy', options: ['below', 'meeting', 'exceeding'] },
       mentalStarter: { label: 'Mental starter', options: [
         'tries hard with mental starters but often needs support with the questions',
@@ -145,7 +318,7 @@
         'recalls a range of previously taught concepts and applies them accurately',
         'shows secure understanding of key mathematical ideas during mental starters',
         'completes mental starter tasks efficiently, demonstrating excellent recall of learning'
-      ]},
+      ] },
       number: { label: 'Numeracy - number', options: [
         'struggles to understand place value and often confuses tens and ones',
         'needs support to read, write and compare numbers up to 100',
@@ -153,7 +326,7 @@
         'can confidently read, write and order numbers to 100',
         'understands the value of digits in two-digit numbers and uses this to solve problems',
         'works confidently with numbers beyond 100 and explains place value clearly'
-      ]},
+      ] },
       calculation: { label: 'Numeracy - calculation', options: [
         'finds it difficult to choose and use appropriate strategies for calculations',
         'struggles with written methods and often needs adult guidance to complete tasks',
@@ -161,7 +334,7 @@
         'can add and subtract two-digit numbers using mental and written methods',
         'is developing confidence using arrays and repeated addition for multiplication',
         'uses appropriate strategies for all four operations and explains reasoning'
-      ]},
+      ] },
       numberFacts: { label: 'Numeracy - number facts', options: [
         'struggles to recall basic multiplication facts and often needs support',
         'is beginning to learn the 2, 5 and 10 times tables but lacks fluency',
@@ -169,7 +342,7 @@
         'can recall and use the 2, 5 and 10 times tables with growing accuracy',
         'applies known number facts to solve simple multiplication and division problems',
         'demonstrates confidence and developing fluency with key times tables'
-      ]},
+      ] },
       numeracyGeneral: { label: 'Numeracy - general', options: [
         'works hard in maths and is beginning to show more independence when completing tasks',
         'shows determination even when mathematical tasks are challenging',
@@ -177,7 +350,7 @@
         'sometimes needs adult support to explain thinking and choose efficient methods',
         'has made good progress and is beginning to apply learning across different contexts',
         'shows secure understanding and can explain mathematical thinking clearly'
-      ]},
+      ] },
       attitude: { label: 'General - Attitude to Learning', options: [
         'approaches every learning opportunity with enthusiasm and consistently gives their very best',
         'works hard in lessons and is developing greater perseverance',
@@ -185,7 +358,7 @@
         'sometimes becomes distracted and benefits from support to remain focused',
         'is a highly motivated learner who approaches tasks with enthusiasm and pride',
         'shows a determined attitude and tackles new challenges with resilience'
-      ]},
+      ] },
       enthusiasm: { label: 'General - Enthusiasm for Learning', options: [
         'brings great energy and curiosity to every lesson',
         'shows consistent interest in learning and enjoys discovering new ideas',
@@ -193,7 +366,7 @@
         'can find it difficult to engage in some activities but is beginning to show more interest',
         'enjoys learning and takes pride in progress',
         'approaches school life with a positive and respectful attitude'
-      ]},
+      ] },
       sharing: { label: 'General - Sharing Knowledge and Interests', options: [
         'enthusiastically shares wide knowledge and interests with peers and adults',
         'often contributes own ideas and experiences to class discussions',
@@ -201,7 +374,7 @@
         'is becoming more confident in offering ideas and is keen to contribute',
         'sometimes needs encouragement to speak up and share what they know',
         'is beginning to take more risks when sharing ideas'
-      ]},
+      ] },
       communication: { label: 'General - Communication with Adults', options: [
         'communicates clearly and thoughtfully with adults, showing maturity and respect',
         'speaks confidently and politely with adults around school',
@@ -209,7 +382,7 @@
         'responds well to adults and is developing confidence in conversations',
         'can be reserved when talking to adults but is gradually becoming more assured',
         'listens carefully to adults and responds positively to guidance'
-      ]},
+      ] },
       teamwork: { label: 'General - Teamwork and Cooperation', options: [
         'thrives in group tasks and consistently demonstrates leadership and cooperation',
         'works exceptionally well in a team and encourages others to succeed',
@@ -217,7 +390,7 @@
         'can work with others and is learning to share ideas more effectively',
         'sometimes finds teamwork challenging and is learning to compromise',
         'plays an active part in group activities when supported and encouraged'
-      ]},
+      ] },
       relationships: { label: 'General - Relationships with Peers', options: [
         'builds positive relationships with others and is a role model for inclusive play',
         'has made strong friendships and is a kind and caring friend',
@@ -225,7 +398,7 @@
         'is developing confidence in friendships and enjoys spending time with familiar friends',
         'sometimes needs support with sharing and resolving small disagreements',
         'is a kind and supportive friend who plays cooperatively with others'
-      ]},
+      ] },
       clubs: { label: 'General - Engagement in Extra-Curricular Clubs', options: [
         'has enjoyed taking part in after-school clubs throughout the year',
         'has participated enthusiastically in extra-curricular activities',
@@ -233,7 +406,7 @@
         'has enjoyed joining in with activities beyond the classroom',
         'has shown commitment and enthusiasm when attending clubs',
         'no club comment needed'
-      ]},
+      ] },
       confidence: { label: 'General - Self-Confidence', options: [
         'has blossomed in confidence and now approaches challenges with a positive mindset',
         'is a confident learner who enjoys speaking and sharing ideas',
@@ -241,7 +414,7 @@
         'shows confidence in familiar situations and is building it in new ones',
         'can be hesitant in new situations but is making steady progress',
         'has grown in confidence and independence throughout the year'
-      ]},
+      ] },
       behaviour: { label: 'General - Behaviour and Conduct', options: [
         'consistently demonstrates excellent behaviour and is a positive role model',
         'consistently behaves in a mature manner, showing kindness and respect to everyone',
@@ -249,7 +422,7 @@
         'usually behaves appropriately and is developing greater self-control',
         'occasionally needs reminders to stay focused and make the right choices',
         'is polite, respectful and contributes positively to the classroom'
-      ]},
+      ] },
       furtherBehaviour: { label: 'Further behaviour notes', options: [
         'is full of energy and brings a positive presence to the classroom',
         'has a cheerful attitude and a growing confidence that make them a valued member of the class',
@@ -257,69 +430,370 @@
         'is learning to manage emotions and respond to support when situations feel challenging',
         'has made pleasing progress with independence and classroom routines',
         'no further behaviour note needed'
-      ]}
+      ] }
     };
 
-    const order = ['literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
-    let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
+    const order = [
+      'literacyLevel', 'sentenceStructure', 'handwriting', 'punctuation', 'spelling',
+      'phonics', 'fluency', 'comprehension', 'literacyNotable', 'numeracyLevel',
+      'mentalStarter', 'number', 'calculation', 'numberFacts', 'numeracyGeneral',
+      'attitude', 'enthusiasm', 'sharing', 'communication', 'teamwork',
+      'relationships', 'clubs', 'confidence', 'behaviour', 'furtherBehaviour'
+    ];
+
     const customTextFields = ['year1ReportText', 'customLiteracy', 'customNumeracy', 'customGeneral'];
+    let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
     let selectedIndex = children.length ? 0 : -1;
 
-    function buildFields(){
-      const wrap=document.getElementById('fields'); wrap.innerHTML='';
-      order.forEach(key=>{
-        const item=banks[key]; const div=document.createElement('div');
-        const label=document.createElement('label'); label.htmlFor=key; label.textContent=item.label;
-        const select=document.createElement('select'); select.id=key;
-        // add blank option first
-        const blank=document.createElement('option');
-        blank.value='';
-        blank.textContent='';
+    function buildFields() {
+      const wrap = document.getElementById('fields');
+      wrap.innerHTML = '';
+
+      order.forEach((key) => {
+        const item = banks[key];
+        const div = document.createElement('div');
+        const label = document.createElement('label');
+        label.htmlFor = key;
+        label.textContent = item.label;
+
+        const select = document.createElement('select');
+        select.id = key;
+
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '';
         select.appendChild(blank);
 
-        item.options.forEach(opt=>{const o=document.createElement('option'); o.value=opt; o.textContent=opt.length>76?opt.slice(0,76)+'…':opt; select.appendChild(o)});
-        div.appendChild(label); div.appendChild(select); wrap.appendChild(div);
+        item.options.forEach((opt) => {
+          const option = document.createElement('option');
+          option.value = opt;
+          option.textContent = opt.length > 76 ? `${opt.slice(0, 76)}…` : opt;
+          select.appendChild(option);
+        });
+
+        div.appendChild(label);
+        div.appendChild(select);
+        wrap.appendChild(div);
       });
     }
 
-    function getPronouns(gender){ if(gender==='female') return {pronoun:'she', possessive:'her'}; if(gender==='male') return {pronoun:'he', possessive:'his'}; return {pronoun:'they', possessive:'their'}; }
-    function tokenise(text, child){ const p=getPronouns(child.gender); return text.replaceAll('{name}',child.name).replaceAll('{pronoun}',p.pronoun).replaceAll('{possessive}',p.possessive).replaceAll('their',p.possessive).replaceAll('they',p.pronoun); }
-
-    function addChild(){
-      const name=document.getElementById('childName').value.trim(); if(!name){alert('Please enter a child\'s name.');return;}
-      const child={name,gender:document.getElementById('gender').value,selections:{},custom:{}}; order.forEach(k=>child.selections[k]=document.getElementById(k).value); customTextFields.forEach(k=>child.custom[k]=document.getElementById(k).value.trim());
-      children.push(child); selectedIndex=children.length-1; document.getElementById('childName').value=''; persist(); renderChildren(); loadSelectedChild(); generateComments();
+    function getPronouns(gender) {
+      if (gender === 'female') return { pronoun: 'she', possessive: 'her' };
+      if (gender === 'male') return { pronoun: 'he', possessive: 'his' };
+      return { pronoun: 'they', possessive: 'their' };
     }
 
-    function saveCurrentChild(){ saveCurrentChildWithoutAlert(); alert('Saved.'); }
-    function saveCurrentChildWithoutAlert(){ if(selectedIndex<0)return; const child=children[selectedIndex]; child.name=document.getElementById('childName').value.trim()||child.name; child.gender=document.getElementById('gender').value; if(!child.selections) child.selections={}; if(!child.custom) child.custom={}; order.forEach(k=>child.selections[k]=document.getElementById(k).value); customTextFields.forEach(k=>child.custom[k]=document.getElementById(k).value.trim()); persist(); renderChildren(); }
-    function loadSelectedChild(){ if(selectedIndex<0)return; const child=children[selectedIndex]; document.getElementById('childName').value=child.name; document.getElementById('gender').value=child.gender; order.forEach(k=>{ if(child.selections && child.selections[k]) document.getElementById(k).value=child.selections[k]; }); customTextFields.forEach(k=>{ document.getElementById(k).value = child.custom && child.custom[k] ? child.custom[k] : ''; }); generateComments(); }
-    function selectChild(i){ selectedIndex=i; renderChildren(); loadSelectedChild(); }
-    function renderChildren(){ const list=document.getElementById('childList'); list.innerHTML=''; children.forEach((child,i)=>{const b=document.createElement('button'); b.className='child-button'+(i===selectedIndex?' active':''); b.textContent=child.name; b.onclick=()=>selectChild(i); list.appendChild(b);}); }
+    function tokenise(text, child) {
+      const p = getPronouns(child.gender);
+      return String(text)
+        .replaceAll('{name}', child.name)
+        .replaceAll('{pronoun}', p.pronoun)
+        .replaceAll('{possessive}', p.possessive);
+    }
 
-    function generateComments(){
-      if(selectedIndex<0){ document.getElementById('commentOutput').value='Add or select a child first.'; return; }
-      saveCurrentChildWithoutAlert(); const child=children[selectedIndex]; const p=getPronouns(child.gender);
-      const lines=[]; lines.push(`Child: ${child.name}`); lines.push(`Pronouns: ${p.pronoun}/${p.possessive}`); lines.push('');
-      if(child.custom && child.custom.year1ReportText){ lines.push(`Year 1 report / prior context:
-${child.custom.year1ReportText}`); lines.push(''); }
-      order.forEach(k=>{ const val=child.selections[k]; if(val && !val.toLowerCase().startsWith('no ')) lines.push(`${banks[k].label}: ${tokenise(val, child)}`); });
-      if(child.custom){
-        if(child.custom.customLiteracy) lines.push(`Custom literacy comment: ${child.custom.customLiteracy}`);
-        if(child.custom.customNumeracy) lines.push(`Custom numeracy comment: ${child.custom.customNumeracy}`);
-        if(child.custom.customGeneral) lines.push(`Custom general comment: ${child.custom.customGeneral}`);
+    function splitNames(rawText) {
+      return String(rawText)
+        .split(/\r?\n/)
+        .map((name) => name.trim())
+        .filter(Boolean);
+    }
+
+    function createChildFromCurrentFields(name) {
+      const child = {
+        name,
+        gender: document.getElementById('gender').value,
+        selections: {},
+        custom: {}
+      };
+
+      order.forEach((key) => {
+        child.selections[key] = document.getElementById(key).value;
+      });
+
+      customTextFields.forEach((key) => {
+        child.custom[key] = document.getElementById(key).value.trim();
+      });
+
+      return child;
+    }
+
+    function addChild() {
+      const name = document.getElementById('childName').value.trim();
+      if (!name) {
+        alert('Please enter a child\'s name.');
+        return;
       }
-      const comments=lines.join('\n'); document.getElementById('commentOutput').value=comments;
-      document.getElementById('promptOutput').value = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${child.selections.literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${child.selections.numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
+
+      children.push(createChildFromCurrentFields(name));
+      selectedIndex = children.length - 1;
+      document.getElementById('childName').value = '';
+      persist();
+      renderChildren();
+      loadSelectedChild();
+      generateComments();
     }
 
-    function copyText(id){ const el=document.getElementById(id); el.select(); navigator.clipboard.writeText(el.value); alert('Copied.'); }
-    function downloadData(){ saveCurrentChildWithoutAlert(); const blob=new Blob([JSON.stringify(children,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='year-2-report-comment-builder-save.json'; a.click(); URL.revokeObjectURL(url); }
-    function uploadData(event){ const file=event.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=e=>{ try{ const imported=JSON.parse(e.target.result); if(!Array.isArray(imported)) throw new Error('Invalid'); children=imported; selectedIndex=children.length?0:-1; persist(); renderChildren(); loadSelectedChild(); alert('Save file uploaded.'); }catch(err){ alert('This does not look like a valid save file.'); } }; reader.readAsText(file); }
-    function clearAll(){ if(!confirm('Clear all children and comments from this browser?'))return; children=[]; selectedIndex=-1; localStorage.removeItem('reportBuilderChildren'); document.getElementById('childName').value=''; customTextFields.forEach(k=>document.getElementById(k).value=''); document.getElementById('commentOutput').value=''; document.getElementById('promptOutput').value=''; renderChildren(); }
-    function persist(){ localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
+    function bulkAddChildren() {
+      const raw = document.getElementById('bulkNames').value;
+      const names = splitNames(raw);
 
-    buildFields(); renderChildren(); loadSelectedChild();
+      if (!names.length) {
+        alert('Paste one child name per line first.');
+        return;
+      }
+
+      names.forEach((name) => children.push(createChildFromCurrentFields(name)));
+      selectedIndex = children.length - names.length;
+      document.getElementById('bulkNames').value = '';
+      persist();
+      renderChildren();
+      loadSelectedChild();
+      alert(`${names.length} children added.`);
+    }
+
+    function saveCurrentChild() {
+      saveCurrentChildWithoutAlert();
+      alert('Saved.');
+    }
+
+    function saveCurrentChildWithoutAlert() {
+      if (selectedIndex < 0) return;
+
+      const child = children[selectedIndex];
+      child.name = document.getElementById('childName').value.trim() || child.name;
+      child.gender = document.getElementById('gender').value;
+      if (!child.selections) child.selections = {};
+      if (!child.custom) child.custom = {};
+
+      order.forEach((key) => {
+        child.selections[key] = document.getElementById(key).value;
+      });
+
+      customTextFields.forEach((key) => {
+        child.custom[key] = document.getElementById(key).value.trim();
+      });
+
+      persist();
+      renderChildren();
+    }
+
+    function loadSelectedChild() {
+      if (selectedIndex < 0) return;
+
+      const child = children[selectedIndex];
+      document.getElementById('childName').value = child.name;
+      document.getElementById('gender').value = child.gender;
+
+      order.forEach((key) => {
+        document.getElementById(key).value = child.selections && child.selections[key] ? child.selections[key] : '';
+      });
+
+      customTextFields.forEach((key) => {
+        document.getElementById(key).value = child.custom && child.custom[key] ? child.custom[key] : '';
+      });
+
+      generateComments();
+    }
+
+    function selectChild(index) {
+      selectedIndex = index;
+      renderChildren();
+      loadSelectedChild();
+    }
+
+    function previousChild() {
+      if (!children.length) return;
+      saveCurrentChildWithoutAlert();
+      selectedIndex = selectedIndex <= 0 ? children.length - 1 : selectedIndex - 1;
+      renderChildren();
+      loadSelectedChild();
+    }
+
+    function nextChild() {
+      if (!children.length) return;
+      saveCurrentChildWithoutAlert();
+      selectedIndex = selectedIndex >= children.length - 1 ? 0 : selectedIndex + 1;
+      renderChildren();
+      loadSelectedChild();
+    }
+
+    function renderChildren() {
+      const list = document.getElementById('childList');
+      list.innerHTML = '';
+
+      children.forEach((child, index) => {
+        const button = document.createElement('button');
+        button.className = `child-button${index === selectedIndex ? ' active' : ''}`;
+        button.textContent = child.name;
+        button.onclick = () => selectChild(index);
+        list.appendChild(button);
+      });
+    }
+
+    function buildPromptForChild(child) {
+      const p = getPronouns(child.gender);
+      const lines = [
+        `Child: ${child.name}`,
+        `Pronouns: ${p.pronoun}/${p.possessive}`,
+        ''
+      ];
+
+      if (child.custom && child.custom.year1ReportText) {
+        lines.push(`Year 1 report / prior context:\n${child.custom.year1ReportText}`);
+        lines.push('');
+      }
+
+      order.forEach((key) => {
+        const val = child.selections && child.selections[key];
+        if (val && !val.toLowerCase().startsWith('no ')) {
+          lines.push(`${banks[key].label}: ${tokenise(val, child)}`);
+        }
+      });
+
+      if (child.custom) {
+        if (child.custom.customLiteracy) lines.push(`Custom literacy comment: ${child.custom.customLiteracy}`);
+        if (child.custom.customNumeracy) lines.push(`Custom numeracy comment: ${child.custom.customNumeracy}`);
+        if (child.custom.customGeneral) lines.push(`Custom general comment: ${child.custom.customGeneral}`);
+      }
+
+      const comments = lines.join('\n');
+      const literacyLevel = child.selections && child.selections.literacyLevel ? child.selections.literacyLevel : 'meeting';
+      const numeracyLevel = child.selections && child.selections.numeracyLevel ? child.selections.numeracyLevel : 'meeting';
+
+      const prompt = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
+
+      return { comments, prompt };
+    }
+
+    function generateComments() {
+      if (selectedIndex < 0) {
+        document.getElementById('commentOutput').value = 'Add or select a child first.';
+        document.getElementById('promptOutput').value = '';
+        return;
+      }
+
+      saveCurrentChildWithoutAlert();
+      const built = buildPromptForChild(children[selectedIndex]);
+      document.getElementById('commentOutput').value = built.comments;
+      document.getElementById('promptOutput').value = built.prompt;
+    }
+
+    function buildAllPrompts() {
+      saveCurrentChildWithoutAlert();
+      return children
+        .map((child, index) => `==============================\n${index + 1}. ${child.name}\n==============================\n\n${buildPromptForChild(child).prompt}`)
+        .join('\n\n');
+    }
+
+    function downloadAllPrompts() {
+      if (!children.length) {
+        alert('Add some children first.');
+        return;
+      }
+
+      const blob = new Blob([buildAllPrompts()], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'year-2-report-prompts-all.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function copyAllPrompts() {
+      if (!children.length) {
+        alert('Add some children first.');
+        return;
+      }
+
+      navigator.clipboard.writeText(buildAllPrompts());
+      alert('All prompts copied.');
+    }
+
+    function copyText(id) {
+      const el = document.getElementById(id);
+      el.select();
+      navigator.clipboard.writeText(el.value);
+      alert('Copied.');
+    }
+
+    function downloadData() {
+      saveCurrentChildWithoutAlert();
+      const blob = new Blob([JSON.stringify(children, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'year-2-report-comment-builder-save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) throw new Error('Invalid save file');
+          children = imported;
+          selectedIndex = children.length ? 0 : -1;
+          persist();
+          renderChildren();
+          loadSelectedChild();
+          alert('Save file uploaded.');
+        } catch (err) {
+          alert('This does not look like a valid save file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAll() {
+      if (!confirm('Clear all children and comments from this browser?')) return;
+
+      children = [];
+      selectedIndex = -1;
+      localStorage.removeItem('reportBuilderChildren');
+      document.getElementById('childName').value = '';
+      document.getElementById('bulkNames').value = '';
+      customTextFields.forEach((key) => {
+        document.getElementById(key).value = '';
+      });
+      document.getElementById('commentOutput').value = '';
+      document.getElementById('promptOutput').value = '';
+      renderChildren();
+    }
+
+    function persist() {
+      localStorage.setItem('reportBuilderChildren', JSON.stringify(children));
+    }
+
+    function runTests() {
+      console.assert(JSON.stringify(splitNames('Ahaana\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle LF line breaks');
+      console.assert(JSON.stringify(splitNames('Ahaana\r\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle CRLF line breaks');
+      console.assert(JSON.stringify(splitNames('\n Ahaana \n\n Ben \n')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should trim and remove blanks');
+      console.assert(getPronouns('male').pronoun === 'he', 'male pronoun should be he');
+      console.assert(getPronouns('female').possessive === 'her', 'female possessive should be her');
+      console.assert(getPronouns('neutral').possessive === 'their', 'neutral possessive should be their');
+
+      const testChild = {
+        name: 'Test Child',
+        gender: 'male',
+        selections: { literacyLevel: '', numeracyLevel: '' },
+        custom: { year1ReportText: 'Previous report text.' }
+      };
+      const built = buildPromptForChild(testChild);
+      console.assert(built.prompt.includes('Test Child is meeting age-related expectation in literacy.'), 'blank literacy level should default to meeting');
+      console.assert(built.prompt.includes('Test Child is meeting age-related expectation in numeracy.'), 'blank numeracy level should default to meeting');
+      console.assert(built.comments.includes('Previous report text.'), 'Year 1 report should appear in comments');
+    }
+
+    buildFields();
+    renderChildren();
+    loadSelectedChild();
+    runTests();
   </script>
 </body>
 </html>
