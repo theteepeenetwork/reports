@@ -5,187 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Year 2 Report Comment Builder</title>
   <style>
-    :root {
-      --bg: #f6f7fb;
-      --card: #ffffff;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --accent: #2563eb;
-      --accent-dark: #1d4ed8;
-      --border: #d1d5db;
-      --soft: #eef2ff;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-
-    header {
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
-      color: white;
-      padding: 2rem 1rem;
-      text-align: center;
-    }
-
-    header h1 {
-      margin: 0 0 0.5rem;
-      font-size: 2rem;
-    }
-
-    header p {
-      margin: 0;
-      opacity: 0.9;
-    }
-
-    main {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1rem;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-
-    @media (min-width: 900px) {
-      .grid {
-        grid-template-columns: 420px 1fr;
-      }
-    }
-
-    .card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 1rem;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-    }
-
-    h2, h3 {
-      margin-top: 0;
-    }
-
-    label {
-      display: block;
-      font-weight: 700;
-      margin: 0.75rem 0 0.25rem;
-    }
-
-    input, select, textarea, button {
-      width: 100%;
-      font: inherit;
-    }
-
-    input, select, textarea {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.65rem;
-      background: white;
-    }
-
-    textarea {
-      min-height: 190px;
-      resize: vertical;
-    }
-
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 0.75rem 1rem;
-      background: var(--accent);
-      color: white;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 0.6rem;
-    }
-
-    button:hover {
-      background: var(--accent-dark);
-    }
-
-    button.secondary {
-      background: #4b5563;
-    }
-
-    button.secondary:hover {
-      background: #374151;
-    }
-
-    button.danger {
-      background: #dc2626;
-    }
-
-    button.danger:hover {
-      background: #b91c1c;
-    }
-
-    .button-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.5rem;
-    }
-
-    .full-row {
-      grid-column: 1 / -1;
-    }
-
-    .child-list {
-      display: grid;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .child-button {
-      background: var(--soft);
-      color: var(--text);
-      text-align: left;
-      border: 1px solid #c7d2fe;
-      margin: 0;
-    }
-
-    .child-button.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    .report-output {
-      white-space: pre-wrap;
-      background: #f9fafb;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1rem;
-      min-height: 280px;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .small {
-      font-size: 0.85rem;
-    }
-
-    .section-title {
-      margin-top: 1.25rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
+    :root{--bg:#f6f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--accent:#2563eb;--accent-dark:#1d4ed8;--border:#d1d5db;--soft:#eef2ff;--good:#ecfdf5}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);line-height:1.45} header{background:linear-gradient(135deg,#2563eb,#7c3aed);color:white;padding:1.8rem 1rem;text-align:center} header h1{margin:0 0 .35rem;font-size:2rem} header p{margin:0;opacity:.95} main{max-width:1280px;margin:0 auto;padding:1rem}.grid{display:grid;grid-template-columns:1fr;gap:1rem}@media(min-width:1000px){.grid{grid-template-columns:360px 1fr 420px}}.card{background:var(--card);border-radius:16px;padding:1rem;box-shadow:0 6px 20px rgba(0,0,0,.06)}h2,h3{margin-top:0}.section-title{margin-top:1.2rem;padding-top:1rem;border-top:1px solid var(--border)}label{display:block;font-weight:700;margin:.7rem 0 .25rem}input,select,textarea,button{width:100%;font:inherit}input,select,textarea{border:1px solid var(--border);border-radius:10px;padding:.6rem;background:white}textarea{min-height:250px;resize:vertical}button{border:none;border-radius:10px;padding:.7rem 1rem;background:var(--accent);color:white;font-weight:700;cursor:pointer;margin-top:.55rem}button:hover{background:var(--accent-dark)}button.secondary{background:#4b5563}button.secondary:hover{background:#374151}button.danger{background:#dc2626}.button-row{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}.hint{color:var(--muted);font-size:.9rem}.small{font-size:.84rem}.child-list{display:grid;gap:.5rem;margin-top:1rem}.child-button{background:var(--soft);color:var(--text);text-align:left;border:1px solid #c7d2fe;margin:0}.child-button.active{background:var(--accent);color:white}.field-grid{display:grid;grid-template-columns:1fr;gap:.7rem}@media(min-width:720px){.field-grid{grid-template-columns:1fr 1fr}}.output{white-space:pre-wrap;background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:1rem;min-height:260px}.prompt{background:var(--good)}.pill{display:inline-block;background:#e0e7ff;border-radius:999px;padding:.15rem .55rem;margin:.1rem;font-size:.8rem;color:#3730a3}
   </style>
 </head>
 <body>
   <header>
     <h1>Year 2 Report Comment Builder</h1>
-    <p>Add children, choose comments from drop-downs, then export and re-upload your work later.</p>
+    <p>Add a child, choose comments in your own report-writing style, then copy the comment list into ChatGPT.</p>
   </header>
 
   <main class="grid">
@@ -193,315 +20,278 @@
       <h2>Children</h2>
       <label for="childName">Child's name</label>
       <input id="childName" type="text" placeholder="e.g. Ahaana" />
-
       <label for="gender">Pronouns</label>
-      <select id="gender">
-        <option value="female">she/her</option>
-        <option value="male">he/him</option>
-        <option value="neutral">they/them</option>
-      </select>
-
-      <div class="button-row">
-        <button onclick="addChild()">Add child</button>
-        <button class="secondary" onclick="saveCurrentChild()">Save child</button>
-      </div>
-
-      <div class="button-row">
-        <button class="secondary" onclick="downloadData()">Download save file</button>
-        <button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save file</button>
-      </div>
-
+      <select id="gender"><option value="female">she/her</option><option value="male">he/him</option><option value="neutral">they/them</option></select>
+      <div class="button-row"><button onclick="addChild()">Add child</button><button class="secondary" onclick="saveCurrentChild()">Save child</button></div>
+      <div class="button-row"><button class="secondary" onclick="downloadData()">Download save</button><button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save</button></div>
       <input id="uploadFile" type="file" accept=".json" hidden onchange="uploadData(event)" />
       <button class="danger" onclick="clearAll()">Clear all</button>
-      <p class="hint small">This stores data in your browser and can also export a JSON save file.</p>
-
+      <p class="hint small">Your work saves in this browser. Use the download/upload buttons to continue later or on another device.</p>
       <div id="childList" class="child-list"></div>
     </section>
 
     <section class="card">
-      <h2>Report Builder</h2>
-      <p class="hint">Choose comments for the selected child. You can edit the generated report before copying it.</p>
+      <h2>Dropdown Comment Bank</h2>
+      <p class="hint">These options are based on phrases and patterns from your uploaded report spreadsheet, cleaned up for spelling and consistency.</p>
+      <div class="field-grid" id="fields"></div>
+      <button onclick="generateComments()">Generate comment list</button>
+    </section>
 
-      <h3 class="section-title">Literacy & Reading</h3>
-      <label for="literacyLevel">Literacy level</label>
-      <select id="literacyLevel">
-        <option value="below">below</option>
-        <option value="meeting" selected>meeting</option>
-        <option value="exceeding">exceeding</option>
-      </select>
-
-      <label for="readingComment">Reading comment</label>
-      <select id="readingComment">
-        <option value="has made pleasing progress in reading and is becoming more confident when reading familiar texts">has made pleasing progress in reading</option>
-        <option value="is becoming a more fluent reader and is beginning to read with greater accuracy and expression">becoming more fluent</option>
-        <option value="shows a good understanding of what has been read and can answer questions with increasing detail">good comprehension</option>
-        <option value="is developing confidence with decoding and will benefit from continued regular reading practice">developing decoding confidence</option>
-      </select>
-
-      <label for="writingComment">Writing comment</label>
-      <select id="writingComment">
-        <option value="produces writing that is becoming clearer and more carefully presented">clearer writing</option>
-        <option value="forms letters carefully and is developing neat, consistent handwriting">neat handwriting</option>
-        <option value="is beginning to use capital letters, full stops and conjunctions more accurately">punctuation and conjunctions</option>
-        <option value="uses interesting vocabulary and is beginning to extend ideas in writing">interesting vocabulary</option>
-      </select>
-
-      <label for="literacyNextStep">Literacy next step</label>
-      <select id="literacyNextStep">
-        <option value="With continued practice, {pronoun} will further develop {possessive} independence and confidence when writing longer pieces.">writing longer pieces</option>
-        <option value="With continued practice, {pronoun} will improve {possessive} fluency and expression when reading.">reading fluency</option>
-        <option value="With continued practice, {pronoun} will develop greater accuracy when applying spelling and punctuation independently.">spelling and punctuation</option>
-      </select>
-
-      <h3 class="section-title">Numeracy</h3>
-      <label for="numeracyLevel">Numeracy level</label>
-      <select id="numeracyLevel">
-        <option value="below">below</option>
-        <option value="meeting" selected>meeting</option>
-        <option value="exceeding">exceeding</option>
-      </select>
-
-      <label for="mathsComment">Maths comment</label>
-      <select id="mathsComment">
-        <option value="has developed a secure understanding of key number concepts and is able to apply this to calculations">secure number understanding</option>
-        <option value="is becoming more confident when solving calculations and choosing appropriate methods">calculation confidence</option>
-        <option value="is beginning to explain mathematical thinking and reasoning more clearly">reasoning clearly</option>
-        <option value="has made good progress with number facts and is developing greater fluency">number facts and fluency</option>
-      </select>
-
-      <label for="mathsNextStep">Numeracy next step</label>
-      <select id="mathsNextStep">
-        <option value="With continued practice, {pronoun} will strengthen {possessive} recall speed and confidence when solving problems.">recall speed</option>
-        <option value="With continued practice, {pronoun} will develop greater accuracy when checking answers carefully.">checking answers</option>
-        <option value="With continued practice, {pronoun} will become more confident explaining {possessive} reasoning in detail.">explaining reasoning</option>
-      </select>
-
-      <h3 class="section-title">General Comment</h3>
-      <label for="generalComment">General comment</label>
-      <select id="generalComment">
-        <option value="has approached learning with a positive attitude and should be proud of the progress made this year">positive attitude</option>
-        <option value="is a kind and considerate member of the class who works well with others">kind and considerate</option>
-        <option value="shows enthusiasm for learning and enjoys sharing ideas with others">enthusiastic learner</option>
-        <option value="has grown in confidence and is beginning to take more risks in learning">growing confidence</option>
-        <option value="is polite, respectful and has built positive relationships with peers">polite and respectful</option>
-      </select>
-
-      <label for="endingComment">Ending sentence</label>
-      <select id="endingComment">
-        <option value="We are confident {pronoun} will continue to make good progress as {pronoun} moves into Year 3.">continue to make good progress</option>
-        <option value="With continued effort, {pronoun} will thrive as {pronoun} moves into Year 3.">will thrive</option>
-        <option value="We look forward to seeing {name} continue to grow in confidence and ability in Year 3.">grow in confidence</option>
-      </select>
-
-      <div class="button-row full-row">
-        <button onclick="generateReport()">Generate report</button>
-        <button class="secondary" onclick="copyReport()">Copy report</button>
-      </div>
-
-      <label for="reportText">Generated report</label>
-      <textarea id="reportText" placeholder="Your report will appear here..."></textarea>
+    <section class="card">
+      <h2>Output for ChatGPT</h2>
+      <p class="hint">Copy this into ChatGPT. It gives the chosen facts first, then the fixed prompt.</p>
+      <label for="commentOutput">Chosen comments</label>
+      <textarea id="commentOutput" class="output" placeholder="Your selected comments will appear here..."></textarea>
+      <button class="secondary" onclick="copyText('commentOutput')">Copy comments</button>
+      <label for="promptOutput">Full ChatGPT prompt</label>
+      <textarea id="promptOutput" class="prompt" placeholder="Your full prompt will appear here..."></textarea>
+      <button onclick="copyText('promptOutput')">Copy full prompt</button>
     </section>
   </main>
 
   <script>
-    let children = JSON.parse(localStorage.getItem('reportChildren') || '[]');
+    const banks = {
+      year1Report: { label: 'Year 1 report / prior context', options: [
+        'has made excellent progress since the start of the year and should be proud of these achievements',
+        'has grown in confidence and is now more willing to have a go',
+        'has settled well into classroom routines and responds positively to praise',
+        'has benefited from clear expectations, encouragement and regular support',
+        'has shown steady improvement and is beginning to take more ownership of learning'
+      ]},
+      literacyLevel: { label: 'Literacy level', options: ['below', 'meeting', 'exceeding'] },
+      sentenceStructure: { label: 'Literacy - writing - sentence structure', options: [
+        'produces writing that is becoming neat and clear',
+        'can join parts of sentences using conjunctions such as and, but, or and because',
+        'uses interesting vocabulary to make writing more engaging and exciting',
+        'is attempting to write sentences independently and recognises the structure of a sentence',
+        'is improving sentence structure and is beginning to extend ideas with more confidence',
+        'can compose short sentences with support and is beginning to add more detail'
+      ]},
+      handwriting: { label: 'Literacy - writing - handwriting', options: [
+        'has made outstanding progress with handwriting and is joining with correct formation and spacing',
+        'has made good progress with handwriting and is using correct formation more consistently',
+        'forms letters carefully and should be proud of how far handwriting has come',
+        'has made great progress with letter formation and knows how to join writing, although consistency is still developing',
+        'is developing neat presentation but needs to check the size and spacing of writing',
+        'has worked hard to improve handwriting and should now focus on maintaining this quality in all pieces of work'
+      ]},
+      punctuation: { label: 'Literacy - writing - punctuation', options: [
+        'understands how to correctly use capital letters and full stops',
+        'is beginning to use capital letters and full stops more consistently',
+        'can use punctuation accurately when reminded to check work carefully',
+        'recognises the structure of a sentence but sometimes needs support to add capital letters and full stops',
+        'writes letters and numbers of the correct size with appropriate spacing',
+        'is developing greater accuracy with punctuation and presentation'
+      ]},
+      spelling: { label: 'Literacy - writing - spelling', options: [
+        'has made good improvements in spelling through Sounds-Write and is more frequently making the correct choice when spelling words',
+        'has made excellent improvements in spelling and often applies the correct spelling choices independently',
+        'finds spelling challenging but has made encouraging progress this year',
+        'is making plausible attempts at spelling familiar words',
+        'sometimes finds it difficult to recall familiar spelling patterns and will benefit from continued practice',
+        'is beginning to apply Sounds-Write strategies more confidently in independent writing'
+      ]},
+      phonics: { label: 'Literacy - reading - phonics', options: [
+        'has made excellent progress in Sounds-Write and is reading words with greater complexity',
+        'has made good progress in Sounds-Write and is reading increasingly complex words with growing confidence',
+        'has made encouraging progress in Sounds-Write and is using sounds with growing confidence to decode words',
+        'is still consolidating the Initial Code but joins in with Extended Code lessons too',
+        'recalls phonics sounds confidently and blends with increasing accuracy',
+        'is recognising more sounds and beginning to blend words more accurately'
+      ]},
+      fluency: { label: 'Literacy - reading - fluency', options: [
+        'reads most Year 2 books at a steady pace, pausing for full stops and commas so the story makes sense',
+        'blends new words quickly and usually fixes slip-ups straight away, keeping reading steady and easy to follow',
+        'reads with fluency and confidence, recognising punctuation and adding intonation',
+        'has made excellent progress with reading and is reading words with more confidence and at a higher pace',
+        'is still reliant on blending unfamiliar words, which can break the flow of reading',
+        'is beginning to use expression and punctuation to show feeling and meaning'
+      ]},
+      comprehension: { label: 'Literacy - reading - comprehension', options: [
+        'shows a good understanding of what has been read',
+        'can explain characters’ feelings and motives and is beginning to use evidence from the text',
+        'answers questions about texts with increasing confidence and detail',
+        'sometimes needs support to understand and explain what has been read',
+        'is developing comprehension skills through discussion and adult support',
+        'can talk about key events and characters in familiar texts'
+      ]},
+      literacyNotable: { label: 'Literacy - notable', options: [
+        'has made excellent progress and should be proud of these achievements',
+        'has shown resilience with reading and writing tasks that can feel challenging',
+        'is becoming more independent and willing to have a go in literacy',
+        'takes pride in written work and responds well to feedback',
+        'is developing confidence when sharing written ideas',
+        'would benefit from continuing to check work carefully for spelling, punctuation and presentation'
+      ]},
+      numeracyLevel: { label: 'Numeracy', options: ['below', 'meeting', 'exceeding'] },
+      mentalStarter: { label: 'Mental starter', options: [
+        'tries hard with mental starters but often needs support with the questions',
+        'is beginning to recall previously taught concepts but lacks fluency and confidence',
+        'can complete morning revision tasks with growing confidence and independence',
+        'recalls a range of previously taught concepts and applies them accurately',
+        'shows secure understanding of key mathematical ideas during mental starters',
+        'completes mental starter tasks efficiently, demonstrating excellent recall of learning'
+      ]},
+      number: { label: 'Numeracy - number', options: [
+        'struggles to understand place value and often confuses tens and ones',
+        'needs support to read, write and compare numbers up to 100',
+        'is beginning to count in 2s, 5s and 10s but requires frequent reminders',
+        'can confidently read, write and order numbers to 100',
+        'understands the value of digits in two-digit numbers and uses this to solve problems',
+        'works confidently with numbers beyond 100 and explains place value clearly'
+      ]},
+      calculation: { label: 'Numeracy - calculation', options: [
+        'finds it difficult to choose and use appropriate strategies for calculations',
+        'struggles with written methods and often needs adult guidance to complete tasks',
+        'has an emerging understanding of the four operations but lacks fluency',
+        'can add and subtract two-digit numbers using mental and written methods',
+        'is developing confidence using arrays and repeated addition for multiplication',
+        'uses appropriate strategies for all four operations and explains reasoning'
+      ]},
+      numberFacts: { label: 'Numeracy - number facts', options: [
+        'struggles to recall basic multiplication facts and often needs support',
+        'is beginning to learn the 2, 5 and 10 times tables but lacks fluency',
+        'relies on concrete resources or counting to work out multiplication facts',
+        'can recall and use the 2, 5 and 10 times tables with growing accuracy',
+        'applies known number facts to solve simple multiplication and division problems',
+        'demonstrates confidence and developing fluency with key times tables'
+      ]},
+      numeracyGeneral: { label: 'Numeracy - general', options: [
+        'works hard in maths and is beginning to show more independence when completing tasks',
+        'shows determination even when mathematical tasks are challenging',
+        'is developing confidence with number, calculation and reasoning',
+        'sometimes needs adult support to explain thinking and choose efficient methods',
+        'has made good progress and is beginning to apply learning across different contexts',
+        'shows secure understanding and can explain mathematical thinking clearly'
+      ]},
+      attitude: { label: 'General - Attitude to Learning', options: [
+        'approaches every learning opportunity with enthusiasm and consistently gives their very best',
+        'works hard in lessons and is developing greater perseverance',
+        'tries their best with encouragement and is beginning to take more ownership of learning',
+        'sometimes becomes distracted and benefits from support to remain focused',
+        'is a highly motivated learner who approaches tasks with enthusiasm and pride',
+        'shows a determined attitude and tackles new challenges with resilience'
+      ]},
+      enthusiasm: { label: 'General - Enthusiasm for Learning', options: [
+        'brings great energy and curiosity to every lesson',
+        'shows consistent interest in learning and enjoys discovering new ideas',
+        'is usually positive about learning but sometimes needs gentle encouragement',
+        'can find it difficult to engage in some activities but is beginning to show more interest',
+        'enjoys learning and takes pride in progress',
+        'approaches school life with a positive and respectful attitude'
+      ]},
+      sharing: { label: 'General - Sharing Knowledge and Interests', options: [
+        'enthusiastically shares wide knowledge and interests with peers and adults',
+        'often contributes own ideas and experiences to class discussions',
+        'enjoys sharing interesting facts and knowledge with the class',
+        'is becoming more confident in offering ideas and is keen to contribute',
+        'sometimes needs encouragement to speak up and share what they know',
+        'is beginning to take more risks when sharing ideas'
+      ]},
+      communication: { label: 'General - Communication with Adults', options: [
+        'communicates clearly and thoughtfully with adults, showing maturity and respect',
+        'speaks confidently and politely with adults around school',
+        'enjoys chatting with adults and often shares stories and ideas',
+        'responds well to adults and is developing confidence in conversations',
+        'can be reserved when talking to adults but is gradually becoming more assured',
+        'listens carefully to adults and responds positively to guidance'
+      ]},
+      teamwork: { label: 'General - Teamwork and Cooperation', options: [
+        'thrives in group tasks and consistently demonstrates leadership and cooperation',
+        'works exceptionally well in a team and encourages others to succeed',
+        'is a supportive team member who listens carefully and takes turns',
+        'can work with others and is learning to share ideas more effectively',
+        'sometimes finds teamwork challenging and is learning to compromise',
+        'plays an active part in group activities when supported and encouraged'
+      ]},
+      relationships: { label: 'General - Relationships with Peers', options: [
+        'builds positive relationships with others and is a role model for inclusive play',
+        'has made strong friendships and is a kind and caring friend',
+        'enjoys socialising and plays cooperatively with a wide range of peers',
+        'is developing confidence in friendships and enjoys spending time with familiar friends',
+        'sometimes needs support with sharing and resolving small disagreements',
+        'is a kind and supportive friend who plays cooperatively with others'
+      ]},
+      clubs: { label: 'General - Engagement in Extra-Curricular Clubs', options: [
+        'has enjoyed taking part in after-school clubs throughout the year',
+        'has participated enthusiastically in extra-curricular activities',
+        'has grown in confidence through taking part in clubs and wider school opportunities',
+        'has enjoyed joining in with activities beyond the classroom',
+        'has shown commitment and enthusiasm when attending clubs',
+        'no club comment needed'
+      ]},
+      confidence: { label: 'General - Self-Confidence', options: [
+        'has blossomed in confidence and now approaches challenges with a positive mindset',
+        'is a confident learner who enjoys speaking and sharing ideas',
+        'is becoming more self-assured and is beginning to take more risks in learning',
+        'shows confidence in familiar situations and is building it in new ones',
+        'can be hesitant in new situations but is making steady progress',
+        'has grown in confidence and independence throughout the year'
+      ]},
+      behaviour: { label: 'General - Behaviour and Conduct', options: [
+        'consistently demonstrates excellent behaviour and is a positive role model',
+        'consistently behaves in a mature manner, showing kindness and respect to everyone',
+        'follows class rules well and responds positively to reminders when needed',
+        'usually behaves appropriately and is developing greater self-control',
+        'occasionally needs reminders to stay focused and make the right choices',
+        'is polite, respectful and contributes positively to the classroom'
+      ]},
+      furtherBehaviour: { label: 'Further behaviour notes', options: [
+        'is full of energy and brings a positive presence to the classroom',
+        'has a cheerful attitude and a growing confidence that make them a valued member of the class',
+        'benefits from clear routines, calm reminders and positive reinforcement',
+        'is learning to manage emotions and respond to support when situations feel challenging',
+        'has made pleasing progress with independence and classroom routines',
+        'no further behaviour note needed'
+      ]}
+    };
+
+    const order = ['year1Report','literacyLevel','sentenceStructure','handwriting','punctuation','spelling','phonics','fluency','comprehension','literacyNotable','numeracyLevel','mentalStarter','number','calculation','numberFacts','numeracyGeneral','attitude','enthusiasm','sharing','communication','teamwork','relationships','clubs','confidence','behaviour','furtherBehaviour'];
+    let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
     let selectedIndex = children.length ? 0 : -1;
 
-    const fields = [
-      'gender',
-      'literacyLevel',
-      'readingComment',
-      'writingComment',
-      'literacyNextStep',
-      'numeracyLevel',
-      'mathsComment',
-      'mathsNextStep',
-      'generalComment',
-      'endingComment',
-      'reportText'
-    ];
-
-    function getPronouns(gender) {
-      if (gender === 'female') return { pronoun: 'she', possessive: 'her' };
-      if (gender === 'male') return { pronoun: 'he', possessive: 'his' };
-      return { pronoun: 'they', possessive: 'their' };
-    }
-
-    function applyTokens(text, child) {
-      const { pronoun, possessive } = getPronouns(child.gender);
-      return text
-        .replaceAll('{name}', child.name)
-        .replaceAll('{pronoun}', pronoun)
-        .replaceAll('{possessive}', possessive);
-    }
-
-    function addChild() {
-      const nameInput = document.getElementById('childName');
-      const name = nameInput.value.trim();
-      if (!name) {
-        alert('Please enter a child\'s name.');
-        return;
-      }
-
-      const child = {
-        name,
-        gender: document.getElementById('gender').value,
-        literacyLevel: 'meeting',
-        readingComment: document.getElementById('readingComment').value,
-        writingComment: document.getElementById('writingComment').value,
-        literacyNextStep: document.getElementById('literacyNextStep').value,
-        numeracyLevel: 'meeting',
-        mathsComment: document.getElementById('mathsComment').value,
-        mathsNextStep: document.getElementById('mathsNextStep').value,
-        generalComment: document.getElementById('generalComment').value,
-        endingComment: document.getElementById('endingComment').value,
-        reportText: ''
-      };
-
-      children.push(child);
-      selectedIndex = children.length - 1;
-      nameInput.value = '';
-      persist();
-      renderChildren();
-      loadSelectedChild();
-    }
-
-    function saveCurrentChild() {
-      if (selectedIndex < 0) {
-        alert('Please add or select a child first.');
-        return;
-      }
-
-      const child = children[selectedIndex];
-      fields.forEach(field => {
-        child[field] = document.getElementById(field).value;
-      });
-
-      persist();
-      renderChildren();
-      alert('Saved.');
-    }
-
-    function loadSelectedChild() {
-      if (selectedIndex < 0) return;
-      const child = children[selectedIndex];
-      document.getElementById('childName').value = child.name;
-      fields.forEach(field => {
-        if (child[field] !== undefined) {
-          document.getElementById(field).value = child[field];
-        }
+    function buildFields(){
+      const wrap=document.getElementById('fields'); wrap.innerHTML='';
+      order.forEach(key=>{
+        const item=banks[key]; const div=document.createElement('div');
+        const label=document.createElement('label'); label.htmlFor=key; label.textContent=item.label;
+        const select=document.createElement('select'); select.id=key;
+        item.options.forEach(opt=>{const o=document.createElement('option'); o.value=opt; o.textContent=opt.length>76?opt.slice(0,76)+'…':opt; select.appendChild(o)});
+        div.appendChild(label); div.appendChild(select); wrap.appendChild(div);
       });
     }
 
-    function selectChild(index) {
-      selectedIndex = index;
-      renderChildren();
-      loadSelectedChild();
+    function getPronouns(gender){ if(gender==='female') return {pronoun:'she', possessive:'her'}; if(gender==='male') return {pronoun:'he', possessive:'his'}; return {pronoun:'they', possessive:'their'}; }
+    function tokenise(text, child){ const p=getPronouns(child.gender); return text.replaceAll('{name}',child.name).replaceAll('{pronoun}',p.pronoun).replaceAll('{possessive}',p.possessive).replaceAll('their',p.possessive).replaceAll('they',p.pronoun); }
+
+    function addChild(){
+      const name=document.getElementById('childName').value.trim(); if(!name){alert('Please enter a child\'s name.');return;}
+      const child={name,gender:document.getElementById('gender').value,selections:{}}; order.forEach(k=>child.selections[k]=document.getElementById(k).value);
+      children.push(child); selectedIndex=children.length-1; document.getElementById('childName').value=''; persist(); renderChildren(); loadSelectedChild(); generateComments();
     }
 
-    function renderChildren() {
-      const list = document.getElementById('childList');
-      list.innerHTML = '';
+    function saveCurrentChild(){ saveCurrentChildWithoutAlert(); alert('Saved.'); }
+    function saveCurrentChildWithoutAlert(){ if(selectedIndex<0)return; const child=children[selectedIndex]; child.name=document.getElementById('childName').value.trim()||child.name; child.gender=document.getElementById('gender').value; order.forEach(k=>child.selections[k]=document.getElementById(k).value); persist(); renderChildren(); }
+    function loadSelectedChild(){ if(selectedIndex<0)return; const child=children[selectedIndex]; document.getElementById('childName').value=child.name; document.getElementById('gender').value=child.gender; order.forEach(k=>{ if(child.selections && child.selections[k]) document.getElementById(k).value=child.selections[k]; }); generateComments(); }
+    function selectChild(i){ selectedIndex=i; renderChildren(); loadSelectedChild(); }
+    function renderChildren(){ const list=document.getElementById('childList'); list.innerHTML=''; children.forEach((child,i)=>{const b=document.createElement('button'); b.className='child-button'+(i===selectedIndex?' active':''); b.textContent=child.name; b.onclick=()=>selectChild(i); list.appendChild(b);}); }
 
-      children.forEach((child, index) => {
-        const button = document.createElement('button');
-        button.className = 'child-button' + (index === selectedIndex ? ' active' : '');
-        button.textContent = child.name;
-        button.onclick = () => selectChild(index);
-        list.appendChild(button);
-      });
+    function generateComments(){
+      if(selectedIndex<0){ document.getElementById('commentOutput').value='Add or select a child first.'; return; }
+      saveCurrentChildWithoutAlert(); const child=children[selectedIndex]; const p=getPronouns(child.gender);
+      const lines=[]; lines.push(`Child: ${child.name}`); lines.push(`Pronouns: ${p.pronoun}/${p.possessive}`); lines.push('');
+      order.forEach(k=>{ const val=child.selections[k]; if(val && !val.toLowerCase().startsWith('no ')) lines.push(`${banks[k].label}: ${tokenise(val, child)}`); });
+      const comments=lines.join('\n'); document.getElementById('commentOutput').value=comments;
+      document.getElementById('promptOutput').value = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${child.selections.literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${child.selections.numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
     }
 
-    function generateReport() {
-      if (selectedIndex < 0) {
-        alert('Please add or select a child first.');
-        return;
-      }
+    function copyText(id){ const el=document.getElementById(id); el.select(); navigator.clipboard.writeText(el.value); alert('Copied.'); }
+    function downloadData(){ saveCurrentChildWithoutAlert(); const blob=new Blob([JSON.stringify(children,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='year-2-report-comment-builder-save.json'; a.click(); URL.revokeObjectURL(url); }
+    function uploadData(event){ const file=event.target.files[0]; if(!file)return; const reader=new FileReader(); reader.onload=e=>{ try{ const imported=JSON.parse(e.target.result); if(!Array.isArray(imported)) throw new Error('Invalid'); children=imported; selectedIndex=children.length?0:-1; persist(); renderChildren(); loadSelectedChild(); alert('Save file uploaded.'); }catch(err){ alert('This does not look like a valid save file.'); } }; reader.readAsText(file); }
+    function clearAll(){ if(!confirm('Clear all children and comments from this browser?'))return; children=[]; selectedIndex=-1; localStorage.removeItem('reportBuilderChildren'); document.getElementById('childName').value=''; document.getElementById('commentOutput').value=''; document.getElementById('promptOutput').value=''; renderChildren(); }
+    function persist(){ localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
 
-      saveCurrentChildWithoutAlert();
-      const child = children[selectedIndex];
-      const { pronoun, possessive } = getPronouns(child.gender);
-
-      const literacy = `${child.name} is ${child.literacyLevel} age-related expectation in literacy. ${child.name} ${child.readingComment}. ${child.name} ${child.writingComment}. ${applyTokens(child.literacyNextStep, child)}`;
-
-      const numeracy = `${child.name} is ${child.numeracyLevel} age-related expectation in numeracy. ${child.name} ${child.mathsComment}. ${applyTokens(child.mathsNextStep, child)}`;
-
-      const general = `${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2. ${child.name} ${child.generalComment}. ${applyTokens(child.endingComment, child)}`;
-
-      const report = `${literacy}\n\n${numeracy}\n\n${general}`;
-      document.getElementById('reportText').value = report;
-      child.reportText = report;
-      persist();
-    }
-
-    function saveCurrentChildWithoutAlert() {
-      if (selectedIndex < 0) return;
-      const child = children[selectedIndex];
-      fields.forEach(field => {
-        child[field] = document.getElementById(field).value;
-      });
-      persist();
-    }
-
-    function copyReport() {
-      const report = document.getElementById('reportText').value;
-      if (!report) {
-        alert('Generate or write a report first.');
-        return;
-      }
-      navigator.clipboard.writeText(report);
-      alert('Report copied.');
-    }
-
-    function downloadData() {
-      saveCurrentChildWithoutAlert();
-      const blob = new Blob([JSON.stringify(children, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'year-2-report-builder-save.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function uploadData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (!Array.isArray(imported)) throw new Error('Invalid file');
-          children = imported;
-          selectedIndex = children.length ? 0 : -1;
-          persist();
-          renderChildren();
-          loadSelectedChild();
-          alert('Save file uploaded.');
-        } catch (error) {
-          alert('This does not look like a valid save file.');
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function clearAll() {
-      if (!confirm('Clear all children and reports from this browser?')) return;
-      children = [];
-      selectedIndex = -1;
-      localStorage.removeItem('reportChildren');
-      document.getElementById('childName').value = '';
-      document.getElementById('reportText').value = '';
-      renderChildren();
-    }
-
-    function persist() {
-      localStorage.setItem('reportChildren', JSON.stringify(children));
-    }
-
-    renderChildren();
-    loadSelectedChild();
+    buildFields(); renderChildren(); loadSelectedChild();
   </script>
 </body>
 </html>
