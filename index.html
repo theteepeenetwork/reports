@@ -157,6 +157,77 @@
     }
 
     .prompt { background: var(--good); }
+
+    .board-card { grid-column: 1 / -1; }
+
+    .board {
+      display: flex;
+      gap: .75rem;
+      overflow-x: auto;
+      padding-bottom: .5rem;
+      margin-top: 1rem;
+      align-items: flex-start;
+    }
+
+    .board-col {
+      flex: 0 0 230px;
+      background: #f9fafb;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: .6rem;
+      min-height: 110px;
+      transition: background .12s, border-color .12s;
+    }
+
+    .board-col.col-over {
+      border-color: var(--accent);
+      background: var(--soft);
+    }
+
+    .board-col-head {
+      font-weight: 700;
+      font-size: .85rem;
+      margin-bottom: .5rem;
+    }
+
+    .board-col-count {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .board-col-body {
+      display: grid;
+      gap: .4rem;
+      min-height: 38px;
+    }
+
+    .chip {
+      background: white;
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      padding: .35rem .7rem;
+      font-size: .9rem;
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .chip.active-child { border-color: var(--accent); box-shadow: 0 0 0 2px var(--soft); }
+    .chip-source { opacity: .35; }
+
+    .chip.chip-dragging {
+      position: fixed;
+      z-index: 1000;
+      pointer-events: none;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .25);
+      cursor: grabbing;
+    }
+
+    .board-empty {
+      color: var(--muted);
+      font-size: .8rem;
+      padding: .35rem .2rem;
+    }
   </style>
 </head>
 <body>
@@ -240,6 +311,16 @@
       <label for="promptOutput">Full ChatGPT prompt</label>
       <textarea id="promptOutput" class="prompt" placeholder="Your full prompt will appear here..."></textarea>
       <button onclick="copyText('promptOutput')">Copy full prompt</button>
+    </section>
+
+    <section class="card board-card">
+      <h2>Group children by comment</h2>
+      <p class="hint">Pick a comment area, then drag each child into the description that fits. Dropping a child sets that comment for them automatically &mdash; a quick way to sort the whole class for one comment at a time. Works with a mouse or by touch on a tablet.</p>
+
+      <label for="boardField">Comment area to group by</label>
+      <select id="boardField" onchange="onBoardFieldChange()"></select>
+
+      <div id="board" class="board"></div>
     </section>
   </main>
 
@@ -628,6 +709,8 @@
         button.onclick = () => selectChild(index);
         list.appendChild(button);
       });
+
+      renderBoard();
     }
 
     function buildPromptForChild(child) {
@@ -770,6 +853,170 @@
       localStorage.setItem('reportBuilderChildren', JSON.stringify(children));
     }
 
+    function columnsForField(field) {
+      const item = banks[field];
+      if (!item) return [];
+      return [{ value: '', label: 'Not set yet' }]
+        .concat(item.options.map((opt) => ({ value: opt, label: opt })));
+    }
+
+    function initBoard() {
+      const select = document.getElementById('boardField');
+      select.innerHTML = '';
+      order.forEach((key) => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = banks[key].label;
+        select.appendChild(option);
+      });
+      select.value = 'handwriting';
+      renderBoard();
+    }
+
+    function onBoardFieldChange() {
+      saveCurrentChildWithoutAlert();
+      renderBoard();
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('board');
+      if (!board) return;
+
+      const field = document.getElementById('boardField').value;
+      board.innerHTML = '';
+
+      if (!children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'board-empty';
+        empty.textContent = 'Add some children first, then drag them into groups here.';
+        board.appendChild(empty);
+        return;
+      }
+
+      columnsForField(field).forEach((column) => {
+        const members = children
+          .map((child, index) => ({ child, index }))
+          .filter(({ child }) => (child.selections && child.selections[field] ? child.selections[field] : '') === column.value);
+
+        const col = document.createElement('div');
+        col.className = 'board-col';
+        col.dataset.value = column.value;
+
+        const head = document.createElement('div');
+        head.className = 'board-col-head';
+        head.textContent = column.label;
+        const count = document.createElement('span');
+        count.className = 'board-col-count';
+        count.textContent = `  (${members.length})`;
+        head.appendChild(count);
+        col.appendChild(head);
+
+        const body = document.createElement('div');
+        body.className = 'board-col-body';
+
+        if (!members.length) {
+          const drop = document.createElement('div');
+          drop.className = 'board-empty';
+          drop.textContent = 'Drop here';
+          body.appendChild(drop);
+        }
+
+        members.forEach(({ child, index }) => {
+          const chip = document.createElement('div');
+          chip.className = `chip${index === selectedIndex ? ' active-child' : ''}`;
+          chip.textContent = child.name;
+          chip.dataset.index = index;
+          chip.addEventListener('pointerdown', (e) => startChipDrag(e, index, chip));
+          body.appendChild(chip);
+        });
+
+        col.appendChild(body);
+        board.appendChild(col);
+      });
+    }
+
+    let dragState = null;
+
+    function startChipDrag(e, index, chip) {
+      if (e.button !== undefined && e.button !== 0) return;
+      e.preventDefault();
+      dragState = { index, chip, clone: null, moved: false, startX: e.clientX, startY: e.clientY };
+      document.addEventListener('pointermove', onChipDragMove);
+      document.addEventListener('pointerup', onChipDragEnd);
+    }
+
+    function onChipDragMove(e) {
+      if (!dragState) return;
+
+      if (!dragState.moved) {
+        if (Math.hypot(e.clientX - dragState.startX, e.clientY - dragState.startY) < 5) return;
+        dragState.moved = true;
+        const clone = dragState.chip.cloneNode(true);
+        clone.classList.add('chip-dragging');
+        clone.classList.remove('chip-source');
+        clone.style.width = `${dragState.chip.offsetWidth}px`;
+        document.body.appendChild(clone);
+        dragState.clone = clone;
+        dragState.chip.classList.add('chip-source');
+      }
+
+      e.preventDefault();
+      dragState.clone.style.left = `${e.clientX}px`;
+      dragState.clone.style.top = `${e.clientY}px`;
+      dragState.clone.style.transform = 'translate(-50%, -50%)';
+      highlightColumnAt(e.clientX, e.clientY);
+    }
+
+    function columnAt(x, y) {
+      const el = document.elementFromPoint(x, y);
+      return el ? el.closest('.board-col') : null;
+    }
+
+    function highlightColumnAt(x, y) {
+      const target = columnAt(x, y);
+      document.querySelectorAll('.board-col.col-over').forEach((col) => {
+        if (col !== target) col.classList.remove('col-over');
+      });
+      if (target) target.classList.add('col-over');
+    }
+
+    function onChipDragEnd(e) {
+      document.removeEventListener('pointermove', onChipDragMove);
+      document.removeEventListener('pointerup', onChipDragEnd);
+
+      if (!dragState) return;
+
+      if (dragState.moved) {
+        const target = columnAt(e.clientX, e.clientY);
+        if (dragState.clone) dragState.clone.remove();
+        dragState.chip.classList.remove('chip-source');
+        document.querySelectorAll('.board-col.col-over').forEach((col) => col.classList.remove('col-over'));
+        if (target) assignChildToColumn(dragState.index, target.dataset.value);
+      } else {
+        selectChild(dragState.index);
+      }
+
+      dragState = null;
+    }
+
+    function assignChildToColumn(index, value) {
+      const child = children[index];
+      if (!child) return;
+
+      const field = document.getElementById('boardField').value;
+      if (!child.selections) child.selections = {};
+      child.selections[field] = value;
+      persist();
+
+      if (index === selectedIndex) {
+        const el = document.getElementById(field);
+        if (el) el.value = value;
+        generateComments();
+      } else {
+        renderBoard();
+      }
+    }
+
     function runTests() {
       console.assert(JSON.stringify(splitNames('Ahaana\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle LF line breaks');
       console.assert(JSON.stringify(splitNames('Ahaana\r\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle CRLF line breaks');
@@ -788,9 +1035,15 @@
       console.assert(built.prompt.includes('Test Child is meeting age-related expectation in literacy.'), 'blank literacy level should default to meeting');
       console.assert(built.prompt.includes('Test Child is meeting age-related expectation in numeracy.'), 'blank numeracy level should default to meeting');
       console.assert(built.comments.includes('Previous report text.'), 'Year 1 report should appear in comments');
+
+      const cols = columnsForField('handwriting');
+      console.assert(cols.length === banks.handwriting.options.length + 1, 'columnsForField should add a "Not set yet" column');
+      console.assert(cols[0].value === '', 'first board column should be the unassigned column');
+      console.assert(columnsForField('literacyLevel').length === 4, 'literacyLevel should have 3 options plus unassigned');
     }
 
     buildFields();
+    initBoard();
     renderChildren();
     loadSelectedChild();
     runTests();
