@@ -226,10 +226,17 @@
     <button class="nav-link" data-page="mental-starters"><span class="ico">🧮</span> Mental Starters</button>
     <button class="nav-link" data-page="star-pupil"><span class="ico">⭐</span> Star Pupil</button>
     <button class="nav-link" data-page="behaviour"><span class="ico">📒</span> Behaviour Log</button>
+    <button class="nav-link" data-page="name-picker"><span class="ico">🎯</span> Name Picker</button>
+    <button class="nav-link" data-page="timetable"><span class="ico">🗓️</span> Timetable</button>
 
     <div class="nav-group-label">Tracking</div>
     <button class="nav-link" data-page="assessments"><span class="ico">📊</span> Assessments</button>
+    <button class="nav-link" data-page="charts"><span class="ico">📈</span> Progress Charts</button>
     <button class="nav-link" data-page="class-context"><span class="ico">🧑‍🏫</span> Class Context</button>
+
+    <div class="nav-group-label">Groups</div>
+    <button class="nav-link" data-page="seating"><span class="ico">🪑</span> Seating &amp; Groups</button>
+    <button class="nav-link" data-page="reading-groups"><span class="ico">📖</span> Reading Groups</button>
 
     <div class="nav-group-label">Tools</div>
     <button class="nav-link" data-page="reports"><span class="ico">📝</span> Report Generator</button>
@@ -487,6 +494,51 @@
         </div>
       </section>
 
+      <!-- ================= NAME PICKER ================= -->
+      <section class="page" id="page-name-picker">
+        <div class="page-header">
+          <h1>🎯 Name Picker</h1>
+          <p>Pick a pupil at random for fair questioning. Optionally keep going without repeats until everyone has had a turn.</p>
+        </div>
+        <div id="np-root"></div>
+      </section>
+
+      <!-- ================= TIMETABLE ================= -->
+      <section class="page" id="page-timetable">
+        <div class="page-header">
+          <h1>🗓️ Timetable &amp; Daily Plan</h1>
+          <p>Your weekly timetable. Edit any cell; add or remove periods as needed.</p>
+        </div>
+        <div id="tt-root"></div>
+      </section>
+
+      <!-- ================= SEATING & GROUPS ================= -->
+      <section class="page" id="page-seating">
+        <div class="page-header">
+          <h1>🪑 Seating &amp; Groups</h1>
+          <p>Make fair random groups in a click, or lay out a seating plan for the class.</p>
+        </div>
+        <div id="seat-root"></div>
+      </section>
+
+      <!-- ================= READING GROUPS ================= -->
+      <section class="page" id="page-reading-groups">
+        <div class="page-header">
+          <h1>📖 Guided Reading &amp; Phonics Groups</h1>
+          <p>Organise pupils into groups and log each session's date, book and notes.</p>
+        </div>
+        <div id="rg2-root"></div>
+      </section>
+
+      <!-- ================= PROGRESS CHARTS ================= -->
+      <section class="page" id="page-charts">
+        <div class="page-header">
+          <h1>📈 Progress Charts</h1>
+          <p>See how scores move across Baseline → Autumn → Spring → Summer, per pupil or class average.</p>
+        </div>
+        <div id="ch-root"></div>
+      </section>
+
       <!-- ================= DATA ================= -->
       <section class="page" id="page-data">
         <div class="page-header">
@@ -557,6 +609,12 @@ function renderPage(page){
   if (page === 'assessments') asRender();
   if (page === 'class-context') ctxRender();
   if (page === 'class-list') rosRender();
+  // pluggable feature pages (defined in /js modules)
+  if (page === 'name-picker' && typeof npRender === 'function') npRender();
+  if (page === 'timetable' && typeof ttRender === 'function') ttRender();
+  if (page === 'seating' && typeof seatRender === 'function') seatRender();
+  if (page === 'reading-groups' && typeof rgGroupsRender === 'function') rgGroupsRender();
+  if (page === 'charts' && typeof chRender === 'function') chRender();
 }
 document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));
 window.addEventListener('hashchange', () => showPage(location.hash.replace('#','')));
@@ -892,7 +950,7 @@ document.getElementById('ideasList').innerHTML = IDEAS.map(i => `<li>${i}</li>`)
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -947,6 +1005,15 @@ function syncPupilSelectors(){
 /* set today as default on date inputs */
 ['spDate','bhDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = todayISO(); });
 </script>
+
+<!-- ===================================================================
+     FEATURE MODULES (each self-contained; loaded after platform helpers)
+     =================================================================== -->
+<script src="js/picker.js"></script>
+<script src="js/timetable.js"></script>
+<script src="js/seating.js"></script>
+<script src="js/reading-groups.js"></script>
+<script src="js/charts.js"></script>
 
 <!-- ===================================================================
      REPORT COMMENT BUILDER (your original tool, integrated)
