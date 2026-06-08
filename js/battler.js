@@ -102,8 +102,9 @@
     btAwardPids(t.pupilIds, sign * s.step, 'Table: ' + t.name);
   };
   window.btResetPoints = function (){
-    if (!confirm('Reset every pupil’s points to zero and clear boss damage?')) return;
-    var s = btLoad(); s.points = {}; s.boss.dealt = 0; btSave(s); btRender();
+    var s = btLoad();
+    if (!confirm('Reset every pupil back to the starting amount (' + btStart(s) + ')?')) return;
+    s.points = {}; s.boss.dealt = 0; btSave(s); btRender();
   };
   window.btAddTable = function (){
     var inp = document.getElementById('btTableName'), name = (inp.value || '').trim();
@@ -557,6 +558,7 @@
       '<div class="bt-fg"><label>Minimum</label><input type="number" min="0" value="' + s.minPoints + '" style="width:80px" onchange="btSetMinPoints(this.value)" /></div>' +
       '<div class="bt-fg"><label>Starting</label><input type="number" min="0" value="' + s.startPoints + '" style="width:80px" onchange="btSetStartPoints(this.value)" /></div>' +
       '<div class="bt-fg"><label>Maximum</label><input type="number" min="0" placeholder="25" value="' + esc(s.maxPoints) + '" style="width:100px" onchange="btSetMaxPoints(this.value)" /></div>' +
+      '<button class="ghost small" onclick="btResetPoints()">↺ Reset all to starting</button>' +
       '<span class="hint small grow">New pupils begin at <b>Starting</b>; points stay between <b>Minimum</b> and <b>Maximum</b> (blank max = unlimited).</span></div>';
     return boss + ptCfg + btStepBar(s) + btGroupBar(s) + '<div class="bt-grid">' + pupils.map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
@@ -640,7 +642,7 @@
     return '<div class="card" style="max-width:620px">' +
       tog('sound', 'Sound effects', 'A little chime when points are awarded.') +
       tog('logBh', 'Log to Behaviour Log', 'Each award also adds a dated note in the Behaviour Log.') +
-      '<div class="bt-setting"><div><b>Reset all points</b><div class="hint small">Sets every pupil back to zero and clears boss damage.</div></div>' +
+      '<div class="bt-setting"><div><b>Reset all points</b><div class="hint small">Sets every pupil back to the starting amount and clears boss damage.</div></div>' +
         '<button class="danger" onclick="btResetPoints()">Reset points</button></div>' +
     '</div>';
   }
