@@ -15,7 +15,8 @@
 
   /* ── State ──────────────────────────────────────────────── */
   function btDefault(){
-    return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5, startHP:'', minPoints:10,
+    return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5,
+             minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
              points:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
@@ -35,8 +36,11 @@
 
   /* ── Derived ────────────────────────────────────────────── */
   function btMin(s){ return s.minPoints || 0; }
-  // Effective points never drop below the minimum, so everyone always has some to battle with.
-  function btPts(s, pid){ return Math.max(btMin(s), s.points[pid] || 0); }
+  function btMaxP(s){ var m = s.maxPoints; return (m === '' || m == null) ? Infinity : (+m); }
+  function btStart(s){ return s.startPoints || 0; }
+  function btClampP(s, v){ return Math.min(btMaxP(s), Math.max(btMin(s), v)); }
+  // New pupils sit at "starting"; points stay between minimum and maximum (blank max = unlimited).
+  function btPts(s, pid){ var v = s.points[pid]; if (v === undefined) v = btStart(s); return btClampP(s, v); }
   function btLevel(p){ return Math.max(1, Math.floor(p / 10) + 1); }
   function btTableTotal(s, t){ return t.pupilIds.reduce(function (a, pid){ return a + btPts(s, pid); }, 0); }
   function btTableColor(i){ var c = ['teal','coral','gold','slate']; return c[i % c.length]; }
@@ -65,7 +69,7 @@
   function btAwardPids(pids, n, label){
     var s = btLoad();
     pids.forEach(function (pid){
-      s.points[pid] = Math.max(btMin(s), btPts(s, pid) + n);  // floor at the minimum
+      s.points[pid] = btClampP(s, btPts(s, pid) + n);  // clamp between minimum and maximum
       btFlash[pid] = true;
       if (n > 0 && s.boss.active) s.boss.dealt = Math.min(s.boss.max, s.boss.dealt + n);
       if (s.logBh && typeof bhData !== 'undefined'){
@@ -207,12 +211,11 @@
   function btSpawn(s){
     s = s || btLoad();
     var sz = btArenaSize(), W = sz.W, H = sz.H;
-    var override = (s.startHP !== '' && s.startHP != null) ? Math.max(1, parseInt(s.startHP,10) || 1) : null;
     return sortedRoster().map(function (p, i){
       var r = BT_R, sp = 1.0 + Math.random(), a = Math.random() * Math.PI * 2;
       return {
         pid: p.id, name: p.name, color: BT_COLORS[i % BT_COLORS.length], r: r,
-        hp: override != null ? override : Math.max(1, btPts(s, p.id)),  // earned points = battle HP
+        hp: Math.max(1, btPts(s, p.id)),  // pupil's points = battle HP (starting + awards, clamped)
         x: r + Math.random() * (W - 2*r), y: r + 20 + Math.random() * (H - 2*r - 20),
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.024 + Math.random()*0.03),
@@ -499,7 +502,8 @@
     btRender();
   }
   window.btSetWinnerBonus = function (v){ var s = btLoad(); var n = parseInt(v,10); s.winnerBonus = (n >= 0 ? n : 5); btSave(s); };
-  window.btSetStartHP = function (v){ var s = btLoad(); s.startHP = (v === '' ? '' : Math.max(1, parseInt(v,10) || 1)); btSave(s); };
+  window.btSetStartPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.startPoints = (n >= 0 ? n : 0); btSave(s); btRender(); };
+  window.btSetMaxPoints = function (v){ var s = btLoad(); if (v === '' || v == null){ s.maxPoints = ''; } else { var n = parseInt(v,10); s.maxPoints = (n >= 0 ? n : ''); } btSave(s); btRender(); };
   window.btSetArenaMode = function (m){ var s = btLoad(); s.arenaMode = (m === 'boss' ? 'boss' : 'ffa'); btSave(s); btRender(); };
   window.btSetSatHP = function (v){ var s = btLoad(); s.satHP = Math.max(1, parseInt(v,10) || 8); btSave(s); };
   window.btSetCoreHP = function (v){ var s = btLoad(); s.coreHP = Math.max(1, parseInt(v,10) || 30); btSave(s); };
@@ -526,11 +530,10 @@
         '<div><label>Core HP</label><input type="number" min="1" value="' + s.coreHP + '" style="width:100px" onchange="btSetCoreHP(this.value)" /></div>'
       : '';
     var hint = s.arenaMode === 'boss'
-      ? 'The class attacks together: smash all six spinning limbs, then the roaming core — which keeps two arms swinging at pupils. Pupils start with their earned points as HP and pop at zero; survivors share the bonus.'
-      : 'Each pupil starts with their earned points as HP and bounces around with a long spinning arm that knocks a point off (and bounces back) whoever it hits. Pop at zero — last one standing wins. Set “start points” to override the earned-points HP.';
+      ? 'The class attacks together: smash all six spinning limbs, then the roaming core — which keeps two arms swinging at pupils. Each pupil’s points are their battle HP; they pop at zero and survivors share the bonus. Set the points on the Points tab.'
+      : 'Each pupil’s points are their battle HP. They bounce around with a long spinning arm that knocks a point off (and bounces back) whoever it hits — pop at zero, last one standing wins. Set Starting/Minimum/Maximum points on the Points tab.';
     return '<div class="card no-print">' + modeSel +
         '<div class="row" style="align-items:flex-end">' +
-          '<div><label>Start points</label><input id="btStartHP" type="number" min="1" placeholder="use current" value="' + esc(s.startHP) + '" style="width:130px" onchange="btSetStartHP(this.value)" /></div>' +
           bossFields +
           '<div><label>Winner bonus</label><input id="btWinBonus" type="number" min="0" value="' + s.winnerBonus + '" style="width:110px" onchange="btSetWinnerBonus(this.value)" /></div>' +
           '<div class="grow"></div>' +
@@ -550,10 +553,12 @@
         '<button onclick="btSetBoss()">👾 Start boss battle</button>' +
         '<div class="hint small grow">Optional: the class works together — every point earned damages the boss.</div></div>';
     }
-    var minCtl = '<div class="bt-minrow no-print"><label style="margin:0">Minimum points</label>' +
-      '<input type="number" min="0" value="' + s.minPoints + '" style="width:84px" onchange="btSetMinPoints(this.value)" />' +
-      '<span class="hint small">Points won’t drop below this — so you can take points away and everyone still has some to battle with.</span></div>';
-    return boss + minCtl + btStepBar(s) + btGroupBar(s) + '<div class="bt-grid">' + pupils.map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
+    var ptCfg = '<div class="bt-minrow no-print">' +
+      '<div class="bt-fg"><label>Minimum</label><input type="number" min="0" value="' + s.minPoints + '" style="width:80px" onchange="btSetMinPoints(this.value)" /></div>' +
+      '<div class="bt-fg"><label>Starting</label><input type="number" min="0" value="' + s.startPoints + '" style="width:80px" onchange="btSetStartPoints(this.value)" /></div>' +
+      '<div class="bt-fg"><label>Maximum</label><input type="number" min="0" placeholder="25" value="' + esc(s.maxPoints) + '" style="width:100px" onchange="btSetMaxPoints(this.value)" /></div>' +
+      '<span class="hint small grow">New pupils begin at <b>Starting</b>; points stay between <b>Minimum</b> and <b>Maximum</b> (blank max = unlimited).</span></div>';
+    return boss + ptCfg + btStepBar(s) + btGroupBar(s) + '<div class="bt-grid">' + pupils.map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
 
   // Quick award buttons for each set-up group (shown on the Points tab).
