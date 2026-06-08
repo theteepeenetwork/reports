@@ -2062,6 +2062,8 @@ applyProfile();
         button.onclick = () => selectChild(index);
         list.appendChild(button);
       });
+
+      renderBoard();
     }
 
     function buildPromptForChild(child) {
@@ -2132,6 +2134,7 @@ applyProfile();
 
     /* ---- init report builder ---- */
     buildFields();
+    initBoard();
     renderChildren();
     loadSelectedChild();
 
