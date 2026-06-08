@@ -15,7 +15,7 @@
 
   /* ── State ──────────────────────────────────────────────── */
   function btDefault(){
-    return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5, startHP:'',
+    return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5, startHP:'', minPoints:10,
              arenaMode:'ffa', satHP:8, coreHP:30,
              points:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
@@ -34,7 +34,9 @@
   function btSave(s){ Store.set('tp_battler', s); }
 
   /* ── Derived ────────────────────────────────────────────── */
-  function btPts(s, pid){ return s.points[pid] || 0; }
+  function btMin(s){ return s.minPoints || 0; }
+  // Effective points never drop below the minimum, so everyone always has some to battle with.
+  function btPts(s, pid){ return Math.max(btMin(s), s.points[pid] || 0); }
   function btLevel(p){ return Math.max(1, Math.floor(p / 10) + 1); }
   function btTableTotal(s, t){ return t.pupilIds.reduce(function (a, pid){ return a + btPts(s, pid); }, 0); }
   function btTableColor(i){ var c = ['teal','coral','gold','slate']; return c[i % c.length]; }
@@ -63,7 +65,7 @@
   function btAwardPids(pids, n, label){
     var s = btLoad();
     pids.forEach(function (pid){
-      s.points[pid] = (s.points[pid] || 0) + n;
+      s.points[pid] = Math.max(btMin(s), btPts(s, pid) + n);  // floor at the minimum
       btFlash[pid] = true;
       if (n > 0 && s.boss.active) s.boss.dealt = Math.min(s.boss.max, s.boss.dealt + n);
       if (s.logBh && typeof bhData !== 'undefined'){
@@ -87,6 +89,7 @@
   /* ── Handlers (window) ──────────────────────────────────── */
   window.btSetTab   = function (t){ var s = btLoad(); s.tab = t; btSave(s); btRender(); };
   window.btSetStep  = function (n){ var s = btLoad(); s.step = n; btSave(s); btRender(); };
+  window.btSetMinPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.minPoints = (n >= 0 ? n : 0); btSave(s); btRender(); };
   window.btToggle   = function (key){ var s = btLoad(); s[key] = !s[key]; btSave(s); btRender(); };
   window.btAwardOne = function (pid, n){ btAwardPids([pid], n); };
   window.btAwardTable = function (tid, sign){
@@ -166,8 +169,8 @@
      (each its own HP + spinning arm); clear all limbs, then the
      core. The boss's limb-arms knock points off pupils. */
   var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
-  var BT_SPIN_ACC = 0.0008, BT_SPIN_MAX = 0.17, BT_KNOCK = 3.2;
-  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'' };
+  var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_SHRINK = 0.04;
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0 };
 
   function btSpeedClamp(b){
     var sp = Math.hypot(b.vx, b.vy) || 0.0001;
@@ -212,7 +215,7 @@
         hp: override != null ? override : Math.max(1, btPts(s, p.id)),  // earned points = battle HP
         x: r + Math.random() * (W - 2*r), y: r + 20 + Math.random() * (H - 2*r - 20),
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-        ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random()*0.05),
+        ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.024 + Math.random()*0.03),
         cd: 0, alive: true, el: null, ball: null, arm: null, lastHp: -1
       };
     });
@@ -222,27 +225,28 @@
     var csp = 0.75, ca = Math.random() * Math.PI * 2;
     var core = { x: sz.W/2, y: sz.H*0.48, r: 46, hp: s.coreHP, max: s.coreHP, ang: 0, spin: 0.011,
                  vx: Math.cos(ca)*csp, vy: Math.sin(ca)*csp,
-                 ownAng: Math.random()*Math.PI*2, ownSpin: 0.06, reach: 90, arms: 2,
+                 ownAng: Math.random()*Math.PI*2, ownSpin: 0.036, reach: 90, arms: 2,
                  cd: 0, alive: true, vuln: false, el: null, ball: null, arm1: null, arm2: null };
     var sats = [];
     for (var i = 0; i < n; i++) sats.push({
       off: i * (Math.PI*2/n), r: 26, hp: s.satHP, max: s.satHP, alive: true,
-      x: core.x, y: core.y, ownAng: Math.random()*Math.PI*2, ownSpin: (i%2?1:-1)*(0.07+Math.random()*0.04),
+      x: core.x, y: core.y, ownAng: Math.random()*Math.PI*2, ownSpin: (i%2?1:-1)*(0.042+Math.random()*0.024),
       reach: 52, cd: 0, el: null, ball: null, arm: null, conn: null, lastHp: -1
     });
     return { core: core, sats: sats, n: n, armLen: armLen };
   }
 
-  function btWalls(b, W, H){
-    if (b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); }
-    if (b.x > W - b.r){ b.x = W - b.r; b.vx = -Math.abs(b.vx); }
-    if (b.y < b.r){ b.y = b.r; b.vy = Math.abs(b.vy); }
-    if (b.y > H - b.r){ b.y = H - b.r; b.vy = -Math.abs(b.vy); }
+  function btWalls(b, W, H, inset){
+    inset = inset || 0;
+    if (b.x < inset + b.r){ b.x = inset + b.r; b.vx = Math.abs(b.vx); }
+    if (b.x > W - inset - b.r){ b.x = W - inset - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.y < inset + b.r){ b.y = inset + b.r; b.vy = Math.abs(b.vy); }
+    if (b.y > H - inset - b.r){ b.y = H - inset - b.r; b.vy = -Math.abs(b.vy); }
   }
-  function btMovePupils(bots, W, H, withArmHits, now){
+  function btMovePupils(bots, W, H, withArmHits, now, inset){
     var i, j;
     for (i = 0; i < bots.length; i++){ var b = bots[i]; if (!b.alive) continue;
-      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btAccSpin(b, 'spin'); btWalls(b, W, H); btSpeedClamp(b); }
+      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btAccSpin(b, 'spin'); btWalls(b, W, H, inset); btSpeedClamp(b); }
     for (i = 0; i < bots.length; i++){ var A = bots[i]; if (!A.alive) continue;
       var tx = A.x + Math.cos(A.ang)*BT_REACH, ty = A.y + Math.sin(A.ang)*BT_REACH;
       for (j = i+1; j < bots.length; j++){ var B = bots[j]; if (!B.alive) continue;
@@ -258,6 +262,7 @@
           var hx = C.x - tx, hy = C.y - ty;
           if (hx*hx + hy*hy < C.r*C.r && now >= C.cd){ C.hp -= 1; C.cd = now + 420; C.justHit = now;
             btKnock(C, A.x, A.y);   // bounce the struck avatar away from the attacker
+            A.spin = -A.spin;       // the arm bounces off, reversing its spin
             if (C.hp <= 0){ C.alive = false; C.poppedAt = now; } }
         }
       }
@@ -265,19 +270,20 @@
   }
 
   // Free-for-all step. Returns alive count.
-  function btTick(bots, W, H, now){
-    btMovePupils(bots, W, H, true, now);
+  function btTick(bots, W, H, now, inset){
+    btMovePupils(bots, W, H, true, now, inset);
     var alive = 0; for (var i = 0; i < bots.length; i++) if (bots[i].alive) alive++;
     return alive;
   }
 
   // Boss step. Returns { pupils, limbs, core }.
-  function btTickBoss(bots, boss, W, H, now){
-    btMovePupils(bots, W, H, false, now);     // pupils cooperate (no arm damage to each other)
+  function btTickBoss(bots, boss, W, H, now, inset){
+    inset = inset || 0;
+    btMovePupils(bots, W, H, false, now, inset);     // pupils cooperate (no arm damage to each other)
     var core = boss.core, sats = boss.sats, i, k;
     // the boss roams the arena too; bounce so its limbs stay on-screen
     core.x += core.vx; core.y += core.vy;
-    var marg = Math.min(boss.armLen + 30, Math.min(W, H)/2 - 8);
+    var marg = Math.min(inset + boss.armLen + 30, Math.min(W, H)/2 - 8);
     if (core.x < marg){ core.x = marg; core.vx = Math.abs(core.vx); }
     if (core.x > W - marg){ core.x = W - marg; core.vx = -Math.abs(core.vx); }
     if (core.y < marg){ core.y = marg; core.vy = Math.abs(core.vy); }
@@ -301,9 +307,9 @@
         if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
           P.x = S.x + nx*rr; P.y = S.y + ny*rr;
           var vn = P.vx*nx + P.vy*ny; if (vn < 0){ P.vx -= 2*vn*nx; P.vy -= 2*vn*ny; btSpeedClamp(P); } }
-        // pupil arm hits the limb
+        // pupil arm hits the limb — arm bounces off, reversing its spin
         var hx = S.x - tx, hy = S.y - ty;
-        if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= 1; S.cd = now + 230; S.justHit = now;
+        if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= 1; S.cd = now + 230; S.justHit = now; P.spin = -P.spin;
           if (S.hp <= 0) S.alive = false; }
         // limb's own arm hits the pupil
         var sx = S.x + Math.cos(S.ownAng)*S.reach, sy = S.y + Math.sin(S.ownAng)*S.reach;
@@ -423,6 +429,10 @@
     AR.bots.forEach(function (b){ arena.appendChild(btMakeBot(b)); });
   }
 
+  function btPaintFrame(W, H){
+    var f = document.getElementById('bt-frame'); if (!f) return;
+    f.style.left = f.style.top = f.style.right = f.style.bottom = AR.inset + 'px';
+  }
   function btStatus(){
     var rem = document.getElementById('btRemain'); if (!rem) return;
     if (AR.mode === 'boss' && AR.boss){
@@ -438,12 +448,14 @@
     if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
     if (!AR.paused){
       var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
+      AR.inset = Math.min(AR.inset + BT_SHRINK, Math.min(W, H)/2 - 100);  // arena slowly closes in
+      btPaintFrame(W, H);
       if (AR.mode === 'boss'){
-        var r = btTickBoss(AR.bots, AR.boss, W, H, now); btPaint(); btStatus();
+        var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.inset); btPaint(); btStatus();
         if (!AR.boss.core.alive){ btFinishBoss(true); return; }
         if (r.pupils === 0){ btFinishBoss(false); return; }
       } else {
-        var alive = btTick(AR.bots, W, H, now); btPaint(); btStatus();
+        var alive = btTick(AR.bots, W, H, now, AR.inset); btPaint(); btStatus();
         if (alive <= 1){ btFinish(); return; }
       }
     }
@@ -454,7 +466,7 @@
   window.btStartBattle = function (){
     var s = btLoad();
     if (sortedRoster().length < 2) return;
-    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0;
     AR.mode = s.arenaMode === 'boss' ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
@@ -500,7 +512,7 @@
           '<div class="grow"></div>' +
           '<button class="danger" onclick="btEndBattle()">End Battle</button>' +
         '</div>' +
-        '<div class="bt-arena" id="bt-arena"></div>';
+        '<div class="bt-arena" id="bt-arena"><div class="bt-frame" id="bt-frame"></div></div>';
     }
     var banner = '';
     if (AR.result){ banner = '<div class="bt-winner' + (AR.result === 'lose' ? ' lose' : '') + '">' + (AR.result === 'win' ? '🏆 ' : '💥 ') + '<b>' + esc(AR.bossMsg) + '</b></div>'; }
@@ -538,7 +550,10 @@
         '<button onclick="btSetBoss()">👾 Start boss battle</button>' +
         '<div class="hint small grow">Optional: the class works together — every point earned damages the boss.</div></div>';
     }
-    return boss + btStepBar(s) + btGroupBar(s) + '<div class="bt-grid">' + pupils.map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
+    var minCtl = '<div class="bt-minrow no-print"><label style="margin:0">Minimum points</label>' +
+      '<input type="number" min="0" value="' + s.minPoints + '" style="width:84px" onchange="btSetMinPoints(this.value)" />' +
+      '<span class="hint small">Points won’t drop below this — so you can take points away and everyone still has some to battle with.</span></div>';
+    return boss + minCtl + btStepBar(s) + btGroupBar(s) + '<div class="bt-grid">' + pupils.map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
 
   // Quick award buttons for each set-up group (shown on the Points tab).
