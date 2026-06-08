@@ -451,14 +451,23 @@
     .bt-arena { position: relative; height: 70vh; min-height: 440px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
     .bt-bot { position: absolute; left: 0; top: 0; will-change: transform; }
     .bt-ball { position: relative; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px; border: 3px solid rgba(0,0,0,.12); box-shadow: 0 2px 6px rgba(0,0,0,.18); z-index: 2; }
-    .bt-arm { position: absolute; left: 50%; top: 50%; width: 46px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 1; }
+    .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 1; }
     .bt-tag { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); white-space: nowrap; z-index: 3; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
     .bt-bot.hit .bt-ball { box-shadow: 0 0 0 4px var(--coral-500), 0 0 16px var(--coral-500); }
     .bt-bot.pop { animation: btfade .32s forwards; }
     .bt-bot.pop .bt-ball { animation: btpopout .32s forwards; }
     @keyframes btfade { to { opacity: 0; } }
     @keyframes btpopout { 0% { transform: scale(1); } 55% { transform: scale(1.5); } 100% { transform: scale(.1); } }
+    /* boss assembly */
+    .bt-conn { position: absolute; left: 0; top: 0; height: 8px; background: #6b7378; border-radius: 5px; transform-origin: 0 50%; z-index: 1; }
+    .bt-sat .bt-ball { background: #ef4444; border-color: rgba(0,0,0,.18); }
+    .bt-core { z-index: 4; }
+    .bt-core .bt-ball { background: #7f1d1d; color: #fff; font-size: 22px; border: 4px solid #b91c1c; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+    .bt-core.vuln .bt-ball { background: #b91c1c; border-color: var(--gold-600); box-shadow: 0 0 0 4px var(--gold-100), 0 0 22px var(--coral-500); animation: btpulse 1s infinite; }
+    .bt-core .bt-tag { color: #b91c1c; }
+    @keyframes btpulse { 50% { box-shadow: 0 0 0 7px var(--gold-100), 0 0 30px var(--coral-500); } }
     .bt-winner { margin-top: 14px; padding: 16px 18px; border-radius: 14px; background: var(--gold-50); border: 1px solid var(--gold-100); font-size: 16px; }
+    .bt-winner.lose { background: var(--coral-50); border-color: var(--coral-100); }
 
     @media print {
       .sidebar, .topbar-mobile, .no-print { display: none !important; }

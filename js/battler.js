@@ -16,6 +16,7 @@
   /* ── State ──────────────────────────────────────────────── */
   function btDefault(){
     return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5, startHP:'',
+             arenaMode:'ffa', satHP:8, coreHP:30,
              points:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   var BT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#ec4899','#84cc16','#06b6d4','#d946ef','#14b8a6','#f97316','#6366f1'];
@@ -158,123 +159,258 @@
     '</div>';
   }
 
-  /* ── Tabs ───────────────────────────────────────────────── */
-  /* ── BATTLE ARENA (physics battle royale) ──────────────────
-     Avatars bounce around; a spinning arm knocks a point off
-     whoever it touches; a battler pops at zero. Last one wins. */
-  var AR = { running:false, paused:false, bots:[], raf:0, lastWinner:'' };
+  /* ── BATTLE ARENA (physics) ────────────────────────────────
+     Free-for-all: avatars bounce, a long spinning arm knocks a
+     point off whoever it touches; pop at zero, last one wins.
+     Boss battle: the class attacks a boss with 6 orbiting limbs
+     (each its own HP + spinning arm); clear all limbs, then the
+     core. The boss's limb-arms knock points off pupils. */
+  var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'' };
+
+  function btSpeedClamp(b){
+    var sp = Math.hypot(b.vx, b.vy) || 0.0001;
+    var k = sp < BT_MIN ? BT_MIN/sp : (sp > BT_MAX ? BT_MAX/sp : 1);
+    b.vx *= k; b.vy *= k;
+  }
+  // Elastic-ish bump along the contact normal, with restitution > 1 so a
+  // knock can speed a battler up or slow it down. Then clamp to sane speeds.
+  function btBump(A, B){
+    var dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy) || 0.0001, nx = dx/d, ny = dy/d;
+    var an = A.vx*nx + A.vy*ny, bn = B.vx*nx + B.vy*ny;
+    if (an - bn > 0){ // approaching
+      var t = (an - bn) * BT_REST;
+      A.vx -= t*nx; A.vy -= t*ny; B.vx += t*nx; B.vy += t*ny;
+      btSpeedClamp(A); btSpeedClamp(B);
+    }
+  }
+  function btArenaSize(){
+    var a = document.getElementById('bt-arena');
+    return { W: a ? a.clientWidth || 900 : 900, H: a ? a.clientHeight || 520 : 520 };
+  }
 
   function btSpawn(s){
     s = s || btLoad();
-    var pupils = sortedRoster();
-    var arena = document.getElementById('bt-arena');
-    var W = arena ? arena.clientWidth  || 900 : 900;
-    var H = arena ? arena.clientHeight || 520 : 520;
+    var sz = btArenaSize(), W = sz.W, H = sz.H;
     var override = (s.startHP !== '' && s.startHP != null) ? Math.max(1, parseInt(s.startHP,10) || 1) : null;
-    return pupils.map(function (p, i){
-      var r = 30;
-      var sp = 1.0 + Math.random() * 1.0, a = Math.random() * Math.PI * 2;
+    return sortedRoster().map(function (p, i){
+      var r = BT_R, sp = 1.0 + Math.random(), a = Math.random() * Math.PI * 2;
       return {
         pid: p.id, name: p.name, color: BT_COLORS[i % BT_COLORS.length], r: r,
         hp: override != null ? override : Math.max(5, btPts(s, p.id)),
         x: r + Math.random() * (W - 2*r), y: r + 20 + Math.random() * (H - 2*r - 20),
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-        ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random() * 0.05),
+        ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random()*0.05),
         cd: 0, alive: true, el: null, ball: null, arm: null, lastHp: -1
       };
     });
   }
+  function btSpawnBoss(s){
+    var sz = btArenaSize(), n = 6, armLen = Math.min(150, sz.H * 0.30);
+    var core = { x: sz.W/2, y: sz.H*0.48, r: 46, hp: s.coreHP, max: s.coreHP, ang: 0, spin: 0.011,
+                 cd: 0, alive: true, vuln: false, el: null, ball: null };
+    var sats = [];
+    for (var i = 0; i < n; i++) sats.push({
+      off: i * (Math.PI*2/n), r: 26, hp: s.satHP, max: s.satHP, alive: true,
+      x: core.x, y: core.y, ownAng: Math.random()*Math.PI*2, ownSpin: (i%2?1:-1)*(0.07+Math.random()*0.04),
+      reach: 52, cd: 0, el: null, ball: null, arm: null, conn: null, lastHp: -1
+    });
+    return { core: core, sats: sats, n: n, armLen: armLen };
+  }
 
-  // One physics step (pure-ish: mutates bots, no DOM). Returns alive count.
-  function btTick(bots, W, H, now){
-    var i, j, b;
-    for (i = 0; i < bots.length; i++){
-      b = bots[i]; if (!b.alive) continue;
-      b.x += b.vx; b.y += b.vy; b.ang += b.spin;
-      if (b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); }
-      if (b.x > W - b.r){ b.x = W - b.r; b.vx = -Math.abs(b.vx); }
-      if (b.y < b.r){ b.y = b.r; b.vy = Math.abs(b.vy); }
-      if (b.y > H - b.r){ b.y = H - b.r; b.vy = -Math.abs(b.vy); }
-    }
-    for (i = 0; i < bots.length; i++){
-      var A = bots[i]; if (!A.alive) continue;
-      // arm tip a little beyond the ball, spinning around the avatar
-      var reach = A.r + 16, tx = A.x + Math.cos(A.ang) * reach, ty = A.y + Math.sin(A.ang) * reach;
-      for (j = 0; j < bots.length; j++){
-        if (i === j) continue;
-        var B = bots[j]; if (!B.alive) continue;
+  function btWalls(b, W, H){
+    if (b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); }
+    if (b.x > W - b.r){ b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.y < b.r){ b.y = b.r; b.vy = Math.abs(b.vy); }
+    if (b.y > H - b.r){ b.y = H - b.r; b.vy = -Math.abs(b.vy); }
+  }
+  function btMovePupils(bots, W, H, withArmHits, now){
+    var i, j;
+    for (i = 0; i < bots.length; i++){ var b = bots[i]; if (!b.alive) continue;
+      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btWalls(b, W, H); btSpeedClamp(b); }
+    for (i = 0; i < bots.length; i++){ var A = bots[i]; if (!A.alive) continue;
+      var tx = A.x + Math.cos(A.ang)*BT_REACH, ty = A.y + Math.sin(A.ang)*BT_REACH;
+      for (j = i+1; j < bots.length; j++){ var B = bots[j]; if (!B.alive) continue;
         var dx = B.x - A.x, dy = B.y - A.y, d2 = dx*dx + dy*dy, rr = A.r + B.r;
-        // gentle separation so they don't stack
         if (d2 < rr*rr && d2 > 0.01){
-          var d = Math.sqrt(d2), nx = dx/d, ny = dy/d, push = (rr - d) / 2;
+          var d = Math.sqrt(d2), nx = dx/d, ny = dy/d, push = (rr - d)/2;
           A.x -= nx*push; A.y -= ny*push; B.x += nx*push; B.y += ny*push;
-          A.vx -= nx*0.2; A.vy -= ny*0.2; B.vx += nx*0.2; B.vy += ny*0.2;
+          btBump(A, B);
         }
-        // arm-tip hit (with a short cooldown so it doesn't drain instantly)
-        var hx = B.x - tx, hy = B.y - ty;
-        if (hx*hx + hy*hy < B.r*B.r && now >= B.cd){
-          B.hp -= 1; B.cd = now + 420; B.justHit = now;
-          if (B.hp <= 0){ B.alive = false; B.poppedAt = now; }
+      }
+      if (withArmHits){
+        for (j = 0; j < bots.length; j++){ if (i===j) continue; var C = bots[j]; if (!C.alive) continue;
+          var hx = C.x - tx, hy = C.y - ty;
+          if (hx*hx + hy*hy < C.r*C.r && now >= C.cd){ C.hp -= 1; C.cd = now + 420; C.justHit = now;
+            if (C.hp <= 0){ C.alive = false; C.poppedAt = now; } }
         }
       }
     }
-    var alive = 0; for (i = 0; i < bots.length; i++) if (bots[i].alive) alive++;
+  }
+
+  // Free-for-all step. Returns alive count.
+  function btTick(bots, W, H, now){
+    btMovePupils(bots, W, H, true, now);
+    var alive = 0; for (var i = 0; i < bots.length; i++) if (bots[i].alive) alive++;
     return alive;
   }
 
-  function btPaint(){
-    for (var i = 0; i < AR.bots.length; i++){
-      var b = AR.bots[i];
-      if (!b.el) continue;
-      if (!b.alive){
-        if (!b.el.classList.contains('pop')){ b.el.classList.add('pop'); setTimeout((function (el){ return function (){ if (el && el.parentNode) el.parentNode.removeChild(el); }; })(b.el), 320); b.el = null; }
-        continue;
-      }
-      b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
-      b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
-      if (b.hp !== b.lastHp){ b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }
-      if (b.justHit && Date.now() - b.justHit < 260){ if (!b.el.classList.contains('hit')) b.el.classList.add('hit'); }
-      else if (b.el.classList.contains('hit')) b.el.classList.remove('hit');
+  // Boss step. Returns { pupils, limbs, core }.
+  function btTickBoss(bots, boss, W, H, now){
+    btMovePupils(bots, W, H, false, now);     // pupils cooperate (no arm damage to each other)
+    var core = boss.core, sats = boss.sats, i, k;
+    core.ang += core.spin;
+    var liveLimbs = 0;
+    for (i = 0; i < sats.length; i++){ var st = sats[i]; if (!st.alive) continue; liveLimbs++;
+      var a = core.ang + st.off;
+      st.x = core.x + Math.cos(a) * boss.armLen;
+      st.y = core.y + Math.sin(a) * boss.armLen;
+      st.ownAng += st.ownSpin;
     }
+    core.vuln = liveLimbs === 0;
+    // pupils attack the boss; boss limbs bump and attack pupils
+    for (i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
+      var tx = P.x + Math.cos(P.ang)*BT_REACH, ty = P.y + Math.sin(P.ang)*BT_REACH;
+      for (k = 0; k < sats.length; k++){ var S = sats[k]; if (!S.alive) continue;
+        // physical bounce off the limb (limb is heavy → only the pupil reflects)
+        var dx = P.x - S.x, dy = P.y - S.y, d2 = dx*dx + dy*dy, rr = P.r + S.r;
+        if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
+          P.x = S.x + nx*rr; P.y = S.y + ny*rr;
+          var vn = P.vx*nx + P.vy*ny; if (vn < 0){ P.vx -= 2*vn*nx; P.vy -= 2*vn*ny; btSpeedClamp(P); } }
+        // pupil arm hits the limb
+        var hx = S.x - tx, hy = S.y - ty;
+        if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= 1; S.cd = now + 230; S.justHit = now;
+          if (S.hp <= 0) S.alive = false; }
+        // limb's own arm hits the pupil
+        var sx = S.x + Math.cos(S.ownAng)*S.reach, sy = S.y + Math.sin(S.ownAng)*S.reach;
+        var px = P.x - sx, py = P.y - sy;
+        if (px*px + py*py < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 460; P.justHit = now;
+          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } }
+      }
+      // once limbs are gone, attack the core
+      if (core.vuln && core.alive){
+        var cdx = P.x - core.x, cdy = P.y - core.y, crr = P.r + core.r;
+        if (cdx*cdx + cdy*cdy < crr*crr){ var cd = Math.hypot(cdx,cdy)||0.0001, cnx=cdx/cd, cny=cdy/cd;
+          P.x = core.x + cnx*crr; P.y = core.y + cny*crr;
+          var cvn = P.vx*cnx + P.vy*cny; if (cvn < 0){ P.vx -= 2*cvn*cnx; P.vy -= 2*cvn*cny; btSpeedClamp(P); } }
+        var ctx = core.x - tx, cty = core.y - ty;
+        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 160; core.justHit = now;
+          if (core.hp <= 0) core.alive = false; }
+      }
+    }
+    var pupils = 0; for (i = 0; i < bots.length; i++) if (bots[i].alive) pupils++;
+    return { pupils: pupils, limbs: liveLimbs, core: core.hp };
   }
 
+  /* ── Painting ───────────────────────────────────────────── */
+  function btPopEl(holder){ if (holder.el && !holder.el.classList.contains('pop')){ holder.el.classList.add('pop');
+    var el = holder.el; setTimeout(function (){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 320); holder.el = null;
+    if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; } } }
+  function btPaintBot(b){
+    if (!b.el) return;
+    if (!b.alive){ btPopEl(b); return; }
+    b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
+    b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
+    if (b.hp !== b.lastHp){ b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }
+    if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
+  }
+  function btPaint(){
+    var i;
+    for (i = 0; i < AR.bots.length; i++) btPaintBot(AR.bots[i]);
+    if (!AR.boss) return;
+    var core = AR.boss.core;
+    if (core.el){
+      core.el.style.transform = 'translate(' + (core.x - core.r) + 'px,' + (core.y - core.r) + 'px)';
+      if (core.hp !== core.lastHp){ core.ball.firstChild.nodeValue = Math.max(0, core.hp); core.lastHp = core.hp; }
+      core.el.classList.toggle('vuln', core.vuln && core.alive);
+      if (!core.alive) btPopEl(core);
+      if (core.justHit && Date.now() - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
+    }
+    AR.boss.sats.forEach(function (st){
+      if (!st.el) return;
+      if (!st.alive){ btPopEl(st); return; }
+      st.el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
+      st.arm.style.transform = 'rotate(' + st.ownAng + 'rad)';
+      if (st.hp !== st.lastHp){ st.ball.firstChild.nodeValue = st.hp; st.lastHp = st.hp; }
+      if (st.conn){
+        var len = Math.hypot(st.x - core.x, st.y - core.y), ang = Math.atan2(st.y - core.y, st.x - core.x);
+        st.conn.style.width = len + 'px';
+        st.conn.style.transform = 'translate(' + core.x + 'px,' + (core.y - 4) + 'px) rotate(' + ang + 'rad)';
+      }
+      if (st.justHit && Date.now() - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
+    });
+  }
+
+  function btMakeBot(b, cls){
+    var el = document.createElement('div'); el.className = 'bt-bot' + (cls ? ' ' + cls : '');
+    el.style.width = el.style.height = (b.r * 2) + 'px';
+    el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
+    var arm = document.createElement('div'); arm.className = 'bt-arm';
+    arm.style.width = ((b.reach || BT_REACH) + 6) + 'px';
+    var ball = document.createElement('div'); ball.className = 'bt-ball'; if (b.color) ball.style.background = b.color;
+    ball.appendChild(document.createTextNode(b.hp));
+    el.appendChild(arm); el.appendChild(ball);
+    if (b.name){ var tag = document.createElement('div'); tag.className = 'bt-tag'; tag.textContent = b.name; el.appendChild(tag); }
+    b.el = el; b.arm = arm; b.ball = ball; b.lastHp = b.hp;
+    return el;
+  }
+  function btMount(){
+    var arena = document.getElementById('bt-arena'); if (!arena) return;
+    if (AR.boss){
+      var core = AR.boss.core;
+      // limbs first (behind), with their connector arms
+      AR.boss.sats.forEach(function (st){
+        var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
+        arena.appendChild(btMakeBot(st, 'bt-sat'));
+      });
+      var cel = document.createElement('div'); cel.className = 'bt-bot bt-core';
+      cel.style.width = cel.style.height = (core.r*2) + 'px';
+      cel.style.transform = 'translate(' + (core.x-core.r) + 'px,' + (core.y-core.r) + 'px)';
+      var cball = document.createElement('div'); cball.className = 'bt-ball'; cball.appendChild(document.createTextNode(core.hp));
+      var ctag = document.createElement('div'); ctag.className = 'bt-tag'; ctag.textContent = 'BOSS';
+      cel.appendChild(cball); cel.appendChild(ctag); arena.appendChild(cel);
+      core.el = cel; core.ball = cball; core.lastHp = core.hp;
+    }
+    AR.bots.forEach(function (b){ arena.appendChild(btMakeBot(b)); });
+  }
+
+  function btStatus(){
+    var rem = document.getElementById('btRemain'); if (!rem) return;
+    if (AR.mode === 'boss' && AR.boss){
+      var live = AR.boss.sats.filter(function (s){ return s.alive; }).length;
+      var pupils = AR.bots.filter(function (b){ return b.alive; }).length;
+      rem.textContent = 'Boss ' + Math.max(0, AR.boss.core.hp) + ' HP · Limbs ' + live + '/' + AR.boss.n + ' · Class ' + pupils + ' left';
+    } else {
+      rem.textContent = AR.bots.filter(function (b){ return b.alive; }).length + ' remaining';
+    }
+  }
   function btFrame(){
-    var arena = document.getElementById('bt-arena');
-    var page = document.getElementById('page-battler');
+    var arena = document.getElementById('bt-arena'), page = document.getElementById('page-battler');
     if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
     if (!AR.paused){
-      var alive = btTick(AR.bots, arena.clientWidth, arena.clientHeight, Date.now());
-      btPaint();
-      var rem = document.getElementById('btRemain'); if (rem) rem.textContent = alive + ' remaining';
-      if (alive <= 1){ btFinish(); return; }
+      var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
+      if (AR.mode === 'boss'){
+        var r = btTickBoss(AR.bots, AR.boss, W, H, now); btPaint(); btStatus();
+        if (!AR.boss.core.alive){ btFinishBoss(true); return; }
+        if (r.pupils === 0){ btFinishBoss(false); return; }
+      } else {
+        var alive = btTick(AR.bots, W, H, now); btPaint(); btStatus();
+        if (alive <= 1){ btFinish(); return; }
+      }
     }
     AR.raf = requestAnimationFrame(btFrame);
   }
 
-  function btMount(){
-    var arena = document.getElementById('bt-arena'); if (!arena) return;
-    AR.bots.forEach(function (b){
-      var el = document.createElement('div'); el.className = 'bt-bot';
-      el.style.width = el.style.height = (b.r * 2) + 'px';
-      el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
-      var arm = document.createElement('div'); arm.className = 'bt-arm'; arm.style.transform = 'rotate(' + b.ang + 'rad)';
-      var ball = document.createElement('div'); ball.className = 'bt-ball'; ball.style.background = b.color;
-      ball.appendChild(document.createTextNode(b.hp));
-      var tag = document.createElement('div'); tag.className = 'bt-tag'; tag.textContent = b.name;
-      el.appendChild(arm); el.appendChild(ball); el.appendChild(tag);
-      arena.appendChild(el);
-      b.el = el; b.arm = arm; b.ball = ball; b.lastHp = b.hp;
-    });
-  }
-
+  /* ── Controls / lifecycle ───────────────────────────────── */
   window.btStartBattle = function (){
     var s = btLoad();
-    if (sortedRoster().length < 2){ return; }
-    AR.lastWinner = ''; AR.running = true; AR.paused = false;
+    if (sortedRoster().length < 2) return;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false;
+    AR.mode = s.arenaMode === 'boss' ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
-    btRender();              // renders the running arena shell
-    btMount();               // create avatar nodes
+    AR.boss = AR.mode === 'boss' ? btSpawnBoss(s) : null;
+    btRender(); btMount();
     cancelAnimationFrame(AR.raf); AR.raf = requestAnimationFrame(btFrame);
   };
   window.btPauseBattle = function (){
@@ -282,44 +418,65 @@
     var btn = document.getElementById('btPauseBtn');
     if (btn) btn.innerHTML = AR.paused ? (iconSVG('play',16) + ' Resume') : (iconSVG('pause',16) + ' Pause');
   };
-  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; btRender(); };
+  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; AR.boss = null; btRender(); };
   function btFinish(){
     AR.running = false; cancelAnimationFrame(AR.raf);
-    var winner = AR.bots.filter(function (b){ return b.alive; })[0];
-    AR.bots = [];
+    var winner = AR.bots.filter(function (b){ return b.alive; })[0]; AR.bots = []; AR.boss = null;
     var s = btLoad();
-    if (winner){
-      AR.lastWinner = winner.name;
-      btBeep([523,659,784,1047], 0.13);
-      if (s.winnerBonus > 0){ btAwardPids([winner.pid], s.winnerBonus, 'Battle winner'); return; } // re-renders
-    }
+    if (winner){ AR.lastWinner = winner.name; btBeep([523,659,784,1047], 0.13);
+      if (s.winnerBonus > 0){ btAwardPids([winner.pid], s.winnerBonus, 'Battle winner'); return; } }
+    btRender();
+  }
+  function btFinishBoss(win){
+    AR.running = false; cancelAnimationFrame(AR.raf);
+    var survivors = AR.bots.filter(function (b){ return b.alive; }).map(function (b){ return b.pid; });
+    AR.bots = []; AR.boss = null; AR.result = win ? 'win' : 'lose';
+    var s = btLoad();
+    if (win){ AR.bossMsg = 'The class defeated the boss!'; btBeep([523,659,784,1047], 0.14);
+      if (s.winnerBonus > 0 && survivors.length){ btAwardPids(survivors, s.winnerBonus, 'Beat the boss'); return; } }
+    else { AR.bossMsg = 'The boss won this time — try again!'; btBeep([300,200,150], 0.18); }
     btRender();
   }
   window.btSetWinnerBonus = function (v){ var s = btLoad(); var n = parseInt(v,10); s.winnerBonus = (n >= 0 ? n : 5); btSave(s); };
   window.btSetStartHP = function (v){ var s = btLoad(); s.startHP = (v === '' ? '' : Math.max(1, parseInt(v,10) || 1)); btSave(s); };
+  window.btSetArenaMode = function (m){ var s = btLoad(); s.arenaMode = (m === 'boss' ? 'boss' : 'ffa'); btSave(s); btRender(); };
+  window.btSetSatHP = function (v){ var s = btLoad(); s.satHP = Math.max(1, parseInt(v,10) || 8); btSave(s); };
+  window.btSetCoreHP = function (v){ var s = btLoad(); s.coreHP = Math.max(1, parseInt(v,10) || 30); btSave(s); };
 
   function btBattleTab(s){
     if (AR.running){
       return '<div class="bt-arena-bar no-print">' +
           '<button id="btPauseBtn" class="secondary" onclick="btPauseBattle()">' + iconSVG('pause',16) + ' Pause</button>' +
-          '<span class="bt-remain" id="btRemain">' + AR.bots.length + ' remaining</span>' +
+          '<span class="bt-remain" id="btRemain">…</span>' +
           '<div class="grow"></div>' +
           '<button class="danger" onclick="btEndBattle()">End Battle</button>' +
         '</div>' +
         '<div class="bt-arena" id="bt-arena"></div>';
     }
-    var win = AR.lastWinner
-      ? '<div class="bt-winner">🏆 <b>' + esc(AR.lastWinner) + '</b> won the battle!' + (s.winnerBonus > 0 ? ' <span class="muted">(+' + s.winnerBonus + ' points)</span>' : '') + '</div>'
+    var banner = '';
+    if (AR.result){ banner = '<div class="bt-winner' + (AR.result === 'lose' ? ' lose' : '') + '">' + (AR.result === 'win' ? '🏆 ' : '💥 ') + '<b>' + esc(AR.bossMsg) + '</b></div>'; }
+    else if (AR.lastWinner){ banner = '<div class="bt-winner">🏆 <b>' + esc(AR.lastWinner) + '</b> won the battle!' + (s.winnerBonus > 0 ? ' <span class="muted">(+' + s.winnerBonus + ' points)</span>' : '') + '</div>'; }
+    var modeSel = '<div class="seg" style="margin-bottom:14px">' +
+        '<button class="' + (s.arenaMode !== 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'ffa\')">⚔️ Free-for-all</button>' +
+        '<button class="' + (s.arenaMode === 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'boss\')">👹 Boss battle</button>' +
+      '</div>';
+    var bossFields = s.arenaMode === 'boss'
+      ? '<div><label>Limb HP ×6</label><input type="number" min="1" value="' + s.satHP + '" style="width:100px" onchange="btSetSatHP(this.value)" /></div>' +
+        '<div><label>Core HP</label><input type="number" min="1" value="' + s.coreHP + '" style="width:100px" onchange="btSetCoreHP(this.value)" /></div>'
       : '';
-    return '<div class="card no-print">' +
+    var hint = s.arenaMode === 'boss'
+      ? 'The class attacks together: smash all six spinning limbs, then the core. Mind the limbs’ arms — they knock points off pupils, who pop at zero. Survivors share the bonus.'
+      : 'Each pupil bounces around with a long spinning arm that knocks a point off whoever it hits. Pop at zero — last one standing wins the bonus. Blank “start points” uses each pupil’s current points.';
+    return '<div class="card no-print">' + modeSel +
         '<div class="row" style="align-items:flex-end">' +
           '<div><label>Start points</label><input id="btStartHP" type="number" min="1" placeholder="use current" value="' + esc(s.startHP) + '" style="width:130px" onchange="btSetStartHP(this.value)" /></div>' +
+          bossFields +
           '<div><label>Winner bonus</label><input id="btWinBonus" type="number" min="0" value="' + s.winnerBonus + '" style="width:110px" onchange="btSetWinnerBonus(this.value)" /></div>' +
           '<div class="grow"></div>' +
-          '<button onclick="btStartBattle()">' + iconSVG('zap',16) + ' Start Battle</button>' +
+          '<button onclick="btStartBattle()">' + iconSVG('zap',16) + (s.arenaMode === 'boss' ? ' Start Boss Battle' : ' Start Battle') + '</button>' +
         '</div>' +
-        '<p class="hint small" style="margin-top:8px">Each pupil bounces around with a spinning arm that knocks a point off whoever it hits. Pop at zero — last one standing wins and earns the bonus. Blank “start points” uses each pupil’s current points.</p>' +
-      '</div>' + win;
+        '<p class="hint small" style="margin-top:8px">' + hint + '</p>' +
+      '</div>' + banner;
   }
 
   function btPointsTab(s){
@@ -422,5 +579,5 @@
   }
 
   window.btRender = btRender;
-  window._btTick = btTick; window._btSpawn = btSpawn; window._btAR = AR;  /* test hooks */
+  window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
 })();
