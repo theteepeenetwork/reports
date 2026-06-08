@@ -391,6 +391,61 @@
       border: 2px dashed var(--accent); border-radius: 6px; color: var(--accent-dark); font-weight: 700;
     }
 
+    /* ---------- Behaviour Battler ---------- */
+    .bt-steps { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--muted); margin: 4px 0 14px; }
+    .bt-step { background: var(--card); border: 1px solid var(--line); color: var(--ink); padding: 6px 12px; border-radius: 9px; font-weight: 700; }
+    .bt-step.on { background: var(--teal-600); border-color: var(--teal-600); color: #fff; }
+    .bt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+    .bt-card {
+      display: flex; align-items: center; gap: 10px; padding: 12px;
+      border: 1px solid var(--line); border-radius: 13px; background: var(--card); transition: box-shadow .15s, transform .15s;
+    }
+    .bt-card .bt-meta { min-width: 0; flex: 1; }
+    .bt-name { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bt-lvl { font-size: 11px; color: var(--faint); font-weight: 600; }
+    .bt-pts { font-size: 22px; font-weight: 800; letter-spacing: -.02em; color: var(--teal-700); min-width: 30px; text-align: center; }
+    .bt-btns { display: flex; flex-direction: column; gap: 4px; }
+    .bt-mini { padding: 4px 8px; font-size: 13px; border-radius: 8px; line-height: 1; }
+    .bt-mini.minus { background: var(--coral-50); color: var(--coral-600); border: 1px solid var(--coral-100); }
+    .bt-mini.minus:hover { background: var(--coral-100); }
+    .bt-flash { box-shadow: 0 0 0 3px var(--gold-100); animation: btpop .35s; }
+    @keyframes btpop { 0% { transform: scale(1); } 40% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    .bt-boss {
+      display: flex; align-items: center; gap: 16px; padding: 16px 18px; margin-bottom: 16px;
+      border: 1px solid var(--coral-100); border-radius: 14px; background: var(--coral-50); flex-wrap: wrap;
+    }
+    .bt-boss.won { background: var(--gold-50); border-color: var(--gold-100); }
+    .bt-boss-face { font-size: 38px; line-height: 1; }
+    .bt-boss-main { flex: 1; min-width: 200px; }
+    .bt-boss-top { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; }
+    .bt-boss-win { margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--gold-600); }
+    .bt-bar { height: 12px; background: var(--line-2); border-radius: 999px; overflow: hidden; }
+    .bt-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--coral-500), var(--coral-600)); transition: width .5s cubic-bezier(.2,.7,.3,1); }
+    .bt-fill.teal { background: linear-gradient(90deg, var(--teal-500), var(--teal-700)); }
+    .bt-fill.gold { background: linear-gradient(90deg, var(--gold-100), var(--gold-600)); }
+    .bt-fill.slate { background: linear-gradient(90deg, #cbd5d8, #5c6a6e); }
+    .bt-tname { max-width: 220px; font-weight: 700; border: 1px solid transparent; background: none; padding: 4px 6px; }
+    .bt-tname:hover, .bt-tname:focus { border-color: var(--line); background: var(--card); }
+    .bt-tscore { width: 40px; height: 40px; font-size: 15px; }
+    .bt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .bt-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 4px 6px 4px 10px; border-radius: 999px; background: var(--teal-50); color: var(--teal-700); }
+    .bt-chip button { background: none; border: 0; color: var(--teal-700); padding: 0 2px; font-size: 14px; line-height: 1; }
+    .bt-rankrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-2); }
+    .bt-rankrow:first-child { border-top: 0; }
+    .bt-rank { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; background: var(--line-2); color: var(--muted); flex: 0 0 auto; }
+    .bt-rank.gold { background: var(--gold-50); color: var(--gold-600); } .bt-rank.slate { background: #eef1f1; color: #5c6a6e; } .bt-rank.coral { background: var(--coral-50); color: var(--coral-600); }
+    .bt-rname { flex: 1; font-weight: 600; font-size: 13.5px; }
+    .bt-rlvl { font-size: 11.5px; color: var(--faint); font-weight: 600; }
+    .bt-rpts { font-size: 16px; font-weight: 800; color: var(--teal-700); width: 40px; text-align: right; }
+    .bt-tstand { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+    .bt-tslabel { width: 120px; font-size: 13px; font-weight: 600; flex: 0 0 auto; }
+    .bt-tstand .bt-bar { flex: 1; }
+    .bt-tsval { width: 34px; text-align: right; font-weight: 800; color: var(--ink); }
+    .bt-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line-2); }
+    .bt-setting:first-child { border-top: 0; }
+    .bt-switch { background: var(--line-2); color: var(--muted); min-width: 56px; }
+    .bt-switch.on { background: var(--teal-600); color: #fff; }
+
     @media print {
       .sidebar, .topbar-mobile, .no-print { display: none !important; }
       .app { grid-template-columns: 1fr; }
@@ -438,6 +493,7 @@
       <button class="nav-link" data-page="generator"><span class="ico" data-icon="help-circle"></span> <span>Question Generator</span></button>
       <button class="nav-link" data-page="star-pupil"><span class="ico" data-icon="star"></span> <span>Star Pupil</span></button>
       <button class="nav-link" data-page="behaviour"><span class="ico" data-icon="clipboard-list"></span> <span>Behaviour Log</span></button>
+      <button class="nav-link" data-page="battler"><span class="ico" data-icon="zap"></span> <span>Behaviour Battler</span></button>
       <button class="nav-link" data-page="name-picker"><span class="ico" data-icon="target"></span> <span>Name Picker</span></button>
       <button class="nav-link" data-page="timetable"><span class="ico" data-icon="calendar"></span> <span>Timetable</span></button>
 
@@ -730,6 +786,15 @@
         <div id="gen-root"></div>
       </section>
 
+      <!-- ================= BEHAVIOUR BATTLER ================= -->
+      <section class="page" id="page-battler">
+        <div class="page-header">
+          <h1>Behaviour Battler</h1>
+          <p>Award behaviour points to pupils or whole tables, climb the leaderboard, and team up to beat a class boss. Points can flow into your Behaviour Log.</p>
+        </div>
+        <div id="bt-root"></div>
+      </section>
+
       <!-- ================= NAME PICKER ================= -->
       <section class="page" id="page-name-picker">
         <div class="page-header">
@@ -857,6 +922,7 @@ function renderPage(page){
   if (page === 'profile') renderProfile();
   // pluggable feature pages (defined in /js modules)
   if (page === 'generator' && typeof genRender === 'function') genRender();
+  if (page === 'battler' && typeof btRender === 'function') btRender();
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
   if (page === 'timetable' && typeof ttRender === 'function') ttRender();
   if (page === 'seating' && typeof seatRender === 'function') seatRender();
@@ -1274,7 +1340,7 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -1327,7 +1393,8 @@ const ICONS = {
   bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/>',
   printer:'<path d="M6 9V3h12v6"/><path d="M6 18H4v-7h16v7h-2"/><rect x="8" y="14" width="8" height="7" rx="1"/>',
   'arrow-right':'<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
-  check:'<path d="M5 12l4 4 10-10"/>'
+  check:'<path d="M5 12l4 4 10-10"/>',
+  zap:'<path d="M13 2L4 14h7l-2 8 9-12h-7z"/>'
 };
 function iconSVG(name, size){ size = size || 18; return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`; }
 function injectIcons(root){ (root || document).querySelectorAll('[data-icon]').forEach(el => {
@@ -1373,6 +1440,7 @@ applyProfile();
      FEATURE MODULES (each self-contained; loaded after platform helpers)
      =================================================================== -->
 <script src="js/generator.js"></script>
+<script src="js/battler.js"></script>
 <script src="js/picker.js"></script>
 <script src="js/timetable.js"></script>
 <script src="js/seating.js"></script>
