@@ -163,12 +163,17 @@
 
     /* iPad reward highlight */
     .reward { background: var(--reward) !important; box-shadow: inset 0 0 0 2px var(--reward-border); }
-    .ms-cell { position: relative; }
-    .ms-cell .ipad-toggle {
-      position: absolute; top: 1px; right: 2px; font-size: .7rem; line-height: 1;
-      cursor: pointer; opacity: .35; user-select: none;
+    .ms-cell { padding: .2rem; min-width: 64px; }
+    .ms-cell input { margin-bottom: 2px; }
+    .ipad-btn {
+      display: block; width: 100%; padding: 2px 0; font-size: .72rem; line-height: 1.25;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #eef0f3; color: #9ca3af; cursor: pointer; font-weight: 700;
     }
-    .ms-cell .ipad-toggle.on { opacity: 1; }
+    .ipad-btn:hover { background: #e5e7eb; color: #6b7280; }
+    .ipad-btn.on, .ipad-btn.on:hover {
+      background: var(--reward); border-color: var(--reward-border); color: #92400e;
+    }
 
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1rem; }
     .stat {
@@ -285,7 +290,7 @@
       <section class="page" id="page-mental-starters">
         <div class="page-header">
           <h1>🧮 Mental Starters</h1>
-          <p>Record each morning's score per pupil. Tap the 📱 in the corner of a cell to mark that a pupil earned an iPad that morning (the cell highlights, just like your spreadsheet).</p>
+          <p>Type each morning's score, then tap the <b>📱 button</b> under it to mark that the pupil earned an iPad that morning — the cell turns gold, just like the highlighted scores in your spreadsheet.</p>
         </div>
         <div class="card">
           <div class="row">
@@ -310,7 +315,7 @@
             <table class="grid-table" id="msTable"></table>
           </div>
           <p class="hint small" style="margin-top:.6rem">
-            <span class="pill" style="background:var(--reward);color:#92400e">📱 highlighted</span> = had an iPad that morning (reward). Averages ignore blank days.
+            A gold <span class="pill" style="background:var(--reward);color:#92400e">📱 iPad</span> button (and gold cell) = had an iPad that morning (reward). Tap it again to undo. Averages ignore blank days.
           </p>
         </div>
       </section>
@@ -702,13 +707,15 @@ function msSet(pid, d, v){
   b.scores[pid][d].v = v === '' ? null : Number(v);
   msSave(); msUpdateAvg(pid);
 }
-function msToggleIpad(pid, d, elTd, elBadge){
+function msToggleIpad(pid, d, btn){
   const b = msBlock();
   if (!b.scores[pid]) b.scores[pid] = {};
   if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
-  b.scores[pid][d].ipad = !b.scores[pid][d].ipad;
-  elTd.classList.toggle('reward', b.scores[pid][d].ipad);
-  elBadge.classList.toggle('on', b.scores[pid][d].ipad);
+  const on = !b.scores[pid][d].ipad;
+  b.scores[pid][d].ipad = on;
+  btn.parentNode.classList.toggle('reward', on);
+  btn.classList.toggle('on', on);
+  btn.textContent = '📱' + (on ? ' iPad' : '');
   msSave();
 }
 function msAvg(pid){
@@ -743,8 +750,8 @@ function msRender(){
       const rewardCls = cell.ipad ? ' reward' : '';
       const onCls = cell.ipad ? ' on' : '';
       body += `<td class="ms-cell num${rewardCls}">
-        <span class="ipad-toggle${onCls}" title="Mark iPad reward" onclick="msToggleIpad('${p.id}','${d}',this.parentNode,this)">📱</span>
         <input type="number" min="0" value="${cell.v != null ? cell.v : ''}" onchange="msSet('${p.id}','${d}',this.value)" />
+        <button class="ipad-btn${onCls}" title="Did this pupil earn an iPad this morning?" onclick="msToggleIpad('${p.id}','${d}',this)">📱${cell.ipad ? ' iPad' : ''}</button>
       </td>`;
     });
     body += `<td class="total-cell" id="avg-${p.id}">${msAvg(p.id)}</td></tr>`;
