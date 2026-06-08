@@ -26,17 +26,22 @@
   };
   function genClockMinutes(halfTerm){ return GEN_CLOCK[halfTerm] || GEN_CLOCK['Spring 2']; }
 
+  var GEN_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
   /* ── State ──────────────────────────────────────────────── */
   function genDefaultState(){
-    return { v: 1, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, generatedISO: '', questions: [] };
+    return { v: 2, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false, generatedISO: '', days: [] };
   }
   function genLoad(){
     var s = Store.get('tp_generator', null);
     if (!s || typeof s !== 'object') s = genDefaultState();
     if (!GEN_CLOCK[s.halfTerm]) s.halfTerm = 'Spring 2';
     if (s.mode !== 'tables') s.mode = 'worksheet';
-    if (!Array.isArray(s.questions)) s.questions = [];
     if (!(s.count > 0)) s.count = 50;
+    s.week = !!s.week;
+    // migrate v1 (single { questions: [] }) -> v2 ({ days: [{label, questions}] })
+    if (!Array.isArray(s.days)) s.days = Array.isArray(s.questions) && s.questions.length ? [{ label: '', questions: s.questions }] : [];
+    delete s.questions;
     return s;
   }
   function genSave(s){ Store.set('tp_generator', s); }
@@ -118,6 +123,14 @@
     return mode === 'tables' ? genBuildTables(count) : genBuildWorksheet(halfTerm);
   }
 
+  // Build one or five days. Each day = { label, questions }.
+  function genBuildDays(halfTerm, mode, count, week){
+    var labels = week ? GEN_WEEKDAYS : [''];
+    return labels.map(function (label){
+      return { label: label, questions: genBuild(halfTerm, mode, count) };
+    });
+  }
+
   /* ── SVG: analogue clock ────────────────────────────────── */
   function genHourAngle(h, m){ return ((h % 12) + m / 60) * 30; }
   function genMinuteAngle(m){ return m * 6; }
@@ -127,16 +140,21 @@
   }
   function genClockSVG(item){
     var cx = 50, cy = 50, R = 45;
-    var ticks = '';
+    var ticks = '', nums = '';
     for (var i = 0; i < 12; i++){
-      var d = i * 30, p1 = genHand(d, R, cx, cy), p2 = genHand(d, R - (i % 3 === 0 ? 8 : 5), cx, cy);
+      var d = i * 30, p1 = genHand(d, R, cx, cy), p2 = genHand(d, R - (i % 3 === 0 ? 7 : 4), cx, cy);
       ticks += '<line x1="' + p1.x.toFixed(1) + '" y1="' + p1.y.toFixed(1) + '" x2="' + p2.x.toFixed(1) + '" y2="' + p2.y.toFixed(1) + '" stroke="#374151" stroke-width="' + (i % 3 === 0 ? 2 : 1) + '"/>';
     }
-    var hh = genHand(genHourAngle(item.h, item.m), 25, cx, cy);
-    var mm = genHand(genMinuteAngle(item.m), 38, cx, cy);
+    for (var n = 1; n <= 12; n++){
+      var a = n * 30 * Math.PI / 180;
+      var nx = cx + 34 * Math.sin(a), ny = cy - 34 * Math.cos(a);
+      nums += '<text x="' + nx.toFixed(1) + '" y="' + ny.toFixed(1) + '" text-anchor="middle" dominant-baseline="central" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#111827">' + n + '</text>';
+    }
+    var hh = genHand(genHourAngle(item.h, item.m), 22, cx, cy);
+    var mm = genHand(genMinuteAngle(item.m), 33, cx, cy);
     return '<svg class="gen-clock" viewBox="0 0 100 100" role="img" aria-label="clock">' +
       '<circle cx="50" cy="50" r="' + R + '" fill="#fff" stroke="#111827" stroke-width="2.5"/>' +
-      ticks +
+      ticks + nums +
       '<line x1="50" y1="50" x2="' + hh.x.toFixed(1) + '" y2="' + hh.y.toFixed(1) + '" stroke="#111827" stroke-width="3.5" stroke-linecap="round"/>' +
       '<line x1="50" y1="50" x2="' + mm.x.toFixed(1) + '" y2="' + mm.y.toFixed(1) + '" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>' +
       '<circle cx="50" cy="50" r="2.5" fill="#111827"/>' +
@@ -213,6 +231,7 @@
     var root = document.getElementById('gen-root');
     if (!root) return;
     var s = genLoad();
+    genSave(s); // persist any normalisation / v1->v2 migration
 
     var htOpts = HALF_TERMS.map(function (h){ return opt(h, h, s.halfTerm); }).join('');
     var controls =
@@ -227,26 +246,34 @@
           (s.mode === 'tables'
             ? '<div><label>How many</label><input id="genCount" type="number" min="1" max="100" value="' + s.count + '" onchange="genSetCount(this.value)" style="width:90px" /></div>'
             : '') +
+          '<div><label>How many days</label>' +
+            '<select id="genWeek" onchange="genSetWeek(this.value)" style="min-width:150px">' +
+              opt('0', '1 day', s.week ? '1' : '0') + opt('1', 'Whole week (Mon–Fri)', s.week ? '1' : '0') +
+            '</select></div>' +
           '<div class="grow"></div>' +
           '<button onclick="genGenerate()">🎲 Generate new</button>' +
           '<button class="secondary" onclick="window.print()">🖨️ Print</button>' +
         '</div>' +
         (s.mode === 'worksheet' ? '<p class="hint small" style="margin-top:.5rem">Clock difficulty for <b>' + esc(s.halfTerm) + '</b>: ' + genClockLabel(s.halfTerm) + '</p>' : '') +
+        '<p class="hint small" style="margin-top:.3rem">Each day prints on its own A4 page.</p>' +
       '</div>';
 
     var body;
-    if (!s.questions.length){
-      body = '<div class="card"><p class="empty">Tap <b>🎲 Generate new</b> to create a worksheet.</p></div>';
+    if (!s.days.length){
+      body = '<div class="card"><p class="empty">Tap <b>🎲 Generate new</b> to create ' + (s.week ? 'a week of worksheets' : 'a worksheet') + '.</p></div>';
     } else {
-      var heading = (s.mode === 'tables' ? 'Times tables (2, 5, 10)' : 'Mental Starter — ' + esc(s.halfTerm)) +
-                    (s.generatedISO ? ' &middot; ' + esc(s.generatedISO) : '');
-      var cells = s.questions.map(function (q, i){
-        return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + genRenderQuestion(q) + '</div></div>';
+      body = s.days.map(function (day){
+        var title = (s.mode === 'tables' ? 'Times tables (2, 5, 10)' : 'Mental Starter — ' + esc(s.halfTerm));
+        var heading = (day.label ? '<span class="gen-day-name">' + esc(day.label) + '</span> · ' : '') + title +
+                      (s.generatedISO ? ' &middot; ' + esc(s.generatedISO) : '');
+        var cells = day.questions.map(function (q, i){
+          return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + genRenderQuestion(q) + '</div></div>';
+        }).join('');
+        return '<div class="card gen-sheet gen-day">' +
+          '<h2 class="gen-heading">' + heading + '</h2>' +
+          '<div class="gen-grid' + (s.mode === 'tables' ? ' gen-grid-tables' : '') + '">' + cells + '</div>' +
+        '</div>';
       }).join('');
-      body = '<div class="card gen-sheet">' +
-        '<h2 class="gen-heading">' + heading + '</h2>' +
-        '<div class="gen-grid' + (s.mode === 'tables' ? ' gen-grid-tables' : '') + '">' + cells + '</div>' +
-      '</div>';
     }
     root.innerHTML = controls + body;
   }
@@ -260,7 +287,7 @@
   /* ── Handlers (on window for inline onclick) ────────────── */
   window.genGenerate = function (){
     var s = genLoad();
-    s.questions = genBuild(s.halfTerm, s.mode, s.count);
+    s.days = genBuildDays(s.halfTerm, s.mode, s.count, s.week);
     s.generatedISO = (typeof todayISO === 'function') ? todayISO() : '';
     genSave(s); genRender();
   };
@@ -268,15 +295,17 @@
     var s = genLoad();
     if (s.mode === mode) return;
     s.mode = (mode === 'tables') ? 'tables' : 'worksheet';
-    s.questions = []; // worksheet/tables are different shapes; clear until regenerated
+    s.days = []; // worksheet/tables are different shapes; clear until regenerated
     genSave(s); genRender();
   };
   window.genSetHalfTerm = function (v){ var s = genLoad(); s.halfTerm = GEN_CLOCK[v] ? v : s.halfTerm; genSave(s); genRender(); };
   window.genSetCount = function (v){ var s = genLoad(); var n = parseInt(v, 10); s.count = (n > 0 && n <= 100) ? n : 50; genSave(s); };
+  window.genSetWeek = function (v){ var s = genLoad(); s.week = (v === '1' || v === 1 || v === true); genSave(s); genRender(); };
 
   /* expose render + testable helpers */
   window.genRender = genRender;
   window.genBuild = genBuild;
+  window.genBuildDays = genBuildDays;
   window.genRenderQuestion = genRenderQuestion;
   window.genHourAngle = genHourAngle;
   window.genMinuteAngle = genMinuteAngle;

@@ -212,18 +212,10 @@
     .child-button { background: var(--soft); color: var(--text); text-align: left; border: 1px solid #c7d2fe; }
     .child-button.active { background: var(--accent); color: white; }
     .small-box { min-height: 80px; }
-    @media print {
-      .sidebar, .topbar-mobile, .no-print { display: none !important; }
-      .app { grid-template-columns: 1fr; }
-      .page { display: none !important; }
-      .page.active { display: block !important; }
-      .gen-grid { grid-template-columns: 1fr 1fr !important; }
-      .gen-q { page-break-inside: avoid; }
-    }
-
     /* ---------- Question Generator ---------- */
     .gen-sheet { padding: 1.4rem; }
     .gen-heading { text-align: center; margin: 0 0 1rem; }
+    .gen-day-name { color: var(--accent-dark); }
     .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
     .gen-grid-tables { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
     .gen-q {
@@ -238,11 +230,41 @@
     .gen-clocks { display: flex; gap: .8rem; flex-wrap: wrap; }
     .gen-clock-wrap { text-align: center; }
     .gen-clock-label { font-weight: 800; font-size: 1rem; }
-    .gen-clock { width: 90px; height: 90px; }
+    .gen-clock { width: 104px; height: 104px; }
     .gen-blocks { max-width: 100%; height: 70px; margin-top: .3rem; }
     .gen-blank {
       display: inline-block; min-width: 1.6em; padding: 0 .25em; text-align: center;
       border: 2px dashed var(--accent); border-radius: 6px; color: var(--accent-dark); font-weight: 700;
+    }
+
+    @media print {
+      .sidebar, .topbar-mobile, .no-print { display: none !important; }
+      .app { grid-template-columns: 1fr; }
+      .page { display: none !important; }
+      .page.active { display: block !important; }
+      .content { padding: 0 !important; max-width: none !important; }
+    }
+    /* Each generated day fills exactly one A4 page */
+    @media print {
+      @page { size: A4 portrait; margin: 9mm; }
+      body { background: #fff; }
+      #page-generator .page-header { display: none !important; }
+      .gen-sheet { padding: 0; box-shadow: none; margin: 0; border-radius: 0; }
+      .gen-day { break-after: page; page-break-after: always; }
+      .gen-day:last-child { break-after: auto; page-break-after: auto; }
+      .gen-heading { font-size: 13pt; margin: 0 0 4mm; }
+      .gen-grid { grid-template-columns: 1fr 1fr !important; gap: 3mm !important; }
+      .gen-q {
+        font-size: 12pt; padding: 1.6mm 3mm; gap: 3mm; border-radius: 4px;
+        break-inside: avoid; page-break-inside: avoid;
+      }
+      .gen-qtext { font-size: 9pt; margin-top: 1mm; }
+      .gen-clocks { gap: 3mm; }
+      .gen-clock { width: 21mm; height: 21mm; }
+      .gen-clock-label { font-size: 9pt; }
+      .gen-blocks { height: 14mm; }
+      .gen-grid-tables { grid-template-columns: repeat(5, 1fr) !important; gap: 2mm !important; }
+      .gen-grid-tables .gen-q { font-size: 11pt; padding: 1.2mm 2mm; }
     }
   </style>
 </head>
