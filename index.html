@@ -217,6 +217,32 @@
       .app { grid-template-columns: 1fr; }
       .page { display: none !important; }
       .page.active { display: block !important; }
+      .gen-grid { grid-template-columns: 1fr 1fr !important; }
+      .gen-q { page-break-inside: avoid; }
+    }
+
+    /* ---------- Question Generator ---------- */
+    .gen-sheet { padding: 1.4rem; }
+    .gen-heading { text-align: center; margin: 0 0 1rem; }
+    .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+    .gen-grid-tables { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+    .gen-q {
+      display: flex; gap: .6rem; align-items: flex-start;
+      border: 1px solid var(--border); border-radius: 12px; padding: .7rem .9rem;
+      font-size: 1.4rem; background: #fff; break-inside: avoid;
+    }
+    .gen-grid-tables .gen-q { font-size: 1.2rem; padding: .5rem .7rem; }
+    .gen-num { font-weight: 800; color: var(--accent-dark); white-space: nowrap; }
+    .gen-body { flex: 1; }
+    .gen-qtext { font-size: 1.1rem; color: var(--text); margin-top: .3rem; }
+    .gen-clocks { display: flex; gap: .8rem; flex-wrap: wrap; }
+    .gen-clock-wrap { text-align: center; }
+    .gen-clock-label { font-weight: 800; font-size: 1rem; }
+    .gen-clock { width: 90px; height: 90px; }
+    .gen-blocks { max-width: 100%; height: 70px; margin-top: .3rem; }
+    .gen-blank {
+      display: inline-block; min-width: 1.6em; padding: 0 .25em; text-align: center;
+      border: 2px dashed var(--accent); border-radius: 6px; color: var(--accent-dark); font-weight: 700;
     }
   </style>
 </head>
@@ -229,6 +255,7 @@
 
     <div class="nav-group-label">Daily</div>
     <button class="nav-link" data-page="mental-starters"><span class="ico">🧮</span> Mental Starters</button>
+    <button class="nav-link" data-page="generator"><span class="ico">❓</span> Question Generator</button>
     <button class="nav-link" data-page="star-pupil"><span class="ico">⭐</span> Star Pupil</button>
     <button class="nav-link" data-page="behaviour"><span class="ico">📒</span> Behaviour Log</button>
     <button class="nav-link" data-page="name-picker"><span class="ico">🎯</span> Name Picker</button>
@@ -499,6 +526,15 @@
         </div>
       </section>
 
+      <!-- ================= QUESTION GENERATOR ================= -->
+      <section class="page" id="page-generator">
+        <div class="page-header">
+          <h1>❓ Question Generator</h1>
+          <p>Generate a fresh daily mental-starter worksheet — clocks and place-value blocks are drawn for you. Project it on the board or print it. The worksheet stays put until you tap <b>Generate new</b>.</p>
+        </div>
+        <div id="gen-root"></div>
+      </section>
+
       <!-- ================= NAME PICKER ================= -->
       <section class="page" id="page-name-picker">
         <div class="page-header">
@@ -615,6 +651,7 @@ function renderPage(page){
   if (page === 'class-context') ctxRender();
   if (page === 'class-list') rosRender();
   // pluggable feature pages (defined in /js modules)
+  if (page === 'generator' && typeof genRender === 'function') genRender();
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
   if (page === 'timetable' && typeof ttRender === 'function') ttRender();
   if (page === 'seating' && typeof seatRender === 'function') seatRender();
@@ -957,7 +994,7 @@ document.getElementById('ideasList').innerHTML = IDEAS.map(i => `<li>${i}</li>`)
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -1016,6 +1053,7 @@ function syncPupilSelectors(){
 <!-- ===================================================================
      FEATURE MODULES (each self-contained; loaded after platform helpers)
      =================================================================== -->
+<script src="js/generator.js"></script>
 <script src="js/picker.js"></script>
 <script src="js/timetable.js"></script>
 <script src="js/seating.js"></script>
