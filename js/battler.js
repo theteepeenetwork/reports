@@ -15,9 +15,10 @@
 
   /* ── State ──────────────────────────────────────────────── */
   function btDefault(){
-    return { v:1, tab:'battle', step:1, sound:true, logBh:false,
+    return { v:1, tab:'battle', step:1, sound:true, logBh:false, winnerBonus:5, startHP:'',
              points:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
+  var BT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#ec4899','#84cc16','#06b6d4','#d946ef','#14b8a6','#f97316','#6366f1'];
   function btLoad(){
     var s = Store.get('tp_battler', null);
     if (!s || typeof s !== 'object') s = btDefault();
@@ -158,7 +159,170 @@
   }
 
   /* ── Tabs ───────────────────────────────────────────────── */
+  /* ── BATTLE ARENA (physics battle royale) ──────────────────
+     Avatars bounce around; a spinning arm knocks a point off
+     whoever it touches; a battler pops at zero. Last one wins. */
+  var AR = { running:false, paused:false, bots:[], raf:0, lastWinner:'' };
+
+  function btSpawn(s){
+    s = s || btLoad();
+    var pupils = sortedRoster();
+    var arena = document.getElementById('bt-arena');
+    var W = arena ? arena.clientWidth  || 900 : 900;
+    var H = arena ? arena.clientHeight || 520 : 520;
+    var override = (s.startHP !== '' && s.startHP != null) ? Math.max(1, parseInt(s.startHP,10) || 1) : null;
+    return pupils.map(function (p, i){
+      var r = 30;
+      var sp = 1.0 + Math.random() * 1.0, a = Math.random() * Math.PI * 2;
+      return {
+        pid: p.id, name: p.name, color: BT_COLORS[i % BT_COLORS.length], r: r,
+        hp: override != null ? override : Math.max(5, btPts(s, p.id)),
+        x: r + Math.random() * (W - 2*r), y: r + 20 + Math.random() * (H - 2*r - 20),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random() * 0.05),
+        cd: 0, alive: true, el: null, ball: null, arm: null, lastHp: -1
+      };
+    });
+  }
+
+  // One physics step (pure-ish: mutates bots, no DOM). Returns alive count.
+  function btTick(bots, W, H, now){
+    var i, j, b;
+    for (i = 0; i < bots.length; i++){
+      b = bots[i]; if (!b.alive) continue;
+      b.x += b.vx; b.y += b.vy; b.ang += b.spin;
+      if (b.x < b.r){ b.x = b.r; b.vx = Math.abs(b.vx); }
+      if (b.x > W - b.r){ b.x = W - b.r; b.vx = -Math.abs(b.vx); }
+      if (b.y < b.r){ b.y = b.r; b.vy = Math.abs(b.vy); }
+      if (b.y > H - b.r){ b.y = H - b.r; b.vy = -Math.abs(b.vy); }
+    }
+    for (i = 0; i < bots.length; i++){
+      var A = bots[i]; if (!A.alive) continue;
+      // arm tip a little beyond the ball, spinning around the avatar
+      var reach = A.r + 16, tx = A.x + Math.cos(A.ang) * reach, ty = A.y + Math.sin(A.ang) * reach;
+      for (j = 0; j < bots.length; j++){
+        if (i === j) continue;
+        var B = bots[j]; if (!B.alive) continue;
+        var dx = B.x - A.x, dy = B.y - A.y, d2 = dx*dx + dy*dy, rr = A.r + B.r;
+        // gentle separation so they don't stack
+        if (d2 < rr*rr && d2 > 0.01){
+          var d = Math.sqrt(d2), nx = dx/d, ny = dy/d, push = (rr - d) / 2;
+          A.x -= nx*push; A.y -= ny*push; B.x += nx*push; B.y += ny*push;
+          A.vx -= nx*0.2; A.vy -= ny*0.2; B.vx += nx*0.2; B.vy += ny*0.2;
+        }
+        // arm-tip hit (with a short cooldown so it doesn't drain instantly)
+        var hx = B.x - tx, hy = B.y - ty;
+        if (hx*hx + hy*hy < B.r*B.r && now >= B.cd){
+          B.hp -= 1; B.cd = now + 420; B.justHit = now;
+          if (B.hp <= 0){ B.alive = false; B.poppedAt = now; }
+        }
+      }
+    }
+    var alive = 0; for (i = 0; i < bots.length; i++) if (bots[i].alive) alive++;
+    return alive;
+  }
+
+  function btPaint(){
+    for (var i = 0; i < AR.bots.length; i++){
+      var b = AR.bots[i];
+      if (!b.el) continue;
+      if (!b.alive){
+        if (!b.el.classList.contains('pop')){ b.el.classList.add('pop'); setTimeout((function (el){ return function (){ if (el && el.parentNode) el.parentNode.removeChild(el); }; })(b.el), 320); b.el = null; }
+        continue;
+      }
+      b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
+      b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
+      if (b.hp !== b.lastHp){ b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }
+      if (b.justHit && Date.now() - b.justHit < 260){ if (!b.el.classList.contains('hit')) b.el.classList.add('hit'); }
+      else if (b.el.classList.contains('hit')) b.el.classList.remove('hit');
+    }
+  }
+
+  function btFrame(){
+    var arena = document.getElementById('bt-arena');
+    var page = document.getElementById('page-battler');
+    if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
+    if (!AR.paused){
+      var alive = btTick(AR.bots, arena.clientWidth, arena.clientHeight, Date.now());
+      btPaint();
+      var rem = document.getElementById('btRemain'); if (rem) rem.textContent = alive + ' remaining';
+      if (alive <= 1){ btFinish(); return; }
+    }
+    AR.raf = requestAnimationFrame(btFrame);
+  }
+
+  function btMount(){
+    var arena = document.getElementById('bt-arena'); if (!arena) return;
+    AR.bots.forEach(function (b){
+      var el = document.createElement('div'); el.className = 'bt-bot';
+      el.style.width = el.style.height = (b.r * 2) + 'px';
+      el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
+      var arm = document.createElement('div'); arm.className = 'bt-arm'; arm.style.transform = 'rotate(' + b.ang + 'rad)';
+      var ball = document.createElement('div'); ball.className = 'bt-ball'; ball.style.background = b.color;
+      ball.appendChild(document.createTextNode(b.hp));
+      var tag = document.createElement('div'); tag.className = 'bt-tag'; tag.textContent = b.name;
+      el.appendChild(arm); el.appendChild(ball); el.appendChild(tag);
+      arena.appendChild(el);
+      b.el = el; b.arm = arm; b.ball = ball; b.lastHp = b.hp;
+    });
+  }
+
+  window.btStartBattle = function (){
+    var s = btLoad();
+    if (sortedRoster().length < 2){ return; }
+    AR.lastWinner = ''; AR.running = true; AR.paused = false;
+    s.tab = 'battle'; btSave(s);
+    AR.bots = btSpawn(s);
+    btRender();              // renders the running arena shell
+    btMount();               // create avatar nodes
+    cancelAnimationFrame(AR.raf); AR.raf = requestAnimationFrame(btFrame);
+  };
+  window.btPauseBattle = function (){
+    AR.paused = !AR.paused;
+    var btn = document.getElementById('btPauseBtn');
+    if (btn) btn.innerHTML = AR.paused ? (iconSVG('play',16) + ' Resume') : (iconSVG('pause',16) + ' Pause');
+  };
+  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; btRender(); };
+  function btFinish(){
+    AR.running = false; cancelAnimationFrame(AR.raf);
+    var winner = AR.bots.filter(function (b){ return b.alive; })[0];
+    AR.bots = [];
+    var s = btLoad();
+    if (winner){
+      AR.lastWinner = winner.name;
+      btBeep([523,659,784,1047], 0.13);
+      if (s.winnerBonus > 0){ btAwardPids([winner.pid], s.winnerBonus, 'Battle winner'); return; } // re-renders
+    }
+    btRender();
+  }
+  window.btSetWinnerBonus = function (v){ var s = btLoad(); var n = parseInt(v,10); s.winnerBonus = (n >= 0 ? n : 5); btSave(s); };
+  window.btSetStartHP = function (v){ var s = btLoad(); s.startHP = (v === '' ? '' : Math.max(1, parseInt(v,10) || 1)); btSave(s); };
+
   function btBattleTab(s){
+    if (AR.running){
+      return '<div class="bt-arena-bar no-print">' +
+          '<button id="btPauseBtn" class="secondary" onclick="btPauseBattle()">' + iconSVG('pause',16) + ' Pause</button>' +
+          '<span class="bt-remain" id="btRemain">' + AR.bots.length + ' remaining</span>' +
+          '<div class="grow"></div>' +
+          '<button class="danger" onclick="btEndBattle()">End Battle</button>' +
+        '</div>' +
+        '<div class="bt-arena" id="bt-arena"></div>';
+    }
+    var win = AR.lastWinner
+      ? '<div class="bt-winner">🏆 <b>' + esc(AR.lastWinner) + '</b> won the battle!' + (s.winnerBonus > 0 ? ' <span class="muted">(+' + s.winnerBonus + ' points)</span>' : '') + '</div>'
+      : '';
+    return '<div class="card no-print">' +
+        '<div class="row" style="align-items:flex-end">' +
+          '<div><label>Start points</label><input id="btStartHP" type="number" min="1" placeholder="use current" value="' + esc(s.startHP) + '" style="width:130px" onchange="btSetStartHP(this.value)" /></div>' +
+          '<div><label>Winner bonus</label><input id="btWinBonus" type="number" min="0" value="' + s.winnerBonus + '" style="width:110px" onchange="btSetWinnerBonus(this.value)" /></div>' +
+          '<div class="grow"></div>' +
+          '<button onclick="btStartBattle()">' + iconSVG('zap',16) + ' Start Battle</button>' +
+        '</div>' +
+        '<p class="hint small" style="margin-top:8px">Each pupil bounces around with a spinning arm that knocks a point off whoever it hits. Pop at zero — last one standing wins and earns the bonus. Blank “start points” uses each pupil’s current points.</p>' +
+      '</div>' + win;
+  }
+
+  function btPointsTab(s){
     var pupils = sortedRoster();
     var boss = btBossBar(s);
     if (!boss && !s.boss.active) {
@@ -245,11 +409,12 @@
     var root = document.getElementById('bt-root'); if (!root) return;
     var s = btLoad();
     if (!roster.length){ root.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first — they become your battlers.</p></div>'; return; }
-    var tabs = [['battle','Battle'],['tables','Tables'],['leaderboard','Leaderboard'],['settings','Settings']];
-    var nav = '<div class="tabs no-print">' + tabs.map(function (t){
+    var tabs = [['battle','Battle'],['points','Points'],['tables','Tables'],['leaderboard','Leaderboard'],['settings','Settings']];
+    var nav = AR.running ? '' : '<div class="tabs no-print">' + tabs.map(function (t){
       return '<button class="tab' + (s.tab === t[0] ? ' active' : '') + '" onclick="btSetTab(\'' + t[0] + '\')">' + t[1] + '</button>';
     }).join('') + '</div>';
-    var body = s.tab === 'tables' ? btTablesTab(s)
+    var body = s.tab === 'points' ? btPointsTab(s)
+             : s.tab === 'tables' ? btTablesTab(s)
              : s.tab === 'leaderboard' ? btLeaderTab(s)
              : s.tab === 'settings' ? btSettingsTab(s)
              : btBattleTab(s);
@@ -257,4 +422,5 @@
   }
 
   window.btRender = btRender;
+  window._btTick = btTick; window._btSpawn = btSpawn; window._btAR = AR;  /* test hooks */
 })();
