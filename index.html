@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Year 2 Report Comment Builder</title>
+  <title>Classroom Hub</title>
   <style>
     :root {
       --bg: #f6f7fb;
@@ -15,6 +15,10 @@
       --border: #d1d5db;
       --soft: #eef2ff;
       --good: #ecfdf5;
+      --reward: #fde68a;
+      --reward-border: #f59e0b;
+      --sidebar: #111827;
+      --sidebar-hover: #1f2937;
     }
 
     * { box-sizing: border-box; }
@@ -27,223 +31,927 @@
       line-height: 1.45;
     }
 
-    header {
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
-      color: white;
-      padding: 1.8rem 1rem;
-      text-align: center;
-    }
-
-    header h1 { margin: 0 0 .35rem; font-size: 2rem; }
-    header p { margin: 0; opacity: .95; }
-
-    main {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 1rem;
-    }
-
-    .grid {
+    /* ---------- Layout ---------- */
+    .app {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 1rem;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
     }
 
-    @media (min-width: 1000px) {
-      .grid { grid-template-columns: 360px 1fr 420px; }
+    .sidebar {
+      background: var(--sidebar);
+      color: #e5e7eb;
+      padding: 1rem .75rem;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      height: 100vh;
+      overflow-y: auto;
     }
 
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: white;
+      padding: .4rem .5rem 1rem;
+    }
+    .brand .logo { font-size: 1.5rem; }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      color: #d1d5db;
+      border: none;
+      border-radius: 10px;
+      padding: .65rem .7rem;
+      font-size: .95rem;
+      cursor: pointer;
+      margin-bottom: .15rem;
+    }
+    .nav-link:hover { background: var(--sidebar-hover); color: white; }
+    .nav-link.active { background: var(--accent); color: white; font-weight: 700; }
+    .nav-link .ico { font-size: 1.15rem; width: 1.4rem; text-align: center; }
+
+    .nav-group-label {
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #6b7280;
+      padding: 1rem .7rem .35rem;
+    }
+
+    .content { padding: 1.5rem; max-width: 1400px; }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header { margin-bottom: 1rem; }
+    .page-header h1 { margin: 0 0 .25rem; font-size: 1.6rem; }
+    .page-header p { margin: 0; color: var(--muted); }
+
+    /* ---------- Cards / generic ---------- */
     .card {
       background: var(--card);
       border-radius: 16px;
-      padding: 1rem;
+      padding: 1.1rem 1.2rem;
       box-shadow: 0 6px 20px rgba(0, 0, 0, .06);
+      margin-bottom: 1.1rem;
     }
-
     h2, h3 { margin-top: 0; }
 
-    .section-title {
-      margin-top: 1.2rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
+    label { display: block; font-weight: 700; margin: .7rem 0 .25rem; }
 
-    label {
-      display: block;
-      font-weight: 700;
-      margin: .7rem 0 .25rem;
-    }
-
-    input, select, textarea, button {
-      width: 100%;
-      font: inherit;
-    }
-
+    input, select, textarea, button { font: inherit; }
     input, select, textarea {
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: .6rem;
+      padding: .55rem;
       background: white;
+      width: 100%;
     }
-
-    textarea {
-      min-height: 250px;
-      resize: vertical;
-    }
-
-    .small-box { min-height: 90px; }
+    textarea { min-height: 80px; resize: vertical; }
 
     button {
       border: none;
       border-radius: 10px;
-      padding: .7rem 1rem;
+      padding: .6rem 1rem;
       background: var(--accent);
       color: white;
       font-weight: 700;
       cursor: pointer;
-      margin-top: .55rem;
     }
-
     button:hover { background: var(--accent-dark); }
     button.secondary { background: #4b5563; }
     button.secondary:hover { background: #374151; }
+    button.ghost { background: #e5e7eb; color: #1f2937; }
+    button.ghost:hover { background: #d1d5db; }
     button.danger { background: #dc2626; }
+    button.danger:hover { background: #b91c1c; }
+    button.small { padding: .35rem .6rem; font-size: .85rem; }
 
-    .button-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: .5rem;
-    }
+    .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; }
+    .row > * { flex: 0 0 auto; }
+    .grow { flex: 1 1 auto; }
 
     .hint { color: var(--muted); font-size: .9rem; }
     .small { font-size: .84rem; }
+    .pill {
+      display: inline-block; padding: .12rem .5rem; border-radius: 999px;
+      font-size: .75rem; font-weight: 700;
+    }
+    .pill.send { background: #fee2e2; color: #991b1b; }
+    .pill.ehcp { background: #ede9fe; color: #5b21b6; }
+    .pill.pp { background: #dcfce7; color: #166534; }
 
-    .child-list {
-      display: grid;
-      gap: .5rem;
-      margin-top: 1rem;
+    /* ---------- Tables ---------- */
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+    th, td { border: 1px solid var(--border); padding: .4rem .5rem; text-align: left; }
+    th { background: #f3f4f6; position: sticky; top: 0; }
+    td.num, th.num { text-align: center; }
+    .grid-table td input { width: 100%; border: none; text-align: center; padding: .3rem; border-radius: 6px; }
+    .grid-table td { padding: .15rem; }
+    .grid-table td.name { padding: .4rem .5rem; font-weight: 600; white-space: nowrap; }
+    .total-cell { background: #f3f4f6; font-weight: 700; text-align: center; }
+
+    /* iPad reward highlight */
+    .reward { background: var(--reward) !important; box-shadow: inset 0 0 0 2px var(--reward-border); }
+    .ms-cell { position: relative; }
+    .ms-cell .ipad-toggle {
+      position: absolute; top: 1px; right: 2px; font-size: .7rem; line-height: 1;
+      cursor: pointer; opacity: .35; user-select: none;
+    }
+    .ms-cell .ipad-toggle.on { opacity: 1; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1rem; }
+    .stat {
+      background: var(--soft); border-radius: 14px; padding: 1rem; text-align: center;
+    }
+    .stat .num { font-size: 1.8rem; font-weight: 800; color: var(--accent-dark); }
+    .stat .lab { color: var(--muted); font-size: .85rem; }
+
+    .tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .8rem; }
+    .tab { background: #e5e7eb; color: #1f2937; }
+    .tab.active { background: var(--accent); color: white; }
+
+    .empty { color: var(--muted); padding: 1rem; text-align: center; font-style: italic; }
+
+    .topbar-mobile { display: none; }
+    @media (max-width: 820px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: fixed; left: -260px; width: 240px; transition: left .2s; z-index: 50; }
+      .sidebar.open { left: 0; }
+      .topbar-mobile {
+        display: flex; align-items: center; gap: .6rem; padding: .6rem 1rem;
+        background: var(--sidebar); color: white; position: sticky; top: 0; z-index: 40;
+      }
+      .topbar-mobile button { background: transparent; padding: .3rem; }
+      .content { padding: 1rem; }
     }
 
-    .child-button {
-      background: var(--soft);
-      color: var(--text);
-      text-align: left;
-      border: 1px solid #c7d2fe;
-      margin: 0;
-    }
-
-    .child-button.active {
-      background: var(--accent);
-      color: white;
-    }
-
-    .field-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: .7rem;
-    }
-
-    @media (min-width: 720px) {
-      .field-grid { grid-template-columns: 1fr 1fr; }
-    }
-
-    .output {
-      white-space: pre-wrap;
-      background: #f9fafb;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1rem;
-      min-height: 260px;
-    }
-
+    /* report generator specific */
+    .rg-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media (min-width: 1100px) { .rg-grid { grid-template-columns: 320px 1fr 380px; } }
+    .field-grid { display: grid; grid-template-columns: 1fr; gap: .6rem; }
+    @media (min-width: 720px) { .field-grid { grid-template-columns: 1fr 1fr; } }
+    .output { white-space: pre-wrap; background: #f9fafb; border: 1px solid var(--border); border-radius: 12px; padding: 1rem; min-height: 220px; }
     .prompt { background: var(--good); }
+    .child-list { display: grid; gap: .4rem; margin-top: 1rem; }
+    .child-button { background: var(--soft); color: var(--text); text-align: left; border: 1px solid #c7d2fe; }
+    .child-button.active { background: var(--accent); color: white; }
+    .small-box { min-height: 80px; }
+    @media print {
+      .sidebar, .topbar-mobile, .no-print { display: none !important; }
+      .app { grid-template-columns: 1fr; }
+      .page { display: none !important; }
+      .page.active { display: block !important; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Year 2 Report Comment Builder</h1>
-    <p>Add a child, choose comments in your own report-writing style, then copy the comment list into ChatGPT.</p>
-  </header>
+<div class="app">
+  <!-- ================= SIDEBAR ================= -->
+  <nav class="sidebar" id="sidebar">
+    <div class="brand"><span class="logo">🍎</span> Classroom Hub</div>
+    <button class="nav-link" data-page="dashboard"><span class="ico">🏠</span> Dashboard</button>
 
-  <main class="grid">
-    <section class="card">
-      <h2>Children</h2>
+    <div class="nav-group-label">Daily</div>
+    <button class="nav-link" data-page="mental-starters"><span class="ico">🧮</span> Mental Starters</button>
+    <button class="nav-link" data-page="star-pupil"><span class="ico">⭐</span> Star Pupil</button>
+    <button class="nav-link" data-page="behaviour"><span class="ico">📒</span> Behaviour Log</button>
 
-      <label for="childName">Child's name</label>
-      <input id="childName" type="text" placeholder="e.g. Ahaana" />
+    <div class="nav-group-label">Tracking</div>
+    <button class="nav-link" data-page="assessments"><span class="ico">📊</span> Assessments</button>
+    <button class="nav-link" data-page="class-context"><span class="ico">🧑‍🏫</span> Class Context</button>
 
-      <label for="bulkNames">Bulk add names</label>
-      <textarea id="bulkNames" class="small-box" placeholder="Paste one child per line, e.g.&#10;Ahaana&#10;Ben&#10;Charlie"></textarea>
-      <button class="secondary" onclick="bulkAddChildren()">Bulk add children</button>
+    <div class="nav-group-label">Tools</div>
+    <button class="nav-link" data-page="reports"><span class="ico">📝</span> Report Generator</button>
+    <button class="nav-link" data-page="class-list"><span class="ico">👥</span> Class List</button>
+    <button class="nav-link" data-page="data"><span class="ico">💾</span> Backup &amp; Data</button>
+  </nav>
 
-      <label for="gender">Pronouns</label>
-      <select id="gender">
-        <option value="female">she/her</option>
-        <option value="male">he/him</option>
-        <option value="neutral">they/them</option>
-      </select>
+  <div>
+    <div class="topbar-mobile">
+      <button onclick="toggleSidebar()">☰</button>
+      <strong>🍎 Classroom Hub</strong>
+    </div>
+    <main class="content">
 
-      <div class="button-row">
-        <button onclick="addChild()">Add child</button>
-        <button class="secondary" onclick="saveCurrentChild()">Save child</button>
+      <!-- ================= DASHBOARD ================= -->
+      <section class="page" id="page-dashboard">
+        <div class="page-header">
+          <h1>Welcome back 👋</h1>
+          <p>Your day-to-day teaching hub. Everything saves automatically in this browser — use <b>Backup &amp; Data</b> to export a copy.</p>
+        </div>
+        <div class="card">
+          <div class="stat-grid" id="dashStats"></div>
+        </div>
+        <div class="card">
+          <h2>Quick actions</h2>
+          <div class="row">
+            <button onclick="go('mental-starters')">🧮 Record mental starter</button>
+            <button onclick="go('star-pupil')">⭐ Log a star pupil</button>
+            <button class="secondary" onclick="go('behaviour')">📒 Add behaviour note</button>
+            <button class="secondary" onclick="go('assessments')">📊 Enter assessment scores</button>
+            <button class="ghost" onclick="go('reports')">📝 Write reports</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>⭐ Recent star pupils</h2>
+          <div id="dashStars"></div>
+        </div>
+        <div class="card">
+          <h2>💡 Ideas to make managing the class easier</h2>
+          <p class="hint">Built in and ready to use — plus a few you could ask me to add next.</p>
+          <ul id="ideasList"></ul>
+        </div>
+      </section>
+
+      <!-- ================= MENTAL STARTERS ================= -->
+      <section class="page" id="page-mental-starters">
+        <div class="page-header">
+          <h1>🧮 Mental Starters</h1>
+          <p>Record each morning's score per pupil. Tap the 📱 in the corner of a cell to mark that a pupil earned an iPad that morning (the cell highlights, just like your spreadsheet).</p>
+        </div>
+        <div class="card">
+          <div class="row">
+            <div>
+              <label>Half term</label>
+              <select id="msHalfTerm" onchange="msRender()"></select>
+            </div>
+            <div>
+              <label>Score out of</label>
+              <input id="msMax" type="number" style="width:90px" value="22" onchange="msSetMax()" />
+            </div>
+            <div class="grow"></div>
+            <div>
+              <label>New date column</label>
+              <input id="msNewDate" type="date" style="width:170px" />
+            </div>
+            <button onclick="msAddDate()">+ Add date</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="grid-table" id="msTable"></table>
+          </div>
+          <p class="hint small" style="margin-top:.6rem">
+            <span class="pill" style="background:var(--reward);color:#92400e">📱 highlighted</span> = had an iPad that morning (reward). Averages ignore blank days.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= STAR PUPIL ================= -->
+      <section class="page" id="page-star-pupil">
+        <div class="page-header">
+          <h1>⭐ Star Pupil</h1>
+          <p>Record who was star pupil and why. Keeps a running tally so you can spread it fairly.</p>
+        </div>
+        <div class="card">
+          <div class="row">
+            <div><label>Date</label><input id="spDate" type="date" style="width:170px" /></div>
+            <div><label>Pupil</label><select id="spPupil" style="min-width:180px"></select></div>
+            <div class="grow"><label>Reason</label><input id="spReason" placeholder="e.g. Brilliant kindness helping a friend" /></div>
+            <button onclick="spAdd()">+ Add</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Tally — who has been star pupil</h2>
+          <div id="spTally"></div>
+        </div>
+        <div class="card">
+          <h2>History</h2>
+          <div class="table-wrap"><table id="spTable"></table></div>
+        </div>
+      </section>
+
+      <!-- ================= BEHAVIOUR LOG ================= -->
+      <section class="page" id="page-behaviour">
+        <div class="page-header">
+          <h1>📒 Behaviour Log</h1>
+          <p>A quick dated log of positives and concerns — handy evidence for parents' evening, CPOMS or SEND reviews.</p>
+        </div>
+        <div class="card">
+          <div class="row">
+            <div><label>Date</label><input id="bhDate" type="date" style="width:170px" /></div>
+            <div><label>Pupil</label><select id="bhPupil" style="min-width:170px"></select></div>
+            <div><label>Type</label>
+              <select id="bhType" style="width:140px">
+                <option value="positive">👍 Positive</option>
+                <option value="concern">⚠️ Concern</option>
+                <option value="note">📝 Note</option>
+              </select>
+            </div>
+            <div class="grow"><label>Note</label><input id="bhNote" placeholder="What happened / action taken" /></div>
+            <button onclick="bhAdd()">+ Add</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row no-print">
+            <label style="margin:0">Filter pupil:</label>
+            <select id="bhFilter" onchange="bhRender()" style="min-width:180px"></select>
+          </div>
+          <div class="table-wrap"><table id="bhTable"></table></div>
+        </div>
+      </section>
+
+      <!-- ================= ASSESSMENTS ================= -->
+      <section class="page" id="page-assessments">
+        <div class="page-header">
+          <h1>📊 Assessments</h1>
+          <p>Baseline, Autumn, Spring and Summer. Totals calculate automatically.</p>
+        </div>
+        <div class="card">
+          <div class="tabs" id="asTabs"></div>
+          <div class="table-wrap">
+            <table class="grid-table" id="asTable"></table>
+          </div>
+          <p class="hint small" style="margin-top:.6rem">
+            Numeracy = 2 papers + total · Reading = 2 tests + total · Reading age (yrs.mths) · SPAG = SPaG + Spelling + total.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= CLASS CONTEXT ================= -->
+      <section class="page" id="page-class-context">
+        <div class="page-header">
+          <h1>🧑‍🏫 Class Context</h1>
+          <p>SEND status, Pupil Premium, links to OneDrive SEND/EHCP plans, and key context per pupil.</p>
+        </div>
+        <div class="card no-print">
+          <div class="row">
+            <div class="stat" style="min-width:120px"><div class="num" id="ctxSend">0</div><div class="lab">SEND</div></div>
+            <div class="stat" style="min-width:120px"><div class="num" id="ctxEhcp">0</div><div class="lab">EHCP</div></div>
+            <div class="stat" style="min-width:120px"><div class="num" id="ctxPp">0</div><div class="lab">Pupil Premium</div></div>
+          </div>
+        </div>
+        <div id="ctxList"></div>
+      </section>
+
+      <!-- ================= CLASS LIST ================= -->
+      <section class="page" id="page-class-list">
+        <div class="page-header">
+          <h1>👥 Class List</h1>
+          <p>One shared register that powers every page. Add or edit pupils here.</p>
+        </div>
+        <div class="card">
+          <div class="row">
+            <div class="grow"><label>Add a pupil</label><input id="rosNew" placeholder="Pupil name" onkeydown="if(event.key==='Enter')rosAdd()" /></div>
+            <button onclick="rosAdd()">+ Add</button>
+          </div>
+          <label style="margin-top:1rem">Bulk add (one name per line)</label>
+          <textarea id="rosBulk" placeholder="Alex&#10;Alice&#10;Anna"></textarea>
+          <div class="row" style="margin-top:.5rem">
+            <button class="secondary" onclick="rosBulkAdd()">Bulk add</button>
+            <button class="ghost" onclick="rosSeed()">Load sample class (29)</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Pupils (<span id="rosCount">0</span>)</h2>
+          <div class="table-wrap"><table id="rosTable"></table></div>
+        </div>
+      </section>
+
+      <!-- ================= REPORT GENERATOR ================= -->
+      <section class="page" id="page-reports">
+        <div class="page-header">
+          <h1>📝 Report Comment Builder</h1>
+          <p>Choose comments in your own style, then copy the prompt into ChatGPT.</p>
+        </div>
+        <div class="rg-grid">
+          <section class="card">
+            <h2>Children</h2>
+            <div class="row no-print" style="margin-bottom:.5rem">
+              <button class="ghost small" onclick="rgSyncFromRoster()">↻ Pull names from Class List</button>
+            </div>
+            <label for="childName">Child's name</label>
+            <input id="childName" type="text" placeholder="e.g. Ahaana" />
+
+            <label for="bulkNames">Bulk add names</label>
+            <textarea id="bulkNames" class="small-box" placeholder="Paste one child per line"></textarea>
+            <button class="secondary" onclick="bulkAddChildren()">Bulk add children</button>
+
+            <label for="gender">Pronouns</label>
+            <select id="gender">
+              <option value="female">she/her</option>
+              <option value="male">he/him</option>
+              <option value="neutral">they/them</option>
+            </select>
+
+            <div class="row" style="margin-top:.6rem">
+              <button class="grow" onclick="addChild()">Add child</button>
+              <button class="secondary grow" onclick="saveCurrentChild()">Save child</button>
+            </div>
+            <div class="row" style="margin-top:.4rem">
+              <button class="secondary grow" onclick="previousChild()">Previous</button>
+              <button class="secondary grow" onclick="nextChild()">Next</button>
+            </div>
+            <div id="childList" class="child-list"></div>
+          </section>
+
+          <section class="card">
+            <h2>Dropdown Comment Bank</h2>
+            <label for="year1ReportText">Year 1 report</label>
+            <textarea id="year1ReportText" placeholder="Paste last year's report here..."></textarea>
+            <div class="field-grid" id="fields"></div>
+            <h3 style="margin-top:1rem">Custom comments</h3>
+            <label for="customLiteracy">Custom literacy comment</label>
+            <textarea id="customLiteracy"></textarea>
+            <label for="customNumeracy">Custom numeracy comment</label>
+            <textarea id="customNumeracy"></textarea>
+            <label for="customGeneral">Custom general comment</label>
+            <textarea id="customGeneral"></textarea>
+            <button style="margin-top:.6rem" onclick="generateComments()">Generate comment list</button>
+            <div class="row" style="margin-top:.4rem">
+              <button class="secondary grow" onclick="downloadAllPrompts()">Download all prompts</button>
+              <button class="secondary grow" onclick="copyAllPrompts()">Copy all prompts</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Output for ChatGPT</h2>
+            <label for="commentOutput">Chosen comments</label>
+            <textarea id="commentOutput" class="output"></textarea>
+            <button class="secondary" onclick="copyText('commentOutput')">Copy comments</button>
+            <label for="promptOutput">Full ChatGPT prompt</label>
+            <textarea id="promptOutput" class="prompt"></textarea>
+            <button onclick="copyText('promptOutput')">Copy full prompt</button>
+          </section>
+        </div>
+      </section>
+
+      <!-- ================= DATA ================= -->
+      <section class="page" id="page-data">
+        <div class="page-header">
+          <h1>💾 Backup &amp; Data</h1>
+          <p>Your data lives in this browser only. Export a backup to keep it safe or move it to another device.</p>
+        </div>
+        <div class="card">
+          <h2>Backup everything</h2>
+          <p class="hint">Includes the class list, mental starters, star pupils, behaviour log, assessments, class context and reports.</p>
+          <div class="row">
+            <button onclick="exportAll()">⬇ Download full backup</button>
+            <button class="secondary" onclick="document.getElementById('importFile').click()">⬆ Restore from backup</button>
+            <input id="importFile" type="file" accept=".json" hidden onchange="importAll(event)" />
+            <button class="ghost" onclick="window.print()">🖨 Print current page</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="color:#b91c1c">Danger zone</h2>
+          <button class="danger" onclick="wipeAll()">Clear ALL data</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* ===================================================================
+   STORE + SHARED ROSTER
+   =================================================================== */
+const Store = {
+  get(k, def){ try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; } catch { return def; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+const HALF_TERMS = ['Autumn 1','Autumn 2','Spring 1','Spring 2','Summer 1','Summer 2'];
+const ASSESS_TERMS = ['Baseline','Autumn','Spring','Summer'];
+const SAMPLE_NAMES = ['Alex','Alice','Anna','Aria','Ava','Axel','Bradley','Christopher','Colton','Daniel','Elise','Esmae','Fynley','Harper','Huxley','Jenson','Leia','Leo','Lilly-Anne','Lilly-Mae','Logan','McKenzie','Noah D','Noah M','Oakley','Olivia','Robert','Rose','Skylar'];
+
+let roster = Store.get('tp_roster', []);
+const uid = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+function saveRoster(){ Store.set('tp_roster', roster); }
+function pupilName(id){ const p = roster.find(p => p.id === id); return p ? p.name : '—'; }
+function sortedRoster(){ return [...roster].sort((a,b) => a.name.localeCompare(b.name)); }
+
+/* ===================================================================
+   NAVIGATION
+   =================================================================== */
+function go(page){ location.hash = page; }
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+
+function showPage(page){
+  if (!page) page = 'dashboard';
+  document.querySelectorAll('.page').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('page-' + page);
+  (el || document.getElementById('page-dashboard')).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo(0,0);
+  renderPage(page);
+}
+function renderPage(page){
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'mental-starters') msRender();
+  if (page === 'star-pupil') spRender();
+  if (page === 'behaviour') bhRender();
+  if (page === 'assessments') asRender();
+  if (page === 'class-context') ctxRender();
+  if (page === 'class-list') rosRender();
+}
+document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));
+window.addEventListener('hashchange', () => showPage(location.hash.replace('#','')));
+
+/* ===================================================================
+   CLASS LIST (ROSTER)
+   =================================================================== */
+function rosAdd(){
+  const inp = document.getElementById('rosNew');
+  const name = inp.value.trim();
+  if (!name) return;
+  roster.push({ id: uid(), name, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '' });
+  inp.value = '';
+  saveRoster(); rosRender(); syncPupilSelectors();
+}
+function rosBulkAdd(){
+  const lines = document.getElementById('rosBulk').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  lines.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'' }));
+  document.getElementById('rosBulk').value = '';
+  saveRoster(); rosRender(); syncPupilSelectors();
+}
+function rosSeed(){
+  if (roster.length && !confirm('Add the 29 sample pupils to your current list?')) return;
+  SAMPLE_NAMES.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'' }));
+  saveRoster(); rosRender(); syncPupilSelectors();
+}
+function rosDelete(id){
+  if (!confirm('Remove this pupil from the class list?')) return;
+  roster = roster.filter(p => p.id !== id);
+  saveRoster(); rosRender(); syncPupilSelectors();
+}
+function rosEdit(id, field, value){
+  const p = roster.find(p => p.id === id); if (!p) return;
+  p[field] = value; saveRoster();
+}
+function rosRender(){
+  document.getElementById('rosCount').textContent = roster.length;
+  const t = document.getElementById('rosTable');
+  if (!roster.length){ t.innerHTML = '<tr><td class="empty">No pupils yet. Add names above or load the sample class.</td></tr>'; return; }
+  let h = '<tr><th>Name</th><th>Pronouns</th><th></th></tr>';
+  sortedRoster().forEach(p => {
+    h += `<tr>
+      <td><input value="${esc(p.name)}" onchange="rosEdit('${p.id}','name',this.value);refreshNames()" /></td>
+      <td><select onchange="rosEdit('${p.id}','pronouns',this.value)">
+        ${opt('female','she/her',p.pronouns)}${opt('male','he/him',p.pronouns)}${opt('neutral','they/them',p.pronouns)}
+      </select></td>
+      <td class="num"><button class="danger small" onclick="rosDelete('${p.id}')">✕</button></td>
+    </tr>`;
+  });
+  t.innerHTML = h;
+}
+function refreshNames(){ saveRoster(); syncPupilSelectors(); }
+
+/* ===================================================================
+   MENTAL STARTERS
+   =================================================================== */
+// data: { 'Summer 2': { max:22, dates:[iso...], scores:{ pupilId:{ iso:{v:Number,ipad:Bool} } } } }
+let msData = Store.get('tp_starters', {});
+function msHT(){ return document.getElementById('msHalfTerm').value || 'Autumn 1'; }
+function msBlock(){
+  const ht = msHT();
+  if (!msData[ht]) msData[ht] = { max: 22, dates: [], scores: {} };
+  return msData[ht];
+}
+function msSave(){ Store.set('tp_starters', msData); }
+function msSetMax(){ msBlock().max = Number(document.getElementById('msMax').value) || 22; msSave(); }
+function msAddDate(){
+  const d = document.getElementById('msNewDate').value || new Date().toISOString().slice(0,10);
+  const b = msBlock();
+  if (!b.dates.includes(d)) b.dates.push(d);
+  b.dates.sort();
+  msSave(); msRender();
+}
+function msDelDate(d){
+  if (!confirm('Remove the column for ' + fmtDate(d) + '?')) return;
+  const b = msBlock();
+  b.dates = b.dates.filter(x => x !== d);
+  Object.values(b.scores).forEach(row => delete row[d]);
+  msSave(); msRender();
+}
+function msSet(pid, d, v){
+  const b = msBlock();
+  if (!b.scores[pid]) b.scores[pid] = {};
+  if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
+  b.scores[pid][d].v = v === '' ? null : Number(v);
+  msSave(); msUpdateAvg(pid);
+}
+function msToggleIpad(pid, d, elTd, elBadge){
+  const b = msBlock();
+  if (!b.scores[pid]) b.scores[pid] = {};
+  if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
+  b.scores[pid][d].ipad = !b.scores[pid][d].ipad;
+  elTd.classList.toggle('reward', b.scores[pid][d].ipad);
+  elBadge.classList.toggle('on', b.scores[pid][d].ipad);
+  msSave();
+}
+function msAvg(pid){
+  const b = msBlock(); const row = b.scores[pid] || {};
+  const vals = b.dates.map(d => row[d] && row[d].v != null ? row[d].v : null).filter(v => v != null);
+  if (!vals.length) return '';
+  return (vals.reduce((a,c) => a+c,0) / vals.length).toFixed(1);
+}
+function msUpdateAvg(pid){
+  const el = document.getElementById('avg-' + pid);
+  if (el) el.textContent = msAvg(pid);
+}
+function msRender(){
+  // populate half-term selector
+  const sel = document.getElementById('msHalfTerm');
+  if (!sel.options.length){ sel.innerHTML = HALF_TERMS.map(h => `<option>${h}</option>`).join(''); sel.value = 'Summer 2'; }
+  const b = msBlock();
+  document.getElementById('msMax').value = b.max;
+  const t = document.getElementById('msTable');
+  if (!roster.length){ t.innerHTML = '<tr><td class="empty">Add pupils on the Class List page first.</td></tr>'; return; }
+
+  let head = '<tr><th class="name">Pupil</th>';
+  b.dates.forEach(d => head += `<th class="num">${fmtDate(d)}<br><button class="danger small no-print" style="padding:0 .4rem" onclick="msDelDate('${d}')">✕</button></th>`);
+  head += '<th class="num">Avg</th></tr>';
+
+  let body = '';
+  sortedRoster().forEach(p => {
+    const row = b.scores[p.id] || {};
+    body += `<tr><td class="name">${esc(p.name)}</td>`;
+    b.dates.forEach(d => {
+      const cell = row[d] || {};
+      const rewardCls = cell.ipad ? ' reward' : '';
+      const onCls = cell.ipad ? ' on' : '';
+      body += `<td class="ms-cell num${rewardCls}">
+        <span class="ipad-toggle${onCls}" title="Mark iPad reward" onclick="msToggleIpad('${p.id}','${d}',this.parentNode,this)">📱</span>
+        <input type="number" min="0" value="${cell.v != null ? cell.v : ''}" onchange="msSet('${p.id}','${d}',this.value)" />
+      </td>`;
+    });
+    body += `<td class="total-cell" id="avg-${p.id}">${msAvg(p.id)}</td></tr>`;
+  });
+  if (!b.dates.length) body = `<tr><td class="name">${roster.length} pupils</td><td class="empty">Add a date column above to start recording →</td><td></td></tr>`;
+  t.innerHTML = head + body;
+}
+
+/* ===================================================================
+   STAR PUPIL
+   =================================================================== */
+let spData = Store.get('tp_star', []); // [{id,date,pupilId,reason}]
+function spSave(){ Store.set('tp_star', spData); }
+function spAdd(){
+  const date = document.getElementById('spDate').value || todayISO();
+  const pupilId = document.getElementById('spPupil').value;
+  const reason = document.getElementById('spReason').value.trim();
+  if (!pupilId){ alert('Add pupils on the Class List page first.'); return; }
+  spData.push({ id: uid(), date, pupilId, reason });
+  document.getElementById('spReason').value = '';
+  spSave(); spRender();
+}
+function spDelete(id){ spData = spData.filter(e => e.id !== id); spSave(); spRender(); }
+function spRender(){
+  const tally = {};
+  spData.forEach(e => tally[e.pupilId] = (tally[e.pupilId]||0) + 1);
+  const tEl = document.getElementById('spTally');
+  if (!roster.length){ tEl.innerHTML = '<p class="empty">Add pupils on the Class List page first.</p>'; }
+  else {
+    tEl.innerHTML = sortedRoster().map(p => {
+      const n = tally[p.id] || 0;
+      return `<span class="pill" style="margin:.15rem;background:${n?'var(--soft)':'#f3f4f6'};color:${n?'var(--accent-dark)':'#9ca3af'}">${esc(p.name)} · ${n}</span>`;
+    }).join(' ');
+  }
+  const table = document.getElementById('spTable');
+  if (!spData.length){ table.innerHTML = '<tr><td class="empty">No star pupils logged yet.</td></tr>'; return; }
+  let h = '<tr><th>Date</th><th>Pupil</th><th>Reason</th><th class="no-print"></th></tr>';
+  [...spData].sort((a,b) => b.date.localeCompare(a.date)).forEach(e => {
+    h += `<tr><td>${fmtDate(e.date)}</td><td>${esc(pupilName(e.pupilId))}</td><td>${esc(e.reason)}</td>
+      <td class="num no-print"><button class="danger small" onclick="spDelete('${e.id}')">✕</button></td></tr>`;
+  });
+  table.innerHTML = h;
+}
+
+/* ===================================================================
+   BEHAVIOUR LOG
+   =================================================================== */
+let bhData = Store.get('tp_behaviour', []); // [{id,date,pupilId,type,note}]
+function bhSave(){ Store.set('tp_behaviour', bhData); }
+function bhAdd(){
+  const date = document.getElementById('bhDate').value || todayISO();
+  const pupilId = document.getElementById('bhPupil').value;
+  const type = document.getElementById('bhType').value;
+  const note = document.getElementById('bhNote').value.trim();
+  if (!pupilId){ alert('Add pupils on the Class List page first.'); return; }
+  if (!note) return;
+  bhData.push({ id: uid(), date, pupilId, type, note });
+  document.getElementById('bhNote').value = '';
+  bhSave(); bhRender();
+}
+function bhDelete(id){ bhData = bhData.filter(e => e.id !== id); bhSave(); bhRender(); }
+function bhRender(){
+  const filter = document.getElementById('bhFilter').value;
+  const table = document.getElementById('bhTable');
+  let rows = [...bhData].sort((a,b) => b.date.localeCompare(a.date));
+  if (filter) rows = rows.filter(e => e.pupilId === filter);
+  if (!rows.length){ table.innerHTML = '<tr><td class="empty">No entries yet.</td></tr>'; return; }
+  const icon = { positive:'👍', concern:'⚠️', note:'📝' };
+  let h = '<tr><th>Date</th><th>Pupil</th><th>Type</th><th>Note</th><th class="no-print"></th></tr>';
+  rows.forEach(e => {
+    h += `<tr><td>${fmtDate(e.date)}</td><td>${esc(pupilName(e.pupilId))}</td><td>${icon[e.type]||''} ${e.type}</td><td>${esc(e.note)}</td>
+      <td class="num no-print"><button class="danger small" onclick="bhDelete('${e.id}')">✕</button></td></tr>`;
+  });
+  table.innerHTML = h;
+}
+
+/* ===================================================================
+   ASSESSMENTS
+   =================================================================== */
+// data: { 'Autumn': { pupilId: { num1,num2, read1,read2, readAge, spag, spell } } }
+let asData = Store.get('tp_assess', {});
+let asTerm = 'Baseline';
+function asSave(){ Store.set('tp_assess', asData); }
+function asBlock(){ if (!asData[asTerm]) asData[asTerm] = {}; return asData[asTerm]; }
+function asRec(pid){ const b = asBlock(); if (!b[pid]) b[pid] = {}; return b[pid]; }
+function asSet(pid, field, val){ asRec(pid)[field] = val === '' ? null : (field==='readAge' ? val : Number(val)); asSave(); asUpdateTotals(pid); }
+function asNumTotal(r){ return (Number(r.num1)||0) + (Number(r.num2)||0); }
+function asReadTotal(r){ return (Number(r.read1)||0) + (Number(r.read2)||0); }
+function asSpagTotal(r){ return (Number(r.spag)||0) + (Number(r.spell)||0); }
+function asUpdateTotals(pid){
+  const r = asRec(pid);
+  setText('nt-'+pid, asNumTotal(r) || '');
+  setText('rt-'+pid, asReadTotal(r) || '');
+  setText('st-'+pid, asSpagTotal(r) || '');
+}
+function asRender(){
+  const tabs = document.getElementById('asTabs');
+  tabs.innerHTML = ASSESS_TERMS.map(t => `<button class="tab${t===asTerm?' active':''}" onclick="asTerm='${t}';asRender()">${t}</button>`).join('');
+  const t = document.getElementById('asTable');
+  if (!roster.length){ t.innerHTML = '<tr><td class="empty">Add pupils on the Class List page first.</td></tr>'; return; }
+  let h = `<tr>
+    <th rowspan="2" class="name">Pupil</th>
+    <th colspan="3" class="num">Numeracy</th>
+    <th colspan="3" class="num">Reading</th>
+    <th rowspan="2" class="num">Reading<br>age</th>
+    <th colspan="3" class="num">SPAG</th>
+  </tr><tr>
+    <th class="num">Test 1</th><th class="num">Test 2</th><th class="num">Total</th>
+    <th class="num">Test 1</th><th class="num">Test 2</th><th class="num">Total</th>
+    <th class="num">SPaG</th><th class="num">Spelling</th><th class="num">Total</th>
+  </tr>`;
+  sortedRoster().forEach(p => {
+    const r = asBlock()[p.id] || {};
+    h += `<tr><td class="name">${esc(p.name)}</td>
+      <td>${asInp(p.id,'num1',r.num1)}</td><td>${asInp(p.id,'num2',r.num2)}</td><td class="total-cell" id="nt-${p.id}">${asNumTotal(r)||''}</td>
+      <td>${asInp(p.id,'read1',r.read1)}</td><td>${asInp(p.id,'read2',r.read2)}</td><td class="total-cell" id="rt-${p.id}">${asReadTotal(r)||''}</td>
+      <td><input value="${r.readAge!=null?esc(r.readAge):''}" placeholder="7.4" onchange="asSet('${p.id}','readAge',this.value)" style="width:100%;border:none;text-align:center"/></td>
+      <td>${asInp(p.id,'spag',r.spag)}</td><td>${asInp(p.id,'spell',r.spell)}</td><td class="total-cell" id="st-${p.id}">${asSpagTotal(r)||''}</td>
+    </tr>`;
+  });
+  t.innerHTML = h;
+}
+function asInp(pid, field, val){
+  return `<input type="number" min="0" value="${val!=null?val:''}" onchange="asSet('${pid}','${field}',this.value)" />`;
+}
+
+/* ===================================================================
+   CLASS CONTEXT
+   =================================================================== */
+function ctxRender(){
+  const list = document.getElementById('ctxList');
+  let send=0, ehcp=0, pp=0;
+  roster.forEach(p => { if (p.send==='SEN Support') send++; if (p.send==='EHCP') ehcp++; if (p.pp) pp++; });
+  setText('ctxSend', send + ehcp); setText('ctxEhcp', ehcp); setText('ctxPp', pp);
+  if (!roster.length){ list.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first.</p></div>'; return; }
+  list.innerHTML = sortedRoster().map(p => {
+    const pills = [];
+    if (p.send==='SEN Support') pills.push('<span class="pill send">SEND</span>');
+    if (p.send==='EHCP') pills.push('<span class="pill ehcp">EHCP</span>');
+    if (p.pp) pills.push('<span class="pill pp">PP</span>');
+    return `<div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 style="margin:0">${esc(p.name)} ${pills.join(' ')}</h3>
       </div>
-
-      <div class="button-row">
-        <button class="secondary" onclick="previousChild()">Previous</button>
-        <button class="secondary" onclick="nextChild()">Next</button>
+      <div class="row">
+        <div><label>SEND status</label>
+          <select onchange="rosEdit('${p.id}','send',this.value);ctxRender()" style="min-width:160px">
+            ${opt('None','None',p.send)}${opt('SEN Support','SEN Support',p.send)}${opt('EHCP','EHCP',p.send)}
+          </select>
+        </div>
+        <div><label>Pupil Premium</label>
+          <select onchange="rosEdit('${p.id}','pp',this.value==='yes');ctxRender()" style="width:90px">
+            ${opt('no','No',p.pp?'yes':'no')}${opt('yes','Yes',p.pp?'yes':'no')}
+          </select>
+        </div>
+        <div class="grow"><label>OneDrive SEND / EHCP plan link</label>
+          <input value="${esc(p.ehcpLink||'')}" placeholder="Paste OneDrive link" onchange="rosEdit('${p.id}','ehcpLink',this.value)" />
+        </div>
+        ${p.ehcpLink ? `<div style="align-self:flex-end"><a href="${esc(p.ehcpLink)}" target="_blank"><button class="ghost">Open plan ↗</button></a></div>` : ''}
       </div>
+      <label>Context &amp; needs</label>
+      <textarea onchange="rosEdit('${p.id}','notes',this.value)" placeholder="Key context, strategies that work, medical, EAL, interventions...">${esc(p.notes||'')}</textarea>
+      <label>Behaviour notes</label>
+      <textarea onchange="rosEdit('${p.id}','behaviour',this.value)" placeholder="Triggers, de-escalation, reward that motivates...">${esc(p.behaviour||'')}</textarea>
+    </div>`;
+  }).join('');
+}
 
-      <div class="button-row">
-        <button class="secondary" onclick="downloadData()">Download save</button>
-        <button class="secondary" onclick="document.getElementById('uploadFile').click()">Upload save</button>
-      </div>
+/* ===================================================================
+   DASHBOARD
+   =================================================================== */
+function renderDashboard(){
+  const sg = document.getElementById('dashStats');
+  let send=0; roster.forEach(p => { if (p.send!=='None') send++; });
+  const ms = msData['Summer 2'] || {};
+  let msEntries = 0;
+  Object.values(ms.scores||{}).forEach(r => Object.values(r).forEach(c => { if (c.v!=null) msEntries++; }));
+  sg.innerHTML = `
+    ${stat(roster.length,'Pupils')}
+    ${stat(spData.length,'Star pupils logged')}
+    ${stat(bhData.length,'Behaviour notes')}
+    ${stat(send,'On SEND register')}`;
+  const recent = [...spData].sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+  document.getElementById('dashStars').innerHTML = recent.length
+    ? '<table>' + recent.map(e => `<tr><td>${fmtDate(e.date)}</td><td><b>${esc(pupilName(e.pupilId))}</b></td><td>${esc(e.reason)}</td></tr>`).join('') + '</table>'
+    : '<p class="empty">No star pupils logged yet.</p>';
+}
+function stat(n,l){ return `<div class="stat"><div class="num">${n}</div><div class="lab">${l}</div></div>`; }
 
-      <input id="uploadFile" type="file" accept=".json" hidden onchange="uploadData(event)" />
-      <button class="danger" onclick="clearAll()">Clear all</button>
-      <p class="hint small">Your work saves in this browser. Use the download/upload buttons to continue later or on another device.</p>
-      <div id="childList" class="child-list"></div>
-    </section>
+const IDEAS = [
+  '✅ <b>One shared class list</b> — add a pupil once and they appear on every page.',
+  '✅ <b>Mental starter iPad rewards</b> — tap 📱 on a cell to highlight reward mornings, with auto averages.',
+  '✅ <b>Behaviour log</b> — dated positives & concerns, filterable per child for parents\' evening.',
+  '✅ <b>Full backup/restore</b> — export everything to one file to keep it safe or move devices.',
+  '💬 Ask me to add: a <b>random name picker</b> for fair questioning.',
+  '💬 Ask me to add: a <b>timetable / daily plan</b> page.',
+  '💬 Ask me to add: <b>seating plan</b> and <b>group maker</b> tools.',
+  '💬 Ask me to add: a <b>guided reading / phonics group</b> tracker.',
+  '💬 Ask me to add: <b>assessment progress charts</b> (Baseline→Summer per pupil).'
+];
+document.getElementById('ideasList').innerHTML = IDEAS.map(i => `<li>${i}</li>`).join('');
 
-    <section class="card">
-      <h2>Dropdown Comment Bank</h2>
-      <p class="hint">These options are based on phrases and patterns from your uploaded report spreadsheet, cleaned up for spelling and consistency.</p>
+/* ===================================================================
+   DATA EXPORT / IMPORT
+   =================================================================== */
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','reportBuilderChildren'];
+function exportAll(){
+  const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
+  dump._exported = new Date().toISOString();
+  download('classroom-hub-backup-' + todayISO() + '.json', JSON.stringify(dump, null, 2));
+}
+function importAll(ev){
+  const file = ev.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      DATA_KEYS.forEach(k => { if (d[k] !== undefined && d[k] !== null) Store.set(k, d[k]); });
+      alert('Backup restored. Reloading.');
+      location.reload();
+    } catch { alert('That does not look like a valid backup file.'); }
+  };
+  r.readAsText(file);
+}
+function wipeAll(){
+  if (!confirm('Delete ALL Classroom Hub data from this browser? This cannot be undone.')) return;
+  if (!confirm('Really sure? Export a backup first if unsure.')) return;
+  DATA_KEYS.forEach(k => localStorage.removeItem(k));
+  location.reload();
+}
 
-      <label for="year1ReportText">Year 1 report</label>
-      <textarea id="year1ReportText" placeholder="Paste last year's report here..."></textarea>
-      <p class="hint small">This will be included as background context for ChatGPT, rather than as a dropdown choice.</p>
+/* ===================================================================
+   HELPERS + SELECTOR SYNC
+   =================================================================== */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function opt(v,l,cur){ return `<option value="${v}"${v===cur?' selected':''}>${l}</option>`; }
+function setText(id,v){ const el = document.getElementById(id); if (el) el.textContent = v; }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(iso){ if (!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}/${m}`; }
+function download(name, text){
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+function syncPupilSelectors(){
+  const opts = '<option value="">— pupil —</option>' + sortedRoster().map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  ['spPupil','bhPupil'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
+  const f = document.getElementById('bhFilter');
+  if (f){ const cur = f.value; f.innerHTML = '<option value="">All pupils</option>' + sortedRoster().map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join(''); f.value = cur; }
+  // refresh any visible roster-driven pages
+  if (document.getElementById('page-mental-starters').classList.contains('active')) msRender();
+  if (document.getElementById('page-assessments').classList.contains('active')) asRender();
+  if (document.getElementById('page-class-context').classList.contains('active')) ctxRender();
+  if (document.getElementById('page-star-pupil').classList.contains('active')) spRender();
+}
 
-      <div class="field-grid" id="fields"></div>
+/* set today as default on date inputs */
+['spDate','bhDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = todayISO(); });
+</script>
 
-      <h3 class="section-title">Custom comments</h3>
-      <label for="customLiteracy">Custom literacy comment</label>
-      <textarea id="customLiteracy" placeholder="Add any extra literacy notes here..."></textarea>
-
-      <label for="customNumeracy">Custom numeracy comment</label>
-      <textarea id="customNumeracy" placeholder="Add any extra numeracy notes here..."></textarea>
-
-      <label for="customGeneral">Custom general comment</label>
-      <textarea id="customGeneral" placeholder="Add any extra general notes here..."></textarea>
-
-      <button onclick="generateComments()">Generate comment list</button>
-      <button class="secondary" onclick="downloadAllPrompts()">Download all prompts</button>
-      <button class="secondary" onclick="copyAllPrompts()">Copy all prompts</button>
-    </section>
-
-    <section class="card">
-      <h2>Output for ChatGPT</h2>
-      <p class="hint">Copy this into ChatGPT. It gives the chosen facts first, then the fixed prompt.</p>
-
-      <label for="commentOutput">Chosen comments</label>
-      <textarea id="commentOutput" class="output" placeholder="Your selected comments will appear here..."></textarea>
-      <button class="secondary" onclick="copyText('commentOutput')">Copy comments</button>
-
-      <label for="promptOutput">Full ChatGPT prompt</label>
-      <textarea id="promptOutput" class="prompt" placeholder="Your full prompt will appear here..."></textarea>
-      <button onclick="copyText('promptOutput')">Copy full prompt</button>
-    </section>
-  </main>
-
-  <script>
+<!-- ===================================================================
+     REPORT COMMENT BUILDER (your original tool, integrated)
+     =================================================================== -->
+<script>
     const banks = {
       literacyLevel: { label: 'Literacy level', options: ['below', 'meeting', 'exceeding'] },
       sentenceStructure: { label: 'Literacy - writing - sentence structure', options: [
@@ -448,29 +1156,23 @@
     function buildFields() {
       const wrap = document.getElementById('fields');
       wrap.innerHTML = '';
-
       order.forEach((key) => {
         const item = banks[key];
         const div = document.createElement('div');
         const label = document.createElement('label');
         label.htmlFor = key;
         label.textContent = item.label;
-
         const select = document.createElement('select');
         select.id = key;
-
         const blank = document.createElement('option');
-        blank.value = '';
-        blank.textContent = '';
+        blank.value = ''; blank.textContent = '';
         select.appendChild(blank);
-
         item.options.forEach((opt) => {
           const option = document.createElement('option');
           option.value = opt;
           option.textContent = opt.length > 76 ? `${opt.slice(0, 76)}…` : opt;
           select.appendChild(option);
         });
-
         div.appendChild(label);
         div.appendChild(select);
         wrap.appendChild(div);
@@ -492,135 +1194,95 @@
     }
 
     function splitNames(rawText) {
-      return String(rawText)
-        .split(/\r?\n/)
-        .map((name) => name.trim())
-        .filter(Boolean);
+      return String(rawText).split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
     }
 
     function createChildFromCurrentFields(name) {
-      const child = {
-        name,
-        gender: document.getElementById('gender').value,
-        selections: {},
-        custom: {}
-      };
-
-      order.forEach((key) => {
-        child.selections[key] = document.getElementById(key).value;
-      });
-
-      customTextFields.forEach((key) => {
-        child.custom[key] = document.getElementById(key).value.trim();
-      });
-
+      const child = { name, gender: document.getElementById('gender').value, selections: {}, custom: {} };
+      order.forEach((key) => { child.selections[key] = document.getElementById(key).value; });
+      customTextFields.forEach((key) => { child.custom[key] = document.getElementById(key).value.trim(); });
       return child;
     }
 
     function addChild() {
       const name = document.getElementById('childName').value.trim();
-      if (!name) {
-        alert('Please enter a child\'s name.');
-        return;
-      }
-
+      if (!name) { alert('Please enter a child\'s name.'); return; }
       children.push(createChildFromCurrentFields(name));
       selectedIndex = children.length - 1;
       document.getElementById('childName').value = '';
-      persist();
-      renderChildren();
-      loadSelectedChild();
-      generateComments();
+      persist(); renderChildren(); loadSelectedChild(); generateComments();
     }
 
     function bulkAddChildren() {
-      const raw = document.getElementById('bulkNames').value;
-      const names = splitNames(raw);
-
-      if (!names.length) {
-        alert('Paste one child name per line first.');
-        return;
-      }
-
+      const names = splitNames(document.getElementById('bulkNames').value);
+      if (!names.length) { alert('Paste one child name per line first.'); return; }
       names.forEach((name) => children.push(createChildFromCurrentFields(name)));
       selectedIndex = children.length - names.length;
       document.getElementById('bulkNames').value = '';
-      persist();
-      renderChildren();
-      loadSelectedChild();
+      persist(); renderChildren(); loadSelectedChild();
       alert(`${names.length} children added.`);
     }
 
-    function saveCurrentChild() {
-      saveCurrentChildWithoutAlert();
-      alert('Saved.');
+    /* bridge: pull names from the shared class list */
+    function rgSyncFromRoster() {
+      const existing = new Set(children.map(c => c.name));
+      let added = 0;
+      sortedRoster().forEach(p => {
+        if (!existing.has(p.name)) {
+          const gender = p.pronouns === 'female' ? 'female' : p.pronouns === 'male' ? 'male' : 'neutral';
+          children.push({ name: p.name, gender, selections: {}, custom: {} });
+          added++;
+        }
+      });
+      if (!added) { alert('All class list pupils are already here.'); return; }
+      if (selectedIndex < 0) selectedIndex = 0;
+      persist(); renderChildren(); loadSelectedChild();
+      alert(`${added} pupil(s) added from the class list.`);
     }
+
+    function saveCurrentChild() { saveCurrentChildWithoutAlert(); alert('Saved.'); }
 
     function saveCurrentChildWithoutAlert() {
       if (selectedIndex < 0) return;
-
       const child = children[selectedIndex];
       child.name = document.getElementById('childName').value.trim() || child.name;
       child.gender = document.getElementById('gender').value;
       if (!child.selections) child.selections = {};
       if (!child.custom) child.custom = {};
-
-      order.forEach((key) => {
-        child.selections[key] = document.getElementById(key).value;
-      });
-
-      customTextFields.forEach((key) => {
-        child.custom[key] = document.getElementById(key).value.trim();
-      });
-
-      persist();
-      renderChildren();
+      order.forEach((key) => { child.selections[key] = document.getElementById(key).value; });
+      customTextFields.forEach((key) => { child.custom[key] = document.getElementById(key).value.trim(); });
+      persist(); renderChildren();
     }
 
     function loadSelectedChild() {
       if (selectedIndex < 0) return;
-
       const child = children[selectedIndex];
       document.getElementById('childName').value = child.name;
       document.getElementById('gender').value = child.gender;
-
-      order.forEach((key) => {
-        document.getElementById(key).value = child.selections && child.selections[key] ? child.selections[key] : '';
-      });
-
-      customTextFields.forEach((key) => {
-        document.getElementById(key).value = child.custom && child.custom[key] ? child.custom[key] : '';
-      });
-
+      order.forEach((key) => { document.getElementById(key).value = child.selections && child.selections[key] ? child.selections[key] : ''; });
+      customTextFields.forEach((key) => { document.getElementById(key).value = child.custom && child.custom[key] ? child.custom[key] : ''; });
       generateComments();
     }
 
-    function selectChild(index) {
-      selectedIndex = index;
-      renderChildren();
-      loadSelectedChild();
-    }
+    function selectChild(index) { selectedIndex = index; renderChildren(); loadSelectedChild(); }
 
     function previousChild() {
       if (!children.length) return;
       saveCurrentChildWithoutAlert();
       selectedIndex = selectedIndex <= 0 ? children.length - 1 : selectedIndex - 1;
-      renderChildren();
-      loadSelectedChild();
+      renderChildren(); loadSelectedChild();
     }
 
     function nextChild() {
       if (!children.length) return;
       saveCurrentChildWithoutAlert();
       selectedIndex = selectedIndex >= children.length - 1 ? 0 : selectedIndex + 1;
-      renderChildren();
-      loadSelectedChild();
+      renderChildren(); loadSelectedChild();
     }
 
     function renderChildren() {
       const list = document.getElementById('childList');
       list.innerHTML = '';
-
       children.forEach((child, index) => {
         const button = document.createElement('button');
         button.className = `child-button${index === selectedIndex ? ' active' : ''}`;
@@ -632,36 +1294,26 @@
 
     function buildPromptForChild(child) {
       const p = getPronouns(child.gender);
-      const lines = [
-        `Child: ${child.name}`,
-        `Pronouns: ${p.pronoun}/${p.possessive}`,
-        ''
-      ];
-
+      const lines = [`Child: ${child.name}`, `Pronouns: ${p.pronoun}/${p.possessive}`, ''];
       if (child.custom && child.custom.year1ReportText) {
         lines.push(`Year 1 report / prior context:\n${child.custom.year1ReportText}`);
         lines.push('');
       }
-
       order.forEach((key) => {
         const val = child.selections && child.selections[key];
         if (val && !val.toLowerCase().startsWith('no ')) {
           lines.push(`${banks[key].label}: ${tokenise(val, child)}`);
         }
       });
-
       if (child.custom) {
         if (child.custom.customLiteracy) lines.push(`Custom literacy comment: ${child.custom.customLiteracy}`);
         if (child.custom.customNumeracy) lines.push(`Custom numeracy comment: ${child.custom.customNumeracy}`);
         if (child.custom.customGeneral) lines.push(`Custom general comment: ${child.custom.customGeneral}`);
       }
-
       const comments = lines.join('\n');
       const literacyLevel = child.selections && child.selections.literacyLevel ? child.selections.literacyLevel : 'meeting';
       const numeracyLevel = child.selections && child.selections.numeracyLevel ? child.selections.numeracyLevel : 'meeting';
-
       const prompt = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
-
       return { comments, prompt };
     }
 
@@ -671,7 +1323,6 @@
         document.getElementById('promptOutput').value = '';
         return;
       }
-
       saveCurrentChildWithoutAlert();
       const built = buildPromptForChild(children[selectedIndex]);
       document.getElementById('commentOutput').value = built.comments;
@@ -686,114 +1337,37 @@
     }
 
     function downloadAllPrompts() {
-      if (!children.length) {
-        alert('Add some children first.');
-        return;
-      }
-
+      if (!children.length) { alert('Add some children first.'); return; }
       const blob = new Blob([buildAllPrompts()], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'year-2-report-prompts-all.txt';
-      a.click();
+      const a = document.createElement('a'); a.href = url; a.download = 'year-2-report-prompts-all.txt'; a.click();
       URL.revokeObjectURL(url);
     }
 
     function copyAllPrompts() {
-      if (!children.length) {
-        alert('Add some children first.');
-        return;
-      }
-
+      if (!children.length) { alert('Add some children first.'); return; }
       navigator.clipboard.writeText(buildAllPrompts());
       alert('All prompts copied.');
     }
 
     function copyText(id) {
       const el = document.getElementById(id);
-      el.select();
-      navigator.clipboard.writeText(el.value);
+      el.select(); navigator.clipboard.writeText(el.value);
       alert('Copied.');
     }
 
-    function downloadData() {
-      saveCurrentChildWithoutAlert();
-      const blob = new Blob([JSON.stringify(children, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'year-2-report-comment-builder-save.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+    function persist() { localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
 
-    function uploadData(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const imported = JSON.parse(e.target.result);
-          if (!Array.isArray(imported)) throw new Error('Invalid save file');
-          children = imported;
-          selectedIndex = children.length ? 0 : -1;
-          persist();
-          renderChildren();
-          loadSelectedChild();
-          alert('Save file uploaded.');
-        } catch (err) {
-          alert('This does not look like a valid save file.');
-        }
-      };
-      reader.readAsText(file);
-    }
-
-    function clearAll() {
-      if (!confirm('Clear all children and comments from this browser?')) return;
-
-      children = [];
-      selectedIndex = -1;
-      localStorage.removeItem('reportBuilderChildren');
-      document.getElementById('childName').value = '';
-      document.getElementById('bulkNames').value = '';
-      customTextFields.forEach((key) => {
-        document.getElementById(key).value = '';
-      });
-      document.getElementById('commentOutput').value = '';
-      document.getElementById('promptOutput').value = '';
-      renderChildren();
-    }
-
-    function persist() {
-      localStorage.setItem('reportBuilderChildren', JSON.stringify(children));
-    }
-
-    function runTests() {
-      console.assert(JSON.stringify(splitNames('Ahaana\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle LF line breaks');
-      console.assert(JSON.stringify(splitNames('Ahaana\r\nBen')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should handle CRLF line breaks');
-      console.assert(JSON.stringify(splitNames('\n Ahaana \n\n Ben \n')) === JSON.stringify(['Ahaana', 'Ben']), 'splitNames should trim and remove blanks');
-      console.assert(getPronouns('male').pronoun === 'he', 'male pronoun should be he');
-      console.assert(getPronouns('female').possessive === 'her', 'female possessive should be her');
-      console.assert(getPronouns('neutral').possessive === 'their', 'neutral possessive should be their');
-
-      const testChild = {
-        name: 'Test Child',
-        gender: 'male',
-        selections: { literacyLevel: '', numeracyLevel: '' },
-        custom: { year1ReportText: 'Previous report text.' }
-      };
-      const built = buildPromptForChild(testChild);
-      console.assert(built.prompt.includes('Test Child is meeting age-related expectation in literacy.'), 'blank literacy level should default to meeting');
-      console.assert(built.prompt.includes('Test Child is meeting age-related expectation in numeracy.'), 'blank numeracy level should default to meeting');
-      console.assert(built.comments.includes('Previous report text.'), 'Year 1 report should appear in comments');
-    }
-
+    /* ---- init report builder ---- */
     buildFields();
     renderChildren();
     loadSelectedChild();
-    runTests();
-  </script>
+
+    /* ===================================================================
+       BOOT THE WHOLE APP
+       =================================================================== */
+    syncPupilSelectors();
+    showPage(location.hash.replace('#','') || 'dashboard');
+</script>
 </body>
 </html>
