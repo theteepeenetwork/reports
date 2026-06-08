@@ -428,7 +428,7 @@
   <nav class="sidebar" id="sidebar">
     <div class="brand">
       <span class="mark" data-icon="graduation-cap"></span>
-      <div><b>Classroom Hub</b><small>Year 2 · Room 12</small></div>
+      <div><b>Classroom Hub</b><small id="brandSub">Year 2 · Room 12</small></div>
     </div>
     <div class="navwrap">
       <button class="nav-link" data-page="dashboard"><span class="ico" data-icon="home"></span> <span>Dashboard</span></button>
@@ -453,11 +453,12 @@
       <div class="nav-group-label">Tools</div>
       <button class="nav-link" data-page="reports"><span class="ico" data-icon="file-text"></span> <span>Report Generator</span></button>
       <button class="nav-link" data-page="class-list"><span class="ico" data-icon="users"></span> <span>Class List</span><span class="count" id="navClassCount"></span></button>
+      <button class="nav-link" data-page="profile"><span class="ico" data-icon="user"></span> <span>My Profile</span></button>
       <button class="nav-link" data-page="data"><span class="ico" data-icon="database"></span> <span>Backup &amp; Data</span></button>
     </div>
-    <div class="sidefoot">
-      <span class="avatar">MH</span>
-      <div><div class="who">Miss Hart</div><div class="role">Class teacher</div></div>
+    <div class="sidefoot" onclick="go('profile')" title="Edit your profile" style="cursor:pointer">
+      <span class="avatar" id="sideAvatar">MH</span>
+      <div><div class="who" id="sideWho">Miss Hart</div><div class="role" id="sideRole">Class teacher</div></div>
     </div>
   </nav>
 
@@ -480,7 +481,7 @@
         <div class="hero">
           <div>
             <div class="eyebrow" style="color:rgba(255,255,255,.85)" id="dashDate"></div>
-            <div class="h-title">Welcome back, Miss Hart</div>
+            <div class="h-title" id="dashGreeting">Welcome back, Miss Hart</div>
             <div class="h-sub">Your day-to-day teaching hub. Everything saves automatically in this browser.</div>
             <button class="coral" style="margin-top:16px" onclick="go('star-pupil')"><span data-icon="star"></span> Log a star pupil</button>
           </div>
@@ -774,6 +775,15 @@
         <div id="ch-root"></div>
       </section>
 
+      <!-- ================= PROFILE ================= -->
+      <section class="page" id="page-profile">
+        <div class="page-header">
+          <h1>My Profile</h1>
+          <p>Your details appear on the sidebar and dashboard. Everything saves automatically in this browser.</p>
+        </div>
+        <div id="prof-root"></div>
+      </section>
+
       <!-- ================= DATA ================= -->
       <section class="page" id="page-data">
         <div class="page-header">
@@ -844,6 +854,7 @@ function renderPage(page){
   if (page === 'assessments') asRender();
   if (page === 'class-context') ctxRender();
   if (page === 'class-list') rosRender();
+  if (page === 'profile') renderProfile();
   // pluggable feature pages (defined in /js modules)
   if (page === 'generator' && typeof genRender === 'function') genRender();
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
@@ -1154,6 +1165,57 @@ function ctxRender(){
 /* ===================================================================
    DASHBOARD
    =================================================================== */
+/* ===================================================================
+   TEACHER PROFILE
+   =================================================================== */
+let profile = Object.assign(
+  { name: 'Miss Hart', title: 'Class teacher', yearGroup: 'Year 2', room: 'Room 12', school: '', email: '' },
+  Store.get('tp_profile', {})
+);
+function saveProfile(){ Store.set('tp_profile', profile); }
+function applyProfile(){
+  setText('sideAvatar', initials(profile.name));
+  setText('sideWho', profile.name || '—');
+  setText('sideRole', profile.title || '');
+  setText('brandSub', [profile.yearGroup, profile.room].filter(Boolean).join(' · ') || 'Classroom Hub');
+  const greet = document.getElementById('dashGreeting');
+  if (greet) greet.textContent = 'Welcome back' + (profile.name ? ', ' + profile.name : '');
+}
+const PROFILE_FIELDS = [
+  { k:'name',      label:'Name',               ph:'e.g. Miss Hart' },
+  { k:'title',     label:'Role / job title',   ph:'e.g. Class teacher' },
+  { k:'yearGroup', label:'Year group / class', ph:'e.g. Year 2' },
+  { k:'room',      label:'Room',               ph:'e.g. Room 12' },
+  { k:'school',    label:'School',             ph:'e.g. Oakfield Primary' },
+  { k:'email',     label:'Email',              ph:'you@school.org' }
+];
+function renderProfile(){
+  const r = document.getElementById('prof-root');
+  const fields = PROFILE_FIELDS.map(f =>
+    `<div><label>${f.label}</label><input id="prof_${f.k}" type="${f.k==='email'?'email':'text'}" value="${esc(profile[f.k]||'')}" placeholder="${esc(f.ph)}" oninput="profInput('${f.k}',this.value)" /></div>`
+  ).join('');
+  r.innerHTML =
+    `<div class="card" style="max-width:680px">
+       <div style="display:flex;align-items:center;gap:16px;padding-bottom:14px;border-bottom:1px solid var(--line-2);margin-bottom:6px">
+         <span class="av coral" id="profAvatar" style="width:56px;height:56px;font-size:19px">${esc(initials(profile.name))}</span>
+         <div>
+           <div id="profNamePrev" style="font-weight:700;font-size:17px">${esc(profile.name || 'Your name')}</div>
+           <div class="muted" id="profRolePrev" style="font-size:13px">${esc([profile.title, profile.yearGroup].filter(Boolean).join(' · '))}</div>
+         </div>
+       </div>
+       <div class="field-grid" style="margin-top:12px">${fields}</div>
+       <div class="row" style="margin-top:16px">
+         <button onclick="profSave()">${iconSVG('check',16)} Save profile</button>
+       </div>
+     </div>`;
+}
+function profInput(k, val){
+  profile[k] = val;
+  if (k === 'name'){ setText('profAvatar', initials(val)); setText('profNamePrev', val || 'Your name'); }
+  if (k === 'title' || k === 'yearGroup') setText('profRolePrev', [profile.title, profile.yearGroup].filter(Boolean).join(' · '));
+}
+function profSave(){ saveProfile(); applyProfile(); alert('Profile saved.'); }
+
 const DASH_QUICK = [
   { key:'mental-starters', label:'Record mental starter', icon:'calculator', tone:'teal' },
   { key:'star-pupil',      label:'Log a star pupil',      icon:'star',       tone:'amber' },
@@ -1212,7 +1274,7 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -1258,12 +1320,14 @@ const ICONS = {
   'book-open':'<path d="M12 6c-1.6-1.2-4-2-7-2v13c3 0 5.4.8 7 2 1.6-1.2 4-2 7-2V4c-3 0-5.4.8-7 2z"/><path d="M12 6v13"/>',
   'file-text':'<path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4"/><path d="M9 13h6M9 17h6"/>',
   users:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M16 4a4 4 0 0 1 0 8M22 21a6 6 0 0 0-4-5.6"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>',
   database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   cloud:'<path d="M6 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.5A3.5 3.5 0 0 1 18 18z"/>',
   bell:'<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 21a2 2 0 0 0 4 0"/>',
   printer:'<path d="M6 9V3h12v6"/><path d="M6 18H4v-7h16v7h-2"/><rect x="8" y="14" width="8" height="7" rx="1"/>',
-  'arrow-right':'<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>'
+  'arrow-right':'<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
+  check:'<path d="M5 12l4 4 10-10"/>'
 };
 function iconSVG(name, size){ size = size || 18; return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`; }
 function injectIcons(root){ (root || document).querySelectorAll('[data-icon]').forEach(el => {
@@ -1299,9 +1363,10 @@ function syncPupilSelectors(){
 /* set today as default on date inputs */
 ['spDate','bhDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = todayISO(); });
 
-/* render the line icons in the static shell (sidebar, topbar) + nav badge */
+/* render the line icons in the static shell (sidebar, topbar) + nav badge + profile */
 injectIcons();
 updateNavCount();
+applyProfile();
 </script>
 
 <!-- ===================================================================
