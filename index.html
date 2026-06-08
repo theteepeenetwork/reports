@@ -163,12 +163,17 @@
 
     /* iPad reward highlight */
     .reward { background: var(--reward) !important; box-shadow: inset 0 0 0 2px var(--reward-border); }
-    .ms-cell { position: relative; }
-    .ms-cell .ipad-toggle {
-      position: absolute; top: 1px; right: 2px; font-size: .7rem; line-height: 1;
-      cursor: pointer; opacity: .35; user-select: none;
+    .ms-cell { padding: .2rem; min-width: 64px; }
+    .ms-cell input { margin-bottom: 2px; }
+    .ipad-btn {
+      display: block; width: 100%; padding: 2px 0; font-size: .72rem; line-height: 1.25;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: #eef0f3; color: #9ca3af; cursor: pointer; font-weight: 700;
     }
-    .ms-cell .ipad-toggle.on { opacity: 1; }
+    .ipad-btn:hover { background: #e5e7eb; color: #6b7280; }
+    .ipad-btn.on, .ipad-btn.on:hover {
+      background: var(--reward); border-color: var(--reward-border); color: #92400e;
+    }
 
     .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1rem; }
     .stat {
@@ -207,11 +212,59 @@
     .child-button { background: var(--soft); color: var(--text); text-align: left; border: 1px solid #c7d2fe; }
     .child-button.active { background: var(--accent); color: white; }
     .small-box { min-height: 80px; }
+    /* ---------- Question Generator ---------- */
+    .gen-sheet { padding: 1.4rem; }
+    .gen-heading { text-align: center; margin: 0 0 1rem; }
+    .gen-day-name { color: var(--accent-dark); }
+    .gen-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+    .gen-grid-tables { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .5rem; }
+    .gen-q {
+      display: flex; gap: .6rem; align-items: flex-start;
+      border: 1px solid var(--border); border-radius: 12px; padding: .7rem .9rem;
+      font-size: 1.4rem; background: #fff; break-inside: avoid;
+    }
+    .gen-grid-tables .gen-q { font-size: 1.2rem; padding: .5rem .7rem; }
+    .gen-num { font-weight: 800; color: var(--accent-dark); white-space: nowrap; }
+    .gen-body { flex: 1; }
+    .gen-qtext { font-size: 1.1rem; color: var(--text); margin-top: .3rem; }
+    .gen-clocks { display: flex; gap: .8rem; flex-wrap: wrap; }
+    .gen-clock-wrap { text-align: center; }
+    .gen-clock-label { font-weight: 800; font-size: 1rem; }
+    .gen-clock { width: 104px; height: 104px; }
+    .gen-blocks { max-width: 100%; height: 70px; margin-top: .3rem; }
+    .gen-blank {
+      display: inline-block; min-width: 1.6em; padding: 0 .25em; text-align: center;
+      border: 2px dashed var(--accent); border-radius: 6px; color: var(--accent-dark); font-weight: 700;
+    }
+
     @media print {
       .sidebar, .topbar-mobile, .no-print { display: none !important; }
       .app { grid-template-columns: 1fr; }
       .page { display: none !important; }
       .page.active { display: block !important; }
+      .content { padding: 0 !important; max-width: none !important; }
+    }
+    /* Each generated day fills exactly one A4 page */
+    @media print {
+      @page { size: A4 portrait; margin: 9mm; }
+      body { background: #fff; }
+      #page-generator .page-header { display: none !important; }
+      .gen-sheet { padding: 0; box-shadow: none; margin: 0; border-radius: 0; }
+      .gen-day { break-after: page; page-break-after: always; }
+      .gen-day:last-child { break-after: auto; page-break-after: auto; }
+      .gen-heading { font-size: 13pt; margin: 0 0 4mm; }
+      .gen-grid { grid-template-columns: 1fr 1fr !important; gap: 3mm !important; }
+      .gen-q {
+        font-size: 12pt; padding: 1.6mm 3mm; gap: 3mm; border-radius: 4px;
+        break-inside: avoid; page-break-inside: avoid;
+      }
+      .gen-qtext { font-size: 9pt; margin-top: 1mm; }
+      .gen-clocks { gap: 3mm; }
+      .gen-clock { width: 21mm; height: 21mm; }
+      .gen-clock-label { font-size: 9pt; }
+      .gen-blocks { height: 14mm; }
+      .gen-grid-tables { grid-template-columns: repeat(5, 1fr) !important; gap: 2mm !important; }
+      .gen-grid-tables .gen-q { font-size: 11pt; padding: 1.2mm 2mm; }
     }
   </style>
 </head>
@@ -224,12 +277,20 @@
 
     <div class="nav-group-label">Daily</div>
     <button class="nav-link" data-page="mental-starters"><span class="ico">🧮</span> Mental Starters</button>
+    <button class="nav-link" data-page="generator"><span class="ico">❓</span> Question Generator</button>
     <button class="nav-link" data-page="star-pupil"><span class="ico">⭐</span> Star Pupil</button>
     <button class="nav-link" data-page="behaviour"><span class="ico">📒</span> Behaviour Log</button>
+    <button class="nav-link" data-page="name-picker"><span class="ico">🎯</span> Name Picker</button>
+    <button class="nav-link" data-page="timetable"><span class="ico">🗓️</span> Timetable</button>
 
     <div class="nav-group-label">Tracking</div>
     <button class="nav-link" data-page="assessments"><span class="ico">📊</span> Assessments</button>
+    <button class="nav-link" data-page="charts"><span class="ico">📈</span> Progress Charts</button>
     <button class="nav-link" data-page="class-context"><span class="ico">🧑‍🏫</span> Class Context</button>
+
+    <div class="nav-group-label">Groups</div>
+    <button class="nav-link" data-page="seating"><span class="ico">🪑</span> Seating &amp; Groups</button>
+    <button class="nav-link" data-page="reading-groups"><span class="ico">📖</span> Reading Groups</button>
 
     <div class="nav-group-label">Tools</div>
     <button class="nav-link" data-page="reports"><span class="ico">📝</span> Report Generator</button>
@@ -278,7 +339,7 @@
       <section class="page" id="page-mental-starters">
         <div class="page-header">
           <h1>🧮 Mental Starters</h1>
-          <p>Record each morning's score per pupil. Tap the 📱 in the corner of a cell to mark that a pupil earned an iPad that morning (the cell highlights, just like your spreadsheet).</p>
+          <p>Type each morning's score, then tap the <b>📱 button</b> under it to mark that the pupil earned an iPad that morning — the cell turns gold, just like the highlighted scores in your spreadsheet.</p>
         </div>
         <div class="card">
           <div class="row">
@@ -303,7 +364,7 @@
             <table class="grid-table" id="msTable"></table>
           </div>
           <p class="hint small" style="margin-top:.6rem">
-            <span class="pill" style="background:var(--reward);color:#92400e">📱 highlighted</span> = had an iPad that morning (reward). Averages ignore blank days.
+            A gold <span class="pill" style="background:var(--reward);color:#92400e">📱 iPad</span> button (and gold cell) = had an iPad that morning (reward). Tap it again to undo. Averages ignore blank days.
           </p>
         </div>
       </section>
@@ -487,6 +548,60 @@
         </div>
       </section>
 
+      <!-- ================= QUESTION GENERATOR ================= -->
+      <section class="page" id="page-generator">
+        <div class="page-header">
+          <h1>❓ Question Generator</h1>
+          <p>Generate a fresh daily mental-starter worksheet — clocks and place-value blocks are drawn for you. Project it on the board or print it. The worksheet stays put until you tap <b>Generate new</b>.</p>
+        </div>
+        <div id="gen-root"></div>
+      </section>
+
+      <!-- ================= NAME PICKER ================= -->
+      <section class="page" id="page-name-picker">
+        <div class="page-header">
+          <h1>🎯 Name Picker</h1>
+          <p>Pick a pupil at random for fair questioning. Optionally keep going without repeats until everyone has had a turn.</p>
+        </div>
+        <div id="np-root"></div>
+      </section>
+
+      <!-- ================= TIMETABLE ================= -->
+      <section class="page" id="page-timetable">
+        <div class="page-header">
+          <h1>🗓️ Timetable &amp; Daily Plan</h1>
+          <p>Your weekly timetable. Edit any cell; add or remove periods as needed.</p>
+        </div>
+        <div id="tt-root"></div>
+      </section>
+
+      <!-- ================= SEATING & GROUPS ================= -->
+      <section class="page" id="page-seating">
+        <div class="page-header">
+          <h1>🪑 Seating &amp; Groups</h1>
+          <p>Make fair random groups in a click, or lay out a seating plan for the class.</p>
+        </div>
+        <div id="seat-root"></div>
+      </section>
+
+      <!-- ================= READING GROUPS ================= -->
+      <section class="page" id="page-reading-groups">
+        <div class="page-header">
+          <h1>📖 Guided Reading &amp; Phonics Groups</h1>
+          <p>Organise pupils into groups and log each session's date, book and notes.</p>
+        </div>
+        <div id="rg2-root"></div>
+      </section>
+
+      <!-- ================= PROGRESS CHARTS ================= -->
+      <section class="page" id="page-charts">
+        <div class="page-header">
+          <h1>📈 Progress Charts</h1>
+          <p>See how scores move across Baseline → Autumn → Spring → Summer, per pupil or class average.</p>
+        </div>
+        <div id="ch-root"></div>
+      </section>
+
       <!-- ================= DATA ================= -->
       <section class="page" id="page-data">
         <div class="page-header">
@@ -557,6 +672,13 @@ function renderPage(page){
   if (page === 'assessments') asRender();
   if (page === 'class-context') ctxRender();
   if (page === 'class-list') rosRender();
+  // pluggable feature pages (defined in /js modules)
+  if (page === 'generator' && typeof genRender === 'function') genRender();
+  if (page === 'name-picker' && typeof npRender === 'function') npRender();
+  if (page === 'timetable' && typeof ttRender === 'function') ttRender();
+  if (page === 'seating' && typeof seatRender === 'function') seatRender();
+  if (page === 'reading-groups' && typeof rgGroupsRender === 'function') rgGroupsRender();
+  if (page === 'charts' && typeof chRender === 'function') chRender();
 }
 document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));
 window.addEventListener('hashchange', () => showPage(location.hash.replace('#','')));
@@ -644,13 +766,15 @@ function msSet(pid, d, v){
   b.scores[pid][d].v = v === '' ? null : Number(v);
   msSave(); msUpdateAvg(pid);
 }
-function msToggleIpad(pid, d, elTd, elBadge){
+function msToggleIpad(pid, d, btn){
   const b = msBlock();
   if (!b.scores[pid]) b.scores[pid] = {};
   if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
-  b.scores[pid][d].ipad = !b.scores[pid][d].ipad;
-  elTd.classList.toggle('reward', b.scores[pid][d].ipad);
-  elBadge.classList.toggle('on', b.scores[pid][d].ipad);
+  const on = !b.scores[pid][d].ipad;
+  b.scores[pid][d].ipad = on;
+  btn.parentNode.classList.toggle('reward', on);
+  btn.classList.toggle('on', on);
+  btn.textContent = '📱' + (on ? ' iPad' : '');
   msSave();
 }
 function msAvg(pid){
@@ -685,8 +809,8 @@ function msRender(){
       const rewardCls = cell.ipad ? ' reward' : '';
       const onCls = cell.ipad ? ' on' : '';
       body += `<td class="ms-cell num${rewardCls}">
-        <span class="ipad-toggle${onCls}" title="Mark iPad reward" onclick="msToggleIpad('${p.id}','${d}',this.parentNode,this)">📱</span>
         <input type="number" min="0" value="${cell.v != null ? cell.v : ''}" onchange="msSet('${p.id}','${d}',this.value)" />
+        <button class="ipad-btn${onCls}" title="Did this pupil earn an iPad this morning?" onclick="msToggleIpad('${p.id}','${d}',this)">📱${cell.ipad ? ' iPad' : ''}</button>
       </td>`;
     });
     body += `<td class="total-cell" id="avg-${p.id}">${msAvg(p.id)}</td></tr>`;
@@ -892,7 +1016,7 @@ document.getElementById('ideasList').innerHTML = IDEAS.map(i => `<li>${i}</li>`)
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -947,6 +1071,16 @@ function syncPupilSelectors(){
 /* set today as default on date inputs */
 ['spDate','bhDate'].forEach(id => { const el = document.getElementById(id); if (el) el.value = todayISO(); });
 </script>
+
+<!-- ===================================================================
+     FEATURE MODULES (each self-contained; loaded after platform helpers)
+     =================================================================== -->
+<script src="js/generator.js"></script>
+<script src="js/picker.js"></script>
+<script src="js/timetable.js"></script>
+<script src="js/seating.js"></script>
+<script src="js/reading-groups.js"></script>
+<script src="js/charts.js"></script>
 
 <!-- ===================================================================
      REPORT COMMENT BUILDER (your original tool, integrated)
