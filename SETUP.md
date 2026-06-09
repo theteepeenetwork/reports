@@ -38,11 +38,34 @@ Login/sync need the app served over **https** (not opened from a file).
 ## Done — how to use it
 - Open the planner; a **Sign in to sync** box appears. **Register** once, then **Sign in** on every device
   with the same email/password.
-- The status chip (top bar) shows your account when synced. Click it to sign out.
+- The status chip (top bar) shows your account when synced — this is the **active-account banner** confirming
+  whose class is currently loaded.
 - Launch **Glow Getters** on the smartboard's browser (same one you signed in on) — it shares the login and
   updates live as you award points from another device.
 - First sign-in on a device with an existing class asks whether to use the **account's** data or upload
   **this device's** data — pick once and you're set.
+
+## Switching teachers on a shared device
+
+Where more than one teacher shares an iPad, laptop, or smartboard, here is the cleanest handover routine:
+
+1. **Each teacher registers once** with their own email and password (step 4 above). After that, it is sign
+   in / sign out only — no re-registering.
+2. **The active-account banner** (the status chip in the top bar) always shows whose class is loaded. Glance
+   at it before you start to confirm you are in the right account.
+3. When you are done, use **Switch teacher** rather than a plain browser sign-out. Switch teacher:
+   - signs the current teacher out of Firebase,
+   - clears this device's class data from memory so nothing bleeds through to the next session, and
+   - returns to the sign-in gate ready for the next teacher.
+4. The **Glow Getters** smartboard window also clears automatically when you sign out, so the next
+   teacher's class is never shown on the board by accident.
+5. The next teacher signs in with their own credentials. If the device already held a class under a
+   different account, the app will ask: **"Use this account's saved data"** or **"Upload what's on
+   this device"** — choose once and the device is theirs from that point on.
+
+> **Why Switch teacher instead of just closing the tab?** Closing the tab without signing out leaves the
+> session token on the device. Anyone who reopens the app would land straight in the previous teacher's
+> class. Switch teacher clears that token properly.
 
 ### Notes
 - `firebase-config.js` is safe to commit — a Firebase **web** config is public; your data is protected by the

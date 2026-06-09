@@ -256,14 +256,6 @@
 
   let roster = Store.get('tp_roster', []);
 
-  /* Seed a sample class only if the project is brand new, so the board is usable.
-     Writes to the shared roster key → also appears in the planner. */
-  if (!roster.length) {
-    ['Alfie','Bea','Chloe','Daniel','Esme','Finn','Grace','Harry','Isla','Jack','Kira','Leo','Maya','Noah','Olivia','Priya','Reuben','Sana']
-      .forEach(n => roster.push({ id: uid(), name: n, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '' }));
-    Store.set('tp_roster', roster);
-  }
-
   function saveRoster(){ Store.set('tp_roster', roster); }
   function pupilName(id){ const p = roster.find(p => p.id === id); return p ? p.name : '—'; }
   function sortedRoster(){ return [...roster].sort((a,b) => a.name.localeCompare(b.name)); }
@@ -321,6 +313,21 @@
     roster = Store.get('tp_roster', []);
     if (typeof btRender === 'function') btRender();
   });
+  /* sign-out / account-switch: cloud.js clears DATA_KEYS then dispatches tp:reset.
+     Re-read both mirrors from (now empty) storage so the board blanks to the
+     neutral empty state that battler.js already renders when roster.length === 0. */
+  window.addEventListener('tp:reset', () => {
+    roster = Store.get('tp_roster', []);
+    bhData = Store.get('tp_behaviour', []);
+    if (typeof btRender === 'function') btRender();
+  });
+
+  /* CONTRACT: cloud.js calls window.appResetState() before dispatching tp:reset.
+     Reset in-memory mirrors to defaults so any in-flight renders see empty data. */
+  window.appResetState = function() {
+    roster = [];
+    bhData = [];
+  };
 </script>
 
 <!-- Cloud sync: reuses the same-origin login from the planner; points sync live across devices.
@@ -329,6 +336,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="js/cloud.js?v=4"></script>
+<script src="js/cloud.js?v=5"></script>
 </body>
 </html>
