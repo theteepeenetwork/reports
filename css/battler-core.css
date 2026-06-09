@@ -80,7 +80,7 @@
     .bt-minrow input::placeholder { color: var(--faint); }
     .bt-bot { position: absolute; left: 0; top: 0; will-change: transform; }
     .bt-ball { position: relative; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px; border: 3px solid rgba(0,0,0,.12); box-shadow: 0 2px 6px rgba(0,0,0,.18); z-index: 2; }
-    .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 1; }
+    .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 0; }
     .bt-tag { position: absolute; left: 50%; top: -16px; transform: translateX(-50%); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); white-space: nowrap; z-index: 3; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
     .bt-bot.hit .bt-ball { box-shadow: 0 0 0 4px var(--coral-500), 0 0 16px var(--coral-500); }
     .bt-bot.pop { animation: btfade .32s forwards; }
@@ -344,7 +344,13 @@
 
     /* Mini-boss enemies in arena */
     #page-battler .bt-mini.bt-bot { /* override the Points-tab .bt-mini — boss enemy avatar */ padding:0; font-size:inherit; border-radius:0; line-height:normal; background:none; border:none; }
-    #page-battler .bt-arena .bt-mini .bt-ball { background:#a855f7; border:3px solid #1a0030; color:#fff; box-shadow:0 0 10px rgba(168,85,247,.55), 0 2px 6px rgba(0,0,0,.4); }
+    #page-battler .bt-arena .bt-mini .bt-ball { background:#ef4444; border:3px solid #7f1d1d; color:#fff; box-shadow:0 0 10px rgba(239,68,68,.6), 0 2px 6px rgba(0,0,0,.4); }
+    /* ── Boss hazards: shockwave, homing missiles, telegraphed bombs, shield ── */
+    #page-battler .bt-arena .bt-shockwave { position:absolute; border-radius:50%; border:5px solid rgba(239,68,68,.85); box-shadow:0 0 18px rgba(239,68,68,.6), inset 0 0 18px rgba(239,68,68,.4); pointer-events:none; z-index:5; }
+    #page-battler .bt-arena .bt-missile { position:absolute; width:18px; height:18px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #fff, #ef4444 55%, #7f1d1d); box-shadow:0 0 10px #ef4444, 0 0 22px rgba(239,68,68,.7); pointer-events:none; z-index:5; }
+    #page-battler .bt-arena .bt-bomb { position:absolute; border-radius:50%; border:3px dashed rgba(239,68,68,.9); background:radial-gradient(circle, rgba(239,68,68,.28), transparent 70%); pointer-events:none; z-index:5; animation:btBombPulse .5s ease-in-out infinite; }
+    @keyframes btBombPulse { 50% { box-shadow:0 0 0 4px rgba(239,68,68,.35), 0 0 24px rgba(239,68,68,.5); } }
+    #page-battler .bt-core.shielded .bt-ball { box-shadow:0 0 0 6px rgba(56,189,248,.5), 0 0 30px rgba(56,189,248,.7); border-color:#38bdf8; }
 
     /* Laser beam */
     #page-battler .bt-laser { position:absolute; left:0; top:0; height:7px; transform-origin:0 50%; pointer-events:none; z-index:5; border-radius:4px; background:linear-gradient(90deg, #ff4500, #ff8c00); box-shadow:0 0 8px #ff4500, 0 0 18px rgba(255,69,0,.6); animation:laserIn .08s ease-out; }

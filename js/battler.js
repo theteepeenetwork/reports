@@ -21,7 +21,8 @@
              bossUnlocked:false, bossChargeBase:null,
              points:{}, badges:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
-  var BT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#ec4899','#84cc16','#06b6d4','#d946ef','#14b8a6','#f97316','#6366f1'];
+  // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
+  var BT_COLORS = ['#3b82f6','#06b6d4','#14b8a6','#10b981','#0ea5e9','#6366f1','#22d3ee','#2563eb','#0d9488','#84cc16','#38bdf8','#4f46e5'];
   function btLoad(){
     var s = Store.get('tp_battler', null);
     if (!s || typeof s !== 'object') s = btDefault();
@@ -610,9 +611,17 @@
   }
   /* ── Boss balancing — auto-scales to class strength (sum of pupils' points
      = sum of their battle HP) so it's hard but winnable for any class. ── */
-  var BOSS = { coreF:0.34, sat1F:0.024, sat2F:0.028, miniHpF:0.02, miniCap:3,
+  var BOSS = { coreF:0.32, sat1F:0.023, sat2F:0.027, miniHpF:0.02, miniCap:4,
                miniEvery:4200, laserEvery:3800, laserLife:900, laserSweep:0.7,
-               blastR:84, blastFrac:0.5, regenMs:1400, swarm:0.05 };
+               blastR:84, blastFrac:0.5, regenMs:1400, swarm:0.048,
+               // boss-AI cadence (a random power-up every ~aiEvery±aiJitter ms once exposed)
+               aiEvery:5400, aiJitter:1800,
+               shockSpeed:6, shockThick:28, shockDmg:1, shockKnock:4,
+               missileLife:4400, missileTurn:0.05, missileSpeed:3.0, missileDmg:2, missileR:9,
+               bombFuse:1100, bombR:78, bombFrac:0.3,
+               gravityKick:2.2,
+               shieldMs:2600,
+               healDelay:3800, healEvery:950 };   // regen 1 HP / healEvery ms when the core is left alone
   function btBossPower(s){ return btActiveRoster().reduce(function (a,p){ return a + Math.max(1, btPts(s, p.id)); }, 0); }
   function btMakeSats(boss, wave){
     var core = boss.core, n = boss.n, hp = (wave === 1 ? boss.satHp1 : boss.satHp2), out = [];
@@ -632,12 +641,13 @@
                  vx: Math.cos(ca)*csp, vy: Math.sin(ca)*csp,
                  ownAng: Math.random()*Math.PI*2, ownSpin: 0.036, reach: 90, arms: 2,
                  cd: 0, alive: true, vuln: false, el: null, ball: null, arm1: null, arm2: null, lastHp:-1, justHit:0, _popped:false };
+    core.shield = false; core.shieldUntil = 0; core.lastDamaged = 0; core.healAt = 0;
     var boss = { core: core, sats: [], n: n, armLen: armLen, wave: 1,
                  satHp1: Math.max(2, Math.round(power * BOSS.sat1F)),
                  satHp2: Math.max(2, Math.round(power * BOSS.sat2F)),
                  miniHp:  Math.max(2, Math.round(power * BOSS.miniHpF)),
-                 minis: [], lasers: [], blasts: [], flags:{ enrage:false, last:false },
-                 nextLaser: 0, nextMini: 0 };
+                 minis: [], lasers: [], blasts: [], shockwaves: [], missiles: [], bombs: [],
+                 flags:{ enrage:false, last:false }, nextAI: 0 };
     boss.sats = btMakeSats(boss, 1);
     return boss;
   }
@@ -694,6 +704,126 @@
           if (M.hp <= 0){ M.alive = false; M.poppedAt = now; } }
       }
     }
+  }
+
+  /* ── Extra boss hazards (DOM-free physics; lazy-mounted in btPaint) ── */
+  // Shockwave: an expanding red ring; its front knocks a life off each pupil once.
+  function btBossShockwave(boss, now){ boss.shockwaves.push({ x:boss.core.x, y:boss.core.y, r:boss.core.r, maxR:760, born:now, hit:{}, el:null }); }
+  function btBossTickShockwaves(boss, bots, now){
+    var keep = [];
+    for (var i = 0; i < boss.shockwaves.length; i++){ var S = boss.shockwaves[i];
+      S.r += BOSS.shockSpeed;
+      if (S.r > S.maxR){ if (S.el && S.el.parentNode) S.el.parentNode.removeChild(S.el); continue; }
+      for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive || S.hit[P.pid]) continue;
+        var dd = Math.hypot(P.x - S.x, P.y - S.y);
+        if (dd >= S.r - BOSS.shockThick && dd <= S.r + P.r){
+          S.hit[P.pid] = 1; P.hp -= BOSS.shockDmg; P.justHit = now;
+          var dx = P.x - S.x, dy = P.y - S.y, dn = Math.hypot(dx, dy) || 1;
+          P.vx = dx/dn * BOSS.shockKnock; P.vy = dy/dn * BOSS.shockKnock; btSpeedClamp(P);
+          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; }
+        }
+      }
+      keep.push(S);
+    }
+    boss.shockwaves = keep;
+  }
+  // Homing missile: picks a random pupil and hunts it; heavy hit on contact.
+  function btBossLaunchMissile(boss, bots, now){
+    var alive = bots.filter(function (b){ return b.alive; }); if (!alive.length) return;
+    var t = alive[Math.floor(Math.random()*alive.length)], a = Math.random()*Math.PI*2;
+    boss.missiles.push({ x:boss.core.x, y:boss.core.y, vx:Math.cos(a)*BOSS.missileSpeed, vy:Math.sin(a)*BOSS.missileSpeed,
+      target:t.pid, born:now, life:BOSS.missileLife, r:BOSS.missileR, ang:a, el:null });
+  }
+  function btBossTickMissiles(boss, bots, W, H, now){
+    var keep = [];
+    for (var i = 0; i < boss.missiles.length; i++){ var M = boss.missiles[i];
+      if (now - M.born > M.life){ if (M.el && M.el.parentNode) M.el.parentNode.removeChild(M.el); continue; }
+      var tgt = null, k, P;
+      for (k = 0; k < bots.length; k++){ if (bots[k].pid === M.target && bots[k].alive){ tgt = bots[k]; break; } }
+      if (!tgt){ var best = 1e9; for (k = 0; k < bots.length; k++){ P = bots[k]; if (!P.alive) continue;
+        var dd = (P.x-M.x)*(P.x-M.x) + (P.y-M.y)*(P.y-M.y); if (dd < best){ best = dd; tgt = P; M.target = P.pid; } } }
+      if (tgt){ var desired = Math.atan2(tgt.y - M.y, tgt.x - M.x), cur = Math.atan2(M.vy, M.vx);
+        var diff = Math.atan2(Math.sin(desired - cur), Math.cos(desired - cur));
+        var turn = Math.max(-BOSS.missileTurn, Math.min(BOSS.missileTurn, diff)), na = cur + turn;
+        M.vx = Math.cos(na)*BOSS.missileSpeed; M.vy = Math.sin(na)*BOSS.missileSpeed; M.ang = na;
+      }
+      M.x += M.vx; M.y += M.vy;
+      if (M.x < -40 || M.x > W + 40 || M.y < -40 || M.y > H + 40){ if (M.el && M.el.parentNode) M.el.parentNode.removeChild(M.el); continue; }
+      var hit = null;
+      for (k = 0; k < bots.length; k++){ var Q = bots[k]; if (!Q.alive) continue;
+        var hx = Q.x - M.x, hy = Q.y - M.y; if (hx*hx + hy*hy < (Q.r + M.r)*(Q.r + M.r)){ hit = Q; break; } }
+      if (hit){ hit.hp -= BOSS.missileDmg; hit.justHit = now; btKnock(hit, M.x, M.y);
+        if (hit.hp <= 0){ hit.alive = false; hit.poppedAt = now; }
+        boss.blasts.push({ x:M.x, y:M.y, r:42, born:now, el:null });   // visual splash only
+        if (M.el && M.el.parentNode) M.el.parentNode.removeChild(M.el); continue;
+      }
+      keep.push(M);
+    }
+    boss.missiles = keep;
+  }
+  // Telegraphed bomb: a marked circle that detonates for AoE after a short fuse.
+  function btBossDropBomb(boss, bots, W, H, now){
+    var alive = bots.filter(function (b){ return b.alive; }), tx, ty;
+    if (alive.length && Math.random() < 0.7){ var t = alive[Math.floor(Math.random()*alive.length)]; tx = t.x; ty = t.y; }
+    else { tx = 60 + Math.random()*(W-120); ty = 60 + Math.random()*(H-120); }
+    boss.bombs.push({ x:tx, y:ty, r:BOSS.bombR, born:now, fuse:BOSS.bombFuse, el:null });
+  }
+  function btBossTickBombs(boss, bots, now){
+    var keep = [];
+    for (var i = 0; i < boss.bombs.length; i++){ var B = boss.bombs[i];
+      if (now - B.born >= B.fuse){
+        for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
+          var dx = P.x - B.x, dy = P.y - B.y;
+          if (dx*dx + dy*dy < B.r*B.r){ P.hp = Math.floor(P.hp * (1 - BOSS.bombFrac)); P.justHit = now; btKnock(P, B.x, B.y);
+            if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+        boss.blasts.push({ x:B.x, y:B.y, r:B.r, born:now, el:null });
+        if (B.el && B.el.parentNode) B.el.parentNode.removeChild(B.el); continue;
+      }
+      keep.push(B);
+    }
+    boss.bombs = keep;
+  }
+  // Gravity pulse: yank every pupil toward the core (into the limbs/beams).
+  function btBossGravity(boss, bots){
+    var core = boss.core;
+    for (var i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
+      var dx = core.x - P.x, dy = core.y - P.y, d = Math.hypot(dx, dy) || 1;
+      P.vx += dx/d * BOSS.gravityKick; P.vy += dy/d * BOSS.gravityKick; btSpeedClamp(P);
+    }
+  }
+  function btBossShield(boss, now){ boss.core.shield = true; boss.core.shieldUntil = now + BOSS.shieldMs; }
+  // Heal-when-ignored: regenerate core HP slowly if no one has hit it for a while.
+  function btBossHeal(boss, now){
+    var core = boss.core;
+    if (core.lastDamaged && now - core.lastDamaged > BOSS.healDelay && core.hp < core.maxHp){
+      if (!core.healAt) core.healAt = now + BOSS.healEvery;
+      if (now >= core.healAt){ core.hp = Math.min(core.maxHp, core.hp + 1); core.healAt = now + BOSS.healEvery; }
+      core.healing = true;
+    } else { core.healAt = 0; core.healing = false; }
+  }
+  // Boss AI: every so often, randomly pick a power-up from the phase-unlocked pool.
+  function btBossAI(boss, bots, W, H, now){
+    var core = boss.core; if (!core.alive) return;
+    if (!boss.nextAI){ boss.nextAI = now + BOSS.aiEvery; return; }
+    if (now < boss.nextAI) return;
+    var pct = core.hp / core.maxHp;
+    var pool = ['laser','shock'];
+    if (boss.wave >= 2) pool.push('gravity','bomb');
+    if (core.vuln){ pool.push('missiles','mini'); if (pct <= 0.30) pool.push('shield'); }
+    var pick = function (){ return pool[Math.floor(Math.random()*pool.length)]; };
+    var cast = function (a){
+      if (a === 'laser') btBossFireLaser(boss, now);
+      else if (a === 'shock') btBossShockwave(boss, now);
+      else if (a === 'missiles'){ var n = 1 + Math.floor(Math.random()*2); for (var m = 0; m < n; m++) btBossLaunchMissile(boss, bots, now); }
+      else if (a === 'mini'){ if (btAliveCount(boss.minis) < BOSS.miniCap) btBossSpawnMini(boss, now); }
+      else if (a === 'gravity') btBossGravity(boss, bots);
+      else if (a === 'bomb') btBossDropBomb(boss, bots, W, H, now);
+      else if (a === 'shield') btBossShield(boss, now);
+    };
+    cast(pick());
+    if (pct <= 0.30 && Math.random() < 0.5) cast(pick());   // late-phase double-cast
+    var base = boss.flags.enrage ? BOSS.aiEvery * 0.6 : BOSS.aiEvery;
+    boss.nextAI = (pct <= 0.05) ? now + 700 : now + base + (Math.random()*2 - 1) * BOSS.aiJitter;
   }
 
   function btWalls(b, W, H, inset){
@@ -804,7 +934,7 @@
           P.x = core.x + cnx*crr; P.y = core.y + cny*crr;
           var cvn = P.vx*cnx + P.vy*cny; if (cvn < 0){ P.vx -= 2*cvn*cnx; P.vy -= 2*cvn*cny; btSpeedClamp(P); } }
         var ctx = core.x - tx, cty = core.y - ty;
-        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 65; core.justHit = now;
+        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd && !core.shield){ core.hp -= 1; core.cd = now + 57; core.justHit = now; core.lastDamaged = now;
           if (core.hp <= 0){ core.hp = 0; core.alive = false; } }
       }
     }
@@ -819,17 +949,19 @@
             if (Q.hp <= 0){ Q.alive = false; Q.poppedAt = now; } }
         }
       }
-      // phase escalations driven by core HP %
+      // phase milestones (the AI picks WHICH power-ups to fire; these just escalate)
       var pct = core.hp / core.maxHp;
-      if (pct <= 0.80){ if (!boss.nextLaser) boss.nextLaser = now + BOSS.laserEvery;
-        if (now >= boss.nextLaser){ btBossFireLaser(boss, now); boss.nextLaser = now + (pct <= 0.20 ? BOSS.laserEvery*0.5 : BOSS.laserEvery); } }
-      if (pct <= 0.60){ if (!boss.nextMini) boss.nextMini = now + 800;
-        if (now >= boss.nextMini && btAliveCount(boss.minis) < BOSS.miniCap){ btBossSpawnMini(boss, now); boss.nextMini = now + BOSS.miniEvery; } }
       if (pct <= 0.20 && !boss.flags.enrage){ boss.flags.enrage = true; core.spin *= 1.9; core.ownSpin *= 1.5; }
-      if (pct <= 0.05 && !boss.flags.last){ boss.flags.last = true; btBossFireLaser(boss, now); for (var mm = 0; mm < 3; mm++) btBossSpawnMini(boss, now); }
+      if (pct <= 0.05 && !boss.flags.last){ boss.flags.last = true; for (var mm = 0; mm < 3; mm++) btBossSpawnMini(boss, now); btBossShockwave(boss, now); btBossFireLaser(boss, now); }
+      if (core.shield && now >= core.shieldUntil) core.shield = false;
+      btBossHeal(boss, now);                              // regenerate if the class stops attacking the core
     }
+    btBossAI(boss, bots, W, H, now);                      // random power-up scheduler (runs through all waves)
     btBossTickLasers(boss, bots, now);
     btBossTickMinis(boss, bots, W, H, now, inset);
+    btBossTickShockwaves(boss, bots, now);
+    btBossTickMissiles(boss, bots, W, H, now);
+    btBossTickBombs(boss, bots, now);
 
     var pupils = 0; for (i = 0; i < bots.length; i++) if (bots[i].alive) pupils++;
     return { pupils: pupils, limbs: liveLimbs, core: core.hp, wave: boss.wave };
@@ -863,6 +995,7 @@
       if (core.hp !== core.lastHp){ core.ball.firstChild.nodeValue = Math.max(0, core.hp); core.lastHp = core.hp; }
       core.el.classList.toggle('vuln', core.vuln && core.alive);
       core.el.classList.toggle('enrage', !!(boss.flags && boss.flags.enrage) && core.alive);
+      core.el.classList.toggle('shielded', !!core.shield && core.alive);
       if (core.arm1){
         var showArms = core.vuln && core.alive;
         core.arm1.style.display = showArms ? 'block' : 'none';
@@ -911,6 +1044,21 @@
       if (!bl.el){ var be = document.createElement('div'); be.className = 'bt-blast'; be.style.left = (bl.x - bl.r) + 'px'; be.style.top = (bl.y - bl.r) + 'px'; be.style.width = be.style.height = (bl.r*2) + 'px'; arena.appendChild(be); bl.el = be; }
       if (Date.now() - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
       return true;
+    });
+    // shockwave rings (expanding)
+    (boss.shockwaves || []).forEach(function (S){
+      if (!S.el){ var se = document.createElement('div'); se.className = 'bt-shockwave'; arena.appendChild(se); S.el = se; }
+      S.el.style.left = (S.x - S.r) + 'px'; S.el.style.top = (S.y - S.r) + 'px'; S.el.style.width = S.el.style.height = (S.r*2) + 'px';
+      S.el.style.opacity = Math.max(0, 1 - S.r / S.maxR);
+    });
+    // homing missiles
+    (boss.missiles || []).forEach(function (M){
+      if (!M.el){ var me = document.createElement('div'); me.className = 'bt-missile'; arena.appendChild(me); M.el = me; }
+      M.el.style.transform = 'translate(' + (M.x - M.r) + 'px,' + (M.y - M.r) + 'px)';
+    });
+    // telegraphed bombs (target marker before detonation)
+    (boss.bombs || []).forEach(function (B){
+      if (!B.el){ var bo = document.createElement('div'); bo.className = 'bt-bomb'; bo.style.left = (B.x - B.r) + 'px'; bo.style.top = (B.y - B.r) + 'px'; bo.style.width = bo.style.height = (B.r*2) + 'px'; arena.appendChild(bo); B.el = bo; }
     });
   }
 
@@ -1243,5 +1391,7 @@
   };
   window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
   window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
-                     inc: btBossInc, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock };
+                     inc: btBossInc, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
+                     shockwave: btBossShockwave, tickShock: btBossTickShockwaves, launchMissile: btBossLaunchMissile, tickMissiles: btBossTickMissiles,
+                     dropBomb: btBossDropBomb, tickBombs: btBossTickBombs, gravity: btBossGravity, shield: btBossShield, heal: btBossHeal, ai: btBossAI, COLORS: BT_COLORS };
 })();
