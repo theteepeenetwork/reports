@@ -99,30 +99,26 @@
     });
   }
   function cloudOnSignedIn () {
-    cloudHideGate(); cloudUpdateChip();
+    cloudHideGate(); cloudUpdateChip(); cloudSetStatus('syncing');
     var base = CLOUD.db.ref('users/' + CLOUD.uid + '/keys');
+    function attach () {
+      if (CLOUD.listening) return;
+      CLOUD.listening = true;
+      // child_added fires once per existing key on attach → pulls the account down;
+      // child_changed keeps it live. Both are echo-guarded in cloudIncoming.
+      base.on('child_added',   function (s) { cloudIncoming(s.key, s.val()); });
+      base.on('child_changed', function (s) { cloudIncoming(s.key, s.val()); });
+    }
     base.once('value').then(function (snap) {
       var remote = snap.val();
-      var hasRemote = remote && Object.keys(remote).length;
-      var localRoster = window.localStorage.getItem('tp_roster');
-      var localHasClass = localRoster && JSON.parse(localRoster || '[]').length;
-      if (!hasRemote) {
+      if (!remote || !Object.keys(remote).length) {
+        // brand-new account → seed it ONCE from this device. Never bulk-push afterwards.
         SYNC_KEYS.forEach(function (k) { if (window.localStorage.getItem(k) != null) cloudPush(k); });
-      } else {
-        var pull = true;
-        if (localHasClass) {
-          pull = window.confirm('This account already has saved data.\n\nOK = use the account’s data on this device.\nCancel = keep THIS device’s data and upload it to the account.');
-        }
-        if (pull) { Object.keys(remote).forEach(function (k) { cloudIncoming(k, remote[k]); }); }
-        else { SYNC_KEYS.forEach(function (k) { if (window.localStorage.getItem(k) != null) cloudPush(k); }); }
       }
-      if (!CLOUD.listening) {
-        CLOUD.listening = true;
-        base.on('child_added',   function (s) { cloudIncoming(s.key, s.val()); });
-        base.on('child_changed', function (s) { cloudIncoming(s.key, s.val()); });
-      }
+      // otherwise the account is the source of truth; the listeners pull it down.
+      attach();
       cloudSetStatus('synced');
-    }).catch(function () { cloudSetStatus('offline'); });
+    }).catch(function () { cloudSetStatus('offline'); attach(); });
   }
   function cloudOnSignedOut () { cloudUpdateChip(); cloudSetStatus('signin'); if (!CLOUD.offlineDismissed) cloudShowGate(); }
 
