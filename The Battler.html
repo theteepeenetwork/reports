@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Battler — Smartboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/battler-core.css" />
+<style>
+  /* ============================================================
+     THE BATTLER — Arcade / Neon smartboard theme
+     Re-skins the shared battler-core via tokens + targeted glow.
+     ============================================================ */
+  :root {
+    --bg: #07070f; --page: #0a0b16; --card: #11131f; --card-2: #161827;
+    --ink: #eef2ff; --muted: #9aa6d6; --faint: #6e79a8;
+    --line: rgba(120,160,255,.16); --line-2: rgba(120,160,255,.09); --border: rgba(120,160,255,.22);
+    --teal-700: #22d3ee; --teal-600: #22d3ee; --teal-500: #5eead4; --teal-100: rgba(34,211,238,.26); --teal-50: rgba(34,211,238,.12);
+    --coral-600: #fb7185; --coral-500: #f472b6; --coral-100: rgba(244,63,94,.32); --coral-50: rgba(244,63,94,.14);
+    --gold-600: #fde047; --gold-500: #facc15; --gold-100: rgba(253,224,71,.28); --gold-50: rgba(253,224,71,.12);
+    --violet-600: #c084fc; --violet-100: rgba(192,132,252,.28); --violet-50: rgba(192,132,252,.12);
+    --accent: #22d3ee; --accent-dark: #0891b2;
+    --radius: 16px; --shadow: 0 16px 40px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background:
+      radial-gradient(120% 80% at 50% -8%, #1c1145 0%, rgba(10,11,22,0) 55%),
+      radial-gradient(90% 70% at 100% 110%, #07203a 0%, rgba(10,11,22,0) 50%),
+      #07070f;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 46px, rgba(110,150,255,.045) 46px 47px),
+      repeating-linear-gradient(90deg, transparent 0 46px, rgba(110,150,255,.045) 46px 47px);
+    -webkit-mask-image: radial-gradient(120% 100% at 50% 0%, #000 40%, transparent 100%);
+    mask-image: radial-gradient(120% 100% at 50% 0%, #000 40%, transparent 100%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 2px, transparent 2px 4px);
+    mix-blend-mode: multiply; opacity: .35;
+  }
+
+  .sb-top {
+    position: relative; z-index: 3;
+    display: flex; align-items: center; gap: 18px;
+    padding: 16px 26px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(20,16,50,.6), rgba(10,11,22,.3));
+    backdrop-filter: blur(6px);
+  }
+  .sb-brand { display: flex; align-items: center; gap: 14px; }
+  .sb-bolt { font-size: 30px; filter: drop-shadow(0 0 10px #fde047) drop-shadow(0 0 24px #f59e0b); }
+  .sb-brand b {
+    font-family: 'Press Start 2P', monospace; font-size: 22px; letter-spacing: .01em; color: #fff;
+    text-shadow: 0 0 6px #22d3ee, 0 0 20px rgba(34,211,238,.7), 0 0 40px rgba(34,211,238,.4);
+    display: block; line-height: 1.2;
+  }
+  .sb-brand small { font-size: 12px; color: var(--faint); letter-spacing: .18em; text-transform: uppercase; font-weight: 600; }
+  .sb-actions { margin-left: auto; display: flex; gap: 10px; }
+  .sb-btn {
+    font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap;
+    padding: 11px 18px; border-radius: 11px; color: #04121a;
+    background: linear-gradient(180deg, #67e8f9, #22d3ee); border: 0;
+    box-shadow: 0 0 16px rgba(34,211,238,.6), inset 0 -3px 0 rgba(0,0,0,.2);
+  }
+  .sb-btn:hover { filter: brightness(1.08); }
+  .sb-btn.ghosted { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
+  .sb-btn.ghosted:hover { background: rgba(255,255,255,.1); color: var(--ink); }
+
+  #page-battler { position: relative; z-index: 2; padding: 22px 30px 60px; max-width: 1700px; margin: 0 auto; }
+  #page-battler .page-header { display: none; }
+  #page-battler h1, #page-battler h2, #page-battler h3, #page-battler h4 { color: var(--ink); }
+  .empty, #page-battler .empty { color: var(--muted); border-color: var(--line); }
+  .hint, .small { color: var(--muted); }
+
+  #page-battler .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+  #page-battler label { display: block; font-weight: 700; font-size: 12px; color: var(--faint); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+  #page-battler input, #page-battler select { font: inherit; font-size: 15px; color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; outline: none; width: 100%; }
+  #page-battler input:focus, #page-battler select:focus { border-color: var(--teal-500); box-shadow: 0 0 0 3px var(--teal-50); }
+  #page-battler select option { background: #11131f; color: #fff; }
+  #page-battler button {
+    font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 11px;
+    padding: 12px 18px; font-size: 15px; color: #04121a;
+    background: linear-gradient(180deg, #67e8f9, #22d3ee);
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    box-shadow: 0 0 16px rgba(34,211,238,.45), inset 0 -3px 0 rgba(0,0,0,.18);
+    transition: transform .1s, filter .12s;
+  }
+  #page-battler button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  #page-battler button:active { transform: none; }
+  #page-battler button.secondary { background: rgba(255,255,255,.05); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+  #page-battler button.secondary:hover { background: rgba(255,255,255,.1); }
+  #page-battler button.danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); box-shadow: none; }
+  #page-battler button.danger:hover { background: rgba(244,63,94,.24); }
+  #page-battler button.ghost { background: rgba(255,255,255,.06); color: var(--ink); box-shadow: none; }
+  #page-battler button.small { padding: 7px 12px; font-size: 13px; }
+  #page-battler .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  #page-battler .grow { flex: 1 1 auto; }
+  #page-battler .seg { display: inline-flex; gap: 6px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 13px; padding: 5px; }
+  #page-battler .seg button { background: none; color: var(--muted); padding: 12px 20px; border-radius: 9px; font-size: 15px; box-shadow: none; }
+  #page-battler .seg button:hover { background: rgba(255,255,255,.06); color: var(--ink); transform: none; }
+  #page-battler .seg button.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 18px rgba(34,211,238,.55); }
+
+  #page-battler .tabs { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 14px; padding: 5px; margin: 18px 0 20px; display:inline-flex; flex-wrap:wrap; gap:4px; }
+  #page-battler .tab { color: var(--muted); padding: 12px 24px; font-size: 16px; font-weight: 700; background:none; border:0; border-radius:9px; cursor:pointer; }
+  #page-battler .tab:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+  #page-battler .tab.active { background: linear-gradient(180deg, #2a2d45, #1a1c2e); color: #fff; box-shadow: inset 0 0 0 1px var(--teal-100), 0 0 16px rgba(34,211,238,.25); }
+
+  .bt-board { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; border: 1px solid var(--line) !important; border-radius: 18px; box-shadow: var(--shadow); }
+  .bt-board::after { background: radial-gradient(120% 140% at 12% 0%, rgba(34,211,238,.14), transparent 55%) !important; }
+  .bt-bubble { background: #1a1c2e !important; box-shadow: 0 0 0 1px var(--teal-100), 0 8px 24px rgba(0,0,0,.5); }
+  .bt-bubble::before { border-right-color: #1a1c2e !important; }
+  .bt-classtotal .n { color: #fff !important; font-family: 'Space Mono', monospace; font-size: 40px; text-shadow: 0 0 14px #22d3ee, 0 0 34px rgba(34,211,238,.6); }
+  .bt-classtotal .l { color: var(--faint) !important; }
+
+  #page-battler .ctrls, #page-battler .cfg-row, #page-battler .g-create, #page-battler .bt-minrow { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow); }
+  #page-battler .ctrl-lab, #page-battler .cfg-note { color: var(--muted) !important; }
+  #page-battler .step { background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--ink); font-size: 15px; padding: 9px 15px; }
+  #page-battler .step.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); border-color: transparent; color: #04121a; box-shadow: 0 0 14px rgba(34,211,238,.5); }
+  #page-battler .toggle { color: var(--ink); }
+  #page-battler .toggle .sw { background: rgba(255,255,255,.16); }
+  #page-battler .toggle.on .sw { background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,.7); }
+
+  #page-battler .grid { grid-template-columns: repeat(auto-fill, minmax(286px, 1fr)); gap: 18px; }
+  #page-battler .pupil { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
+  #page-battler .pupil:hover { border-color: var(--rk); box-shadow: 0 0 0 1px var(--rk), 0 0 34px color-mix(in srgb, var(--rk) 40%, transparent); }
+  #page-battler .p-ribbon { background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 24%, transparent), transparent) !important; border-bottom: 1px solid var(--line); }
+  #page-battler .p-rank { letter-spacing: .12em; text-shadow: 0 0 10px color-mix(in srgb, var(--rk) 60%, transparent); }
+  #page-battler .ring-track { stroke: rgba(255,255,255,.1); }
+  #page-battler .p-init { box-shadow: inset 0 -3px 8px rgba(0,0,0,.35), 0 0 14px color-mix(in srgb, var(--rk) 45%, transparent); }
+  #page-battler .p-lvl { background: #0a0f1e !important; color: #fff; border: 1px solid var(--rk); box-shadow: 0 0 10px color-mix(in srgb, var(--rk) 50%, transparent); }
+  #page-battler .p-name { font-size: 20px; }
+  #page-battler .p-pts { font-family: 'Space Mono', monospace; font-size: 50px; text-shadow: 0 0 16px color-mix(in srgb, var(--rk) 75%, transparent); }
+  #page-battler .p-u, #page-battler .p-next { color: var(--faint); }
+  #page-battler .badge { background: var(--gold-50); border: 1px solid var(--gold-100); }
+  #page-battler .badge.locked { background: rgba(255,255,255,.04); border-color: var(--line); }
+  #page-battler .p-btns { gap: 10px; }
+  #page-battler .pbtn { min-height: 52px; font-size: 18px; border-radius: 12px; }
+  #page-battler .pbtn.plus { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 16px rgba(34,211,238,.5); }
+  #page-battler .pbtn.minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+
+  #page-battler .group { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
+  #page-battler .g-name { color: var(--ink) !important; }
+  #page-battler .g-chip { background: rgba(255,255,255,.05) !important; border: 1px solid var(--line) !important; color: var(--ink); }
+  #page-battler .g-total { box-shadow: inset 0 -3px 8px rgba(0,0,0,.3), 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
+  #page-battler .g-del { background: rgba(255,255,255,.05); color: var(--muted); }
+  #page-battler .g-minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+  #page-battler .g-plus { box-shadow: 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
+
+  #page-battler .lb-panel { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  #page-battler .pod-block { background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--line), 0 0 24px color-mix(in srgb, var(--mc) 30%, transparent); }
+  #page-battler .pod-pts { font-family: 'Space Mono', monospace; text-shadow: 0 0 14px color-mix(in srgb, var(--mc) 60%, transparent); }
+  #page-battler .pod-crown { filter: drop-shadow(0 0 10px #fde047); }
+  #page-battler .lb-pts { font-family: 'Space Mono', monospace; }
+  #page-battler .lb-gbar, #page-battler .bt-bar { background: rgba(255,255,255,.08); }
+
+  #page-battler .set-card { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  #page-battler .set-hint, #page-battler .set-note, #page-battler .leg-req { color: var(--muted); }
+  #page-battler .toggle.big { background: rgba(255,255,255,.06); }
+  #page-battler .toggle.big.on { background: var(--teal-50); color: var(--teal-700); box-shadow: 0 0 14px rgba(34,211,238,.35); }
+  #page-battler .btn-danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+
+  #page-battler .bt-arena { background: radial-gradient(120% 100% at 50% 0%, #141034 0%, #0a0b16 60%) !important; border: 1px solid var(--line) !important; box-shadow: inset 0 0 80px rgba(34,211,238,.06), var(--shadow); height: 74vh; }
+  #page-battler .bt-remain { background: var(--card); border: 1px solid var(--line); color: var(--ink); font-size: 16px; }
+  #page-battler .bt-tag { color: #eaf2ff !important; text-shadow: 0 0 6px #000, 0 1px 2px #000 !important; }
+  #page-battler .bt-ball { box-shadow: 0 0 14px rgba(0,0,0,.4), 0 0 20px currentColor; }
+  #page-battler .bt-winner { background: var(--gold-50); border: 1px solid var(--gold-100); color: var(--ink); box-shadow: 0 0 30px rgba(253,224,71,.25); }
+  #page-battler .bt-winner.lose { background: var(--coral-50); border-color: var(--coral-100); }
+
+  #bt-celebrate { background: rgba(4,6,14,.7) !important; }
+  #bt-celebrate .cele-card { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; box-shadow: 0 0 60px rgba(34,211,238,.3), 0 30px 80px rgba(0,0,0,.6); border: 1px solid var(--line); }
+  #bt-celebrate .cele-name { color: #fff; }
+  #bt-celebrate .cele-sub { color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .sb-brand b { font-size: 16px; }
+    #page-battler { padding: 16px 14px 50px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="sb-top">
+  <div class="sb-brand">
+    <span class="sb-bolt">⚡</span>
+    <div><b>THE BATTLER</b><small id="sbSub">Smartboard mode</small></div>
+  </div>
+  <div class="sb-actions">
+    <button class="sb-btn" id="fsBtn" onclick="toggleFS()">⤢ Fullscreen</button>
+    <button class="sb-btn ghosted" onclick="window.close()">✕ Close</button>
+  </div>
+</header>
+
+<!-- battler.js renders into this scaffold; id + .active required by the arena loop -->
+<div id="page-battler" class="active bt-arc">
+  <div class="page-header"><h1>The Battler</h1></div>
+  <div class="bt-board" id="bt-board">
+    <div class="bt-mascot" id="bt-mascot">
+      <div class="m-spark">✨</div>
+      <div class="m-body"></div>
+      <div class="m-cheek l"></div><div class="m-cheek r"></div>
+      <div class="m-eye l"></div><div class="m-eye r"></div>
+      <div class="m-mouth"></div>
+    </div>
+    <div class="bt-bubble" id="bt-bubble">Let's earn some points!</div>
+    <div class="bt-board-spacer"></div>
+    <div class="bt-classtotal"><div class="n" id="bt-classtotal">0</div><div class="l">Class points</div></div>
+  </div>
+  <div class="tabs" id="bt-tabs"></div>
+  <div id="bt-view"></div>
+  <div id="bt-fx"></div>
+  <div id="bt-celebrate"><div class="cele-card" id="bt-celeCard"></div></div>
+</div>
+
+<!-- ============================================================
+     SHARED GLOBALS — mirror the host planner so js/battler.js runs
+     against the same localStorage (tp_roster, tp_battler, tp_behaviour).
+     ============================================================ -->
+<script>
+  const Store = {
+    get(k, def){ try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; } catch { return def; } },
+    set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+  };
+  const uid = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+  let roster = Store.get('tp_roster', []);
+
+  /* Seed a sample class only if the project is brand new, so the board is usable.
+     Writes to the shared roster key → also appears in the planner. */
+  if (!roster.length) {
+    ['Alfie','Bea','Chloe','Daniel','Esme','Finn','Grace','Harry','Isla','Jack','Kira','Leo','Maya','Noah','Olivia','Priya','Reuben','Sana']
+      .forEach(n => roster.push({ id: uid(), name: n, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '' }));
+    Store.set('tp_roster', roster);
+  }
+
+  function saveRoster(){ Store.set('tp_roster', roster); }
+  function pupilName(id){ const p = roster.find(p => p.id === id); return p ? p.name : '—'; }
+  function sortedRoster(){ return [...roster].sort((a,b) => a.name.localeCompare(b.name)); }
+  function initials(n){ return (n||'?').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0,2).toUpperCase(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  /* Behaviour Log bridge — when "Log to Behaviour Log" is on, awards write
+     straight into the same key the planner reads (tp_behaviour). */
+  let bhData = Store.get('tp_behaviour', []);
+  function bhSave(){ Store.set('tp_behaviour', bhData); }
+  function bhRender(){ /* no behaviour page in this window */ }
+
+  /* icons used by battler.js (zap / play / pause) */
+  const ICONS = {
+    zap:'<path d="M13 2L4 14h7l-2 8 9-12h-7z"/>',
+    play:'<path d="M7 4l13 8-13 8z"/>',
+    pause:'<path d="M8 5v14M16 5v14"/>'
+  };
+  function iconSVG(name, size){ size = size || 18; return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`; }
+
+  /* class label from the planner profile, if present */
+  (function(){
+    const p = Store.get('tp_profile', null);
+    if (p && (p.yearGroup || p.room)) {
+      document.getElementById('sbSub').textContent = [p.yearGroup, p.room].filter(Boolean).join(' · ') + ' · Smartboard';
+    }
+  })();
+
+  function toggleFS(){
+    if (!document.fullscreenElement) {
+      (document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen() : Promise.reject()).catch(()=>{});
+    } else {
+      document.exitFullscreen && document.exitFullscreen();
+    }
+  }
+  document.addEventListener('fullscreenchange', () => {
+    const btn = document.getElementById('fsBtn');
+    btn.innerHTML = document.fullscreenElement ? '⤡ Exit fullscreen' : '⤢ Fullscreen';
+  });
+</script>
+
+<!-- the actual game logic, reused verbatim from the planner -->
+<script src="js/battler.js"></script>
+
+<script>
+  /* first paint */
+  if (typeof btRender === 'function') btRender();
+
+  /* keep in sync if the planner changes the roster / points in another tab */
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'tp_roster') { roster = Store.get('tp_roster', []); }
+    if ((e.key === 'tp_roster' || e.key === 'tp_battler') && typeof btRender === 'function') btRender();
+  });
+  window.addEventListener('focus', () => {
+    roster = Store.get('tp_roster', []);
+    if (typeof btRender === 'function') btRender();
+  });
+</script>
+</body>
+</html>
