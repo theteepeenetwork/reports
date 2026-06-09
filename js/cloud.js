@@ -21,8 +21,9 @@
     : ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable',
        'tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
 
-  var CLOUD = { uid:null, email:null, db:null, applying:false, listening:false,
-                timers:{}, lastSeen:{}, status:'local', offlineDismissed:false };
+  var CLOUD_VER = 1;   // schema version stamped on every push; readers accept {v,t} and {v,t,ver}
+  var CLOUD = { uid:null, email:null, db:null, applying:false, resetting:false, listening:false,
+                wasSignedIn:false, timers:{}, lastSeen:{}, status:'local', offlineDismissed:false };
   window.CLOUD = CLOUD;
 
   /* ---- write-through hook ----
@@ -34,7 +35,7 @@
   function rawSet(k, v){ if (SProto) origSetItem.call(LS, k, v); else origSetItem(k, v); }
   function hookedSetItem(k, v){
     if (SProto) origSetItem.call(this, k, v); else origSetItem(k, v);
-    try { if ((!SProto || this === LS) && CLOUD.uid && !CLOUD.applying && SYNC_KEYS.indexOf(k) >= 0) cloudSchedulePush(k); } catch (e) {}
+    try { if ((!SProto || this === LS) && CLOUD.uid && !CLOUD.applying && !CLOUD.resetting && SYNC_KEYS.indexOf(k) >= 0) cloudSchedulePush(k); } catch (e) {}
   }
   if (SProto) SProto.setItem = hookedSetItem; else LS.setItem = hookedSetItem;
 
@@ -54,7 +55,7 @@
     var raw = window.localStorage.getItem(k);
     CLOUD.lastSeen[k] = raw;
     cloudSetStatus('syncing');
-    CLOUD.db.ref('users/' + CLOUD.uid + '/keys/' + k).set({ v: raw == null ? '' : raw, t: Date.now() })
+    CLOUD.db.ref('users/' + CLOUD.uid + '/keys/' + k).set({ v: raw == null ? '' : raw, t: Date.now(), ver: CLOUD_VER })
       .then(function () { cloudSetStatus('synced'); })
       .catch(function () { cloudSetStatus('offline'); });
   }
@@ -112,6 +113,61 @@
     cloudBroadcast(e.key, 'storage');
   });
 
+  /* ====================================================================
+     MULTI-USER: owner stamp, hard session reset, account switching.
+     The Storage hook only overrides setItem, so LS.removeItem() never
+     pushes — but we also raise CLOUD.resetting as belt-and-braces so no
+     incidental write during a reset can wipe the cloud account.
+     ==================================================================== */
+  function cloudDisplayName (){
+    try { var p = JSON.parse(LS.getItem('tp_profile') || '{}'); if (p && (p.name || p.displayName)) return (p.name || p.displayName); } catch (e) {}
+    return CLOUD.email ? CLOUD.email.split('@')[0] : 'Synced';
+  }
+  function cloudKnownEmails (){ try { var a = JSON.parse(LS.getItem('tp_known_emails') || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function cloudRememberEmail (email){
+    if (!email) return; try { var a = cloudKnownEmails().filter(function (e){ return e !== email; }); a.unshift(email);
+      rawSet('tp_known_emails', JSON.stringify(a.slice(0, 6))); } catch (e) {}
+  }
+  function cloudOwner ()      { try { return LS.getItem('tp_owner_uid'); } catch (e) { return null; } }
+  function cloudStampOwner () { try { rawSet('tp_owner_uid', CLOUD.uid); rawSet('tp_owner_email', CLOUD.email || ''); } catch (e) {} }
+  function cloudLocalHasData (){ for (var i=0;i<SYNC_KEYS.length;i++){ if (LS.getItem(SYNC_KEYS[i]) != null) return true; } return false; }
+  function cloudLocalSummary (){
+    var keys = 0, names = 0;
+    SYNC_KEYS.forEach(function (k){ if (LS.getItem(k) != null) keys++; });
+    try { var r = JSON.parse(LS.getItem('tp_roster') || '[]'); names = Array.isArray(r) ? r.length : 0; } catch (e) {}
+    return { keys: keys, names: names };
+  }
+  function cloudDetach (){
+    if (CLOUD.db && CLOUD.uid){ try { CLOUD.db.ref('users/' + CLOUD.uid + '/keys').off(); } catch (e) {} }
+    CLOUD.listening = false;
+    for (var t in CLOUD.timers){ clearTimeout(CLOUD.timers[t]); }
+    CLOUD.timers = {}; CLOUD.lastSeen = {};
+  }
+  // Wipe this device's class data to empty (UNHOOKED removal → never pushes to the cloud) and blank every view.
+  function cloudWipeLocalData (){
+    CLOUD.resetting = true;
+    try { SYNC_KEYS.forEach(function (k){ try { LS.removeItem(k); } catch (e) {} }); } finally { CLOUD.resetting = false; }
+    CLOUD.lastSeen = {};
+    if (typeof window.appResetState === 'function'){ try { window.appResetState(); } catch (e) {} }
+    try { window.dispatchEvent(new CustomEvent('tp:reset')); } catch (e) {}
+  }
+  // Hard reset: drop listeners, owner stamp and all local data. Used on a real sign-out / switch.
+  window.resetSession = function (){
+    cloudDetach();
+    try { LS.removeItem('tp_owner_uid'); LS.removeItem('tp_owner_email'); } catch (e) {}
+    cloudWipeLocalData();
+  };
+  // Explicit "upload this device's data into the signed-in account".
+  window.cloudAdoptLocal = function (){
+    if (!CLOUD.uid || !CLOUD.db) return;
+    SYNC_KEYS.forEach(function (k){ if (LS.getItem(k) != null) cloudPush(k); });
+    cloudStampOwner();
+  };
+  window.cloudSwitchAccount = function (){
+    if (typeof firebase === 'undefined' || !firebase.apps.length){ if (typeof window.resetSession === 'function') window.resetSession(); cloudShowGate(); return; }
+    firebase.auth().signOut();   // onAuthStateChanged(null) → resetSession + gate (see cloudInit)
+  };
+
   /* ---- auth lifecycle ---- */
   function cloudInit () {
     cloudInjectUI();
@@ -121,12 +177,16 @@
     CLOUD.db = firebase.database();
     cloudSetStatus('signin');
     firebase.auth().onAuthStateChanged(function (user) {
-      if (user) { CLOUD.uid = user.uid; CLOUD.email = user.email; cloudOnSignedIn(); }
-      else { CLOUD.uid = null; CLOUD.email = null; cloudOnSignedOut(); }
+      if (user) { CLOUD.uid = user.uid; CLOUD.email = user.email; CLOUD.wasSignedIn = true; cloudOnSignedIn(); }
+      else {
+        var didSignOut = CLOUD.wasSignedIn;   // true only on a real sign-out transition, NOT the initial no-user load
+        CLOUD.uid = null; CLOUD.email = null; CLOUD.wasSignedIn = false;
+        cloudOnSignedOut(didSignOut);
+      }
     });
   }
   function cloudOnSignedIn () {
-    cloudHideGate(); cloudUpdateChip(); cloudSetStatus('syncing');
+    cloudHideGate(); cloudRememberEmail(CLOUD.email); cloudUpdateChip(); cloudSetStatus('syncing');
     var base = CLOUD.db.ref('users/' + CLOUD.uid + '/keys');
     function attach () {
       if (CLOUD.listening) return;
@@ -138,16 +198,38 @@
     }
     base.once('value').then(function (snap) {
       var remote = snap.val();
-      if (!remote || !Object.keys(remote).length) {
-        // brand-new account → seed it ONCE from this device. Never bulk-push afterwards.
-        SYNC_KEYS.forEach(function (k) { if (window.localStorage.getItem(k) != null) cloudPush(k); });
+      var hasRemote = remote && Object.keys(remote).length;
+      var owner = cloudOwner(), localData = cloudLocalHasData();
+      if (hasRemote) {
+        // The account is the source of truth. If local data belongs to a DIFFERENT
+        // teacher, drop it first so the pull REPLACES rather than lingers — privacy.
+        if (owner && owner !== CLOUD.uid) cloudWipeLocalData();
+        cloudStampOwner(); attach(); cloudSetStatus('synced');
+      } else if (!localData) {
+        // empty account, empty device → start clean, owned by this uid.
+        cloudStampOwner(); attach(); cloudSetStatus('synced');
+      } else if (owner === CLOUD.uid) {
+        // empty account but this device's data is already mine → resume + upload it.
+        attach(); window.cloudAdoptLocal(); cloudSetStatus('synced');
+      } else {
+        // empty account + local data from a DIFFERENT/unknown owner → ASK. NEVER auto-seed.
+        attach(); cloudSetStatus('synced');
+        var go = function (which){
+          if (which === 'account'){ cloudWipeLocalData(); cloudStampOwner(); }   // account is empty → start empty, now mine
+          else { window.cloudAdoptLocal(); }                                      // upload this device's data
+        };
+        if (typeof window.appPromptAdopt === 'function') {
+          window.appPromptAdopt(cloudLocalSummary(), { onUseAccount: function(){ go('account'); }, onKeepUpload: function(){ go('keep'); } });
+        }
+        // No adopt UI present → safe default is to do NOTHING (never leak the previous teacher's class).
       }
-      // otherwise the account is the source of truth; the listeners pull it down.
-      attach();
-      cloudSetStatus('synced');
     }).catch(function () { cloudSetStatus('offline'); attach(); });
   }
-  function cloudOnSignedOut () { cloudUpdateChip(); cloudSetStatus('signin'); if (!CLOUD.offlineDismissed) cloudShowGate(); }
+  function cloudOnSignedOut (didSignOut) {
+    CLOUD.listening = false;
+    if (didSignOut && typeof window.resetSession === 'function') window.resetSession();   // clear only on a genuine sign-out
+    cloudUpdateChip(); cloudSetStatus('signin'); if (!CLOUD.offlineDismissed) cloudShowGate();
+  }
 
   window.cloudRegister = function () { cloudAuth(true); };
   window.cloudLogin    = function () { cloudAuth(false); };
@@ -193,7 +275,8 @@
     gate.innerHTML =
       '<div class="gc"><h3>Sign in to sync</h3>' +
       '<p>Log in to use your class on every device — points sync instantly between your iPad and the smartboard.</p>' +
-      '<input id="cloudEmail" type="email" placeholder="Email" autocomplete="username" />' +
+      '<input id="cloudEmail" type="email" placeholder="Email" autocomplete="username" list="cloudEmails" />' +
+      '<datalist id="cloudEmails"></datalist>' +
       '<input id="cloudPw" type="password" placeholder="Password (6+ characters)" autocomplete="current-password" />' +
       '<div class="ce" id="cloudErr"></div>' +
       '<div class="crow"><button class="secondary" onclick="cloudRegister()">Register</button>' +
@@ -203,7 +286,12 @@
 
     // place the status chip: planner topbar, else the window header, else float
     var chip = document.createElement('button'); chip.id = 'cloudChip'; chip.type = 'button';
-    chip.onclick = function () { if (CLOUD.uid) { if (confirm('Sign out of ' + (CLOUD.email || 'this account') + '?')) cloudLogout(); } else cloudOpenAuth(); };
+    chip.onclick = function () {
+      if (CLOUD.uid) {
+        if (confirm('Signed in as ' + (CLOUD.email || 'this account') + '.\n\nSwitch teacher / sign out? This clears this device\'s class so the next teacher starts clean. Your data stays safe in your account.'))
+          window.cloudSwitchAccount();
+      } else cloudOpenAuth();
+    };
     var host = document.querySelector('.topbar') || document.querySelector('.sb-actions');
     if (host) {
       if (host.classList.contains('topbar')) { var sp = host.querySelector('.tb-spacer'); host.insertBefore(chip, sp ? sp.nextSibling : null); }
@@ -211,7 +299,11 @@
     } else { chip.style.cssText = 'position:fixed;top:12px;right:12px;z-index:1500;'; document.body.appendChild(chip); }
     cloudUpdateChip();
   }
-  function cloudShowGate () { var g = document.getElementById('cloudGate'); if (g) g.classList.add('show'); }
+  function cloudShowGate () {
+    var dl = document.getElementById('cloudEmails');
+    if (dl) dl.innerHTML = cloudKnownEmails().map(function (e){ return '<option value="' + (typeof esc === 'function' ? esc(e) : e) + '">'; }).join('');
+    var g = document.getElementById('cloudGate'); if (g) g.classList.add('show');
+  }
   function cloudHideGate () { var g = document.getElementById('cloudGate'); if (g) g.classList.remove('show'); }
   function cloudUpdateChip () {
     var chip = document.getElementById('cloudChip'); if (!chip) return;
@@ -226,7 +318,7 @@
     if (s === 'local')  { label = 'Local only'; }
     else if (s === 'signin') { label = 'Sign in to sync'; }
     else if (s === 'syncing'){ label = 'Syncing…'; cls = 'busy'; }
-    else if (s === 'synced') { label = (CLOUD.email ? CLOUD.email.split('@')[0] : 'Synced'); cls = 'ok'; }
+    else if (s === 'synced') { label = cloudDisplayName(); cls = 'ok'; }
     else if (s === 'offline'){ label = 'Offline'; cls = 'off'; }
     if (cls) chip.classList.add(cls);
     chip.innerHTML = '<span class="dot"></span>' + (typeof esc === 'function' ? esc(label) : label);

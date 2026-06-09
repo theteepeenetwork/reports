@@ -3,7 +3,24 @@
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid",
+        "keys": {
+          "$key": {
+            ".validate": "newData.hasChildren(['v', 't'])",
+            "v": {
+              ".validate": "newData.isString() && newData.val().length < 262144"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "ver": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }
