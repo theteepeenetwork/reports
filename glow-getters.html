@@ -185,6 +185,27 @@
     .sb-brand b { font-size: 16px; }
     #page-battler { padding: 16px 14px 50px; }
   }
+
+  /* ---- COMPACT player cards (~50%) so the whole class fits on the board ---- */
+  #page-battler .grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
+  #page-battler .pupil { border-radius: 12px; }
+  #page-battler .p-ribbon { padding: 4px 9px; }
+  #page-battler .p-rank { font-size: 8.5px; letter-spacing: .06em; }
+  #page-battler .p-emblem { width: 10px; height: 10px; }
+  #page-battler .p-main { gap: 9px; padding: 9px 9px 4px; }
+  #page-battler .p-av { width: 46px; height: 46px; }
+  #page-battler .p-ring { width: 46px; height: 46px; }
+  #page-battler .p-init { inset: 6px; font-size: 13px; }
+  #page-battler .p-lvl { bottom: -2px; font-size: 8px; padding: 1px 5px; }
+  #page-battler .p-name { font-size: 13px; }
+  #page-battler .p-pts { font-size: 26px; }
+  #page-battler .p-u { font-size: 9px; }
+  #page-battler .p-next { font-size: 9.5px; margin-top: 1px; }
+  #page-battler .p-badges { gap: 4px; padding: 2px 9px 0; min-height: 16px; }
+  #page-battler .badge { width: 16px; height: 16px; font-size: 9px; }
+  #page-battler .p-btns { gap: 6px; padding: 7px 9px 9px; }
+  #page-battler .pbtn { min-height: 30px; font-size: 13px; border-radius: 8px; padding: 6px 0; }
+  #page-battler .pbtn.minus { flex: 0 0 34px; }
 </style>
 </head>
 <body>
