@@ -201,9 +201,11 @@
       var hasRemote = remote && Object.keys(remote).length;
       var owner = cloudOwner(), localData = cloudLocalHasData();
       if (hasRemote) {
-        // The account is the source of truth. If local data belongs to a DIFFERENT
-        // teacher, drop it first so the pull REPLACES rather than lingers — privacy.
-        if (owner && owner !== CLOUD.uid) cloudWipeLocalData();
+        // The account is the source of truth. Drop local data first UNLESS it is
+        // provably mine (owner stamp === this uid) — so a pull fully REPLACES and no
+        // residual key (e.g. tp_battler groups) from a previous teacher can linger.
+        // owner===null (unstamped/legacy/offline data) counts as NOT mine → wipe.
+        if (owner !== CLOUD.uid && localData) cloudWipeLocalData();
         cloudStampOwner(); attach(); cloudSetStatus('synced');
       } else if (!localData) {
         // empty account, empty device → start clean, owned by this uid.
@@ -220,8 +222,11 @@
         };
         if (typeof window.appPromptAdopt === 'function') {
           window.appPromptAdopt(cloudLocalSummary(), { onUseAccount: function(){ go('account'); }, onKeepUpload: function(){ go('keep'); } });
+        } else {
+          // No adopt UI (e.g. the Glow Getters window) → privacy default is to CLEAR, never
+          // leave a previous teacher's class on screen. The planner offers the keep/use choice.
+          go('account');
         }
-        // No adopt UI present → safe default is to do NOTHING (never leak the previous teacher's class).
       }
     }).catch(function () { cloudSetStatus('offline'); attach(); });
   }
