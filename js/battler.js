@@ -18,7 +18,7 @@
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
-             bossUnlocked:false, bossChargeBase:null,
+             bossUnlocked:false,
              points:{}, badges:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
@@ -34,8 +34,6 @@
     if (!Array.isArray(s.tables)) s.tables = [];
     if ([1,2,5].indexOf(s.step) < 0) s.step = 1;
     if (typeof s.bossUnlocked !== 'boolean') s.bossUnlocked = false;
-    // start each charge cycle from the class's current total so the bar fills as they EARN
-    if (s.bossChargeBase == null && typeof roster !== 'undefined') s.bossChargeBase = btClassTotal(s);
     return s;
   }
   function btSave(s){ Store.set('tp_battler', s); }
@@ -127,21 +125,20 @@
   // pupils who take part in battles / aren't greyed out — everyone except those marked absent on the Class List
   function btActiveRoster(){ return sortedRoster().filter(function (p){ return !p.absent; }); }
 
-  /* ── Boss-battle charge / unlock — class total vs a target that scales with
-     class size and the Maximum (recharges for repeat fights). ── */
-  var BOSS_BASE = 18; // default per-pupil points-to-earn when no Maximum is set
-  function btBossInc(s){
-    var n = Math.max(1, btActiveRoster().length);
-    var room = (btMaxP(s) === Infinity) ? BOSS_BASE : Math.max(6, btMaxP(s) - btStart(s));
-    return Math.max(20, Math.round(n * room * 0.6));
-  }
-  function btBossCharge(s){ return Math.max(0, Math.min(btBossInc(s), btClassTotal(s) - (s.bossChargeBase || 0))); }
-  function btBossTarget(s){ return (s.bossChargeBase || 0) + btBossInc(s); }
-  function btBossPct(s){ var inc = btBossInc(s); return inc <= 0 ? 1 : btBossCharge(s) / inc; }
-  // Mark the boss unlocked the moment the class reaches the target; fanfare once.
+  /* ── Boss-battle charge / unlock — the class collectively earns its way to a
+     boss fight. Target = 60% of the maximum points the class could hold
+     (class size × Maximum), so it auto-adjusts whenever the Maximum is set. ── */
+  var BOSS_BASE = 18; // notional per-pupil cap used only when no Maximum is set
+  function btBossCap(s){ return (btMaxP(s) === Infinity) ? (btStart(s) + BOSS_BASE) : btMaxP(s); }
+  function btBossTarget(s){ return Math.max(20, Math.round(btActiveRoster().length * btBossCap(s) * 0.6)); }
+  function btBossCharge(s){ return Math.min(btClassTotal(s), btBossTarget(s)); }
+  function btBossPct(s){ var t = btBossTarget(s); return t <= 0 ? 1 : btBossCharge(s) / t; }
+  // Track the threshold both ways: fanfare once when the class first reaches 60% of the
+  // maximum available; re-lock if the total later drops back below it (deductions / reset).
   function btCheckBossUnlock(s, animate){
-    if (s.bossUnlocked) return false;
-    if (btBossCharge(s) >= btBossInc(s)){ s.bossUnlocked = true; if (animate) btBossFanfare(s); return true; }
+    var reached = btClassTotal(s) >= btBossTarget(s);
+    if (reached && !s.bossUnlocked){ s.bossUnlocked = true; if (animate) btBossFanfare(s); return true; }
+    if (!reached && s.bossUnlocked){ s.bossUnlocked = false; }
     return false;
   }
   function btBossFanfare(s){
@@ -159,6 +156,8 @@
   }
   // Update the Points-tab charge bar + board badge in place (no full re-render).
   function btUpdateBossCharge(s){
+    var was = s.bossUnlocked; btCheckBossUnlock(s, false);   // keep lock state in step with the current target (e.g. after a Maximum change)
+    if (s.bossUnlocked !== was) btSave(s);
     var fill = document.getElementById('bt-charge-fill');
     if (fill) fill.style.width = Math.min(100, Math.round(btBossPct(s) * 100)) + '%';
     var wrap = document.getElementById('bt-charge'); if (wrap) wrap.classList.toggle('ready', !!s.bossUnlocked);
@@ -492,7 +491,7 @@
     var s = btLoad();
     if (!confirm('Reset every pupil back to the starting amount (' + btStart(s) + ')?')) return;
     s.points = {}; s.badges = {}; btApplyConfig(s); s.boss.dealt = 0; btStreak = {};
-    s.bossUnlocked = false; s.bossChargeBase = btClassTotal(s);   // re-lock the boss; charge from scratch
+    s.bossUnlocked = false;   // re-lock the boss; class total drops back below the target
     btSave(s); btRender();
   };
   window.btAddTable = function (){
@@ -1135,7 +1134,6 @@
     if (btActiveRoster().length < 2) return;
     AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0;
     AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
-    if (AR.mode === 'boss'){ s.bossUnlocked = false; s.bossChargeBase = btClassTotal(s); }   // starting the boss spends the charge
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
     AR.boss = AR.mode === 'boss' ? btSpawnBoss(s) : null;
@@ -1391,7 +1389,7 @@
   };
   window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
   window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
-                     inc: btBossInc, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
+                     cap: btBossCap, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
                      shockwave: btBossShockwave, tickShock: btBossTickShockwaves, launchMissile: btBossLaunchMissile, tickMissiles: btBossTickMissiles,
                      dropBomb: btBossDropBomb, tickBombs: btBossTickBombs, gravity: btBossGravity, shield: btBossShield, heal: btBossHeal, ai: btBossAI, COLORS: BT_COLORS };
 })();
