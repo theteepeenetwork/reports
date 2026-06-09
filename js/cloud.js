@@ -16,8 +16,7 @@
      with an echo-guard so a device never re-pushes what it just received.
    ===================================================================== */
 (function () {
-  var origSetItem = window.localStorage.setItem.bind(window.localStorage);
-
+  var LS = window.localStorage;
   var SYNC_KEYS = (typeof DATA_KEYS !== 'undefined' && Array.isArray(DATA_KEYS)) ? DATA_KEYS
     : ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable',
        'tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','reportBuilderChildren'];
@@ -26,11 +25,18 @@
                 timers:{}, lastSeen:{}, status:'local', offlineDismissed:false };
   window.CLOUD = CLOUD;
 
-  /* ---- write-through hook (installed immediately) ---- */
-  window.localStorage.setItem = function (k, v) {
-    origSetItem(k, v);
-    if (CLOUD.uid && !CLOUD.applying && SYNC_KEYS.indexOf(k) >= 0) cloudSchedulePush(k);
-  };
+  /* ---- write-through hook ----
+     Override Storage.prototype.setItem (NOT localStorage.setItem — assigning to
+     the instance is treated as a stored key in some browsers). Catches every
+     write, incl. Store.set and direct setItem (e.g. the report builder). */
+  var SProto = (window.Storage && window.Storage.prototype) ? window.Storage.prototype : null;
+  var origSetItem = SProto ? SProto.setItem : LS.setItem.bind(LS);
+  function rawSet(k, v){ if (SProto) origSetItem.call(LS, k, v); else origSetItem(k, v); }
+  function hookedSetItem(k, v){
+    if (SProto) origSetItem.call(this, k, v); else origSetItem(k, v);
+    try { if ((!SProto || this === LS) && CLOUD.uid && !CLOUD.applying && SYNC_KEYS.indexOf(k) >= 0) cloudSchedulePush(k); } catch (e) {}
+  }
+  if (SProto) SProto.setItem = hookedSetItem; else LS.setItem = hookedSetItem;
 
   function cloudConfigured () {
     return typeof firebaseConfig !== 'undefined' && firebaseConfig &&
@@ -58,7 +64,21 @@
     if (raw === CLOUD.lastSeen[k]) return;                 // our own echo
     if (window.localStorage.getItem(k) === raw) return;    // already current
     CLOUD.applying = true;
-    if (raw == null) window.localStorage.removeItem(k); else origSetItem(k, raw);
+    var oldRaw = window.localStorage.getItem(k);
+    if (k === 'tp_battler' && typeof btReplayRemote === 'function' && raw != null) {
+      // animate the point change on this device, then converge to the exact state
+      var animated = btReplayRemote(oldRaw, raw);   // award() reactions run while points are still old
+      rawSet(k, raw);                                // exact remote state (badges/tables/config) — no push (applying)
+      CLOUD.lastSeen[k] = raw;
+      if (!animated && typeof btRender === 'function') btRender();   // bulk/structural → render exact
+      if (typeof renderBattlerLaunch === 'function') {               // planner launcher: refresh the points stat
+        var act = document.querySelector('.page.active');
+        if (act && act.id === 'page-battler') renderBattlerLaunch();
+      }
+      CLOUD.applying = false;
+      return;
+    }
+    if (raw == null) LS.removeItem(k); else rawSet(k, raw);
     CLOUD.applying = false;
     CLOUD.lastSeen[k] = raw;
     cloudApplyRemote(k);
