@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Battler — Smartboard</title>
+<title>Glow Getters — Smartboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/battler-core.css" />
+<link rel="stylesheet" href="css/battler-core.css?v=2" />
 <style>
   /* ============================================================
      THE BATTLER — Arcade / Neon smartboard theme
@@ -130,7 +130,7 @@
   #page-battler .toggle .sw { background: rgba(255,255,255,.16); }
   #page-battler .toggle.on .sw { background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,.7); }
 
-  #page-battler .grid { grid-template-columns: repeat(auto-fill, minmax(286px, 1fr)); gap: 18px; }
+  #page-battler .grid { grid-template-columns: repeat(auto-fit, minmax(286px, 1fr)); gap: 18px; }
   #page-battler .pupil { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
   #page-battler .pupil:hover { border-color: var(--rk); box-shadow: 0 0 0 1px var(--rk), 0 0 34px color-mix(in srgb, var(--rk) 40%, transparent); }
   #page-battler .p-ribbon { background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 24%, transparent), transparent) !important; border-bottom: 1px solid var(--line); }
@@ -192,7 +192,7 @@
 <header class="sb-top">
   <div class="sb-brand">
     <span class="sb-bolt">⚡</span>
-    <div><b>THE BATTLER</b><small id="sbSub">Smartboard mode</small></div>
+    <div><b>GLOW GETTERS</b><small id="sbSub">Smartboard mode</small></div>
   </div>
   <div class="sb-actions">
     <button class="sb-btn" id="fsBtn" onclick="toggleFS()">⤢ Fullscreen</button>
@@ -202,7 +202,7 @@
 
 <!-- battler.js renders into this scaffold; id + .active required by the arena loop -->
 <div id="page-battler" class="active bt-arc">
-  <div class="page-header"><h1>The Battler</h1></div>
+  <div class="page-header"><h1>Glow Getters</h1></div>
   <div class="bt-board" id="bt-board">
     <div class="bt-mascot" id="bt-mascot">
       <div class="m-spark">✨</div>
@@ -285,7 +285,7 @@
 </script>
 
 <!-- the actual game logic, reused verbatim from the planner -->
-<script src="js/battler.js"></script>
+<script src="js/battler.js?v=2"></script>
 
 <script>
   /* first paint */
