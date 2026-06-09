@@ -306,17 +306,16 @@
 </script>
 
 <!-- the actual game logic, reused verbatim from the planner -->
-<script src="js/battler.js?v=3"></script>
+<script src="js/battler.js?v=4"></script>
 
 <script>
   /* first paint */
   if (typeof btRender === 'function') btRender();
 
-  /* keep in sync if the planner changes the roster / points in another tab */
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'tp_roster') { roster = Store.get('tp_roster', []); }
-    if ((e.key === 'tp_roster' || e.key === 'tp_battler') && typeof btRender === 'function') btRender();
-  });
+  /* keep in sync with the planner: any change (another tab via the storage event,
+     or cloud) fires 'tp:sync' from cloud.js after refreshing the roster mirror. */
+  window.addEventListener('tp:sync', () => { if (typeof btRender === 'function') btRender(); });
+  /* safety net for any event missed while the window was backgrounded */
   window.addEventListener('focus', () => {
     roster = Store.get('tp_roster', []);
     if (typeof btRender === 'function') btRender();
@@ -329,6 +328,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="js/cloud.js?v=3"></script>
+<script src="js/cloud.js?v=4"></script>
 </body>
 </html>

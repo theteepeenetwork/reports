@@ -97,7 +97,7 @@
       color: var(--muted);
       border: 0;
       border-radius: 9px;
-      padding: 8px 10px;
+      padding: 8px 10px 8px 22px;
       font-size: 13.5px;
       font-weight: 500;
       cursor: pointer;
@@ -317,14 +317,14 @@
     .small-box { min-height: 80px; }
 
     /* ---------- Group children by comment (drag-and-drop board) ---------- */
-    .rb-board { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px; margin-top: 1rem; align-items: flex-start; }
-    .rb-col { flex: 0 0 220px; background: var(--page); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 110px; transition: outline .12s, background .12s; }
+    .rb-board { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px 10px; margin-top: 1rem; }
+    .rb-col { width: 100%; background: var(--page); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 64px; transition: outline .12s, background .12s; }
     .rb-col.notset { background: var(--line-2); }
     .rb-col.drop { outline: 2px dashed var(--accent); outline-offset: 2px; background: var(--soft); }
     .rb-col-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--line); }
     .rb-col-title { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; }
     .rb-col-count { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
-    .rb-col-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1; }
+    .rb-col-body { display: flex; flex-direction: row; flex-wrap: wrap; align-content: flex-start; gap: 8px; padding: 10px; flex: 1; }
     .rb-col-empty { color: var(--faint); font-size: 12px; text-align: center; padding: 6px 0; }
     .rb-chip { display: block; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: grab; user-select: none; touch-action: none; transition: border-color .12s, box-shadow .12s, opacity .12s; }
     .rb-chip:hover { border-color: var(--accent); }
@@ -1010,72 +1010,11 @@
           <h1>Report Comment Builder</h1>
           <p>Choose comments in your own style, then copy the prompt into ChatGPT.</p>
         </div>
-        <div class="rg-grid">
-          <section class="card">
-            <h2>Children</h2>
-            <div class="row no-print" style="margin-bottom:.5rem">
-              <button class="ghost small" onclick="rgSyncFromRoster()">↻ Pull names from Class List</button>
-            </div>
-            <label for="childName">Child's name</label>
-            <input id="childName" type="text" placeholder="e.g. Ahaana" />
-
-            <label for="bulkNames">Bulk add names</label>
-            <textarea id="bulkNames" class="small-box" placeholder="Paste one child per line"></textarea>
-            <button class="secondary" onclick="bulkAddChildren()">Bulk add children</button>
-
-            <label for="gender">Pronouns</label>
-            <select id="gender">
-              <option value="female">she/her</option>
-              <option value="male">he/him</option>
-              <option value="neutral">they/them</option>
-            </select>
-
-            <div class="row" style="margin-top:.6rem">
-              <button class="grow" onclick="addChild()">Add child</button>
-              <button class="secondary grow" onclick="saveCurrentChild()">Save child</button>
-            </div>
-            <div class="row" style="margin-top:.4rem">
-              <button class="secondary grow" onclick="previousChild()">Previous</button>
-              <button class="secondary grow" onclick="nextChild()">Next</button>
-            </div>
-            <div id="childList" class="child-list"></div>
-          </section>
-
-          <section class="card">
-            <h2>Dropdown Comment Bank</h2>
-            <label for="year1ReportText">Year 1 report</label>
-            <textarea id="year1ReportText" placeholder="Paste last year's report here..."></textarea>
-            <div class="field-grid" id="fields"></div>
-            <h3 style="margin-top:1rem">Custom comments</h3>
-            <label for="customLiteracy">Custom literacy comment</label>
-            <textarea id="customLiteracy"></textarea>
-            <label for="customNumeracy">Custom numeracy comment</label>
-            <textarea id="customNumeracy"></textarea>
-            <label for="customGeneral">Custom general comment</label>
-            <textarea id="customGeneral"></textarea>
-            <button style="margin-top:.6rem" onclick="generateComments()">Generate comment list</button>
-            <div class="row" style="margin-top:.4rem">
-              <button class="secondary grow" onclick="downloadAllPrompts()">Download all prompts</button>
-              <button class="secondary grow" onclick="copyAllPrompts()">Copy all prompts</button>
-            </div>
-          </section>
-
-          <section class="card">
-            <h2>Output for ChatGPT</h2>
-            <label for="commentOutput">Chosen comments</label>
-            <textarea id="commentOutput" class="output"></textarea>
-            <button class="secondary" onclick="copyText('commentOutput')">Copy comments</button>
-            <label for="promptOutput">Full ChatGPT prompt</label>
-            <textarea id="promptOutput" class="prompt"></textarea>
-            <button onclick="copyText('promptOutput')">Copy full prompt</button>
-          </section>
-        </div>
-
-        <section class="card" id="reportBoardCard" style="margin-top:1rem">
+        <section class="card" id="reportBoardCard">
           <div class="row no-print" style="justify-content:space-between; align-items:flex-end; gap:14px">
             <div>
               <h2 style="margin:0">Group children by comment</h2>
-              <p class="hint small" style="margin:.35rem 0 0; max-width:70ch">Drag each child's name into the column that fits them — it sets that comment automatically, so you can sort the whole class one comment at a time. Tap a name (without dragging) to open that child in the editor. Works with mouse or touch.</p>
+              <p class="hint small" style="margin:.35rem 0 0; max-width:70ch">Names come from your <b>Class List</b>. Pick a comment area, then drag each child into the column that fits them — it sets that comment automatically, so you can sort the whole class one comment at a time. Works with mouse or touch.</p>
             </div>
             <div>
               <label for="boardField">Comment area</label>
@@ -1083,6 +1022,22 @@
             </div>
           </div>
           <div class="rb-board" id="rbBoard"></div>
+        </section>
+
+        <section class="card" id="reportOutputCard" style="margin-top:1rem">
+          <div class="row no-print" style="justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap">
+            <div>
+              <h2 style="margin:0">ChatGPT prompts</h2>
+              <p class="hint small" style="margin:.35rem 0 0; max-width:70ch">Builds a ready-to-paste prompt for every child from the comments you've sorted above.</p>
+            </div>
+            <div class="row">
+              <button onclick="generateAllPrompts()">Generate prompts</button>
+              <button class="secondary" onclick="copyAllPrompts()">Copy all</button>
+              <button class="secondary" onclick="downloadAllPrompts()">Download all</button>
+            </div>
+          </div>
+          <label for="promptOutput" style="margin-top:.6rem">Prompts for every child</label>
+          <textarea id="promptOutput" class="prompt" placeholder="Sort children into comment columns above, then tap 'Generate prompts'."></textarea>
         </section>
       </section>
 
@@ -1257,6 +1212,7 @@ function renderPage(page){
   if (page === 'seating' && typeof seatRender === 'function') seatRender();
   if (page === 'reading-groups' && typeof rgGroupsRender === 'function') rgGroupsRender();
   if (page === 'charts' && typeof chRender === 'function') chRender();
+  if (page === 'reports' && typeof renderBoard === 'function') renderBoard();
 }
 document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));
 window.addEventListener('hashchange', () => showPage(location.hash.replace('#','')));
@@ -1308,7 +1264,15 @@ function rosRender(){
   });
   t.innerHTML = h;
 }
-function refreshNames(){ saveRoster(); syncPupilSelectors(); }
+function refreshNames(){ saveRoster(); window.dispatchEvent(new CustomEvent('tp:sync', { detail:{ key:'tp_roster', source:'local' } })); }
+
+/* One redraw path: any data change (local edit, another tab, or cloud) fires
+   'tp:sync'; refresh the pupil selectors and re-render whichever page is open. */
+window.addEventListener('tp:sync', function(){
+  if (typeof syncPupilSelectors === 'function') syncPupilSelectors();
+  var active = document.querySelector('.page.active');
+  if (active && typeof renderPage === 'function') renderPage(active.id.replace('page-', ''));
+});
 
 /* ===================================================================
    MENTAL STARTERS
@@ -1688,7 +1652,7 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._exported = new Date().toISOString();
@@ -1774,6 +1738,7 @@ function syncPupilSelectors(){
   if (document.getElementById('page-assessments').classList.contains('active')) asRender();
   if (document.getElementById('page-class-context').classList.contains('active')) ctxRender();
   if (document.getElementById('page-star-pupil').classList.contains('active')) spRender();
+  if (document.getElementById('page-reports').classList.contains('active') && typeof renderBoard === 'function') renderBoard();
   updateNavCount();
 }
 
@@ -1789,8 +1754,8 @@ applyProfile();
 <!-- ===================================================================
      FEATURE MODULES (each self-contained; loaded after platform helpers)
      =================================================================== -->
-<script src="js/generator.js"></script>
-<script src="js/battler.js?v=3"></script>
+<script src="js/generator.js?v=2"></script>
+<script src="js/battler.js?v=4"></script>
 <script src="js/picker.js"></script>
 <script src="js/timetable.js"></script>
 <script src="js/seating.js"></script>
@@ -1998,35 +1963,33 @@ applyProfile();
       'relationships', 'clubs', 'confidence', 'behaviour', 'furtherBehaviour'
     ];
 
-    const customTextFields = ['year1ReportText', 'customLiteracy', 'customNumeracy', 'customGeneral'];
-    let children = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]');
-    let selectedIndex = children.length ? 0 : -1;
+    /* ===================================================================
+       Comments are stored per pupil, keyed by the shared Class List id,
+       in tp_report_sel ({ pupilId: { field: value } }). Names always come
+       from sortedRoster() — there is no separate child list on this page.
+       =================================================================== */
+    const REPORT_SEL_KEY = 'tp_report_sel';
+    let reportSel = {};
+    try { reportSel = JSON.parse(localStorage.getItem(REPORT_SEL_KEY) || '{}') || {}; } catch (e) { reportSel = {}; }
 
-    function buildFields() {
-      const wrap = document.getElementById('fields');
-      wrap.innerHTML = '';
-      order.forEach((key) => {
-        const item = banks[key];
-        const div = document.createElement('div');
-        const label = document.createElement('label');
-        label.htmlFor = key;
-        label.textContent = item.label;
-        const select = document.createElement('select');
-        select.id = key;
-        const blank = document.createElement('option');
-        blank.value = ''; blank.textContent = '';
-        select.appendChild(blank);
-        item.options.forEach((opt) => {
-          const option = document.createElement('option');
-          option.value = opt;
-          option.textContent = opt.length > 76 ? `${opt.slice(0, 76)}…` : opt;
-          select.appendChild(option);
-        });
-        div.appendChild(label);
-        div.appendChild(select);
-        wrap.appendChild(div);
+    /* one-time migration: carry over comments sorted under the old name-keyed builder */
+    (function migrateReportSel() {
+      if (reportSel && Object.keys(reportSel).length) return;
+      let legacy = [];
+      try { legacy = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]'); } catch (e) { legacy = []; }
+      if (!Array.isArray(legacy) || !legacy.length) return;
+      const byName = {};
+      sortedRoster().forEach((p) => { byName[String(p.name).trim().toLowerCase()] = p.id; });
+      legacy.forEach((c) => {
+        const id = byName[String(c && c.name || '').trim().toLowerCase()];
+        if (id && c.selections) reportSel[id] = Object.assign({}, c.selections);
       });
-    }
+      if (Object.keys(reportSel).length) localStorage.setItem(REPORT_SEL_KEY, JSON.stringify(reportSel));
+    })();
+
+    function rsPersist() { localStorage.setItem(REPORT_SEL_KEY, JSON.stringify(reportSel)); }
+    function rsFor(pid) { if (!reportSel[pid]) reportSel[pid] = {}; return reportSel[pid]; }
+    function rsVal(pid, field) { const s = reportSel[pid]; return (s && s[field]) || ''; }
 
     function getPronouns(gender) {
       if (gender === 'female') return { pronoun: 'she', possessive: 'her' };
@@ -2034,161 +1997,46 @@ applyProfile();
       return { pronoun: 'they', possessive: 'their' };
     }
 
-    function tokenise(text, child) {
-      const p = getPronouns(child.gender);
+    function tokenise(text, pupil) {
+      const p = getPronouns(pupil.pronouns);
       return String(text)
-        .replaceAll('{name}', child.name)
+        .replaceAll('{name}', pupil.name)
         .replaceAll('{pronoun}', p.pronoun)
         .replaceAll('{possessive}', p.possessive);
     }
 
-    function splitNames(rawText) {
-      return String(rawText).split(/\r?\n/).map((name) => name.trim()).filter(Boolean);
-    }
-
-    function createChildFromCurrentFields(name) {
-      const child = { name, gender: document.getElementById('gender').value, selections: {}, custom: {} };
-      order.forEach((key) => { child.selections[key] = document.getElementById(key).value; });
-      customTextFields.forEach((key) => { child.custom[key] = document.getElementById(key).value.trim(); });
-      return child;
-    }
-
-    function addChild() {
-      const name = document.getElementById('childName').value.trim();
-      if (!name) { alert('Please enter a child\'s name.'); return; }
-      children.push(createChildFromCurrentFields(name));
-      selectedIndex = children.length - 1;
-      document.getElementById('childName').value = '';
-      persist(); renderChildren(); loadSelectedChild(); generateComments();
-    }
-
-    function bulkAddChildren() {
-      const names = splitNames(document.getElementById('bulkNames').value);
-      if (!names.length) { alert('Paste one child name per line first.'); return; }
-      names.forEach((name) => children.push(createChildFromCurrentFields(name)));
-      selectedIndex = children.length - names.length;
-      document.getElementById('bulkNames').value = '';
-      persist(); renderChildren(); loadSelectedChild();
-      alert(`${names.length} children added.`);
-    }
-
-    /* bridge: pull names from the shared class list */
-    function rgSyncFromRoster() {
-      const existing = new Set(children.map(c => c.name));
-      let added = 0;
-      sortedRoster().forEach(p => {
-        if (!existing.has(p.name)) {
-          const gender = p.pronouns === 'female' ? 'female' : p.pronouns === 'male' ? 'male' : 'neutral';
-          children.push({ name: p.name, gender, selections: {}, custom: {} });
-          added++;
-        }
-      });
-      if (!added) { alert('All class list pupils are already here.'); return; }
-      if (selectedIndex < 0) selectedIndex = 0;
-      persist(); renderChildren(); loadSelectedChild();
-      alert(`${added} pupil(s) added from the class list.`);
-    }
-
-    function saveCurrentChild() { saveCurrentChildWithoutAlert(); alert('Saved.'); }
-
-    function saveCurrentChildWithoutAlert() {
-      if (selectedIndex < 0) return;
-      const child = children[selectedIndex];
-      child.name = document.getElementById('childName').value.trim() || child.name;
-      child.gender = document.getElementById('gender').value;
-      if (!child.selections) child.selections = {};
-      if (!child.custom) child.custom = {};
-      order.forEach((key) => { child.selections[key] = document.getElementById(key).value; });
-      customTextFields.forEach((key) => { child.custom[key] = document.getElementById(key).value.trim(); });
-      persist(); renderChildren();
-    }
-
-    function loadSelectedChild() {
-      if (selectedIndex < 0) return;
-      const child = children[selectedIndex];
-      document.getElementById('childName').value = child.name;
-      document.getElementById('gender').value = child.gender;
-      order.forEach((key) => { document.getElementById(key).value = child.selections && child.selections[key] ? child.selections[key] : ''; });
-      customTextFields.forEach((key) => { document.getElementById(key).value = child.custom && child.custom[key] ? child.custom[key] : ''; });
-      generateComments();
-    }
-
-    function selectChild(index) { selectedIndex = index; renderChildren(); loadSelectedChild(); }
-
-    function previousChild() {
-      if (!children.length) return;
-      saveCurrentChildWithoutAlert();
-      selectedIndex = selectedIndex <= 0 ? children.length - 1 : selectedIndex - 1;
-      renderChildren(); loadSelectedChild();
-    }
-
-    function nextChild() {
-      if (!children.length) return;
-      saveCurrentChildWithoutAlert();
-      selectedIndex = selectedIndex >= children.length - 1 ? 0 : selectedIndex + 1;
-      renderChildren(); loadSelectedChild();
-    }
-
-    function renderChildren() {
-      const list = document.getElementById('childList');
-      list.innerHTML = '';
-      children.forEach((child, index) => {
-        const button = document.createElement('button');
-        button.className = `child-button${index === selectedIndex ? ' active' : ''}`;
-        button.textContent = child.name;
-        button.onclick = () => selectChild(index);
-        list.appendChild(button);
-      });
-
-      renderBoard();
-    }
-
-    function buildPromptForChild(child) {
-      const p = getPronouns(child.gender);
-      const lines = [`Child: ${child.name}`, `Pronouns: ${p.pronoun}/${p.possessive}`, ''];
-      if (child.custom && child.custom.year1ReportText) {
-        lines.push(`Year 1 report / prior context:\n${child.custom.year1ReportText}`);
-        lines.push('');
-      }
+    function buildPromptForPupil(pupil) {
+      const pr = getPronouns(pupil.pronouns);
+      const sel = reportSel[pupil.id] || {};
+      const lines = [`Child: ${pupil.name}`, `Pronouns: ${pr.pronoun}/${pr.possessive}`, ''];
       order.forEach((key) => {
-        const val = child.selections && child.selections[key];
+        const val = sel[key];
         if (val && !val.toLowerCase().startsWith('no ')) {
-          lines.push(`${banks[key].label}: ${tokenise(val, child)}`);
+          lines.push(`${banks[key].label}: ${tokenise(val, pupil)}`);
         }
       });
-      if (child.custom) {
-        if (child.custom.customLiteracy) lines.push(`Custom literacy comment: ${child.custom.customLiteracy}`);
-        if (child.custom.customNumeracy) lines.push(`Custom numeracy comment: ${child.custom.customNumeracy}`);
-        if (child.custom.customGeneral) lines.push(`Custom general comment: ${child.custom.customGeneral}`);
-      }
       const comments = lines.join('\n');
-      const literacyLevel = child.selections && child.selections.literacyLevel ? child.selections.literacyLevel : 'meeting';
-      const numeracyLevel = child.selections && child.selections.numeracyLevel ? child.selections.numeracyLevel : 'meeting';
-      const prompt = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${child.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${child.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${child.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
+      const literacyLevel = sel.literacyLevel || 'meeting';
+      const numeracyLevel = sel.numeracyLevel || 'meeting';
+      const prompt = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${pupil.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${pupil.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${pupil.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
       return { comments, prompt };
     }
 
-    function generateComments() {
-      if (selectedIndex < 0) {
-        document.getElementById('commentOutput').value = 'Add or select a child first.';
-        document.getElementById('promptOutput').value = '';
-        return;
-      }
-      saveCurrentChildWithoutAlert();
-      const built = buildPromptForChild(children[selectedIndex]);
-      document.getElementById('commentOutput').value = built.comments;
-      document.getElementById('promptOutput').value = built.prompt;
-    }
-
     function buildAllPrompts() {
-      saveCurrentChildWithoutAlert();
-      return children
-        .map((child, index) => `==============================\n${index + 1}. ${child.name}\n==============================\n\n${buildPromptForChild(child).prompt}`)
+      return sortedRoster()
+        .map((pupil, index) => `==============================\n${index + 1}. ${pupil.name}\n==============================\n\n${buildPromptForPupil(pupil).prompt}`)
         .join('\n\n');
     }
 
+    function generateAllPrompts() {
+      const out = document.getElementById('promptOutput');
+      if (!out) return;
+      if (!sortedRoster().length) { out.value = 'Add pupils on the Class List page first.'; return; }
+      out.value = buildAllPrompts();
+    }
+
     function downloadAllPrompts() {
-      if (!children.length) { alert('Add some children first.'); return; }
+      if (!sortedRoster().length) { alert('Add pupils on the Class List page first.'); return; }
       const blob = new Blob([buildAllPrompts()], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = 'year-2-report-prompts-all.txt'; a.click();
@@ -2196,18 +2044,10 @@ applyProfile();
     }
 
     function copyAllPrompts() {
-      if (!children.length) { alert('Add some children first.'); return; }
+      if (!sortedRoster().length) { alert('Add pupils on the Class List page first.'); return; }
       navigator.clipboard.writeText(buildAllPrompts());
       alert('All prompts copied.');
     }
-
-    function copyText(id) {
-      const el = document.getElementById(id);
-      el.select(); navigator.clipboard.writeText(el.value);
-      alert('Copied.');
-    }
-
-    function persist() { localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
 
     /* ===================================================================
        GROUP CHILDREN BY COMMENT — drag-and-drop board (PR #1)
@@ -2219,8 +2059,6 @@ applyProfile();
       if (bank) bank.options.forEach((o) => cols.push({ value: o, label: o }));
       return cols;
     }
-    function rbChildVal(child, field) { return (child.selections && child.selections[field]) || ''; }
-
     function initBoard() {
       const sel = document.getElementById('boardField');
       if (!sel) return;
@@ -2235,12 +2073,12 @@ applyProfile();
       if (!board || !sel) return;
       if (!sel.options.length) initBoard();
       const field = sel.value || order[0];
-      if (!children.length) { board.innerHTML = '<p class="hint small">Add some children to start grouping them by comment.</p>'; return; }
+      const pupils = sortedRoster();
+      if (!pupils.length) { board.innerHTML = '<p class="hint small">Add pupils on the <b>Class List</b> page to start grouping them by comment.</p>'; return; }
       board.innerHTML = columnsForField(field).map((col) => {
-        const members = [];
-        children.forEach((child, idx) => { if (rbChildVal(child, field) === col.value) members.push(idx); });
-        const chips = members.map((idx) =>
-          `<div class="rb-chip${idx === selectedIndex ? ' sel' : ''}" data-idx="${idx}" onpointerdown="rbDragStart(event,${idx})">${esc(children[idx].name)}</div>`
+        const members = pupils.filter((p) => rsVal(p.id, field) === col.value);
+        const chips = members.map((p) =>
+          `<div class="rb-chip" data-pid="${p.id}" onpointerdown="rbDragStart(event,'${p.id}')">${esc(p.name)}</div>`
         ).join('');
         return `<div class="rb-col${col.value === '' ? ' notset' : ''}" data-val="${esc(col.value)}">` +
           `<div class="rb-col-head"><span class="rb-col-title">${esc(col.label)}</span><span class="rb-col-count">${members.length}</span></div>` +
@@ -2248,6 +2086,8 @@ applyProfile();
         '</div>';
       }).join('');
     }
+
+    function reportsRender() { renderBoard(); }
 
     /* drag + snap via pointer events (mouse + touch) */
     let rbDrag = null;
@@ -2259,7 +2099,7 @@ applyProfile();
       });
       return found;
     }
-    function rbDragStart(e, idx) {
+    function rbDragStart(e, pid) {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
       const src = e.currentTarget, rect = src.getBoundingClientRect();
@@ -2268,7 +2108,7 @@ applyProfile();
       ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:9999;pointer-events:none;margin:0;`;
       document.body.appendChild(ghost);
       src.classList.add('dragging');
-      rbDrag = { idx, ghost, src, dx: e.clientX - rect.left, dy: e.clientY - rect.top, moved: false };
+      rbDrag = { pid, ghost, src, dx: e.clientX - rect.left, dy: e.clientY - rect.top, moved: false };
       window.addEventListener('pointermove', rbDragMove);
       window.addEventListener('pointerup', rbDragEnd);
     }
@@ -2288,23 +2128,18 @@ applyProfile();
       if (d.ghost) d.ghost.remove();
       if (d.src) d.src.classList.remove('dragging');
       document.querySelectorAll('#rbBoard .rb-col').forEach((c) => c.classList.remove('drop'));
-      if (!d.moved) { selectChild(d.idx); return; }   // a tap → open that child in the editor
+      if (!d.moved) { return; }   // a tap with no drag — nothing to open
       const col = rbColAt(e);
       if (!col) { renderBoard(); return; }
       const field = document.getElementById('boardField').value;
-      const child = children[d.idx];
-      if (!child.selections) child.selections = {};
-      child.selections[field] = col.getAttribute('data-val');
-      persist();
-      if (d.idx === selectedIndex) loadSelectedChild();  // refresh editor dropdown + output
+      rsFor(d.pid)[field] = col.getAttribute('data-val');
+      rsPersist();
       renderBoard();
     }
 
-    /* ---- init report builder ---- */
-    buildFields();
+    /* ---- init report board ---- */
     initBoard();
-    renderChildren();
-    loadSelectedChild();
+    renderBoard();
 
     /* ===================================================================
        BOOT THE WHOLE APP
@@ -2318,6 +2153,6 @@ applyProfile();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="js/cloud.js?v=3"></script>
+<script src="js/cloud.js?v=4"></script>
 </body>
 </html>
