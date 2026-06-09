@@ -2311,5 +2311,12 @@ applyProfile();
     syncPupilSelectors();
     showPage(location.hash.replace('#','') || 'dashboard');
 </script>
+
+<!-- Optional cloud login + multi-device sync (no-ops until firebase-config.js is filled in — see SETUP.md) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/cloud.js"></script>
 </body>
 </html>

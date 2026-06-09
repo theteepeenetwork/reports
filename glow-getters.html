@@ -301,5 +301,13 @@
     if (typeof btRender === 'function') btRender();
   });
 </script>
+
+<!-- Cloud sync: reuses the same-origin login from the planner; points sync live across devices.
+     No-ops (local only) until firebase-config.js is filled in — see SETUP.md. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/cloud.js"></script>
 </body>
 </html>
