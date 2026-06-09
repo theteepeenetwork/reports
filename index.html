@@ -316,6 +316,22 @@
     .child-button.active { background: var(--teal-600); color: white; }
     .small-box { min-height: 80px; }
 
+    /* ---------- Group children by comment (drag-and-drop board) ---------- */
+    .rb-board { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px; margin-top: 1rem; align-items: flex-start; }
+    .rb-col { flex: 0 0 220px; background: var(--page); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 110px; transition: outline .12s, background .12s; }
+    .rb-col.notset { background: var(--line-2); }
+    .rb-col.drop { outline: 2px dashed var(--accent); outline-offset: 2px; background: var(--soft); }
+    .rb-col-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    .rb-col-title { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.25; }
+    .rb-col-count { flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+    .rb-col-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; flex: 1; }
+    .rb-col-empty { color: var(--faint); font-size: 12px; text-align: center; padding: 6px 0; }
+    .rb-chip { display: block; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: grab; user-select: none; touch-action: none; transition: border-color .12s, box-shadow .12s, opacity .12s; }
+    .rb-chip:hover { border-color: var(--accent); }
+    .rb-chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--soft); }
+    .rb-chip.dragging { opacity: .25; }
+    .rb-ghost { padding: 8px 12px; background: var(--card); border: 1px solid var(--accent); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink); box-shadow: 0 12px 28px rgba(20,24,29,.22); transform: rotate(-2deg); }
+
     /* ---------- Dashboard (Option 6) ---------- */
     .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--teal-600); }
     .sectionhead { display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; gap: 12px; }
@@ -1054,6 +1070,20 @@
             <button onclick="copyText('promptOutput')">Copy full prompt</button>
           </section>
         </div>
+
+        <section class="card" id="reportBoardCard" style="margin-top:1rem">
+          <div class="row no-print" style="justify-content:space-between; align-items:flex-end; gap:14px">
+            <div>
+              <h2 style="margin:0">Group children by comment</h2>
+              <p class="hint small" style="margin:.35rem 0 0; max-width:70ch">Drag each child's name into the column that fits them — it sets that comment automatically, so you can sort the whole class one comment at a time. Tap a name (without dragging) to open that child in the editor. Works with mouse or touch.</p>
+            </div>
+            <div>
+              <label for="boardField">Comment area</label>
+              <select id="boardField" style="min-width:220px"></select>
+            </div>
+          </div>
+          <div class="rb-board" id="rbBoard"></div>
+        </section>
       </section>
 
       <!-- ================= QUESTION GENERATOR ================= -->
@@ -2109,6 +2139,7 @@ applyProfile();
         button.onclick = () => selectChild(index);
         list.appendChild(button);
       });
+      renderBoard();
     }
 
     function buildPromptForChild(child) {
@@ -2177,8 +2208,100 @@ applyProfile();
 
     function persist() { localStorage.setItem('reportBuilderChildren', JSON.stringify(children)); }
 
+    /* ===================================================================
+       GROUP CHILDREN BY COMMENT — drag-and-drop board (PR #1)
+       Drag a child's chip into a column to set that comment for them.
+       =================================================================== */
+    function columnsForField(field) {
+      const bank = banks[field];
+      const cols = [{ value: '', label: 'Not set yet' }];
+      if (bank) bank.options.forEach((o) => cols.push({ value: o, label: o }));
+      return cols;
+    }
+    function rbChildVal(child, field) { return (child.selections && child.selections[field]) || ''; }
+
+    function initBoard() {
+      const sel = document.getElementById('boardField');
+      if (!sel) return;
+      sel.innerHTML = order.map((k) => `<option value="${k}">${banks[k].label}</option>`).join('');
+      sel.value = banks.handwriting ? 'handwriting' : order[0];
+      sel.onchange = renderBoard;
+    }
+
+    function renderBoard() {
+      const board = document.getElementById('rbBoard');
+      const sel = document.getElementById('boardField');
+      if (!board || !sel) return;
+      if (!sel.options.length) initBoard();
+      const field = sel.value || order[0];
+      if (!children.length) { board.innerHTML = '<p class="hint small">Add some children to start grouping them by comment.</p>'; return; }
+      board.innerHTML = columnsForField(field).map((col) => {
+        const members = [];
+        children.forEach((child, idx) => { if (rbChildVal(child, field) === col.value) members.push(idx); });
+        const chips = members.map((idx) =>
+          `<div class="rb-chip${idx === selectedIndex ? ' sel' : ''}" data-idx="${idx}" onpointerdown="rbDragStart(event,${idx})">${esc(children[idx].name)}</div>`
+        ).join('');
+        return `<div class="rb-col${col.value === '' ? ' notset' : ''}" data-val="${esc(col.value)}">` +
+          `<div class="rb-col-head"><span class="rb-col-title">${esc(col.label)}</span><span class="rb-col-count">${members.length}</span></div>` +
+          `<div class="rb-col-body">${chips || '<span class="rb-col-empty">—</span>'}</div>` +
+        '</div>';
+      }).join('');
+    }
+
+    /* drag + snap via pointer events (mouse + touch) */
+    let rbDrag = null;
+    function rbColAt(e) {
+      let found = null;
+      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => {
+        const r = c.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) found = c;
+      });
+      return found;
+    }
+    function rbDragStart(e, idx) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      const src = e.currentTarget, rect = src.getBoundingClientRect();
+      const ghost = src.cloneNode(true);
+      ghost.classList.add('rb-ghost');
+      ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;z-index:9999;pointer-events:none;margin:0;`;
+      document.body.appendChild(ghost);
+      src.classList.add('dragging');
+      rbDrag = { idx, ghost, src, dx: e.clientX - rect.left, dy: e.clientY - rect.top, moved: false };
+      window.addEventListener('pointermove', rbDragMove);
+      window.addEventListener('pointerup', rbDragEnd);
+    }
+    function rbDragMove(e) {
+      if (!rbDrag) return;
+      rbDrag.moved = true;
+      rbDrag.ghost.style.left = (e.clientX - rbDrag.dx) + 'px';
+      rbDrag.ghost.style.top = (e.clientY - rbDrag.dy) + 'px';
+      const col = rbColAt(e);
+      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => c.classList.toggle('drop', c === col));
+    }
+    function rbDragEnd(e) {
+      window.removeEventListener('pointermove', rbDragMove);
+      window.removeEventListener('pointerup', rbDragEnd);
+      if (!rbDrag) return;
+      const d = rbDrag; rbDrag = null;
+      if (d.ghost) d.ghost.remove();
+      if (d.src) d.src.classList.remove('dragging');
+      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => c.classList.remove('drop'));
+      if (!d.moved) { selectChild(d.idx); return; }   // a tap → open that child in the editor
+      const col = rbColAt(e);
+      if (!col) { renderBoard(); return; }
+      const field = document.getElementById('boardField').value;
+      const child = children[d.idx];
+      if (!child.selections) child.selections = {};
+      child.selections[field] = col.getAttribute('data-val');
+      persist();
+      if (d.idx === selectedIndex) loadSelectedChild();  // refresh editor dropdown + output
+      renderBoard();
+    }
+
     /* ---- init report builder ---- */
     buildFields();
+    initBoard();
     renderChildren();
     loadSelectedChild();
 
