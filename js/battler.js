@@ -18,6 +18,7 @@
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
+             bossUnlocked:false, bossChargeBase:null,
              points:{}, badges:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   var BT_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#a855f7','#ec4899','#84cc16','#06b6d4','#d946ef','#14b8a6','#f97316','#6366f1'];
@@ -31,6 +32,9 @@
     if (!s.badges || typeof s.badges !== 'object') s.badges = {};
     if (!Array.isArray(s.tables)) s.tables = [];
     if ([1,2,5].indexOf(s.step) < 0) s.step = 1;
+    if (typeof s.bossUnlocked !== 'boolean') s.bossUnlocked = false;
+    // start each charge cycle from the class's current total so the bar fills as they EARN
+    if (s.bossChargeBase == null && typeof roster !== 'undefined') s.bossChargeBase = btClassTotal(s);
     return s;
   }
   function btSave(s){ Store.set('tp_battler', s); }
@@ -121,6 +125,55 @@
   function btClassTotal(s){ return sortedRoster().reduce(function (a,p){ return a + btPts(s, p.id); }, 0); }
   // pupils who take part in battles / aren't greyed out — everyone except those marked absent on the Class List
   function btActiveRoster(){ return sortedRoster().filter(function (p){ return !p.absent; }); }
+
+  /* ── Boss-battle charge / unlock — class total vs a target that scales with
+     class size and the Maximum (recharges for repeat fights). ── */
+  var BOSS_BASE = 18; // default per-pupil points-to-earn when no Maximum is set
+  function btBossInc(s){
+    var n = Math.max(1, btActiveRoster().length);
+    var room = (btMaxP(s) === Infinity) ? BOSS_BASE : Math.max(6, btMaxP(s) - btStart(s));
+    return Math.max(20, Math.round(n * room * 0.6));
+  }
+  function btBossCharge(s){ return Math.max(0, Math.min(btBossInc(s), btClassTotal(s) - (s.bossChargeBase || 0))); }
+  function btBossTarget(s){ return (s.bossChargeBase || 0) + btBossInc(s); }
+  function btBossPct(s){ var inc = btBossInc(s); return inc <= 0 ? 1 : btBossCharge(s) / inc; }
+  // Mark the boss unlocked the moment the class reaches the target; fanfare once.
+  function btCheckBossUnlock(s, animate){
+    if (s.bossUnlocked) return false;
+    if (btBossCharge(s) >= btBossInc(s)){ s.bossUnlocked = true; if (animate) btBossFanfare(s); return true; }
+    return false;
+  }
+  function btBossFanfare(s){
+    var overlay = document.getElementById('bt-celebrate'), card = document.getElementById('bt-celeCard');
+    if (overlay && card){
+      card.innerHTML = '<div class="cele-kicker">Boss Battle Unlocked</div>' +
+        '<div class="cele-badge boss">⚔️</div>' +
+        '<div class="cele-name">The boss is ready!</div>' +
+        '<div class="cele-sub">The class charged it up — take it on from the Battle tab.</div>' +
+        '<div class="cele-tap">tap anywhere to continue</div>';
+      overlay.classList.add('show'); sfx('win'); btConfettiRain(120);
+      clearTimeout(btShowCele._t); btShowCele._t = setTimeout(btCloseCele, 3200);
+    }
+    btMascotSay('Boss unlocked! ⚔️', 'big');
+  }
+  // Update the Points-tab charge bar + board badge in place (no full re-render).
+  function btUpdateBossCharge(s){
+    var fill = document.getElementById('bt-charge-fill');
+    if (fill) fill.style.width = Math.min(100, Math.round(btBossPct(s) * 100)) + '%';
+    var wrap = document.getElementById('bt-charge'); if (wrap) wrap.classList.toggle('ready', !!s.bossUnlocked);
+    var num = document.getElementById('bt-charge-num');
+    if (num) num.textContent = s.bossUnlocked ? 'Charged — start it in the Battle tab' : ('class ' + btClassTotal(s) + ' / target ' + btBossTarget(s) + ' pts');
+    var lab = document.getElementById('bt-charge-lab'); if (lab) lab.textContent = s.bossUnlocked ? '⚔️ Boss ready!' : 'Boss charge';
+    var badge = document.getElementById('bt-bossbadge'); if (badge) badge.style.display = s.bossUnlocked ? '' : 'none';
+  }
+  function btBossChargeHTML(s){
+    var pct = Math.min(100, Math.round(btBossPct(s) * 100)), unlocked = s.bossUnlocked;
+    return '<div class="bt-charge' + (unlocked ? ' ready' : '') + '" id="bt-charge">' +
+      '<div class="bt-charge-top"><span class="bt-charge-lab" id="bt-charge-lab">' + (unlocked ? '⚔️ Boss ready!' : 'Boss charge') + '</span>' +
+        '<span class="bt-charge-num" id="bt-charge-num">' + (unlocked ? 'Charged — start it in the Battle tab' : ('class ' + btClassTotal(s) + ' / target ' + btBossTarget(s) + ' pts')) + '</span></div>' +
+      '<div class="bt-charge-track"><div class="bt-charge-fill" id="bt-charge-fill" style="width:' + pct + '%"></div></div>' +
+    '</div>';
+  }
   var CHEERS = ['Brilliant!','Well done!','Superstar!','Amazing!','Great work!','Yes! 🎉','Fantastic!','Top effort!'];
   var BIGS   = ['LEVEL UP! 🚀','New rank! 👑','You did it! 🏆','Wow! ⭐'];
 
@@ -345,7 +398,9 @@
     btPaintCard(s, pid);
     var pe = btCardEl(pid); if (pe){ btAnimateNumber(pe.querySelector('.p-pts'), before, after, 480); }
     btUpdateClassTotal(s, false);
+    btCheckBossUnlock(s, !opts.silent && !opts.batch);   // crossing the target unlocks the boss (with a fanfare)
     btSave(s);
+    btUpdateBossCharge(s);
   }
   window.btAward = award;
   function btOnGain(s, pid, name, n, oldLevel, newLevel, oldRank, newRank, before, after, opts){
@@ -429,11 +484,15 @@
       var el = document.querySelector('#bt-view .bt-groupbtn[data-gid="' + tt.id + '"] .bt-gn');
       if (el) el.textContent = btTableTotal(s2, tt);
     });
+    if (btCheckBossUnlock(s2, true)) btSave(s2);   // a group award can push the class over the boss target
+    btUpdateBossCharge(s2);
   };
   window.btResetPoints = function (){
     var s = btLoad();
     if (!confirm('Reset every pupil back to the starting amount (' + btStart(s) + ')?')) return;
-    s.points = {}; s.badges = {}; btApplyConfig(s); s.boss.dealt = 0; btStreak = {}; btSave(s); btRender();
+    s.points = {}; s.badges = {}; btApplyConfig(s); s.boss.dealt = 0; btStreak = {};
+    s.bossUnlocked = false; s.bossChargeBase = btClassTotal(s);   // re-lock the boss; charge from scratch
+    btSave(s); btRender();
   };
   window.btAddTable = function (){
     var inp = document.getElementById('btTableName'), name = (inp.value || '').trim();
@@ -549,20 +608,92 @@
       };
     });
   }
+  /* ── Boss balancing — auto-scales to class strength (sum of pupils' points
+     = sum of their battle HP) so it's hard but winnable for any class. ── */
+  var BOSS = { coreF:0.42, sat1F:0.026, sat2F:0.03, miniHpF:0.02, miniCap:3,
+               miniEvery:4200, laserEvery:3800, laserLife:900, laserSweep:0.7,
+               blastR:84, blastFrac:0.5, regenMs:1400 };
+  function btBossPower(s){ return btActiveRoster().reduce(function (a,p){ return a + Math.max(1, btPts(s, p.id)); }, 0); }
+  function btMakeSats(boss, wave){
+    var core = boss.core, n = boss.n, hp = (wave === 1 ? boss.satHp1 : boss.satHp2), out = [];
+    for (var i = 0; i < n; i++) out.push({
+      off: i*(Math.PI*2/n), r:26, hp:hp, max:hp, alive:true,
+      arms: (wave === 1 ? 1 : 2), regen: (wave === 1), regenned:false, explode: (wave === 2), regenAt:0,
+      x:core.x, y:core.y, ownAng:Math.random()*Math.PI*2, ownSpin:(i%2?1:-1)*(0.042+Math.random()*0.024),
+      reach:52, cd:0, el:null, ball:null, arm:null, arm2:null, conn:null, lastHp:-1, justHit:0, _popped:false
+    });
+    return out;
+  }
   function btSpawnBoss(s){
     var sz = btArenaSize(), n = 6, armLen = Math.min(150, sz.H * 0.30);
-    var csp = 0.75, ca = Math.random() * Math.PI * 2;
-    var core = { x: sz.W/2, y: sz.H*0.48, r: 46, hp: s.coreHP, max: s.coreHP, ang: 0, spin: 0.011,
+    var csp = 0.75, ca = Math.random() * Math.PI * 2, power = btBossPower(s);
+    var coreHp = Math.max(24, Math.round(power * BOSS.coreF));
+    var core = { x: sz.W/2, y: sz.H*0.48, r: 46, hp: coreHp, maxHp: coreHp, ang: 0, spin: 0.011,
                  vx: Math.cos(ca)*csp, vy: Math.sin(ca)*csp,
                  ownAng: Math.random()*Math.PI*2, ownSpin: 0.036, reach: 90, arms: 2,
-                 cd: 0, alive: true, vuln: false, el: null, ball: null, arm1: null, arm2: null };
-    var sats = [];
-    for (var i = 0; i < n; i++) sats.push({
-      off: i * (Math.PI*2/n), r: 26, hp: s.satHP, max: s.satHP, alive: true,
-      x: core.x, y: core.y, ownAng: Math.random()*Math.PI*2, ownSpin: (i%2?1:-1)*(0.042+Math.random()*0.024),
-      reach: 52, cd: 0, el: null, ball: null, arm: null, conn: null, lastHp: -1
-    });
-    return { core: core, sats: sats, n: n, armLen: armLen };
+                 cd: 0, alive: true, vuln: false, el: null, ball: null, arm1: null, arm2: null, lastHp:-1, justHit:0, _popped:false };
+    var boss = { core: core, sats: [], n: n, armLen: armLen, wave: 1,
+                 satHp1: Math.max(2, Math.round(power * BOSS.sat1F)),
+                 satHp2: Math.max(2, Math.round(power * BOSS.sat2F)),
+                 miniHp:  Math.max(2, Math.round(power * BOSS.miniHpF)),
+                 minis: [], lasers: [], blasts: [], flags:{ enrage:false, last:false },
+                 nextLaser: 0, nextMini: 0 };
+    boss.sats = btMakeSats(boss, 1);
+    return boss;
+  }
+  function btAliveCount(arr){ var c = 0; for (var i = 0; i < arr.length; i++) if (arr[i].alive) c++; return c; }
+  // Exploding satellite (wave 2): knock 50% off the HP of every nearby pupil.
+  function btBossBlast(boss, bots, x, y, now){
+    boss.blasts.push({ x:x, y:y, born:now, r:BOSS.blastR, el:null });
+    for (var i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
+      var dx = P.x - x, dy = P.y - y;
+      if (dx*dx + dy*dy < BOSS.blastR*BOSS.blastR){
+        P.hp = Math.floor(P.hp * (1 - BOSS.blastFrac)); P.justHit = now; btKnock(P, x, y);
+        if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+  }
+  function btBossFireLaser(boss, now){
+    boss.lasers.push({ ang: Math.random()*Math.PI*2, sweep: (Math.random()<0.5?-1:1)*BOSS.laserSweep, born:now, life:BOSS.laserLife, cur:0, el:null });
+  }
+  function btBossTickLasers(boss, bots, now){
+    var core = boss.core, keep = [];
+    for (var i = 0; i < boss.lasers.length; i++){ var L = boss.lasers[i], age = now - L.born;
+      if (age > L.life){ if (L.el && L.el.parentNode) L.el.parentNode.removeChild(L.el); continue; }
+      L.cur = L.ang + L.sweep * (age / L.life);
+      var ux = Math.cos(L.cur), uy = Math.sin(L.cur), len = 1000;
+      for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
+        var rx = P.x - core.x, ry = P.y - core.y, proj = rx*ux + ry*uy;
+        if (proj > core.r && proj < len && Math.abs(rx*(-uy) + ry*ux) < P.r + 6 && now >= (P.cd||0)){
+          P.hp -= 1; P.cd = now + 640; P.justHit = now; if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+      keep.push(L);
+    }
+    boss.lasers = keep;
+  }
+  function btBossSpawnMini(boss, now){
+    var core = boss.core, a = Math.random()*Math.PI*2, sp = 1.2 + Math.random();
+    boss.minis.push({ r:18, hp: boss.miniHp, max: boss.miniHp,
+      x: core.x + Math.cos(a)*60, y: core.y + Math.sin(a)*60,
+      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, ang: Math.random()*Math.PI*2,
+      spin:(Math.random()<0.5?-1:1)*(0.05+Math.random()*0.03), reach:46, cd:0, alive:true,
+      el:null, ball:null, arm:null, lastHp:-1, justHit:0, _popped:false });
+  }
+  function btBossTickMinis(boss, bots, W, H, now, inset){
+    var minis = boss.minis, i, k;
+    for (i = 0; i < minis.length; i++){ var M = minis[i]; if (!M.alive) continue;
+      M.x += M.vx; M.y += M.vy; M.ang += M.spin; btAccSpin(M, 'spin'); btWalls(M, W, H, inset); btSpeedClamp(M);
+      var tx = M.x + Math.cos(M.ang)*M.reach, ty = M.y + Math.sin(M.ang)*M.reach;
+      for (k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
+        var dx = P.x - M.x, dy = P.y - M.y, d2 = dx*dx + dy*dy, rr = P.r + M.r;
+        if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d, push = (rr - d)/2;
+          P.x += nx*push; P.y += ny*push; M.x -= nx*push; M.y -= ny*push; btBump(M, P); }
+        var hx = P.x - tx, hy = P.y - ty;
+        if (hx*hx + hy*hy < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 580; P.justHit = now; btKnock(P, M.x, M.y);
+          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } }
+        var ptx = P.x + Math.cos(P.ang)*BT_REACH, pty = P.y + Math.sin(P.ang)*BT_REACH;
+        var mx = M.x - ptx, my = M.y - pty;
+        if (mx*mx + my*my < M.r*M.r && now >= M.cd){ M.hp -= 1; M.cd = now + 260; M.justHit = now;
+          if (M.hp <= 0){ M.alive = false; M.poppedAt = now; } }
+      }
+    }
   }
 
   function btWalls(b, W, H, inset){
@@ -606,73 +737,96 @@
   }
 
   // Boss step. Returns { pupils, limbs, core }.
+  // Boss step. Phases: wave 1 (limbs regenerate once with 2 arms) → wave 2
+  // (limbs explode for 50% AoE on death) → wave 3 / core (lasers at 80% HP,
+  // mini-me spawns at 60%, enrage at 20%, last-stand burst at 5%).
   function btTickBoss(bots, boss, W, H, now, inset){
     inset = inset || 0;
+    var core = boss.core, sats = boss.sats, i, k, ai;
+    boss.minis = boss.minis || []; boss.lasers = boss.lasers || []; boss.blasts = boss.blasts || []; boss.flags = boss.flags || {};
     btMovePupils(bots, W, H, false, now, inset);     // pupils cooperate (no arm damage to each other)
-    var core = boss.core, sats = boss.sats, i, k;
-    // the boss roams the arena too; bounce so its limbs stay on-screen
+    // the core roams the arena; bounce so its limbs stay on-screen
     core.x += core.vx; core.y += core.vy;
     var marg = Math.min(inset + boss.armLen + 30, Math.min(W, H)/2 - 8);
     if (core.x < marg){ core.x = marg; core.vx = Math.abs(core.vx); }
     if (core.x > W - marg){ core.x = W - marg; core.vx = -Math.abs(core.vx); }
     if (core.y < marg){ core.y = marg; core.vy = Math.abs(core.vy); }
     if (core.y > H - marg){ core.y = H - marg; core.vy = -Math.abs(core.vy); }
-    core.ang += core.spin;
-    core.ownAng += core.ownSpin; btAccSpin(core, 'ownSpin');
+    core.ang += core.spin; core.ownAng += core.ownSpin; btAccSpin(core, 'ownSpin');
+
+    // satellites: orbit, and (wave 1) regenerate once with 2 arms after a beat
     var liveLimbs = 0;
-    for (i = 0; i < sats.length; i++){ var st = sats[i]; if (!st.alive) continue; liveLimbs++;
-      var a = core.ang + st.off;
-      st.x = core.x + Math.cos(a) * boss.armLen;
-      st.y = core.y + Math.sin(a) * boss.armLen;
-      st.ownAng += st.ownSpin; btAccSpin(st, 'ownSpin');
+    for (i = 0; i < sats.length; i++){ var st = sats[i];
+      if (st.alive){ liveLimbs++;
+        var a = core.ang + st.off; st.x = core.x + Math.cos(a)*boss.armLen; st.y = core.y + Math.sin(a)*boss.armLen;
+        st.ownAng += st.ownSpin; btAccSpin(st, 'ownSpin');
+      } else if (boss.wave === 1 && st.regen && !st.regenned){
+        if (!st.regenAt) st.regenAt = now + BOSS.regenMs;
+        if (now >= st.regenAt){ st.alive = true; st.hp = st.max; st.arms = 2; st.regenned = true; st.regenAt = 0; st._popped = false; st.lastHp = -1; st.el = null; }
+      }
     }
-    core.vuln = liveLimbs === 0;
-    // pupils attack the boss; boss limbs bump and attack pupils
+    // wave transitions
+    if (boss.wave === 1 && sats.every(function (x){ return !x.alive && x.regenned; })){
+      boss.wave = 2; boss.sats = btMakeSats(boss, 2); sats = boss.sats;
+    } else if (boss.wave === 2 && sats.every(function (x){ return !x.alive; })){
+      boss.wave = 3;
+    }
+    core.vuln = boss.wave >= 3 && core.alive;
+
+    // pupils attack limbs/core; limbs bump + their spinning arm(s) hit pupils
     for (i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
       var tx = P.x + Math.cos(P.ang)*BT_REACH, ty = P.y + Math.sin(P.ang)*BT_REACH;
       for (k = 0; k < sats.length; k++){ var S = sats[k]; if (!S.alive) continue;
-        // physical bounce off the limb (limb is heavy → only the pupil reflects)
         var dx = P.x - S.x, dy = P.y - S.y, d2 = dx*dx + dy*dy, rr = P.r + S.r;
         if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
           P.x = S.x + nx*rr; P.y = S.y + ny*rr;
           var vn = P.vx*nx + P.vy*ny; if (vn < 0){ P.vx -= 2*vn*nx; P.vy -= 2*vn*ny; btSpeedClamp(P); } }
-        // pupil arm hits the limb — arm bounces off, reversing its spin
         var hx = S.x - tx, hy = S.y - ty;
         if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= 1; S.cd = now + 230; S.justHit = now; P.spin = -P.spin;
-          if (S.hp <= 0) S.alive = false; }
-        // limb's own arm hits the pupil
-        var sx = S.x + Math.cos(S.ownAng)*S.reach, sy = S.y + Math.sin(S.ownAng)*S.reach;
-        var px = P.x - sx, py = P.y - sy;
-        if (px*px + py*py < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 460; P.justHit = now;
-          btKnock(P, S.x, S.y);
-          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } }
+          if (S.hp <= 0){ S.alive = false; S.poppedAt = now; if (S.explode) btBossBlast(boss, bots, S.x, S.y, now); } }
+        for (ai = 0; ai < (S.arms || 1); ai++){
+          var sang = S.ownAng + ai*(Math.PI*2/(S.arms || 1));
+          var sx = S.x + Math.cos(sang)*S.reach, sy = S.y + Math.sin(sang)*S.reach;
+          var px = P.x - sx, py = P.y - sy;
+          if (px*px + py*py < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 580; P.justHit = now; btKnock(P, S.x, S.y);
+            if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } break; }
+        }
       }
-      // once limbs are gone, attack the core
       if (core.vuln && core.alive){
         var cdx = P.x - core.x, cdy = P.y - core.y, crr = P.r + core.r;
         if (cdx*cdx + cdy*cdy < crr*crr){ var cd = Math.hypot(cdx,cdy)||0.0001, cnx=cdx/cd, cny=cdy/cd;
           P.x = core.x + cnx*crr; P.y = core.y + cny*crr;
           var cvn = P.vx*cnx + P.vy*cny; if (cvn < 0){ P.vx -= 2*cvn*cnx; P.vy -= 2*cvn*cny; btSpeedClamp(P); } }
         var ctx = core.x - tx, cty = core.y - ty;
-        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 160; core.justHit = now;
-          if (core.hp <= 0) core.alive = false; }
+        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 80; core.justHit = now;
+          if (core.hp <= 0){ core.hp = 0; core.alive = false; } }
       }
     }
-    // once its limbs are gone the core keeps 2 spinning arms that still hit pupils
+    // core's own 2 arms keep swinging at pupils once exposed
     if (core.vuln && core.alive){
-      for (var ai = 0; ai < core.arms; ai++){
+      for (ai = 0; ai < core.arms; ai++){
         var aang = core.ownAng + ai * (Math.PI*2 / core.arms);
         var atx = core.x + Math.cos(aang)*core.reach, aty = core.y + Math.sin(aang)*core.reach;
         for (k = 0; k < bots.length; k++){ var Q = bots[k]; if (!Q.alive) continue;
           var qx = Q.x - atx, qy = Q.y - aty;
-          if (qx*qx + qy*qy < Q.r*Q.r && now >= Q.cd){ Q.hp -= 1; Q.cd = now + 460; Q.justHit = now;
-            btKnock(Q, core.x, core.y);
+          if (qx*qx + qy*qy < Q.r*Q.r && now >= Q.cd){ Q.hp -= 1; Q.cd = now + 580; Q.justHit = now; btKnock(Q, core.x, core.y);
             if (Q.hp <= 0){ Q.alive = false; Q.poppedAt = now; } }
         }
       }
+      // phase escalations driven by core HP %
+      var pct = core.hp / core.maxHp;
+      if (pct <= 0.80){ if (!boss.nextLaser) boss.nextLaser = now + BOSS.laserEvery;
+        if (now >= boss.nextLaser){ btBossFireLaser(boss, now); boss.nextLaser = now + (pct <= 0.20 ? BOSS.laserEvery*0.5 : BOSS.laserEvery); } }
+      if (pct <= 0.60){ if (!boss.nextMini) boss.nextMini = now + 800;
+        if (now >= boss.nextMini && btAliveCount(boss.minis) < BOSS.miniCap){ btBossSpawnMini(boss, now); boss.nextMini = now + BOSS.miniEvery; } }
+      if (pct <= 0.20 && !boss.flags.enrage){ boss.flags.enrage = true; core.spin *= 1.9; core.ownSpin *= 1.5; }
+      if (pct <= 0.05 && !boss.flags.last){ boss.flags.last = true; btBossFireLaser(boss, now); for (var mm = 0; mm < 3; mm++) btBossSpawnMini(boss, now); }
     }
+    btBossTickLasers(boss, bots, now);
+    btBossTickMinis(boss, bots, W, H, now, inset);
+
     var pupils = 0; for (i = 0; i < bots.length; i++) if (bots[i].alive) pupils++;
-    return { pupils: pupils, limbs: liveLimbs, core: core.hp };
+    return { pupils: pupils, limbs: liveLimbs, core: core.hp, wave: boss.wave };
   }
 
   /* ── Painting ───────────────────────────────────────────── */
@@ -687,15 +841,22 @@
     if (b.hp !== b.lastHp){ if (b.hp < b.lastHp) sfx('hit'); b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }   // tick on losing a point
     if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
   }
+  function btMountSat(arena, st){
+    var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
+    var el = btMakeBot(st, 'bt-sat');
+    if (st.arms === 2){ var a2 = document.createElement('div'); a2.className = 'bt-arm'; a2.style.width = ((st.reach || BT_REACH) + 6) + 'px'; el.insertBefore(a2, el.firstChild); st.arm2 = a2; }
+    arena.appendChild(el);
+  }
   function btPaint(){
-    var i;
+    var arena = document.getElementById('bt-arena'), i;
     for (i = 0; i < AR.bots.length; i++) btPaintBot(AR.bots[i]);
-    if (!AR.boss) return;
-    var core = AR.boss.core;
+    if (!AR.boss || !arena) return;
+    var boss = AR.boss, core = boss.core;
     if (core.el){
       core.el.style.transform = 'translate(' + (core.x - core.r) + 'px,' + (core.y - core.r) + 'px)';
       if (core.hp !== core.lastHp){ core.ball.firstChild.nodeValue = Math.max(0, core.hp); core.lastHp = core.hp; }
       core.el.classList.toggle('vuln', core.vuln && core.alive);
+      core.el.classList.toggle('enrage', !!(boss.flags && boss.flags.enrage) && core.alive);
       if (core.arm1){
         var showArms = core.vuln && core.alive;
         core.arm1.style.display = showArms ? 'block' : 'none';
@@ -705,14 +866,16 @@
           core.arm2.style.transform = 'rotate(' + (core.ownAng + Math.PI) + 'rad)';
         }
       }
-      if (!core.alive) btPopEl(core);
+      if (!core.alive){ if (!core._popped){ core._popped = true; } btPopEl(core); }
       if (core.justHit && Date.now() - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
     }
-    AR.boss.sats.forEach(function (st){
+    boss.sats.forEach(function (st){
+      if (st.alive && !st.el) btMountSat(arena, st);            // lazy-mount (covers regenerated + new-wave limbs)
       if (!st.el) return;
-      if (!st.alive){ btPopEl(st); return; }
+      if (!st.alive){ if (!st._popped){ st._popped = true; sfx('pop'); } btPopEl(st); return; }
       st.el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
-      st.arm.style.transform = 'rotate(' + st.ownAng + 'rad)';
+      if (st.arm) st.arm.style.transform = 'rotate(' + st.ownAng + 'rad)';
+      if (st.arm2) st.arm2.style.transform = 'rotate(' + (st.ownAng + Math.PI) + 'rad)';
       if (st.hp !== st.lastHp){ st.ball.firstChild.nodeValue = st.hp; st.lastHp = st.hp; }
       if (st.conn){
         var len = Math.hypot(st.x - core.x, st.y - core.y), ang = Math.atan2(st.y - core.y, st.x - core.x);
@@ -720,6 +883,28 @@
         st.conn.style.transform = 'translate(' + core.x + 'px,' + (core.y - 4) + 'px) rotate(' + ang + 'rad)';
       }
       if (st.justHit && Date.now() - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
+    });
+    // mini-me bosses (lazy-mount)
+    boss.minis.forEach(function (M){
+      if (M.alive && !M.el) arena.appendChild(btMakeBot(M, 'bt-mini'));
+      if (!M.el) return;
+      if (!M.alive){ if (!M._popped){ M._popped = true; sfx('pop'); } btPopEl(M); return; }
+      M.el.style.transform = 'translate(' + (M.x - M.r) + 'px,' + (M.y - M.r) + 'px)';
+      if (M.arm) M.arm.style.transform = 'rotate(' + M.ang + 'rad)';
+      if (M.hp !== M.lastHp){ M.ball.firstChild.nodeValue = M.hp; M.lastHp = M.hp; }
+      if (M.justHit && Date.now() - M.justHit < 200) M.el.classList.add('hit'); else M.el.classList.remove('hit');
+    });
+    // laser beams
+    boss.lasers.forEach(function (L){
+      if (!L.el){ var le = document.createElement('div'); le.className = 'bt-laser'; arena.appendChild(le); L.el = le; }
+      L.el.style.width = '1000px';
+      L.el.style.transform = 'translate(' + core.x + 'px,' + core.y + 'px) rotate(' + (L.cur || L.ang) + 'rad)';
+    });
+    // explosion rings (transient)
+    boss.blasts = (boss.blasts || []).filter(function (bl){
+      if (!bl.el){ var be = document.createElement('div'); be.className = 'bt-blast'; be.style.left = (bl.x - bl.r) + 'px'; be.style.top = (bl.y - bl.r) + 'px'; be.style.width = be.style.height = (bl.r*2) + 'px'; arena.appendChild(be); bl.el = be; }
+      if (Date.now() - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
+      return true;
     });
   }
 
@@ -740,11 +925,7 @@
     var arena = document.getElementById('bt-arena'); if (!arena) return;
     if (AR.boss){
       var core = AR.boss.core;
-      // limbs first (behind), with their connector arms
-      AR.boss.sats.forEach(function (st){
-        var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
-        arena.appendChild(btMakeBot(st, 'bt-sat'));
-      });
+      // satellites/minis/lasers lazy-mount in btPaint (so regen + new waves appear)
       var cel = document.createElement('div'); cel.className = 'bt-bot bt-core';
       cel.style.width = cel.style.height = (core.r*2) + 'px';
       cel.style.transform = 'translate(' + (core.x-core.r) + 'px,' + (core.y-core.r) + 'px)';
@@ -765,9 +946,11 @@
   function btStatus(){
     var rem = document.getElementById('btRemain'); if (!rem) return;
     if (AR.mode === 'boss' && AR.boss){
-      var live = AR.boss.sats.filter(function (s){ return s.alive; }).length;
-      var pupils = AR.bots.filter(function (b){ return b.alive; }).length;
-      rem.textContent = 'Boss ' + Math.max(0, AR.boss.core.hp) + ' HP · Limbs ' + live + '/' + AR.boss.n + ' · Class ' + pupils + ' left';
+      var b = AR.boss, live = b.sats.filter(function (s){ return s.alive; }).length;
+      var pupils = AR.bots.filter(function (x){ return x.alive; }).length;
+      var minis = btAliveCount(b.minis || []);
+      var stage = b.wave < 3 ? ('Wave ' + b.wave + ' · Limbs ' + live + '/' + b.n) : ('CORE ' + Math.max(0, b.core.hp) + '/' + b.core.maxHp);
+      rem.textContent = stage + ' · Class ' + pupils + ' left' + (minis ? ' · ' + minis + ' mini-bosses' : '');
     } else {
       rem.textContent = AR.bots.filter(function (b){ return b.alive; }).length + ' remaining';
     }
@@ -796,7 +979,8 @@
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
     AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0;
-    AR.mode = s.arenaMode === 'boss' ? 'boss' : 'ffa';
+    AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
+    if (AR.mode === 'boss'){ s.bossUnlocked = false; s.bossChargeBase = btClassTotal(s); }   // starting the boss spends the charge
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
     AR.boss = AR.mode === 'boss' ? btSpawnBoss(s) : null;
@@ -828,7 +1012,7 @@
     btRender();
   }
   window.btSetWinnerBonus = function (v){ var s = btLoad(); var n = parseInt(v,10); s.winnerBonus = (n >= 0 ? n : 5); btSave(s); };
-  window.btSetArenaMode = function (m){ var s = btLoad(); s.arenaMode = (m === 'boss' ? 'boss' : 'ffa'); btSave(s); btRender(); };
+  window.btSetArenaMode = function (m){ var s = btLoad(); if (m === 'boss' && !s.bossUnlocked) return; s.arenaMode = (m === 'boss' ? 'boss' : 'ffa'); btSave(s); btRender(); };
   window.btSetSatHP = function (v){ var s = btLoad(); s.satHP = Math.max(1, parseInt(v,10) || 8); btSave(s); };
   window.btSetCoreHP = function (v){ var s = btLoad(); s.coreHP = Math.max(1, parseInt(v,10) || 30); btSave(s); };
 
@@ -845,30 +1029,29 @@
     var banner = '';
     if (AR.result){ banner = '<div class="bt-winner' + (AR.result === 'lose' ? ' lose' : '') + '">' + (AR.result === 'win' ? '🏆 ' : '💥 ') + '<b>' + esc(AR.bossMsg) + '</b></div>'; }
     else if (AR.lastWinner){ banner = '<div class="bt-winner">🏆 <b>' + esc(AR.lastWinner) + '</b> won the battle!' + (s.winnerBonus > 0 ? ' <span class="muted">(+' + s.winnerBonus + ' points)</span>' : '') + '</div>'; }
+    var mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
+    var bossBtn = s.bossUnlocked
+      ? '<button class="' + (mode === 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'boss\')">👹 Boss battle</button>'
+      : '<button class="locked" disabled title="Earn the boss on the Points tab">🔒 Boss · ' + Math.round(btBossPct(s)*100) + '%</button>';
     var modeSel = '<div class="seg" style="margin-bottom:14px">' +
-        '<button class="' + (s.arenaMode !== 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'ffa\')">⚔️ Free-for-all</button>' +
-        '<button class="' + (s.arenaMode === 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'boss\')">👹 Boss battle</button>' +
+        '<button class="' + (mode !== 'boss' ? 'on' : '') + '" onclick="btSetArenaMode(\'ffa\')">⚔️ Free-for-all</button>' +
+        bossBtn +
       '</div>';
-    var bossFields = s.arenaMode === 'boss'
-      ? '<div><label>Limb HP ×6</label><input type="number" min="1" value="' + s.satHP + '" style="width:100px" onchange="btSetSatHP(this.value)" /></div>' +
-        '<div><label>Core HP</label><input type="number" min="1" value="' + s.coreHP + '" style="width:100px" onchange="btSetCoreHP(this.value)" /></div>'
-      : '';
-    var hint = s.arenaMode === 'boss'
-      ? 'The class attacks together: smash all six spinning limbs, then the roaming core — which keeps two arms swinging at pupils. Each pupil’s points are their battle HP; they pop at zero and survivors share the bonus. Set the points on the Points tab.'
-      : 'Each pupil’s points are their battle HP. They bounce around with a long spinning arm that knocks a point off (and bounces back) whoever it hits — pop at zero, last one standing wins. Set Starting/Minimum/Maximum points on the Points tab.';
+    var hint = mode === 'boss'
+      ? 'The whole class teams up against a boss that auto-scales to your class strength. <b>Phase 1:</b> smashed limbs regrow once with two arms. <b>Phase 2:</b> limbs explode on death, knocking 50% off nearby pupils. <b>Phase 3</b> (core exposed): lasers from 80% HP, mini-bosses from 60%, it enrages at 20% and makes a last stand at 5%. Each pupil’s points are their HP — survivors share the bonus.'
+      : 'Each pupil’s points are their battle HP. They bounce around with a long spinning arm that knocks a point off (and bounces back) whoever it hits — pop at zero, last one standing wins. Set Starting/Minimum/Maximum points in Settings.';
     return '<div class="card no-print">' + modeSel +
         '<div class="row" style="align-items:flex-end">' +
-          bossFields +
           '<div><label>Winner bonus</label><input id="btWinBonus" type="number" min="0" value="' + s.winnerBonus + '" style="width:110px" onchange="btSetWinnerBonus(this.value)" /></div>' +
           '<div class="grow"></div>' +
-          '<button onclick="btStartBattle()">' + iconSVG('zap',16) + (s.arenaMode === 'boss' ? ' Start Boss Battle' : ' Start Battle') + '</button>' +
+          '<button onclick="btStartBattle()">' + iconSVG('zap',16) + (mode === 'boss' ? ' Start Boss Battle' : ' Start Battle') + '</button>' +
         '</div>' +
         '<p class="hint small" style="margin-top:8px">' + hint + '</p>' +
       '</div>' + banner;
   }
 
   function btPointsTab(s){
-    return btGroupBarHTML(s) + btStepStripHTML(s) +
+    return btBossChargeHTML(s) + btGroupBarHTML(s) + btStepStripHTML(s) +
       '<div class="grid">' + sortedRoster().map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
 
@@ -1022,6 +1205,7 @@
              : s.tab === 'settings' ? btSettingsTab(s)
              : btBattleTab(s);
     if (showBoard) btUpdateClassTotal(s, true);
+    btUpdateBossCharge(s);   // keep the charge bar + board "Boss ready" badge in sync
   }
 
   /* bind the celebration overlay click-to-dismiss once */
@@ -1051,4 +1235,6 @@
     return true;
   };
   window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
+  window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
+                     inc: btBossInc, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock };
 })();

@@ -323,3 +323,39 @@
     #bt-celebrate .cele-mav.badge-av { background:var(--gold-50); border:2px solid var(--gold-100); font-size:20px; }
     #bt-celebrate .cele-mname { flex:1; font-weight:800; font-size:16px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     #bt-celebrate .cele-mwhat { font-weight:800; font-size:14px; flex:0 0 auto; }
+
+    /* ── Unlockable boss: charge bar, board badge, minis, lasers, blasts ── */
+
+    /* Boss charge bar */
+    #page-battler .bt-charge { border:1px solid var(--line); background:var(--card); padding:12px 14px; margin-bottom:14px; border-radius:12px; transition:box-shadow .3s, border-color .3s; }
+    #page-battler .bt-charge.ready { border-color:var(--gold-500); box-shadow:0 0 0 1px var(--gold-500), 0 0 18px rgba(250,204,21,.28); }
+    #page-battler .bt-charge-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    #page-battler .bt-charge-lab { font-size:13px; font-weight:700; color:var(--muted); transition:color .3s; }
+    #page-battler .bt-charge.ready .bt-charge-lab { color:var(--gold-500); }
+    #page-battler .bt-charge-num { font-size:12px; color:var(--muted); }
+    #page-battler .bt-charge-track { height:14px; border-radius:999px; background:var(--line-2); overflow:hidden; }
+    #page-battler .bt-charge-fill { height:100%; border-radius:999px; transition:width .5s cubic-bezier(.2,.7,.3,1); background:linear-gradient(90deg, var(--teal-500), var(--gold-500)); }
+    #page-battler .bt-charge.ready .bt-charge-fill { background:var(--gold-500); animation:chargeGlow 1.4s ease-in-out infinite; }
+    @keyframes chargeGlow { 0%,100%{ opacity:1; } 50%{ opacity:.72; } }
+
+    /* Board badge (persistent, toggled by JS via inline display:none) */
+    .bt-bossbadge { display:inline-flex; align-items:center; gap:6px; background:var(--gold-50); color:var(--gold-600); border:1px solid var(--gold-100); border-radius:999px; padding:6px 12px; font-weight:800; font-size:12.5px; animation:bossBadgePulse 2s ease-in-out infinite; }
+    @keyframes bossBadgePulse { 0%,100%{ box-shadow:0 0 0 0 rgba(250,204,21,0); } 50%{ box-shadow:0 0 0 5px rgba(250,204,21,.22), 0 0 16px rgba(250,204,21,.3); } }
+
+    /* Mini-boss enemies in arena */
+    #page-battler .bt-mini.bt-bot { /* override the Points-tab .bt-mini — boss enemy avatar */ padding:0; font-size:inherit; border-radius:0; line-height:normal; background:none; border:none; }
+    #page-battler .bt-arena .bt-mini .bt-ball { background:#a855f7; border:3px solid #1a0030; color:#fff; box-shadow:0 0 10px rgba(168,85,247,.55), 0 2px 6px rgba(0,0,0,.4); }
+
+    /* Laser beam */
+    #page-battler .bt-laser { position:absolute; left:0; top:0; height:7px; transform-origin:0 50%; pointer-events:none; z-index:5; border-radius:4px; background:linear-gradient(90deg, #ff4500, #ff8c00); box-shadow:0 0 8px #ff4500, 0 0 18px rgba(255,69,0,.6); animation:laserIn .08s ease-out; }
+    @keyframes laserIn { from{ opacity:0; } to{ opacity:1; } }
+
+    /* Blast ring (satellite death) */
+    #page-battler .bt-blast { position:absolute; border-radius:50%; border:3px solid var(--coral-500); pointer-events:none; z-index:5; animation:btBlast .42s ease-out forwards; }
+    @keyframes btBlast { 0%{ transform:scale(.3); opacity:1; } 100%{ transform:scale(1.3); opacity:0; } }
+
+    /* Enraged core (low HP) */
+    #page-battler .bt-core.enrage .bt-ball { background:#6b0000; border-color:#ff1a1a; box-shadow:0 0 0 6px rgba(255,0,0,.25), 0 0 36px rgba(255,0,0,.55); animation:btpulse .55s infinite; }
+
+    /* Boss celebration badge variant */
+    #bt-celebrate .cele-badge.boss { background:linear-gradient(135deg, var(--gold-50), rgba(239,68,68,.18)); border-color:rgba(239,68,68,.45); font-size:44px; }
