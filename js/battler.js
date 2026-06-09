@@ -297,7 +297,7 @@
     var oldLevel = btLevelOf(before), newLevel = btLevelOf(after);
     var oldRank = btRankFor(s, before).key, newRank = btRankFor(s, after).key;
     var name = pupilName(pid);
-    if (s.logBh && typeof bhData !== 'undefined'){
+    if (s.logBh && !opts.remote && typeof bhData !== 'undefined'){
       bhData.push({ id: uid(), date: todayISO(), pupilId: pid, type: n >= 0 ? 'positive' : 'concern',
         note: 'Behaviour Battler ' + (n >= 0 ? '+' : '') + n + (opts.label ? ' · ' + opts.label : '') });
       if (typeof bhSave === 'function'){ bhSave();
@@ -941,5 +941,27 @@
   (function (){ var o = document.getElementById('bt-celebrate'); if (o) o.addEventListener('click', btCloseCele); })();
 
   window.btRender = btRender;
+
+  /* Replay a remote tp_battler change as animated awards so every signed-in
+     device shows the +N float, confetti, sound and count-up. Points are still
+     at the OLD value when this runs; award() carries them to the new value with
+     the full reaction. Returns true if it animated (caller then skips a re-render
+     to preserve the animation); false for bulk/structural changes. */
+  window.btReplayRemote = function (oldRaw, newRaw){
+    var oldS = {}, newS = {};
+    try { oldS = oldRaw ? JSON.parse(oldRaw) : {}; } catch (e) {}
+    try { newS = JSON.parse(newRaw); } catch (e) { return false; }
+    var oldP = (oldS && oldS.points) || {}, newP = (newS && newS.points) || {};
+    var ids = {}, changed = [];
+    Object.keys(oldP).forEach(function (k){ ids[k] = 1; });
+    Object.keys(newP).forEach(function (k){ ids[k] = 1; });
+    Object.keys(ids).forEach(function (pid){
+      var a = +oldP[pid] || 0, b = (newP[pid] === undefined ? a : +newP[pid]);
+      if (b !== a) changed.push({ pid: pid, delta: b - a });
+    });
+    if (!changed.length || changed.length > 8) return false;   // bulk / reset / structural → let caller render
+    changed.forEach(function (c){ award(c.pid, c.delta, { remote: true }); });
+    return true;
+  };
   window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
 })();
