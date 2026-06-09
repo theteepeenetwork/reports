@@ -30,7 +30,8 @@
 
   /* ── State ──────────────────────────────────────────────── */
   function genDefaultState(){
-    return { v: 2, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false, generatedISO: '', days: [] };
+    return { v: 3, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false,
+             backTables: false, backPick: 'all', backCount: 20, generatedISO: '', days: [] };
   }
   function genLoad(){
     var s = Store.get('tp_generator', null);
@@ -39,6 +40,10 @@
     if (s.mode !== 'tables') s.mode = 'worksheet';
     if (!(s.count > 0)) s.count = 50;
     s.week = !!s.week;
+    // times-tables-on-the-back of the mental starter (worksheet mode)
+    s.backTables = !!s.backTables;
+    if (['2', '5', '10', 'all'].indexOf(s.backPick) < 0) s.backPick = 'all';
+    if (!(s.backCount > 0)) s.backCount = 20;
     // migrate v1 (single { questions: [] }) -> v2 ({ days: [{label, questions}] })
     if (!Array.isArray(s.days)) s.days = Array.isArray(s.questions) && s.questions.length ? [{ label: '', questions: s.questions }] : [];
     delete s.questions;
@@ -113,9 +118,23 @@
     return q;
   }
 
-  function genBuildTables(count){
+  // which times-table bases a "pick" maps to
+  function genBasesFor(pick){
+    if (pick === '2') return [2];
+    if (pick === '5') return [5];
+    if (pick === '10') return [10];
+    return [2, 5, 10];
+  }
+  function genTablesLabel(pick){
+    if (pick === '2') return '2×';
+    if (pick === '5') return '5×';
+    if (pick === '10') return '10×';
+    return '2, 5 & 10×';
+  }
+  function genBuildTables(count, bases){
+    bases = (bases && bases.length) ? bases : [2, 5, 10];
     var q = [];
-    for (var i = 0; i < count; i++) q.push({ t: 'times', base: genPick([2, 5, 10]), by: genRand(1, 10) });
+    for (var i = 0; i < count; i++) q.push({ t: 'times', base: genPick(bases), by: genRand(1, 10) });
     return q;
   }
 
@@ -123,11 +142,17 @@
     return mode === 'tables' ? genBuildTables(count) : genBuildWorksheet(halfTerm);
   }
 
-  // Build one or five days. Each day = { label, questions }.
-  function genBuildDays(halfTerm, mode, count, week){
+  // Build one or five days. Each day = { label, questions, [back] }.
+  // opts (worksheet mode only): { backTables, backPick, backCount } adds a
+  // times-tables page on the back so it prints back-to-back with the starter.
+  function genBuildDays(halfTerm, mode, count, week, opts){
     var labels = week ? GEN_WEEKDAYS : [''];
     return labels.map(function (label){
-      return { label: label, questions: genBuild(halfTerm, mode, count) };
+      var day = { label: label, questions: genBuild(halfTerm, mode, count) };
+      if (mode === 'worksheet' && opts && opts.backTables){
+        day.back = genBuildTables(opts.backCount, genBasesFor(opts.backPick));
+      }
+      return day;
     });
   }
 
@@ -227,11 +252,24 @@
   }
 
   /* ── Main render ────────────────────────────────────────── */
+  // one printable A4 page (front or back). Each .gen-day breaks to a new page.
+  function genSheetHTML(label, title, questions, isTables, generatedISO){
+    var heading = (label ? '<span class="gen-day-name">' + esc(label) + '</span> · ' : '') + title +
+                  (generatedISO ? ' &middot; ' + esc(generatedISO) : '');
+    var cells = questions.map(function (q, i){
+      return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + genRenderQuestion(q) + '</div></div>';
+    }).join('');
+    return '<div class="card gen-sheet gen-day">' +
+      '<h2 class="gen-heading">' + heading + '</h2>' +
+      '<div class="gen-grid' + (isTables ? ' gen-grid-tables' : '') + '">' + cells + '</div>' +
+    '</div>';
+  }
+
   function genRender(){
     var root = document.getElementById('gen-root');
     if (!root) return;
     var s = genLoad();
-    genSave(s); // persist any normalisation / v1->v2 migration
+    genSave(s); // persist any normalisation / migration
 
     var htOpts = HALF_TERMS.map(function (h){ return opt(h, h, s.halfTerm); }).join('');
     var controls =
@@ -254,8 +292,22 @@
           '<button onclick="genGenerate()">🎲 Generate new</button>' +
           '<button class="secondary" onclick="window.print()">🖨️ Print</button>' +
         '</div>' +
+        (s.mode === 'worksheet'
+          ? '<div class="row" style="margin-top:.5rem; align-items:flex-end">' +
+              '<label style="display:inline-flex; align-items:center; gap:8px; font-weight:600; cursor:pointer">' +
+                '<input type="checkbox"' + (s.backTables ? ' checked' : '') + ' onchange="genSetBackTables(this.checked)" style="width:16px; height:16px"> Times tables on the back' +
+              '</label>' +
+              (s.backTables
+                ? '<div><label>Tables</label><select onchange="genSetBackPick(this.value)" style="min-width:150px">' +
+                    opt('2', '2×', s.backPick) + opt('5', '5×', s.backPick) + opt('10', '10×', s.backPick) + opt('all', 'All three (2, 5, 10)', s.backPick) +
+                  '</select></div>' +
+                  '<div><label>How many questions</label><input type="number" min="1" max="100" value="' + s.backCount + '" onchange="genSetBackCount(this.value)" style="width:90px" /></div>'
+                : '') +
+            '</div>'
+          : '') +
         (s.mode === 'worksheet' ? '<p class="hint small" style="margin-top:.5rem">Clock difficulty for <b>' + esc(s.halfTerm) + '</b>: ' + genClockLabel(s.halfTerm) + '</p>' : '') +
-        '<p class="hint small" style="margin-top:.3rem">Each day prints on its own A4 page.</p>' +
+        '<p class="hint small" style="margin-top:.3rem">Each page prints on its own A4 sheet' +
+          (s.mode === 'worksheet' && s.backTables ? ' — print double-sided to get the times tables on the back.' : '.') + '</p>' +
       '</div>';
 
     var body;
@@ -263,16 +315,13 @@
       body = '<div class="card"><p class="empty">Tap <b>🎲 Generate new</b> to create ' + (s.week ? 'a week of worksheets' : 'a worksheet') + '.</p></div>';
     } else {
       body = s.days.map(function (day){
-        var title = (s.mode === 'tables' ? 'Times tables (2, 5, 10)' : 'Mental Starter — ' + esc(s.halfTerm));
-        var heading = (day.label ? '<span class="gen-day-name">' + esc(day.label) + '</span> · ' : '') + title +
-                      (s.generatedISO ? ' &middot; ' + esc(s.generatedISO) : '');
-        var cells = day.questions.map(function (q, i){
-          return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + genRenderQuestion(q) + '</div></div>';
-        }).join('');
-        return '<div class="card gen-sheet gen-day">' +
-          '<h2 class="gen-heading">' + heading + '</h2>' +
-          '<div class="gen-grid' + (s.mode === 'tables' ? ' gen-grid-tables' : '') + '">' + cells + '</div>' +
-        '</div>';
+        var pages = [];
+        var frontTitle = (s.mode === 'tables' ? 'Times tables (2, 5, 10)' : 'Mental Starter — ' + esc(s.halfTerm));
+        pages.push(genSheetHTML(day.label, frontTitle, day.questions, s.mode === 'tables', s.generatedISO));
+        if (day.back && day.back.length){
+          pages.push(genSheetHTML(day.label, 'Times tables — ' + genTablesLabel(s.backPick), day.back, true, s.generatedISO));
+        }
+        return pages.join('');
       }).join('');
     }
     root.innerHTML = controls + body;
@@ -287,7 +336,8 @@
   /* ── Handlers (on window for inline onclick) ────────────── */
   window.genGenerate = function (){
     var s = genLoad();
-    s.days = genBuildDays(s.halfTerm, s.mode, s.count, s.week);
+    s.days = genBuildDays(s.halfTerm, s.mode, s.count, s.week,
+      { backTables: s.backTables, backPick: s.backPick, backCount: s.backCount });
     s.generatedISO = (typeof todayISO === 'function') ? todayISO() : '';
     genSave(s); genRender();
   };
@@ -301,6 +351,18 @@
   window.genSetHalfTerm = function (v){ var s = genLoad(); s.halfTerm = GEN_CLOCK[v] ? v : s.halfTerm; genSave(s); genRender(); };
   window.genSetCount = function (v){ var s = genLoad(); var n = parseInt(v, 10); s.count = (n > 0 && n <= 100) ? n : 50; genSave(s); };
   window.genSetWeek = function (v){ var s = genLoad(); s.week = (v === '1' || v === 1 || v === true); genSave(s); genRender(); };
+
+  // rebuild the back times-tables page of already-generated days so toggles apply at once
+  function genRefreshBacks(s){
+    if (s.mode !== 'worksheet' || !s.days.length) return;
+    s.days.forEach(function (day){
+      if (s.backTables) day.back = genBuildTables(s.backCount, genBasesFor(s.backPick));
+      else delete day.back;
+    });
+  }
+  window.genSetBackTables = function (on){ var s = genLoad(); s.backTables = !!on; genRefreshBacks(s); genSave(s); genRender(); };
+  window.genSetBackPick = function (v){ var s = genLoad(); s.backPick = (['2','5','10','all'].indexOf(v) >= 0) ? v : 'all'; genRefreshBacks(s); genSave(s); genRender(); };
+  window.genSetBackCount = function (v){ var s = genLoad(); var n = parseInt(v, 10); s.backCount = (n > 0 && n <= 100) ? n : 20; genRefreshBacks(s); genSave(s); genRender(); };
 
   /* expose render + testable helpers */
   window.genRender = genRender;
