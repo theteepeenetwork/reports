@@ -610,9 +610,9 @@
   }
   /* ── Boss balancing — auto-scales to class strength (sum of pupils' points
      = sum of their battle HP) so it's hard but winnable for any class. ── */
-  var BOSS = { coreF:0.42, sat1F:0.026, sat2F:0.03, miniHpF:0.02, miniCap:3,
+  var BOSS = { coreF:0.34, sat1F:0.024, sat2F:0.028, miniHpF:0.02, miniCap:3,
                miniEvery:4200, laserEvery:3800, laserLife:900, laserSweep:0.7,
-               blastR:84, blastFrac:0.5, regenMs:1400 };
+               blastR:84, blastFrac:0.5, regenMs:1400, swarm:0.05 };
   function btBossPower(s){ return btActiveRoster().reduce(function (a,p){ return a + Math.max(1, btPts(s, p.id)); }, 0); }
   function btMakeSats(boss, wave){
     var core = boss.core, n = boss.n, hp = (wave === 1 ? boss.satHp1 : boss.satHp2), out = [];
@@ -626,7 +626,7 @@
   }
   function btSpawnBoss(s){
     var sz = btArenaSize(), n = 6, armLen = Math.min(150, sz.H * 0.30);
-    var csp = 0.75, ca = Math.random() * Math.PI * 2, power = btBossPower(s);
+    var csp = 0.45, ca = Math.random() * Math.PI * 2, power = btBossPower(s);   // slower roam so the class can corner it in a full-size arena
     var coreHp = Math.max(24, Math.round(power * BOSS.coreF));
     var core = { x: sz.W/2, y: sz.H*0.48, r: 46, hp: coreHp, maxHp: coreHp, ang: 0, spin: 0.011,
                  vx: Math.cos(ca)*csp, vy: Math.sin(ca)*csp,
@@ -747,6 +747,12 @@
     btMovePupils(bots, W, H, false, now, inset);     // pupils cooperate (no arm damage to each other)
     // the core roams the arena; bounce so its limbs stay on-screen
     core.x += core.vx; core.y += core.vy;
+    // full-size arena (no shrink): gently pull pupils toward the boss so the class
+    // mobs it and the fight stays focused and resolves
+    for (i = 0; i < bots.length; i++){ var Pp = bots[i]; if (!Pp.alive) continue;
+      var ax = core.x - Pp.x, ay = core.y - Pp.y, ad = Math.hypot(ax, ay) || 1;
+      Pp.vx += (ax/ad) * BOSS.swarm; Pp.vy += (ay/ad) * BOSS.swarm; btSpeedClamp(Pp);
+    }
     var marg = Math.min(inset + boss.armLen + 30, Math.min(W, H)/2 - 8);
     if (core.x < marg){ core.x = marg; core.vx = Math.abs(core.vx); }
     if (core.x > W - marg){ core.x = W - marg; core.vx = -Math.abs(core.vx); }
@@ -798,7 +804,7 @@
           P.x = core.x + cnx*crr; P.y = core.y + cny*crr;
           var cvn = P.vx*cnx + P.vy*cny; if (cvn < 0){ P.vx -= 2*cvn*cnx; P.vy -= 2*cvn*cny; btSpeedClamp(P); } }
         var ctx = core.x - tx, cty = core.y - ty;
-        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 80; core.justHit = now;
+        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd){ core.hp -= 1; core.cd = now + 65; core.justHit = now;
           if (core.hp <= 0){ core.hp = 0; core.alive = false; } }
       }
     }
@@ -960,7 +966,8 @@
     if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
     if (!AR.paused){
       var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
-      AR.inset = Math.min(AR.inset + BT_SHRINK, Math.min(W, H)/2 - 100);  // arena slowly closes in
+      // free-for-all slowly closes in to force a winner; the boss arena stays full-size
+      if (AR.mode !== 'boss') AR.inset = Math.min(AR.inset + BT_SHRINK, Math.min(W, H)/2 - 100);
       btPaintFrame(W, H);
       if (AR.mode === 'boss'){
         var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.inset); btPaint(); btStatus();
