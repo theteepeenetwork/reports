@@ -263,7 +263,8 @@
       '<div class="p-btns">' +
         '<button class="pbtn minus" title="Take a point" onclick="btAwardOne(\'' + p.id + '\',' + (-s.step) + ')">−</button>' +
         '<button class="pbtn plus" onclick="btAwardOne(\'' + p.id + '\',' + s.step + ')">+' + s.step + '</button>' +
-      '</div>';
+      '</div>' +
+    '</div>';
   }
   function btPaintCard(s, pid, instant, justGot){
     var d = btCardEl(pid); if (!d) return;
