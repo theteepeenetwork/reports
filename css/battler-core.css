@@ -159,7 +159,7 @@
     #page-battler .cfg-note { color:var(--muted); font-size:12px; flex:1 1 260px; min-width:200px; line-height:1.45; }
 
     /* player card */
-    #page-battler .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:14px; }
+    #page-battler .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(248px,1fr)); gap:14px; }
     #page-battler .pupil { position:relative; border:1px solid var(--line); border-radius:18px; background:var(--card); overflow:hidden; transition:box-shadow .18s, transform .18s, border-color .18s; }
     #page-battler .pupil:hover { box-shadow:var(--shadow); transform:translateY(-2px); border-color:var(--rk); }
     #page-battler .pupil .rank-glow { position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s; }
