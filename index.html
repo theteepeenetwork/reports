@@ -1264,7 +1264,15 @@ function rosRender(){
   });
   t.innerHTML = h;
 }
-function refreshNames(){ saveRoster(); syncPupilSelectors(); }
+function refreshNames(){ saveRoster(); window.dispatchEvent(new CustomEvent('tp:sync', { detail:{ key:'tp_roster', source:'local' } })); }
+
+/* One redraw path: any data change (local edit, another tab, or cloud) fires
+   'tp:sync'; refresh the pupil selectors and re-render whichever page is open. */
+window.addEventListener('tp:sync', function(){
+  if (typeof syncPupilSelectors === 'function') syncPupilSelectors();
+  var active = document.querySelector('.page.active');
+  if (active && typeof renderPage === 'function') renderPage(active.id.replace('page-', ''));
+});
 
 /* ===================================================================
    MENTAL STARTERS
@@ -1747,7 +1755,7 @@ applyProfile();
      FEATURE MODULES (each self-contained; loaded after platform helpers)
      =================================================================== -->
 <script src="js/generator.js"></script>
-<script src="js/battler.js?v=3"></script>
+<script src="js/battler.js?v=4"></script>
 <script src="js/picker.js"></script>
 <script src="js/timetable.js"></script>
 <script src="js/seating.js"></script>
@@ -2145,6 +2153,6 @@ applyProfile();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="js/cloud.js?v=3"></script>
+<script src="js/cloud.js?v=4"></script>
 </body>
 </html>

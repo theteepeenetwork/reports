@@ -85,7 +85,7 @@
   }
 
   /* ---- refresh in-memory state + re-render after a remote change ---- */
-  function cloudApplyRemote (k) {
+  function cloudRefreshMirrors (k) {
     try {
       if (k === 'tp_roster'      && typeof roster  !== 'undefined') roster  = JSON.parse(window.localStorage.getItem('tp_roster')   || '[]');
       if (k === 'tp_starters'    && typeof msData  !== 'undefined') msData  = JSON.parse(window.localStorage.getItem('tp_starters') || '{}');
@@ -93,17 +93,24 @@
       if (k === 'tp_behaviour'   && typeof bhData  !== 'undefined') bhData  = JSON.parse(window.localStorage.getItem('tp_behaviour')|| '[]');
       if (k === 'tp_assess'      && typeof asData  !== 'undefined') asData  = JSON.parse(window.localStorage.getItem('tp_assess')   || '{}');
     } catch (e) {}
-    cloudRerender(k);
   }
-  function cloudRerender (k) {
-    try {
-      if (typeof btRender === 'function' && typeof renderPage !== 'function') { btRender(); return; } // Glow Getters window
-      if (typeof syncPupilSelectors === 'function') syncPupilSelectors();
-      var active = document.querySelector('.page.active');
-      var pageId = active ? active.id.replace('page-', '') : null;
-      if (pageId && typeof renderPage === 'function') renderPage(pageId);
-    } catch (e) {}
+  function cloudApplyRemote (k) {
+    cloudRefreshMirrors(k);
+    cloudBroadcast(k, 'cloud');
   }
+  /* one path out: every context listens for 'tp:sync' and redraws itself. */
+  function cloudBroadcast (k, source) {
+    try { window.dispatchEvent(new CustomEvent('tp:sync', { detail: { key: k, source: source } })); } catch (e) {}
+  }
+
+  /* same-device, cross-window changes (e.g. planner writes tp_roster, the Glow
+     Getters window hears it). The browser has already updated this window's
+     localStorage before the event fires, so just refresh mirrors + broadcast. */
+  window.addEventListener('storage', function (e) {
+    if (!e.key || SYNC_KEYS.indexOf(e.key) < 0 || CLOUD.applying) return;
+    cloudRefreshMirrors(e.key);
+    cloudBroadcast(e.key, 'storage');
+  });
 
   /* ---- auth lifecycle ---- */
   function cloudInit () {
