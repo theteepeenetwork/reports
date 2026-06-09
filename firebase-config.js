@@ -8,9 +8,9 @@
    Step-by-step setup is in SETUP.md.
    ===================================================================== */
 var firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT.firebaseapp.com",
-  databaseURL: "https://PASTE_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "PASTE_PROJECT",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyBdRo4DCvG1VUDvvTBpABOwsIIUGwJil_0",
+  authDomain: "classplanner-14216.firebaseapp.com",
+  databaseURL: "https://classplanner-14216-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "classplanner-14216",
+  appId: "1:393650706162:web:978fa9e9f42b2f93a8a26b"
 };
