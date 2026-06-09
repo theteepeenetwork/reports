@@ -119,6 +119,8 @@
   function btGroupColor(i){ return BT_GROUP_COLORS[i % BT_GROUP_COLORS.length]; }
   function btPick(a){ return a[Math.floor(Math.random()*a.length)]; }
   function btClassTotal(s){ return sortedRoster().reduce(function (a,p){ return a + btPts(s, p.id); }, 0); }
+  // pupils who take part in battles / aren't greyed out — everyone except those marked absent on the Class List
+  function btActiveRoster(){ return sortedRoster().filter(function (p){ return !p.absent; }); }
   var CHEERS = ['Brilliant!','Well done!','Superstar!','Amazing!','Great work!','Yes! 🎉','Fantastic!','Top effort!'];
   var BIGS   = ['LEVEL UP! 🚀','New rank! 👑','You did it! 🏆','Wow! ⭐'];
 
@@ -149,6 +151,7 @@
     else if (kind === 'streak'){ var base = 520 + Math.min(8, extra||0) * 70; btTone(base, t, 0.12, 'square', 0.12); btTone(base*1.25, t+0.05, 0.14, 'square', 0.1); }
     else if (kind === 'milestone'){ [784,988,1175].forEach(function (f,i){ btTone(f, t + i*0.06, 0.18, 'triangle', 0.15); }); }
     else if (kind === 'level'){ [523,659,784,1047,1319].forEach(function (f,i){ btTone(f, t + i*0.075, 0.22, 'triangle', 0.16); }); }
+    else if (kind === 'hit'){ btTone(300, t, 0.06, 'sine', 0.09); }
     else if (kind === 'pop'){ btTone(180, t, 0.1, 'sawtooth', 0.12); btTone(120, t+0.04, 0.14, 'sawtooth', 0.1); }
     else if (kind === 'win'){ [523,659,784,1047,1319,1568].forEach(function (f,i){ btTone(f, t + i*0.09, 0.26, 'triangle', 0.17); }); }
   }
@@ -198,9 +201,42 @@
     btMTimer = setTimeout(function (){ m.classList.remove('cheer','big','aw'); }, 900);
     btBTimer = setTimeout(function (){ b.classList.remove('show'); }, mood === 'big' ? 2600 : 1700);
   }
-  var btQueue = [], btCelebrating = false;
-  function btQueueCele(c){ btQueue.push(c); if (!btCelebrating) btNextCele(); }
-  function btNextCele(){ if (!btQueue.length){ btCelebrating = false; return; } btCelebrating = true; btShowCele(btQueue.shift()); }
+  var btQueue = [], btCelebrating = false, btFlushT = null;
+  // Collect everything queued in the same burst (e.g. a whole-group award) and
+  // show them together, ordered — so several pupils levelling at once all appear.
+  function btQueueCele(c){ btQueue.push(c); if (!btCelebrating){ clearTimeout(btFlushT); btFlushT = setTimeout(btFlushCele, 40); } }
+  function btFlushCele(){
+    if (btCelebrating) return;
+    if (!btQueue.length){ btCelebrating = false; return; }
+    btCelebrating = true;
+    var batch = btQueue.splice(0, btQueue.length);
+    if (batch.length === 1) btShowCele(batch[0]); else btShowCeleMulti(batch);
+  }
+  var CELE_ORDER = { rank:0, level:1, badge:2 };
+  function btCeleWhat(s, c){
+    if (c.type === 'rank')  return { main:c.rank.label, color:c.rank.color };
+    if (c.type === 'level') return { main:'Level ' + c.level, color:btRankFor(s, c.pts).color };
+    var b = btBadgeByKey(s, c.badge); return { main:(b?b.name:'Badge'), color:'', icon:(b?b.icon:'⭐') };
+  }
+  function btShowCeleMulti(batch){
+    var s = btLoad(), overlay = document.getElementById('bt-celebrate'), card = document.getElementById('bt-celeCard');
+    if (!overlay || !card){ btCelebrating = false; return; }
+    batch.sort(function (a, b){ return (CELE_ORDER[a.type] - CELE_ORDER[b.type]) || (b.pts - a.pts) || a.name.localeCompare(b.name); });
+    var rows = batch.map(function (c){
+      var w = btCeleWhat(s, c);
+      var av = w.icon ? ('<span class="cele-mav badge-av">' + w.icon + '</span>')
+                      : ('<span class="cele-mav" style="background:' + btAvColor(c.pid) + '">' + esc(initials(c.name)) + '</span>');
+      return '<div class="cele-mrow">' + av +
+        '<span class="cele-mname">' + esc(c.name) + '</span>' +
+        '<span class="cele-mwhat"' + (w.color ? ' style="color:' + w.color + '"' : '') + '>' + esc(w.main) + '</span></div>';
+    }).join('');
+    card.innerHTML = '<div class="cele-kicker">Multiple achievements</div>' +
+      '<div class="cele-name">' + batch.length + ' pupils! 🎉</div>' +
+      '<div class="cele-multi">' + rows + '</div>' +
+      '<div class="cele-tap">tap anywhere to continue</div>';
+    overlay.classList.add('show'); sfx('level'); btConfettiRain(100);
+    clearTimeout(btShowCele._t); btShowCele._t = setTimeout(btCloseCele, Math.min(5200, 2600 + batch.length * 350));
+  }
   function btMascotMarkup(){
     return '<div class="bt-mascot cele-mascot big"><div class="m-spark">✨</div><div class="m-body"></div>' +
       '<div class="m-cheek l"></div><div class="m-cheek r"></div>' +
@@ -227,7 +263,7 @@
     overlay.classList.add('show'); btConfettiRain(c.type === 'rank' ? 90 : 60);
     clearTimeout(btShowCele._t); btShowCele._t = setTimeout(btCloseCele, c.type === 'rank' ? 2800 : 2200);
   }
-  function btCloseCele(){ var o = document.getElementById('bt-celebrate'); if (o) o.classList.remove('show'); clearTimeout(btShowCele._t); setTimeout(btNextCele, 240); }
+  function btCloseCele(){ var o = document.getElementById('bt-celebrate'); if (o) o.classList.remove('show'); clearTimeout(btShowCele._t); btCelebrating = false; setTimeout(btFlushCele, 240); }
   window.btCloseCele = btCloseCele;
 
   /* ── Player card (collectible "player card" look) ──────── */
@@ -243,7 +279,8 @@
   }
   function btPupilCard(s, p){
     var pts = btPts(s, p.id), rk = btRankFor(s, pts), nr = btNextRank(s, pts), av = btAvColor(p.id);
-    return '<div class="pupil" data-pid="' + p.id + '" data-rank="' + rk.key + '" style="--rk:' + rk.color + ';--rkbg:' + rk.bg + '">' +
+    return '<div class="pupil' + (p.absent ? ' absent' : '') + '" data-pid="' + p.id + '" data-rank="' + rk.key + '" style="--rk:' + rk.color + ';--rkbg:' + rk.bg + '">' +
+      (p.absent ? '<span class="p-absent">Absent</span>' : '') +
       '<span class="rank-glow" style="background:radial-gradient(120% 120% at 85% 100%, ' + rk.color + '22, transparent 60%)"></span>' +
       '<div class="p-ribbon"><span class="p-rank">' + rk.label + '</span><span class="p-emblem" style="color:' + rk.color + '"></span></div>' +
       '<div class="p-main">' +
@@ -312,6 +349,10 @@
   }
   window.btAward = award;
   function btOnGain(s, pid, name, n, oldLevel, newLevel, oldRank, newRank, before, after, opts){
+    // "batch" (whole-group award): keep the per-card visuals (float/confetti/bump)
+    // but mute the per-pupil sound + mascot — the caller plays one of each, and the
+    // celebration queue batches everyone who levelled into a single ordered overlay.
+    var quiet = opts.silent || opts.batch;
     var d = btCardEl(pid);
     var st = btStreak[pid]; if (st) st.count++; else st = { count:1 }; btStreak[pid] = st;  // persists; only a loss breaks it
     if (d){ d.classList.remove('bump'); void d.offsetWidth; d.classList.add('bump'); setTimeout(function (){ d.classList.remove('bump'); }, 520); }
@@ -321,27 +362,28 @@
     var gotStreak = false, anchor = d || opts.anchor;
     if (st.count >= 2){
       if (anchor && !opts.silent) btFloater(anchor, '🔥 ×' + st.count, 'streak');
-      if (anchor) btConfetti(anchor, 10 + st.count*4, ['#f5b324','#fb7185','#14b8a6','#7c5cff']);
-      if (!opts.silent) sfx('streak', st.count);
+      if (anchor && !opts.silent) btConfetti(anchor, 10 + st.count*4, ['#f5b324','#fb7185','#14b8a6','#7c5cff']);
+      if (!quiet) sfx('streak', st.count);
       if (st.count >= 3 && !got.streak){ got.streak = true; gotStreak = true; }
     } else {
       if (anchor && !opts.silent) btFloater(anchor, '+' + n);
-      if (anchor) btConfetti(anchor, 12, ['#14b8a6','#0d9488','#5eead4','#f5b324']);
-      if (!opts.silent) sfx('gain');
+      if (anchor && !opts.silent) btConfetti(anchor, 12, ['#14b8a6','#0d9488','#5eead4','#f5b324']);
+      if (!quiet) sfx('gain');
     }
     if (d) btPaintCard(s, pid, false, newBadge || (gotStreak ? 'streak' : null));
-    if (newRank !== oldRank){ if (!opts.silent) btMascotSay(btPick(BIGS), 'big'); btQueueCele({ type:'rank', name:name, pts:after, rank:btRankFor(s, after), badge:newBadge }); }
-    else if (newLevel > oldLevel){ if (!opts.silent) btMascotSay('Level ' + newLevel + '! 🚀', 'big'); btQueueCele({ type:'level', name:name, pts:after, level:newLevel, badge:newBadge }); }
-    else if (newBadge){ if (!opts.silent) btMascotSay('Badge unlocked! ' + btBadgeByKey(s, newBadge).icon, 'big'); btQueueCele({ type:'badge', name:name, pts:after, badge:newBadge }); }
-    else if (!opts.silent){ if (st.count >= 3) btMascotSay(st.count + ' in a row! 🔥', 'cheer'); else btMascotSay(btPick(CHEERS) + ' ' + name, 'cheer'); }
+    if (newRank !== oldRank){ if (!quiet) btMascotSay(btPick(BIGS), 'big'); btQueueCele({ type:'rank', pid:pid, name:name, pts:after, rank:btRankFor(s, after), badge:newBadge }); }
+    else if (newLevel > oldLevel){ if (!quiet) btMascotSay('Level ' + newLevel + '! 🚀', 'big'); btQueueCele({ type:'level', pid:pid, name:name, pts:after, level:newLevel, badge:newBadge }); }
+    else if (newBadge){ if (!quiet) btMascotSay('Badge unlocked! ' + btBadgeByKey(s, newBadge).icon, 'big'); btQueueCele({ type:'badge', pid:pid, name:name, pts:after, badge:newBadge }); }
+    else if (!quiet){ if (st.count >= 3) btMascotSay(st.count + ' in a row! 🔥', 'cheer'); else btMascotSay(btPick(CHEERS) + ' ' + name, 'cheer'); }
   }
   function btOnLoss(s, pid, name, n, opts){
+    var quiet = opts.silent || opts.batch;
     var d = btCardEl(pid); btStreak[pid] = null;
     if (d){ d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); d.classList.add('dip');
       setTimeout(function (){ d.classList.remove('shake'); }, 440); setTimeout(function (){ d.classList.remove('dip'); }, 650);
-      btFloater(d, n, 'neg'); } else if (opts.anchor){ btFloater(opts.anchor, n, 'neg'); }
-    if (!opts.silent) sfx('loss');
-    if (!opts.silent) btMascotSay('Keep going, ' + name, 'aw');   // badges are permanent
+      if (!opts.silent) btFloater(d, n, 'neg'); } else if (opts.anchor && !opts.silent){ btFloater(opts.anchor, n, 'neg'); }
+    if (!quiet) sfx('loss');
+    if (!quiet) btMascotSay('Keep going, ' + name, 'aw');   // badges are permanent
   }
 
   /* ── Handlers (window) ──────────────────────────────────── */
@@ -370,6 +412,23 @@
       else { card.classList.add('shake'); setTimeout(function (){ card.classList.remove('shake'); }, 440);
         btFloater(card, '−' + s.step + ' each', 'neg'); sfx('loss'); btMascotSay(t.name + ', settle and refocus', 'aw'); }
     }
+  };
+  // Award a whole group from the Points-tab bar: every member's individual card
+  // animates (+N float / confetti / bump / count-up); one shared sound + mascot
+  // line; level/rank pop-ups for everyone who crossed a threshold are batched.
+  window.btAwardGroupBoard = function (tid, sign){
+    var s = btLoad(), t = s.tables.find(function (x){ return x.id === tid; });
+    if (!t || !t.pupilIds.length) return;
+    var n = sign * s.step;
+    t.pupilIds.forEach(function (pid){ award(pid, n, { batch:true, label:'Group: ' + t.name }); });
+    sfx(sign > 0 ? 'gain' : 'loss');
+    btMascotSay(t.name + (sign > 0 ? ' — ' + btPick(['great teamwork!','superb!','well done all!','brilliant!']) : ', settle and refocus'), sign > 0 ? 'cheer' : 'aw');
+    // refresh the bar's totals in place (a full re-render would wipe the card animations)
+    var s2 = btLoad();
+    s2.tables.forEach(function (tt){
+      var el = document.querySelector('#bt-view .bt-groupbtn[data-gid="' + tt.id + '"] .bt-gn');
+      if (el) el.textContent = btTableTotal(s2, tt);
+    });
   };
   window.btResetPoints = function (){
     var s = btLoad();
@@ -401,6 +460,26 @@
         [1,2,5].map(function (n){ return '<button class="step' + (s.step===n?' on':'') + '" onclick="btSetStep(' + n + ')">+' + n + '</button>'; }).join('') +
       '</div></div>' +
       '<div class="ctrl-grp"><span class="ctrl-lab">Reactions</span>' + btReTog('mascot','Mascot') + btReTog('confetti','Confetti') + btReTog('sound','Sound') + '</div>' +
+    '</div>';
+  }
+  // slim per-tap-only strip kept on the Points tab for quick live use
+  function btStepStripHTML(s){
+    return '<div class="ctrls no-print"><div class="ctrl-grp"><span class="ctrl-lab">Per tap</span><div class="steps">' +
+      [1,2,5].map(function (n){ return '<button class="step' + (s.step===n?' on':'') + '" onclick="btSetStep(' + n + ')">+' + n + '</button>'; }).join('') +
+    '</div></div></div>';
+  }
+  // group-award buttons along the top of the Points tab (only when groups exist)
+  function btGroupBarHTML(s){
+    if (!s.tables.length) return '';
+    return '<div class="bt-groupbar no-print"><span class="bt-groupbar-label">Group points</span>' +
+      s.tables.map(function (t, i){
+        var c = btGroupColor(i), total = btTableTotal(s, t);
+        return '<span class="bt-groupbtn" data-gid="' + t.id + '">' +
+          '<button class="bt-gminus" onclick="btAwardGroupBoard(\'' + t.id + '\',-1)" aria-label="Take a point from ' + esc(t.name) + '">−</button>' +
+          '<button class="bt-gadd" style="background:' + c + ';color:#fff" onclick="btAwardGroupBoard(\'' + t.id + '\',1)">' +
+            esc(t.name) + ' +' + s.step + ' <span class="bt-gn">' + total + '</span></button>' +
+        '</span>';
+      }).join('') +
     '</div>';
   }
   function btCfgRowHTML(s){
@@ -458,7 +537,7 @@
   function btSpawn(s){
     s = s || btLoad();
     var sz = btArenaSize(), W = sz.W, H = sz.H;
-    return sortedRoster().map(function (p, i){
+    return btActiveRoster().map(function (p, i){
       var r = BT_R, sp = 1.0 + Math.random(), a = Math.random() * Math.PI * 2;
       return {
         pid: p.id, name: p.name, color: BT_COLORS[i % BT_COLORS.length], r: r,
@@ -602,10 +681,10 @@
     if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; } } }
   function btPaintBot(b){
     if (!b.el) return;
-    if (!b.alive){ btPopEl(b); return; }
+    if (!b.alive){ if (!b._popped){ b._popped = true; sfx('pop'); } btPopEl(b); return; }   // pop sound on elimination
     b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
     b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
-    if (b.hp !== b.lastHp){ b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }
+    if (b.hp !== b.lastHp){ if (b.hp < b.lastHp) sfx('hit'); b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }   // tick on losing a point
     if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
   }
   function btPaint(){
@@ -715,7 +794,7 @@
   /* ── Controls / lifecycle ───────────────────────────────── */
   window.btStartBattle = function (){
     var s = btLoad();
-    if (sortedRoster().length < 2) return;
+    if (btActiveRoster().length < 2) return;
     AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0;
     AR.mode = s.arenaMode === 'boss' ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
@@ -789,7 +868,7 @@
   }
 
   function btPointsTab(s){
-    return btControlsHTML(s) + btCfgRowHTML(s) +
+    return btGroupBarHTML(s) + btStepStripHTML(s) +
       '<div class="grid">' + sortedRoster().map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
 
@@ -828,7 +907,7 @@
           '</div></div>';
       }).join('');
     }
-    return btControlsHTML(s) + create + '<div class="g-grid">' + grid + '</div>';
+    return create + '<div class="g-grid">' + grid + '</div>';
   }
 
   /* ── Leaderboard (podium + list + group standings) ─────── */
@@ -899,6 +978,14 @@
           '<div class="steps">' + [1,2,5].map(function (n){ return '<button class="step' + (s.step===n?' on':'') + '" onclick="btSetStep(' + n + ')">+' + n + '</button>'; }).join('') + '</div></div>' +
         '<div class="set-row"><div><b>Battle winner bonus</b><div class="set-hint">Points the last-standing pupil (or boss survivors) earn.</div></div>' +
           '<input class="num" type="number" min="0" value="' + s.winnerBonus + '" onchange="btSetWinnerBonus(this.value)" /></div>' +
+      '</div>' +
+      '<div class="set-card"><h3 class="set-h">Points range</h3>' +
+        '<div class="cfg-row" style="margin:0;border:0;padding:0;background:none">' +
+          '<div class="cfg-fg"><label>Minimum</label><input type="number" min="0" value="' + btMin(s) + '" onchange="btSetMinPoints(this.value)" /></div>' +
+          '<div class="cfg-fg"><label>Starting</label><input type="number" min="0" value="' + btStart(s) + '" onchange="btSetStartPoints(this.value)" /></div>' +
+          '<div class="cfg-fg"><label>Maximum</label><input type="number" min="0" placeholder="none" value="' + esc(s.maxPoints) + '" onchange="btSetMaxPoints(this.value)" /></div>' +
+        '</div>' +
+        '<p class="set-note" style="margin-top:12px">New pupils begin at <b>Starting</b>; points stay between <b>Minimum</b> and <b>Maximum</b>. Set a <b>Maximum</b> and the ranks &amp; badges rescale to it.</p>' +
       '</div>' +
       '<div class="set-card"><h3 class="set-h">How points work</h3>' +
         '<p class="set-note">Every <b>' + PER_LEVEL + ' points = 1 level</b>. Cross a threshold and the pupil climbs a rank. Set a <b>Maximum</b> on the Points tab and these rescale automatically.</p>' +
