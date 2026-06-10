@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/battler-core.css?v=5" />
+<link rel="stylesheet" href="css/battler-core.css?v=6" />
 <style>
   /* ============================================================
      THE BATTLER — Arcade / Neon smartboard theme
@@ -240,6 +240,7 @@
   <div class="tabs" id="bt-tabs"></div>
   <div id="bt-view"></div>
   <div id="bt-fx"></div>
+  <div id="bt-toast"></div>
   <div id="bt-celebrate"><div class="cele-card" id="bt-celeCard"></div></div>
 </div>
 
@@ -299,10 +300,11 @@
 </script>
 
 <!-- the actual game logic, reused verbatim from the planner -->
-<script src="js/battler.js?v=9"></script>
+<script src="js/battler.js?v=10"></script>
 
 <script>
-  /* first paint */
+  /* first paint — always open the smartboard on the Points tab */
+  try { var _s = Store.get('tp_battler', null); if (_s && typeof _s === 'object' && _s.tab !== 'points'){ _s.tab = 'points'; Store.set('tp_battler', _s); } } catch (e) {}
   if (typeof btRender === 'function') btRender();
 
   /* keep in sync with the planner: any change (another tab via the storage event,

@@ -365,3 +365,52 @@
 
     /* Boss celebration badge variant */
     #bt-celebrate .cele-badge.boss { background:linear-gradient(135deg, var(--gold-50), rgba(239,68,68,.18)); border-color:rgba(239,68,68,.45); font-size:44px; }
+
+    /* ═══ Leaderboard upgrades, award toast, arena winner pop-up, top-toolbar compaction ═══ */
+
+    /* Leaderboard: window toggle + per-pupil placement medals */
+    #page-battler .lb-seg { margin: 4px 0 14px; }
+    #page-battler .lb-sub { color: var(--faint); font-weight: 600; font-size: 12px; }
+    #page-battler .lb-places { display: inline-flex; gap: 6px; margin-left: 8px; vertical-align: middle; }
+    #page-battler .lb-place { display: inline-flex; align-items: center; gap: 1px; font-size: 12px; line-height: 1; }
+    #page-battler .lb-place-n { font-size: 10.5px; font-weight: 800; color: var(--muted); }
+    #page-battler .pod-name + .lb-places { margin: 2px 0 0; }
+
+    /* Per-award toast — slides up from the bottom-centre, stacks, auto-dismisses */
+    #bt-toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 58; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+    .bt-toast { display: inline-flex; align-items: center; gap: 9px; padding: 9px 16px; border-radius: 999px; font-weight: 800; font-size: 15px; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.45); opacity: 0; transform: translateY(28px) scale(.92); transition: opacity .26s, transform .26s cubic-bezier(.3,1.4,.5,1); }
+    .bt-toast.in { opacity: 1; transform: translateY(0) scale(1); }
+    .bt-toast.out { opacity: 0; transform: translateY(-10px) scale(.96); }
+    .bt-toast.gain { background: linear-gradient(180deg, #14b8a6, #0d9488); box-shadow: 0 0 22px rgba(20,184,166,.5), 0 10px 30px rgba(0,0,0,.4); }
+    .bt-toast.loss { background: linear-gradient(180deg, #fb7185, #ef4444); box-shadow: 0 0 22px rgba(239,68,68,.5), 0 10px 30px rgba(0,0,0,.4); }
+    .bt-toast-n { font-size: 17px; font-weight: 800; }
+    .bt-toast-name { font-weight: 700; }
+
+    /* In-arena winner pop-up */
+    #page-battler .bt-arena .bt-winpop { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; background: rgba(8,10,20,.55); cursor: pointer; animation: wpFade .2s ease; }
+    @keyframes wpFade { from { opacity: 0; } to { opacity: 1; } }
+    .bt-winpop .wp-card { background: linear-gradient(180deg, var(--card-2, #161827), var(--card, #11131f)); border: 1px solid var(--gold-100, rgba(253,224,71,.28)); border-radius: 22px; padding: 22px 34px 26px; text-align: center; min-width: 320px; max-width: 460px; box-shadow: 0 0 60px rgba(253,224,71,.25), 0 30px 80px rgba(0,0,0,.6); animation: wpPop .5s cubic-bezier(.3,1.5,.4,1); }
+    .bt-winpop .wp-card.lose { border-color: var(--coral-100, rgba(244,63,94,.32)); box-shadow: 0 0 50px rgba(239,68,68,.25), 0 30px 80px rgba(0,0,0,.6); }
+    @keyframes wpPop { 0% { transform: scale(.6) translateY(24px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+    .bt-winpop .wp-crown { font-size: 44px; animation: wpBob 1.4s ease-in-out infinite; }
+    @keyframes wpBob { 50% { transform: translateY(-6px) rotate(-4deg); } }
+    .bt-winpop .wp-title { font-size: 26px; font-weight: 800; color: #fff; margin: 4px 0 2px; }
+    .bt-winpop .wp-sub { color: var(--muted, #9aa6d6); font-size: 14px; font-weight: 600; }
+    .bt-winpop .wp-list { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 6px; }
+    .bt-winpop .wp-row { display: flex; align-items: center; gap: 11px; padding: 7px 12px; border-radius: 13px; background: rgba(255,255,255,.05); }
+    .bt-winpop .wp-row.wp-1 { background: rgba(253,224,71,.16); }
+    .bt-winpop .wp-medal { font-size: 20px; width: 26px; flex: 0 0 auto; }
+    .bt-winpop .wp-av { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; flex: 0 0 auto; }
+    .bt-winpop .wp-name { flex: 1; text-align: left; font-weight: 800; font-size: 16px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bt-winpop .wp-pts { font-weight: 800; font-size: 15px; color: var(--gold-500, #facc15); }
+    .bt-winpop .wp-tap { margin-top: 12px; font-size: 12px; color: var(--faint, #6e79a8); font-weight: 600; }
+
+    /* ── Top-toolbar compaction: slimmer tabs, charge bar, and one combined controls row ── */
+    #page-battler .tabs { margin: 10px 0 12px; padding: 4px; }
+    #page-battler .tab { padding: 9px 18px; font-size: 14.5px; }
+    #page-battler .bt-charge { padding: 8px 12px; margin-bottom: 10px; }
+    #page-battler .bt-charge-top { margin-bottom: 5px; }
+    #page-battler .bt-charge-track { height: 9px; }
+    #page-battler .bt-controls-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+    #page-battler .bt-controls-row .ctrls { margin: 0; padding: 7px 11px; flex: 0 0 auto; }
+    #page-battler .bt-controls-row .bt-groupbar { margin: 0; padding: 7px 11px; flex: 1 1 auto; }
