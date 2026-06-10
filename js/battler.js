@@ -18,8 +18,8 @@
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
-             bossUnlocked:false, lbWindow:'all',
-             points:{}, badges:{}, tables:[], placements:{}, daily:{}, boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
+             bossUnlocked:false, lbWindow:'all', boardView:'classic',
+             points:{}, badges:{}, tables:[], placements:{}, daily:{}, recent:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
   var BT_COLORS = ['#3b82f6','#06b6d4','#14b8a6','#10b981','#0ea5e9','#6366f1','#22d3ee','#2563eb','#0d9488','#84cc16','#38bdf8','#4f46e5'];
@@ -37,7 +37,20 @@
     if (!s.placements || typeof s.placements !== 'object') s.placements = {};
     if (!s.daily || typeof s.daily !== 'object') s.daily = {};
     if (['all','month','week'].indexOf(s.lbWindow) < 0) s.lbWindow = 'all';
+    if (!Array.isArray(s.recent)) s.recent = [];
+    if (BT_BOARD_VIEWS.indexOf(s.boardView) < 0) s.boardView = 'classic';
     return s;
+  }
+  // Smartboard display views (Settings → Smartboard view). 'classic' = the card grid.
+  var BT_BOARD_VIEWS = ['classic','spotlight','split','scoreboard','lanes','constellation','glowcity'];
+  var BT_BOARD_LABELS = { classic:'Classic', spotlight:'Spotlight Stage', split:'Split Stage', scoreboard:'Scoreboard Wall', lanes:'Rank Lanes', constellation:'Constellation', glowcity:'Glow City' };
+  // Neon rank palette for the dark smartboard (RANK_TEMPLATE's light colours stay for the planner).
+  var BT_NEON = { rookie:'#8fa0cc', rising:'#5eead4', champ:'#fb7185', hero:'#fde047', legend:'#c084fc' };
+  // recent point-getters feed (newest first, capped) — powers the Spotlight view + ticker
+  function btPushRecent(s, pid, n){
+    if (!Array.isArray(s.recent)) s.recent = [];
+    s.recent.unshift({ pid: pid, n: n, ts: Date.now() });
+    if (s.recent.length > 20) s.recent.length = 20;
   }
   /* ── Daily net-points aggregates (for week/month leaderboard sorting) ── */
   function btDayKey(){ return (typeof todayISO === 'function') ? todayISO() : new Date().toISOString().slice(0,10); }
@@ -154,6 +167,15 @@
   function btHash(str){ var h = 0; str = String(str); for (var i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0; return h; }
   function btAvColor(pid){ return BT_AV_COLORS[btHash(pid) % BT_AV_COLORS.length]; }
   function btGroupColor(i){ return BT_GROUP_COLORS[i % BT_GROUP_COLORS.length]; }
+  // Smartboard rank with the neon palette (label/min from the live ranks, colour from BT_NEON).
+  function btNeonOf(s, pts){ var r = btRankFor(s, pts); return { key:r.key, label:r.label, min:r.min, color:(BT_NEON[r.key] || r.color) }; }
+  // Avatar disc colour: the pupil's group/table colour when they're in one, else their hashed colour.
+  function btPupColor(s, pid){
+    if (s && Array.isArray(s.tables)){
+      for (var i = 0; i < s.tables.length; i++) if (s.tables[i].pupilIds.indexOf(pid) >= 0) return btGroupColor(i);
+    }
+    return btAvColor(pid);
+  }
   function btPick(a){ return a[Math.floor(Math.random()*a.length)]; }
   function btClassTotal(s){ return sortedRoster().reduce(function (a,p){ return a + btPts(s, p.id); }, 0); }
   // pupils who take part in battles / aren't greyed out — everyone except those marked absent on the Class List
@@ -445,6 +467,7 @@
     if (after === before){ if (n < 0 && !opts.silent) btMascotSay("That's the floor!", 'aw'); return; }
     n = after - before; s.points[pid] = after;
     if (!opts.remote) btLogDaily(s, pid, n);   // per-day net for week/month leaderboard windows (not on the replay path)
+    if (!opts.silent && n > 0) btPushRecent(s, pid, n);   // recent point-getters feed (Spotlight view + ticker)
     var oldLevel = btLevelOf(s, before), newLevel = btLevelOf(s, after);
     var oldRank = btRankFor(s, before).key, newRank = btRankFor(s, after).key;
     var name = pupilName(pid);
@@ -463,8 +486,19 @@
     btCheckBossUnlock(s, !opts.silent && !opts.batch);   // crossing the target unlocks the boss (with a fanfare)
     btSave(s);
     btUpdateBossCharge(s);
+    btScheduleBoardRefresh();   // display views (non-classic) repaint from the new totals/order
   }
   window.btAward = award;
+  // Coalesced re-render for the smartboard display views (classic uses in-place card paints).
+  var btBoardRefreshT = null;
+  function btScheduleBoardRefresh(){
+    if (btBoardRefreshT) return;
+    btBoardRefreshT = setTimeout(function (){
+      btBoardRefreshT = null;
+      var s = btLoad();
+      if (!AR.running && s.tab === 'points' && s.boardView && s.boardView !== 'classic') btRender();
+    }, 90);
+  }
   function btOnGain(s, pid, name, n, oldLevel, newLevel, oldRank, newRank, before, after, opts){
     // "batch" (whole-group award): keep the per-card visuals (float/confetti/bump)
     // but mute the per-pupil sound + mascot — the caller plays one of each, and the
@@ -506,6 +540,7 @@
   /* ── Handlers (window) ──────────────────────────────────── */
   window.btSetTab   = function (t){ var s = btLoad(); s.tab = t; btSave(s); btRender(); };
   window.btSetStep  = function (n){ var s = btLoad(); s.step = n; btSave(s); btRender(); };
+  window.btSetBoardView = function (v){ var s = btLoad(); s.boardView = (BT_BOARD_VIEWS.indexOf(v) >= 0) ? v : 'classic'; btSave(s); btRender(); };
   window.btSetMinPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.minPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
   window.btSetStartPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.startPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
   window.btSetMaxPoints = function (v){ var s = btLoad(); if (v === '' || v == null){ s.maxPoints = ''; } else { var n = parseInt(v,10); s.maxPoints = (n >= 0 ? n : ''); } btApplyConfig(s); btSave(s); btRender(); };
@@ -1319,10 +1354,247 @@
   }
 
   function btPointsTab(s){
+    if (s.boardView && s.boardView !== 'classic'){
+      return '<div class="gg-fit"><div class="gg-stage" id="gg-stage">' + btBoardView(s) + '</div></div>';
+    }
     return btBossChargeHTML(s) +
       '<div class="bt-controls-row no-print">' + btStepStripHTML(s) + btGroupBarHTML(s) + '</div>' +
       '<div class="grid">' + sortedRoster().map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
+
+  /* ════════════════════════════════════════════════════════════
+     SMARTBOARD DISPLAY VIEWS — six alternative Points-tab layouts.
+     Each returns markup for a fixed 1920×1080 stage (btFitStage
+     scales it to #bt-view). Awards/toasts/celebrations are unchanged.
+     ════════════════════════════════════════════════════════════ */
+  function btBoardView(s){
+    switch (s.boardView){
+      case 'spotlight':     return btViewSpotlight(s);
+      case 'split':         return btViewSplit(s);
+      case 'scoreboard':    return btViewScoreboard(s);
+      case 'lanes':         return btViewLanes(s);
+      case 'constellation': return btViewConstellation(s);
+      case 'glowcity':      return btViewGlowCity(s);
+      default:              return btViewSpotlight(s);
+    }
+  }
+  /* ── shared view bits ── */
+  function ggBrand(){
+    var sub = '';
+    try { var p = Store.get('tp_profile', null); if (p){ sub = [p.yearGroup, p.room].filter(Boolean).join(' · '); } } catch (e) {}
+    return '<div class="gg-brand"><span class="bolt">⚡</span><span>GLOW GETTERS' +
+      (sub ? '<br><small>' + esc(sub) + '</small>' : '') + '</span></div>';
+  }
+  function ggMascot(size, mood, live){
+    return '<div class="gg-mascot ' + (mood || 'cheer') + (live ? ' live' : '') + '" style="--ms:' + size + 'px">' +
+      '<div class="gm-body"></div><div class="gm-cheek l"></div><div class="gm-cheek r"></div>' +
+      '<div class="gm-eye l"></div><div class="gm-eye r"></div><div class="gm-mouth"></div><div class="gm-spark">✨</div></div>';
+  }
+  function ggBubble(html, big, point){ return '<div class="gg-bubble pt-' + (point || 'left') + (big ? ' big' : '') + '">' + html + '</div>'; }
+  function ggAv(s, pid, size){
+    return '<span class="gg-av" style="width:' + size + 'px;height:' + size + 'px;font-size:' + Math.round(size*0.36) + 'px;background:' + btPupColor(s, pid) + '">' + esc(initials(pupilName(pid))) + '</span>';
+  }
+  function ggTotal(s, big){
+    return '<div class="gg-total"><div class="n" style="font-size:' + (big ? 96 : 58) + 'px">' + btClassTotal(s) + '</div>' +
+      '<div class="l" style="font-size:' + (big ? 15 : 12) + 'px">Class points · boss at ' + btBossTarget(s) + '</div></div>';
+  }
+  function ggChargePct(s){ return Math.min(100, Math.round(btBossPct(s) * 100)); }
+  function ggMascotLine(s){
+    var r = s.recent && s.recent[0];
+    if (!r) return 'Let\'s earn some points! ✨';
+    return CHEERS[Math.abs(r.ts) % CHEERS.length] + ' <span class="hl">' + esc(pupilName(r.pid)) + '</span> ✨';
+  }
+  function ggAgo(ts){
+    var d = Date.now() - ts; if (d < 45000) return 'just now';
+    var m = Math.round(d / 60000); if (m < 60) return m + ' min ago';
+    var h = Math.round(d / 3600000); if (h < 24) return h + 'h ago'; return Math.round(h / 24) + 'd ago';
+  }
+  // pupil rows with neon rank, sorted A–Z
+  function ggRoster(s){
+    return sortedRoster().map(function (p){
+      var pts = btPts(s, p.id);
+      return { p:p, pts:pts, rk:btNeonOf(s, pts), nr:btNextRank(s, pts) };
+    });
+  }
+
+  /* ── F · Spotlight Stage ── */
+  function btViewSpotlight(s){
+    var rows = ggRoster(s);
+    // 3 most recent DISTINCT pupils
+    var seen = {}, spots = [];
+    (s.recent || []).forEach(function (r){ if (!seen[r.pid]){ seen[r.pid] = 1; spots.push(r); } });
+    spots = spots.slice(0, 3);
+    var spotsHTML = spots.length ? spots.map(function (r, i){
+      var pts = btPts(s, r.pid), rk = btNeonOf(s, pts), nr = btNextRank(s, pts);
+      return '<div class="bf-spot gg-tap' + (i === 0 ? ' hero' : '') + '" data-gg-pid="' + r.pid + '" style="--rc:' + rk.color + '">' +
+        '<span class="plus">+' + r.n + '</span><span class="ago">' + ggAgo(r.ts) + '</span>' +
+        ggAv(s, r.pid, 96) +
+        '<div class="nm">' + esc(pupilName(r.pid)) + '</div>' +
+        '<div class="pt">' + pts + '<span style="font-size:18px;color:var(--faint)"> pts</span></div>' +
+        '<div class="rk">' + rk.label + '</div>' +
+        '<div class="nx">' + (nr ? (nr.min - pts) + ' to ' + nr.label : '★ Top rank!') + '</div></div>';
+    }).join('') : '<div class="bf-empty">Award a point and the spotlight lights up ✨</div>';
+    var tick = (s.recent || []).slice(0, 7).map(function (r){
+      return '<b>' + esc(pupilName(r.pid)) + '</b> +' + r.n;
+    }).join('<span class="sep">·</span>');
+    var pills = rows.map(function (r){
+      return '<span class="bf-pill gg-tap' + (r.p.absent ? ' absent' : '') + '" data-gg-pid="' + r.p.id + '" style="--rc:' + r.rk.color + '">' +
+        ggAv(s, r.p.id, 28) + esc(r.p.name) + '<span class="pt">' + r.pts + '</span></span>';
+    }).join('');
+    return '<div class="bf-top">' + ggBrand() + '<div class="bb-total">' +
+        '<div class="n">' + btClassTotal(s) + '</div><div class="l">Class points · boss at ' + btBossTarget(s) + '</div></div></div>' +
+      '<div class="bf-main"><div class="bf-stage">' + ggBubble(ggMascotLine(s), true, 'bottom').replace('gg-bubble', 'gg-bubble gg-live-bubble') + ggMascot(250, 'cheer', true) + '</div>' +
+        '<div><div class="bf-kick">In the spotlight</div><div class="bf-spots">' + spotsHTML + '</div></div></div>' +
+      '<div class="bf-ticker"><b>Recent</b><span class="sep">·</span>' + (tick || 'no awards yet') + '</div>' +
+      '<div class="bf-strip"><div class="lab">Everyone</div><div class="bf-pills">' + pills + '</div></div>';
+  }
+
+  /* ── A · Split Stage ── */
+  function btViewSplit(s){
+    var rows = ggRoster(s);
+    var cols = rows.length > 30 ? 6 : 5;
+    var tables = s.tables.length ? '<div class="ba-tables">' + s.tables.slice(0, 6).map(function (t, i){
+      var c = btGroupColor(i);
+      return '<div class="tt"><b style="color:' + c + ';text-shadow:0 0 12px ' + c + '66">' + btTableTotal(s, t) + '</b>' +
+        '<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">' + esc(t.name) + '</span></div>';
+    }).join('') + '</div>' : '';
+    var tiles = rows.map(function (r){
+      var span = (r.nr ? r.nr.min : r.pts) - r.rk.min, prog = r.nr ? Math.min(1, (r.pts - r.rk.min) / Math.max(1, span)) : 1;
+      return '<div class="ba-tile gg-tap' + (r.p.absent ? ' absent' : '') + '" data-gg-pid="' + r.p.id + '">' +
+        ggAv(s, r.p.id, 46) +
+        '<div class="meta"><div class="nm">' + esc(r.p.name) + '</div>' +
+        '<div class="pt" style="color:' + r.rk.color + ';text-shadow:0 0 14px ' + r.rk.color + '88">' + r.pts + '<span style="font-size:14px;color:var(--faint)"> pts</span></div></div>' +
+        '<div class="prog"><i style="width:' + (prog*100) + '%;background:' + r.rk.color + ';box-shadow:0 0 8px ' + r.rk.color + '"></i></div></div>';
+    }).join('');
+    return '<div class="ba-wrap"><div class="ba-stage">' + ggBrand() +
+        ggBubble(ggMascotLine(s), true, 'bottom').replace('gg-bubble', 'gg-bubble gg-live-bubble') + ggMascot(190, 'cheer', true) +
+        '<div class="ba-total"><div class="n">' + btClassTotal(s) + '</div><div class="l">Class points</div></div>' +
+        '<div class="ba-boss"><div class="lab"><span>Boss charge</span><span>' + btClassTotal(s) + ' / ' + btBossTarget(s) + '</span></div>' +
+          '<div class="bar"><div class="fill" style="width:' + ggChargePct(s) + '%"></div></div></div>' +
+        tables + '</div>' +
+      '<div class="ba-roster"><div class="ba-kick">Everyone · sorted A–Z</div>' +
+        '<div class="ba-grid" style="grid-template-columns:repeat(' + cols + ',1fr)">' + tiles + '</div></div></div>';
+  }
+
+  /* ── B · Scoreboard Wall ── */
+  function btViewScoreboard(s){
+    var ranked = ggRoster(s).sort(function (a, b){ return b.pts - a.pts || a.p.name.localeCompare(b.p.name); });
+    var nCols = ranked.length > 30 ? 3 : 2, per = Math.ceil(ranked.length / nCols), colsHTML = '';
+    for (var ci = 0; ci < nCols; ci++){
+      var col = ranked.slice(ci * per, (ci + 1) * per);
+      colsHTML += '<div>' + col.map(function (r, i){
+        var pos = ci * per + i + 1, posS = (pos < 10 ? '0' : '') + pos;
+        return '<div class="bb-row gg-tap' + (r.p.absent ? ' absent' : '') + '" data-gg-pid="' + r.p.id + '">' +
+          '<span class="bb-pos">' + posS + '</span>' + ggAv(s, r.p.id, 38) +
+          '<span class="nm">' + esc(r.p.name) + (r.p.absent ? ' · absent' : '') + '</span>' +
+          '<span class="bb-rk" style="color:' + r.rk.color + ';border-color:' + r.rk.color + '55;background:' + r.rk.color + '14">' + r.rk.label + '</span>' +
+          '<span class="bb-pts" style="color:' + r.rk.color + ';text-shadow:0 0 12px ' + r.rk.color + '77">' + r.pts + '<span style="font-size:15px;color:var(--faint)"> pts</span></span></div>';
+      }).join('') + '</div>';
+    }
+    return '<div class="bb-head">' + ggBrand() + ggMascot(86, 'cheer', true) +
+        ggBubble(ggMascotLine(s), false, 'left').replace('gg-bubble', 'gg-bubble gg-live-bubble') +
+        '<div class="bb-total"><div class="n">' + btClassTotal(s) + '</div><div class="l">Class points · boss at ' + btBossTarget(s) + '</div></div></div>' +
+      '<div class="bb-charge"><i style="width:' + ggChargePct(s) + '%"></i></div>' +
+      '<div class="bb-cols' + (nCols === 3 ? ' three' : '') + '">' + colsHTML + '</div>';
+  }
+
+  /* ── C · Rank Lanes ── */
+  function btViewLanes(s){
+    var ranks = btRanks(s).map(function (r){ return { key:r.key, label:r.label, min:r.min, color:(BT_NEON[r.key] || r.color) }; });
+    var rows = ggRoster(s);
+    var FIELD_W = 1640 - 210, CHIP_W = 158;
+    function place(members, ri){
+      var rank = ranks[ri], next = ranks[ri + 1], span = next ? next.min - rank.min : 25;
+      var nRows = members.length > 8 ? 3 : (members.length > 3 ? 2 : 1);
+      var tops = nRows === 3 ? [14, 64, 114] : nRows === 2 ? [26, 88] : [58];
+      var lastX = tops.map(function (){ return -Infinity; });
+      return members.sort(function (a, b){ return a.pts - b.pts; }).map(function (m, i){
+        var prog = Math.min(1, (m.pts - rank.min) / Math.max(1, span)), row = i % nRows;
+        var target = 36 + prog * (FIELD_W - CHIP_W - 70), x = Math.max(target, lastX[row] + CHIP_W + 8);
+        lastX[row] = x; return { m:m, x:x, top:tops[row] };
+      });
+    }
+    var lanesHTML = '';
+    for (var li = ranks.length - 1; li >= 0; li--){
+      var rank = ranks[li];
+      var members = rows.filter(function (r){ return r.rk.key === rank.key; });
+      var placed = place(members, li);
+      lanesHTML += '<div class="bc-lane" style="--lc:' + rank.color + '">' +
+        '<div class="bc-lab"><b>' + rank.label + '</b><span>' + rank.min + '+ pts · ' + members.length + ' ' + (members.length === 1 ? 'pupil' : 'pupils') + '</span></div>' +
+        '<div class="bc-field">' + placed.map(function (x){
+          return '<div class="bc-chip gg-tap' + (x.m.p.absent ? ' absent' : '') + '" data-gg-pid="' + x.m.p.id + '" style="left:' + x.x + 'px;top:' + x.top + 'px">' +
+            ggAv(s, x.m.p.id, 46) + '<div class="meta"><div class="nm">' + esc(x.m.p.name) + '</div><div class="pt">' + x.m.pts + ' pts</div></div></div>';
+        }).join('') + '</div></div>';
+    }
+    return '<div class="bc-head">' + ggBrand() +
+        '<div style="margin-left:auto;display:flex;align-items:center;gap:22px">' +
+          ggBubble('Climb the lanes! 🚀', false, 'right') + ggMascot(84, 'cheer', true) +
+          '<div class="bb-total" style="margin-left:10px"><div class="n" style="font-size:48px">' + btClassTotal(s) + '</div><div class="l">Class points</div></div></div></div>' +
+      '<div class="bc-lanes">' + lanesHTML + '</div>';
+  }
+
+  /* ── D · Constellation ── */
+  function btViewConstellation(s){
+    var CX = 960, CY = Math.round(1080 * 0.54), SQUASH = 0.6;
+    var ranks = btRanks(s).map(function (r){ return { key:r.key, label:r.label, min:r.min, color:(BT_NEON[r.key] || r.color) }; });
+    // legend innermost → rookie outermost
+    var RINGS = [{ r:ranks[4], rx:200 }, { r:ranks[3], rx:305 }, { r:ranks[2], rx:425 }, { r:ranks[1], rx:560 }, { r:ranks[0], rx:700 }];
+    var rows = ggRoster(s);
+    var ringsHTML = RINGS.map(function (R){
+      return '<div class="bd-ring" style="--rc:' + R.r.color + ';width:' + (R.rx*2) + 'px;height:' + (R.rx*2*SQUASH) + 'px"></div>';
+    }).join('');
+    var keyHTML = '<div class="bd-key">' + ranks.slice().reverse().map(function (r){
+      return '<div class="k" style="--kc:' + r.color + '"><i></i>' + r.label + ' · ' + r.min + '+</div>';
+    }).join('') + '</div>';
+    var soloAngle = { legend:-24, hero:204 };
+    var starsHTML = '';
+    RINGS.forEach(function (R, ri){
+      var members = rows.filter(function (x){ return x.rk.key === R.r.key; }).sort(function (a, b){ return a.p.name.localeCompare(b.p.name); });
+      var step = 360 / Math.max(1, members.length);
+      members.forEach(function (m, i){
+        var deg = (members.length === 1 && soloAngle[R.r.key] !== undefined) ? soloAngle[R.r.key] : (-90 + step/2 + ri*8 + i*step);
+        var a = deg * Math.PI / 180, x = CX + Math.cos(a) * R.rx, y = CY + Math.sin(a) * R.rx * SQUASH;
+        starsHTML += '<div class="bd-star gg-tap' + (m.p.absent ? ' absent' : '') + '" data-gg-pid="' + m.p.id + '" style="--rc:' + m.rk.color + ';left:' + x + 'px;top:' + y + 'px">' +
+          '<div class="dot"></div><div class="nm">' + esc(m.p.name) + '</div><div class="pt">' + m.pts + ' pts</div></div>';
+      });
+    });
+    return '<div style="position:absolute;left:48px;top:36px;z-index:3">' + ggBrand() + '</div>' +
+      ringsHTML + keyHTML + starsHTML +
+      '<div class="bd-center">' + ggBubble(ggMascotLine(s), true, 'bottom').replace('gg-bubble', 'gg-bubble gg-live-bubble') +
+        ggMascot(150, 'cheer', true) + '<div class="tot">' + btClassTotal(s) + '</div><div class="totl">Class points</div></div>';
+  }
+
+  /* ── E · Glow City ── */
+  function btViewGlowCity(s){
+    var rows = ggRoster(s), N = rows.length;
+    var X0 = 86, PITCH = N > 1 ? (1920 - 2*X0 - 44) / (N - 1) : 0;
+    var maxPts = rows.reduce(function (a, r){ return Math.max(a, r.pts); }, 0);
+    var factor = (64 + maxPts * 7 > 720 && maxPts > 0) ? (720 - 64) / maxPts : 7;   // keep the tallest tower on-screen
+    var towers = rows.map(function (r, i){
+      var h = 64 + r.pts * factor, left = N > 1 ? (X0 + i * PITCH) : (1920/2 - 22);
+      return '<div class="be-tower gg-tap' + (r.p.absent ? ' absent' : '') + '" data-gg-pid="' + r.p.id + '" style="--rc:' + r.rk.color + ';left:' + left + 'px;width:44px">' +
+        '<div class="pt">' + r.pts + '</div><div class="col" style="height:' + h + 'px"></div>' +
+        '<div class="nm" style="margin-top:' + (i % 2 ? 32 : 8) + 'px">' + esc(r.p.name) + '</div></div>';
+    }).join('');
+    return '<div class="be-sky">' +
+        '<div style="position:absolute;left:64px;top:44px">' + ggBrand() + '</div>' +
+        '<div class="be-moon" style="left:480px;top:52px">' + ggMascot(104, 'cheer', true) +
+          ggBubble(ggMascotLine(s), false, 'left').replace('gg-bubble', 'gg-bubble gg-live-bubble') + '</div>' +
+        '<div class="be-charge"><div class="lab"><span>Boss charge · ' + btClassTotal(s) + ' class points</span><span>target ' + btBossTarget(s) + '</span></div>' +
+          '<div class="bar"><i style="width:' + ggChargePct(s) + '%"></i></div></div>' +
+        towers + '<div class="be-ground"></div></div>';
+  }
+
+  // Scale the fixed 1920×1080 stage to the available width (called after every render + on resize).
+  function btFitStage(){
+    var fit = document.querySelector('#bt-view .gg-fit'), stage = document.getElementById('gg-stage');
+    if (!fit || !stage) return;
+    var w = fit.clientWidth; if (!w) return;
+    var scale = w / 1920;
+    stage.style.transform = 'scale(' + scale + ')';
+    fit.style.height = Math.round(1080 * scale) + 'px';
+  }
+  window.addEventListener('resize', btFitStage);
 
   /* ── Groups tab (award a whole group in one tap) ───────── */
   function btTablesTab(s){
@@ -1425,7 +1697,14 @@
       var req = b.streakOnly ? '3 awards in a row' : (b.min + (b.min === 1 ? ' point' : ' points'));
       return '<div class="leg-row"><span class="leg-badge">' + b.icon + '</span><span class="leg-name">' + b.name + '</span><span class="leg-req">' + req + '</span></div>';
     }).join('');
+    var viewChooser = '<div class="bv-seg">' + BT_BOARD_VIEWS.map(function (v){
+      return '<button class="' + (s.boardView === v ? 'on' : '') + '" onclick="btSetBoardView(\'' + v + '\')">' + BT_BOARD_LABELS[v] + '</button>';
+    }).join('') + '</div>';
     return '<div class="set-grid">' +
+      '<div class="set-card"><h3 class="set-h">Smartboard view</h3>' +
+        '<p class="set-note">How the Points board is laid out on the smartboard. Awards, sounds and celebrations work the same in every view.</p>' +
+        viewChooser +
+      '</div>' +
       '<div class="set-card"><h3 class="set-h">Reactions</h3>' +
         tog('sound','Sound effects','Game-like chimes when points change.') +
         tog('mascot','Mascot','Sparky cheers (and sympathises) at the top of the board.') +
@@ -1471,7 +1750,9 @@
       }).join('');
     }
     var board = document.getElementById('bt-board');
-    var showBoard = !AR.running && (s.tab === 'points' || s.tab === 'tables' || s.tab === 'leaderboard');
+    // display views draw their own header/mascot/total, so hide the persistent board for them
+    var classicPoints = s.tab === 'points' && (!s.boardView || s.boardView === 'classic');
+    var showBoard = !AR.running && (classicPoints || s.tab === 'tables' || s.tab === 'leaderboard');
     if (board) board.style.display = showBoard ? 'flex' : 'none';
     if (!roster.length){ view.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first — they become your battlers.</p></div>'; return; }
     btEnsureBadges(s);
@@ -1482,10 +1763,33 @@
              : btBattleTab(s);
     if (showBoard) btUpdateClassTotal(s, true);
     btUpdateBossCharge(s);   // keep the charge bar + board "Boss ready" badge in sync
+    if (s.tab === 'points' && s.boardView && s.boardView !== 'classic') btFitStage();   // scale the display-view stage to fit
   }
 
   /* bind the celebration overlay click-to-dismiss once */
   (function (){ var o = document.getElementById('bt-celebrate'); if (o) o.addEventListener('click', btCloseCele); })();
+
+  /* tap-to-award on the smartboard display views: tap = +step, long-press (600ms) = −step.
+     Delegated on #bt-view (rebuilt each render); elements carry data-gg-pid. */
+  (function (){
+    var view = document.getElementById('bt-view'); if (!view) return;
+    var lpTimer = null, lpFired = false, lpPid = null;
+    function clear(){ if (lpTimer){ clearTimeout(lpTimer); lpTimer = null; } }
+    view.addEventListener('pointerdown', function (e){
+      var el = e.target.closest ? e.target.closest('[data-gg-pid]') : null; if (!el) return;
+      lpPid = el.getAttribute('data-gg-pid'); lpFired = false;
+      lpTimer = setTimeout(function (){ lpFired = true; clear(); award(lpPid, -btLoad().step); }, 600);
+    });
+    view.addEventListener('pointerup', function (e){
+      clear();
+      if (lpFired){ lpFired = false; return; }
+      var el = e.target.closest ? e.target.closest('[data-gg-pid]') : null;
+      if (!el || el.getAttribute('data-gg-pid') !== lpPid) return;
+      award(lpPid, btLoad().step);
+    });
+    view.addEventListener('pointercancel', clear);
+    view.addEventListener('pointerleave', clear);
+  })();
 
   window.btRender = btRender;
 
