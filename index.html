@@ -973,7 +973,7 @@
       <section class="page" id="page-class-context">
         <div class="page-header">
           <h1>Class Context</h1>
-          <p>SEND status, Pupil Premium, links to OneDrive SEND/EHCP plans, and key context per pupil.</p>
+          <p>SEND status, Pupil Premium, allergies, medical needs, links to OneDrive SEND/EHCP plans, and key context per pupil.</p>
         </div>
         <div class="card no-print">
           <div class="row">
@@ -1229,19 +1229,19 @@ function rosAdd(){
   const inp = document.getElementById('rosNew');
   const name = inp.value.trim();
   if (!name) return;
-  roster.push({ id: uid(), name, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '' });
+  roster.push({ id: uid(), name, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '', allergies: false, allergyNotes: '', medical: false, medicalNotes: '' });
   inp.value = '';
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosBulkAdd(){
   const lines = document.getElementById('rosBulk').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  lines.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'' }));
+  lines.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
   document.getElementById('rosBulk').value = '';
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosSeed(){
   if (roster.length && !confirm('Add the 29 sample pupils to your current list?')) return;
-  SAMPLE_NAMES.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'' }));
+  SAMPLE_NAMES.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosDelete(id){
@@ -1548,6 +1548,8 @@ function ctxRender(){
     if (p.send==='SEN Support') pills.push('<span class="pill send">SEND</span>');
     if (p.send==='EHCP') pills.push('<span class="pill ehcp">EHCP</span>');
     if (p.pp) pills.push('<span class="pill pp">PP</span>');
+    if (p.allergies) pills.push('<span class="pill" style="background:#ffedd5;color:#9a3412">⚠ Allergy</span>');
+    if (p.medical) pills.push('<span class="pill" style="background:#e0f2fe;color:#075985">✚ Medical</span>');
     return `<div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <h3 style="margin:0">${esc(p.name)} ${pills.join(' ')}</h3>
@@ -1568,6 +1570,22 @@ function ctxRender(){
         </div>
         ${p.ehcpLink ? `<div style="align-self:flex-end"><a href="${esc(p.ehcpLink)}" target="_blank"><button class="ghost">Open plan ↗</button></a></div>` : ''}
       </div>
+      <div class="row">
+        <div><label>Allergies</label>
+          <select onchange="rosEdit('${p.id}','allergies',this.value==='yes');ctxRender()" style="width:90px">
+            ${opt('no','No',p.allergies?'yes':'no')}${opt('yes','Yes',p.allergies?'yes':'no')}
+          </select>
+        </div>
+        <div><label>Medical needs</label>
+          <select onchange="rosEdit('${p.id}','medical',this.value==='yes');ctxRender()" style="width:90px">
+            ${opt('no','No',p.medical?'yes':'no')}${opt('yes','Yes',p.medical?'yes':'no')}
+          </select>
+        </div>
+      </div>
+      ${p.allergies ? `<label>Allergy details</label>
+      <textarea onchange="rosEdit('${p.id}','allergyNotes',this.value)" placeholder="Allergens, severity, EpiPen / medication location, signs of a reaction...">${esc(p.allergyNotes||'')}</textarea>` : ''}
+      ${p.medical ? `<label>Medical notes</label>
+      <textarea onchange="rosEdit('${p.id}','medicalNotes',this.value)" placeholder="Conditions, medication & dosage, care plan, what to watch for...">${esc(p.medicalNotes||'')}</textarea>` : ''}
       <label>Context &amp; needs</label>
       <textarea onchange="rosEdit('${p.id}','notes',this.value)" placeholder="Key context, strategies that work, medical, EAL, interventions...">${esc(p.notes||'')}</textarea>
       <label>Behaviour notes</label>
