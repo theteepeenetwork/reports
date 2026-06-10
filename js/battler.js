@@ -552,6 +552,12 @@
     s.bossUnlocked = false;   // re-lock the boss; class total drops back below the target
     btSave(s); btRender();
   };
+  window.btResetLeaderboard = function (){
+    var s = btLoad();
+    if (!confirm('Reset the leaderboard? This clears placement medals and the week/month history. Points are kept.')) return;
+    s.placements = {}; s.daily = {};
+    btSave(s); btRender();
+  };
   window.btAddTable = function (){
     var inp = document.getElementById('btTableName'), name = (inp.value || '').trim();
     if (!name) return;
@@ -617,7 +623,16 @@
      core. The boss's limb-arms knock points off pupils. */
   var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
   var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_SHRINK = 0.04;
-  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0 };
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0 };
+  // Derive per-axis insets from the single shrink-progress scalar so the WIDER axis
+  // shaves down first (to a square), then both axes shrink together — keeping the zone
+  // square instead of degenerating into a long thin rectangle on wide screens.
+  function btInsets(W, H){
+    var p = AR.inset;
+    var dW = Math.max(0, (W - H) / 2);   // landscape: width shaves this much before square
+    var dH = Math.max(0, (H - W) / 2);   // portrait: height shaves first
+    return { x: Math.max(0, p - dH), y: Math.max(0, p - dW) };
+  }
 
   function btSpeedClamp(b){
     var sp = Math.hypot(b.vx, b.vy) || 0.0001;
@@ -743,10 +758,10 @@
       spin:(Math.random()<0.5?-1:1)*(0.05+Math.random()*0.03), reach:46, cd:0, alive:true,
       el:null, ball:null, arm:null, lastHp:-1, justHit:0, _popped:false });
   }
-  function btBossTickMinis(boss, bots, W, H, now, inset){
+  function btBossTickMinis(boss, bots, W, H, now, insetX, insetY){
     var minis = boss.minis, i, k;
     for (i = 0; i < minis.length; i++){ var M = minis[i]; if (!M.alive) continue;
-      M.x += M.vx; M.y += M.vy; M.ang += M.spin; btAccSpin(M, 'spin'); btWalls(M, W, H, inset); btSpeedClamp(M);
+      M.x += M.vx; M.y += M.vy; M.ang += M.spin; btAccSpin(M, 'spin'); btWalls(M, W, H, insetX, insetY); btSpeedClamp(M);
       var tx = M.x + Math.cos(M.ang)*M.reach, ty = M.y + Math.sin(M.ang)*M.reach;
       for (k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
         var dx = P.x - M.x, dy = P.y - M.y, d2 = dx*dx + dy*dy, rr = P.r + M.r;
@@ -883,17 +898,17 @@
     boss.nextAI = (pct <= 0.05) ? now + 700 : now + base + (Math.random()*2 - 1) * BOSS.aiJitter;
   }
 
-  function btWalls(b, W, H, inset){
-    inset = inset || 0;
-    if (b.x < inset + b.r){ b.x = inset + b.r; b.vx = Math.abs(b.vx); }
-    if (b.x > W - inset - b.r){ b.x = W - inset - b.r; b.vx = -Math.abs(b.vx); }
-    if (b.y < inset + b.r){ b.y = inset + b.r; b.vy = Math.abs(b.vy); }
-    if (b.y > H - inset - b.r){ b.y = H - inset - b.r; b.vy = -Math.abs(b.vy); }
+  function btWalls(b, W, H, insetX, insetY){
+    insetX = insetX || 0; insetY = insetY || 0;
+    if (b.x < insetX + b.r){ b.x = insetX + b.r; b.vx = Math.abs(b.vx); }
+    if (b.x > W - insetX - b.r){ b.x = W - insetX - b.r; b.vx = -Math.abs(b.vx); }
+    if (b.y < insetY + b.r){ b.y = insetY + b.r; b.vy = Math.abs(b.vy); }
+    if (b.y > H - insetY - b.r){ b.y = H - insetY - b.r; b.vy = -Math.abs(b.vy); }
   }
-  function btMovePupils(bots, W, H, withArmHits, now, inset){
+  function btMovePupils(bots, W, H, withArmHits, now, insetX, insetY){
     var i, j;
     for (i = 0; i < bots.length; i++){ var b = bots[i]; if (!b.alive) continue;
-      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btAccSpin(b, 'spin'); btWalls(b, W, H, inset); btSpeedClamp(b); }
+      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btAccSpin(b, 'spin'); btWalls(b, W, H, insetX, insetY); btSpeedClamp(b); }
     for (i = 0; i < bots.length; i++){ var A = bots[i]; if (!A.alive) continue;
       var tx = A.x + Math.cos(A.ang)*BT_REACH, ty = A.y + Math.sin(A.ang)*BT_REACH;
       for (j = i+1; j < bots.length; j++){ var B = bots[j]; if (!B.alive) continue;
@@ -917,8 +932,8 @@
   }
 
   // Free-for-all step. Returns alive count.
-  function btTick(bots, W, H, now, inset){
-    btMovePupils(bots, W, H, true, now, inset);
+  function btTick(bots, W, H, now, insetX, insetY){
+    btMovePupils(bots, W, H, true, now, insetX, insetY);
     var alive = 0; for (var i = 0; i < bots.length; i++) if (bots[i].alive) alive++;
     return alive;
   }
@@ -927,11 +942,11 @@
   // Boss step. Phases: wave 1 (limbs regenerate once with 2 arms) → wave 2
   // (limbs explode for 50% AoE on death) → wave 3 / core (lasers at 80% HP,
   // mini-me spawns at 60%, enrage at 20%, last-stand burst at 5%).
-  function btTickBoss(bots, boss, W, H, now, inset){
-    inset = inset || 0;
+  function btTickBoss(bots, boss, W, H, now, insetX, insetY){
+    insetX = insetX || 0; insetY = insetY || 0;
     var core = boss.core, sats = boss.sats, i, k, ai;
     boss.minis = boss.minis || []; boss.lasers = boss.lasers || []; boss.blasts = boss.blasts || []; boss.flags = boss.flags || {};
-    btMovePupils(bots, W, H, false, now, inset);     // pupils cooperate (no arm damage to each other)
+    btMovePupils(bots, W, H, false, now, insetX, insetY);     // pupils cooperate (no arm damage to each other)
     // the core roams the arena; bounce so its limbs stay on-screen
     core.x += core.vx; core.y += core.vy;
     // full-size arena (no shrink): gently pull pupils toward the boss so the class
@@ -940,7 +955,7 @@
       var ax = core.x - Pp.x, ay = core.y - Pp.y, ad = Math.hypot(ax, ay) || 1;
       Pp.vx += (ax/ad) * BOSS.swarm; Pp.vy += (ay/ad) * BOSS.swarm; btSpeedClamp(Pp);
     }
-    var marg = Math.min(inset + boss.armLen + 30, Math.min(W, H)/2 - 8);
+    var marg = Math.min(Math.max(insetX, insetY) + boss.armLen + 30, Math.min(W, H)/2 - 8);
     if (core.x < marg){ core.x = marg; core.vx = Math.abs(core.vx); }
     if (core.x > W - marg){ core.x = W - marg; core.vx = -Math.abs(core.vx); }
     if (core.y < marg){ core.y = marg; core.vy = Math.abs(core.vy); }
@@ -1015,7 +1030,7 @@
     }
     btBossAI(boss, bots, W, H, now);                      // random power-up scheduler (runs through all waves)
     btBossTickLasers(boss, bots, now);
-    btBossTickMinis(boss, bots, W, H, now, inset);
+    btBossTickMinis(boss, bots, W, H, now, insetX, insetY);
     btBossTickShockwaves(boss, bots, now);
     btBossTickMissiles(boss, bots, W, H, now);
     btBossTickBombs(boss, bots, now);
@@ -1151,8 +1166,10 @@
   }
 
   function btPaintFrame(W, H){
+    var ins = btInsets(W, H); AR.insetX = ins.x; AR.insetY = ins.y;
     var f = document.getElementById('bt-frame'); if (!f) return;
-    f.style.left = f.style.top = f.style.right = f.style.bottom = AR.inset + 'px';
+    f.style.left = f.style.right = ins.x + 'px';
+    f.style.top = f.style.bottom = ins.y + 'px';
   }
   function btStatus(){
     var rem = document.getElementById('btRemain'); if (!rem) return;
@@ -1172,14 +1189,16 @@
     if (!AR.paused){
       var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
       // free-for-all slowly closes in to force a winner; the boss arena stays full-size
-      if (AR.mode !== 'boss') AR.inset = Math.min(AR.inset + BT_SHRINK, Math.min(W, H)/2 - 100);
+      // shave the wide axis first to a square, then shrink equally; the square side stays
+      // >= ~120 (maxP = max(W,H)/2 - 60). Boss arena never shrinks.
+      if (AR.mode !== 'boss') AR.inset = Math.min(AR.inset + BT_SHRINK, Math.max(W, H)/2 - 60);
       btPaintFrame(W, H);
       if (AR.mode === 'boss'){
-        var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.inset); btPaint(); btStatus();
+        var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.insetX, AR.insetY); btPaint(); btStatus();
         if (!AR.boss.core.alive){ btFinishBoss(true); return; }
         if (r.pupils === 0){ btFinishBoss(false); return; }
       } else {
-        var alive = btTick(AR.bots, W, H, now, AR.inset); btPaint(); btStatus();
+        var alive = btTick(AR.bots, W, H, now, AR.insetX, AR.insetY); btPaint(); btStatus();
         if (alive <= 1){ btFinish(); return; }
       }
     }
@@ -1190,7 +1209,7 @@
   window.btStartBattle = function (){
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
-    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0;
     AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
@@ -1429,6 +1448,8 @@
       '<div class="set-card"><h3 class="set-h">Reset</h3>' +
         '<p class="set-note">Set every pupil back to the starting amount and clear earned badges. This cannot be undone.</p>' +
         '<button class="btn-danger" onclick="btResetPoints()">Reset all points</button>' +
+        '<p class="set-note" style="margin-top:14px">Clear placement medals and the week/month leaderboard history. Pupils keep their points and badges.</p>' +
+        '<button class="btn-danger" onclick="btResetLeaderboard()">Reset leaderboard</button>' +
       '</div>' +
     '</div>';
   }
@@ -1485,7 +1506,7 @@
     changed.forEach(function (c){ award(c.pid, c.delta, { remote: true }); });
     return true;
   };
-  window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR;  /* test hooks */
+  window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR; window._btInsets = btInsets;  /* test hooks */
   window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
                      cap: btBossCap, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
                      shockwave: btBossShockwave, tickShock: btBossTickShockwaves, launchMissile: btBossLaunchMissile, tickMissiles: btBossTickMissiles,
