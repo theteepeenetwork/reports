@@ -75,6 +75,9 @@
   function btClampP(s, v){ return Math.min(btMaxP(s), Math.max(btMin(s), v)); }
   // New pupils sit at "starting"; points stay between minimum and maximum (blank max = unlimited).
   function btPts(s, pid){ var v = s.points[pid]; if (v === undefined) v = btStart(s); return btClampP(s, v); }
+  // Progress (levels / ranks / badges) is measured from the starting amount: a pupil sitting
+  // at "starting" has earned 0. The first earned point (start + 1) is the first milestone.
+  function btEarned(s, p){ return Math.max(0, p - btStart(s)); }
 
   var PER_LEVEL = 5;
   var RANK_TEMPLATE = [
@@ -84,11 +87,12 @@
     { key:'hero',   label:'Hero',        color:'#e0a106', bg:'#fdf6e3', frac:0.70, abs:50 },
     { key:'legend', label:'Legend',      color:'#7c5cff', bg:'#f3f0ff', frac:0.90, abs:75 }
   ];
-  // Rank thresholds: absolute defaults when unlimited, else spread across [min, max].
+  // Rank thresholds count up from the starting amount: absolute defaults when unlimited,
+  // else spread across [start, max]. A pupil at "starting" is the bottom rank (Rookie).
   function btRanks(s){
-    var mn = btMin(s), mx = btMaxP(s);
+    var st = btStart(s), mx = btMaxP(s);
     var out = RANK_TEMPLATE.map(function (t){
-      var min = (mx === Infinity) ? (mn + t.abs) : Math.round(mn + t.frac * Math.max(1, mx - mn));
+      var min = (mx === Infinity) ? (st + t.abs) : Math.round(st + t.frac * Math.max(1, mx - st));
       return { key:t.key, label:t.label, color:t.color, bg:t.bg, min:min };
     });
     for (var i=1;i<out.length;i++) if (out[i].min <= out[i-1].min) out[i].min = out[i-1].min + 1;
@@ -96,25 +100,25 @@
   }
   function btRankFor(s, p){ var rs = btRanks(s), r = rs[0]; for (var i=0;i<rs.length;i++) if (p >= rs[i].min) r = rs[i]; return r; }
   function btNextRank(s, p){ var rs = btRanks(s); for (var i=0;i<rs.length;i++) if (rs[i].min > p) return rs[i]; return null; }
-  function btLevelOf(p){ return Math.floor(p / PER_LEVEL) + 1; }
-  function btLevelFloor(p){ return Math.floor(p / PER_LEVEL) * PER_LEVEL; }
+  function btLevelOf(s, p){ return Math.floor(btEarned(s, p) / PER_LEVEL) + 1; }
 
+  // Badge milestones also count earned points above the starting amount (first = start + 1).
   function btBadgesDef(s){
-    var mn = btMin(s), mx = btMaxP(s);
+    var st = btStart(s), mx = btMaxP(s);
     if (mx === Infinity){
       return [
-        { key:'first', icon:'🌱', name:'First point',    min: mn + 1  },
-        { key:'ten',   icon:'⭐', name:'Perfect Ten',    min: mn + 10 },
-        { key:'q',     icon:'🏅', name:'Quarter Master', min: mn + 25 },
-        { key:'half',  icon:'🏆', name:'Half Century',   min: mn + 50 },
+        { key:'first', icon:'🌱', name:'First point',    min: st + 1  },
+        { key:'ten',   icon:'⭐', name:'Perfect Ten',    min: st + 10 },
+        { key:'q',     icon:'🏅', name:'Quarter Master', min: st + 25 },
+        { key:'half',  icon:'🏆', name:'Half Century',   min: st + 50 },
         { key:'streak',icon:'🔥', name:'On a Roll',      streakOnly:true }
       ];
     }
-    var range = Math.max(1, mx - mn);
+    var range = Math.max(1, mx - st);
     return [
-      { key:'first', icon:'🌱', name:'First point',   min: mn + 1 },
-      { key:'ten',   icon:'⭐', name:'Quarter Way',   min: Math.round(mn + range*0.25) },
-      { key:'q',     icon:'🏅', name:'Halfway There', min: Math.round(mn + range*0.50) },
+      { key:'first', icon:'🌱', name:'First point',   min: st + 1 },
+      { key:'ten',   icon:'⭐', name:'Quarter Way',   min: Math.round(st + range*0.25) },
+      { key:'q',     icon:'🏅', name:'Halfway There', min: Math.round(st + range*0.50) },
       { key:'half',  icon:'🏆', name:'Full Marks',    min: mx },
       { key:'streak',icon:'🔥', name:'On a Roll',     streakOnly:true }
     ];
@@ -377,7 +381,7 @@
 
   /* ── Player card (collectible "player card" look) ──────── */
   var RING_R = 31, RING_C = 2 * Math.PI * RING_R;
-  function btRingOffset(pts){ var within = pts - btLevelFloor(pts), pct = within / PER_LEVEL; return RING_C * (1 - pct); }
+  function btRingOffset(s, pts){ var e = btEarned(s, pts), within = e - Math.floor(e / PER_LEVEL) * PER_LEVEL, pct = within / PER_LEVEL; return RING_C * (1 - pct); }
   function btCardEl(pid){ var v = document.getElementById('bt-view'); return v ? v.querySelector('.pupil[data-pid="' + pid + '"]') : null; }
   function btBadgesHTML(s, pid, justGot){
     var got = btBadgesOf(s, pid);
@@ -395,9 +399,9 @@
       '<div class="p-main">' +
         '<div class="p-av">' +
           '<svg class="p-ring" viewBox="0 0 76 76"><circle class="ring-track" cx="38" cy="38" r="' + RING_R + '"></circle>' +
-          '<circle class="ring-prog" cx="38" cy="38" r="' + RING_R + '" style="stroke:' + rk.color + ';stroke-dasharray:' + RING_C.toFixed(1) + ';stroke-dashoffset:' + btRingOffset(pts).toFixed(1) + '"></circle></svg>' +
+          '<circle class="ring-prog" cx="38" cy="38" r="' + RING_R + '" style="stroke:' + rk.color + ';stroke-dasharray:' + RING_C.toFixed(1) + ';stroke-dashoffset:' + btRingOffset(s, pts).toFixed(1) + '"></circle></svg>' +
           '<span class="p-init" style="background:' + av + '">' + esc(initials(p.name)) + '</span>' +
-          '<span class="p-lvl">Lv ' + btLevelOf(pts) + '</span>' +
+          '<span class="p-lvl">Lv ' + btLevelOf(s, pts) + '</span>' +
         '</div>' +
         '<div class="p-info">' +
           '<div class="p-name">' + esc(p.name) + '</div>' +
@@ -420,11 +424,11 @@
     d.querySelector('.p-emblem').style.color = rk.color;
     d.querySelector('.rank-glow').style.background = 'radial-gradient(120% 120% at 85% 100%, ' + rk.color + '22, transparent 60%)';
     var pe = d.querySelector('.p-pts'); pe.style.color = rk.color; if (instant) pe.textContent = pts;
-    d.querySelector('.p-lvl').textContent = 'Lv ' + btLevelOf(pts);
+    d.querySelector('.p-lvl').textContent = 'Lv ' + btLevelOf(s, pts);
     d.querySelector('.p-next').textContent = nr ? ((nr.min - pts) + ' to ' + nr.label) : '★ Top rank!';
     var ring = d.querySelector('.ring-prog'); ring.style.stroke = rk.color;
     if (instant) ring.style.transition = 'none';
-    ring.style.strokeDashoffset = btRingOffset(pts);
+    ring.style.strokeDashoffset = btRingOffset(s, pts);
     if (instant){ void ring.getBoundingClientRect(); ring.style.transition = ''; }
     d.querySelector('.p-badges').innerHTML = btBadgesHTML(s, pid, justGot);
   }
@@ -441,7 +445,7 @@
     if (after === before){ if (n < 0 && !opts.silent) btMascotSay("That's the floor!", 'aw'); return; }
     n = after - before; s.points[pid] = after;
     if (!opts.remote) btLogDaily(s, pid, n);   // per-day net for week/month leaderboard windows (not on the replay path)
-    var oldLevel = btLevelOf(before), newLevel = btLevelOf(after);
+    var oldLevel = btLevelOf(s, before), newLevel = btLevelOf(s, after);
     var oldRank = btRankFor(s, before).key, newRank = btRankFor(s, after).key;
     var name = pupilName(pid);
     if (!opts.silent && !opts.batch) btToast(name, n);   // bottom toast on a normal tap (battles/group-batch skip it)
@@ -503,7 +507,7 @@
   window.btSetTab   = function (t){ var s = btLoad(); s.tab = t; btSave(s); btRender(); };
   window.btSetStep  = function (n){ var s = btLoad(); s.step = n; btSave(s); btRender(); };
   window.btSetMinPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.minPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
-  window.btSetStartPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.startPoints = (n >= 0 ? n : 0); btSave(s); btRender(); };
+  window.btSetStartPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.startPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
   window.btSetMaxPoints = function (v){ var s = btLoad(); if (v === '' || v == null){ s.maxPoints = ''; } else { var n = parseInt(v,10); s.maxPoints = (n >= 0 ? n : ''); } btApplyConfig(s); btSave(s); btRender(); };
   window.btToggle   = function (key){ var s = btLoad(); s[key] = !s[key]; btSave(s); btRender();
     if (key === 'mascot' && !s.mascot){ var b = document.getElementById('bt-bubble'); if (b) b.classList.remove('show'); } };
