@@ -18,8 +18,8 @@
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
-             bossUnlocked:false,
-             points:{}, badges:{}, tables:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
+             bossUnlocked:false, lbWindow:'all',
+             points:{}, badges:{}, tables:[], placements:{}, daily:{}, boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
   var BT_COLORS = ['#3b82f6','#06b6d4','#14b8a6','#10b981','#0ea5e9','#6366f1','#22d3ee','#2563eb','#0d9488','#84cc16','#38bdf8','#4f46e5'];
@@ -34,7 +34,37 @@
     if (!Array.isArray(s.tables)) s.tables = [];
     if ([1,2,5].indexOf(s.step) < 0) s.step = 1;
     if (typeof s.bossUnlocked !== 'boolean') s.bossUnlocked = false;
+    if (!s.placements || typeof s.placements !== 'object') s.placements = {};
+    if (!s.daily || typeof s.daily !== 'object') s.daily = {};
+    if (['all','month','week'].indexOf(s.lbWindow) < 0) s.lbWindow = 'all';
     return s;
+  }
+  /* ── Daily net-points aggregates (for week/month leaderboard sorting) ── */
+  function btDayKey(){ return (typeof todayISO === 'function') ? todayISO() : new Date().toISOString().slice(0,10); }
+  function btLogDaily(s, pid, n){
+    var k = btDayKey();
+    if (!s.daily[k]) s.daily[k] = {};
+    s.daily[k][pid] = (s.daily[k][pid] || 0) + n;
+    var cutoff = new Date(Date.now() - 40*864e5).toISOString().slice(0,10);   // keep ~40 days
+    for (var d in s.daily) if (d < cutoff) delete s.daily[d];
+  }
+  function btWindowNet(s, pid, days){
+    var cutoff = new Date(Date.now() - days*864e5).toISOString().slice(0,10), tot = 0;
+    for (var d in s.daily) if (d > cutoff && s.daily[d][pid]) tot += s.daily[d][pid];
+    return tot;
+  }
+  // points used to RANK on the leaderboard for the selected window
+  function btLbPoints(s, pid){
+    if (s.lbWindow === 'week')  return btWindowNet(s, pid, 7);
+    if (s.lbWindow === 'month') return btWindowNet(s, pid, 31);
+    return btPts(s, pid);
+  }
+  /* ── Placement history (1st–5th finishes in free-for-all) ── */
+  function btPlace(s, pid){ return s.placements[pid] || {}; }
+  function btPlacesHTML(s, pid){
+    var p = btPlace(s, pid), icon = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' }, out = '';
+    for (var i = 1; i <= 5; i++) if (p[i]) out += '<span class="lb-place">' + icon[i] + '<span class="lb-place-n">' + p[i] + '</span></span>';
+    return out ? '<span class="lb-places">' + out + '</span>' : '';
   }
   function btSave(s){ Store.set('tp_battler', s); }
 
@@ -130,9 +160,11 @@
      (class size × Maximum), so it auto-adjusts whenever the Maximum is set. ── */
   var BOSS_BASE = 18; // notional per-pupil cap used only when no Maximum is set
   function btBossCap(s){ return (btMaxP(s) === Infinity) ? (btStart(s) + BOSS_BASE) : btMaxP(s); }
-  function btBossTarget(s){ return Math.max(20, Math.round(btActiveRoster().length * btBossCap(s) * 0.6)); }
-  function btBossCharge(s){ return Math.min(btClassTotal(s), btBossTarget(s)); }
-  function btBossPct(s){ var t = btBossTarget(s); return t <= 0 ? 1 : btBossCharge(s) / t; }
+  // Baseline = everyone at their starting points → that is 0% of the bar; the bar fills with EARNED points.
+  function btBossBaseline(s){ return btActiveRoster().length * btStart(s); }
+  function btBossTarget(s){ return Math.round(btActiveRoster().length * btBossCap(s) * 0.6); }   // class total needed to unlock
+  function btBossCharge(s){ return Math.max(0, Math.min(btClassTotal(s) - btBossBaseline(s), btBossTarget(s) - btBossBaseline(s))); }
+  function btBossPct(s){ var span = btBossTarget(s) - btBossBaseline(s); return span <= 0 ? 1 : btBossCharge(s) / span; }
   // Track the threshold both ways: fanfare once when the class first reaches 60% of the
   // maximum available; re-lock if the total later drops back below it (deductions / reset).
   function btCheckBossUnlock(s, animate){
@@ -242,6 +274,30 @@
       p.style.background = cols[i % cols.length]; if (Math.random() < 0.4) p.style.borderRadius = '50%';
       fx.appendChild(p); (function (node){ setTimeout(function (){ node.remove(); }, 2000); })(p);
     }
+  }
+  // Bottom-sliding toast: "Ada +1" / "Ben −2" — one per manual award, auto-dismiss, stacking.
+  function btToast(name, n){
+    var wrap = document.getElementById('bt-toast'); if (!wrap || !name) return;
+    var t = document.createElement('div');
+    t.className = 'bt-toast ' + (n >= 0 ? 'gain' : 'loss');
+    t.innerHTML = '<span class="bt-toast-n">' + (n >= 0 ? '+' + n : n) + '</span><span class="bt-toast-name">' + (typeof esc === 'function' ? esc(name) : name) + '</span>';
+    wrap.appendChild(t);
+    requestAnimationFrame(function (){ t.classList.add('in'); });
+    setTimeout(function (){ t.classList.remove('in'); t.classList.add('out'); setTimeout(function (){ if (t.parentNode) t.parentNode.removeChild(t); }, 280); }, 2200);
+    while (wrap.children.length > 5) wrap.removeChild(wrap.firstChild);   // cap the stack
+  }
+  // Animated winner pop-up over the still-mounted arena (confetti + sound); auto-continues
+  // after ~3.6s or on tap, then runs `proceed` (award placements / bonus, then re-render).
+  function btShowWinPop(html, big, lose, proceed){
+    var arena = document.getElementById('bt-arena'), done = false, tm;
+    function finish(){ if (done) return; done = true; clearTimeout(tm); proceed(); }
+    if (!arena){ proceed(); return; }                                  // no arena (headless) → just proceed
+    var pop = document.createElement('div'); pop.className = 'bt-winpop' + (lose ? ' lose' : ''); pop.innerHTML = html;
+    pop.addEventListener('click', finish);
+    arena.appendChild(pop);
+    if (!lose) btConfettiRain(big ? 140 : 90);
+    sfx(lose ? 'loss' : 'win');
+    tm = setTimeout(finish, 3600);
   }
   var btMTimer = null, btBTimer = null;
   function btMascotSay(text, mood){
@@ -384,9 +440,11 @@
     var s = btLoad(), before = btPts(s, pid), after = btClampP(s, before + n);
     if (after === before){ if (n < 0 && !opts.silent) btMascotSay("That's the floor!", 'aw'); return; }
     n = after - before; s.points[pid] = after;
+    if (!opts.remote) btLogDaily(s, pid, n);   // per-day net for week/month leaderboard windows (not on the replay path)
     var oldLevel = btLevelOf(before), newLevel = btLevelOf(after);
     var oldRank = btRankFor(s, before).key, newRank = btRankFor(s, after).key;
     var name = pupilName(pid);
+    if (!opts.silent && !opts.batch) btToast(name, n);   // bottom toast on a normal tap (battles/group-batch skip it)
     if (s.logBh && !opts.remote && typeof bhData !== 'undefined'){
       bhData.push({ id: uid(), date: todayISO(), pupilId: pid, type: n >= 0 ? 'positive' : 'concern',
         note: 'Behaviour Battler ' + (n >= 0 ? '+' : '') + n + (opts.label ? ' · ' + opts.label : '') });
@@ -1146,23 +1204,57 @@
     if (btn) btn.innerHTML = AR.paused ? (iconSVG('play',16) + ' Resume') : (iconSVG('pause',16) + ' Pause');
   };
   window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; AR.boss = null; btRender(); };
+  function btOrdinal(p){ return ['', '1st','2nd','3rd','4th','5th'][p] || (p + 'th'); }
+  // Finishing order: the survivor is 1st, then the eliminated in REVERSE knock-out order (last out = next place).
+  function btFinishOrder(bots){
+    var alive = [], dead = [];
+    bots.forEach(function (b){ (b.alive ? alive : dead).push(b); });
+    dead.sort(function (a, b){ return (b.poppedAt || 0) - (a.poppedAt || 0); });
+    return alive.concat(dead).map(function (b){ return b.pid; });
+  }
+  // Award placement points (1st=5 … 5th=1) and record each pupil's 1st–5th history.
+  function btAwardPlacements(order){
+    if (!order.length) return;
+    var s = btLoad(), top = order.slice(0, 5);
+    top.forEach(function (pid, i){ var place = i + 1; s.placements[pid] = s.placements[pid] || {}; s.placements[pid][place] = (s.placements[pid][place] || 0) + 1; });
+    btSave(s);   // persist placements first so award()'s own save keeps them
+    top.forEach(function (pid, i){ var place = i + 1; award(pid, 6 - place, { silent:true, label:btOrdinal(place) + ' place' }); });
+  }
+  function btFfaWinHTML(order){
+    var rows = order.slice(0, 3).map(function (pid, i){
+      var place = i + 1, medal = ['🥇','🥈','🥉'][i];
+      return '<div class="wp-row wp-' + place + '"><span class="wp-medal">' + medal + '</span>' +
+        '<span class="wp-av" style="background:' + btAvColor(pid) + '">' + esc(initials(pupilName(pid))) + '</span>' +
+        '<span class="wp-name">' + esc(pupilName(pid)) + '</span><span class="wp-pts">+' + (6 - place) + '</span></div>';
+    }).join('');
+    return '<div class="wp-card"><div class="wp-crown">👑</div><div class="wp-title">' + esc(pupilName(order[0])) + ' wins!</div>' +
+      '<div class="wp-list">' + rows + '</div><div class="wp-tap">tap to continue</div></div>';
+  }
+  function btBossWinHTML(win, survivors){
+    if (win) return '<div class="wp-card"><div class="wp-crown">🏆</div><div class="wp-title">Boss defeated!</div>' +
+      '<div class="wp-sub">' + (survivors.length ? (survivors.length + ' survivor' + (survivors.length === 1 ? '' : 's') + ' share the bonus') : 'The class wins!') + '</div><div class="wp-tap">tap to continue</div></div>';
+    return '<div class="wp-card lose"><div class="wp-crown">💥</div><div class="wp-title">The boss won…</div>' +
+      '<div class="wp-sub">Earn more points and try again!</div><div class="wp-tap">tap to continue</div></div>';
+  }
   function btFinish(){
     AR.running = false; cancelAnimationFrame(AR.raf);
-    var winner = AR.bots.filter(function (b){ return b.alive; })[0]; AR.bots = []; AR.boss = null;
-    var s = btLoad();
-    if (winner){ AR.lastWinner = winner.name; sfx('win');
-      if (s.winnerBonus > 0){ btRender(); award(winner.pid, s.winnerBonus, { silent:true, label:'Battle winner' }); return; } }
-    btRender();
+    var order = btFinishOrder(AR.bots);
+    AR.lastWinner = order[0] ? pupilName(order[0]) : '';
+    var html = btFfaWinHTML(order);                  // build before clearing refs
+    AR.bots = []; AR.boss = null;
+    btShowWinPop(html, true, false, function (){ btAwardPlacements(order); btRender(); });
   }
   function btFinishBoss(win){
     AR.running = false; cancelAnimationFrame(AR.raf);
     var survivors = AR.bots.filter(function (b){ return b.alive; }).map(function (b){ return b.pid; });
-    AR.bots = []; AR.boss = null; AR.result = win ? 'win' : 'lose';
-    var s = btLoad();
-    if (win){ AR.bossMsg = 'The class defeated the boss!'; sfx('win');
-      if (s.winnerBonus > 0 && survivors.length){ btRender(); survivors.forEach(function (pid){ award(pid, s.winnerBonus, { silent:true, label:'Beat the boss' }); }); return; } }
-    else { AR.bossMsg = 'The boss won this time — try again!'; sfx('loss'); }
-    btRender();
+    AR.result = win ? 'win' : 'lose';
+    AR.bossMsg = win ? 'The class defeated the boss!' : 'The boss won this time — try again!';
+    var html = btBossWinHTML(win, survivors);
+    AR.bots = []; AR.boss = null;
+    btShowWinPop(html, win, !win, function (){
+      if (win){ var s = btLoad(); if (s.winnerBonus > 0 && survivors.length) survivors.forEach(function (pid){ award(pid, s.winnerBonus, { silent:true, label:'Beat the boss' }); }); }
+      btRender();
+    });
   }
   window.btSetWinnerBonus = function (v){ var s = btLoad(); var n = parseInt(v,10); s.winnerBonus = (n >= 0 ? n : 5); btSave(s); };
   window.btSetArenaMode = function (m){ var s = btLoad(); if (m === 'boss' && !s.bossUnlocked) return; s.arenaMode = (m === 'boss' ? 'boss' : 'ffa'); btSave(s); btRender(); };
@@ -1204,7 +1296,8 @@
   }
 
   function btPointsTab(s){
-    return btBossChargeHTML(s) + btGroupBarHTML(s) + btStepStripHTML(s) +
+    return btBossChargeHTML(s) +
+      '<div class="bt-controls-row no-print">' + btStepStripHTML(s) + btGroupBarHTML(s) + '</div>' +
       '<div class="grid">' + sortedRoster().map(function (p){ return btPupilCard(s, p); }).join('') + '</div>';
   }
 
@@ -1247,15 +1340,19 @@
   }
 
   /* ── Leaderboard (podium + list + group standings) ─────── */
+  var LB_WINDOWS = [['all','All time'],['month','Month'],['week','Week']];
+  window.btSetLbWindow = function (w){ var s = btLoad(); s.lbWindow = (['all','month','week'].indexOf(w) >= 0) ? w : 'all'; btSave(s); btRender(); };
   function btLeaderTab(s){
-    var ranked = sortedRoster().map(function (p){ return { p:p, pts:btPts(s, p.id) }; })
+    var ranked = sortedRoster().map(function (p){ return { p:p, pts:btLbPoints(s, p.id) }; })
                   .sort(function (a, b){ return b.pts - a.pts || a.p.name.localeCompare(b.p.name); });
+    var seg = '<div class="seg lb-seg no-print">' + LB_WINDOWS.map(function (w){
+      return '<button class="' + (s.lbWindow === w[0] ? 'on' : '') + '" onclick="btSetLbWindow(\'' + w[0] + '\')">' + w[1] + '</button>'; }).join('') + '</div>';
     var top3 = ranked.slice(0, 3), rest = ranked.slice(3);
     var listRows = rest.map(function (r, i){
-      var rk = btRankFor(s, r.pts);
+      var rk = btRankFor(s, btPts(s, r.p.id));
       return '<div class="lb-row"><span class="lb-pos">' + (i + 4) + '</span>' +
         '<span class="lb-av" style="background:' + btAvColor(r.p.id) + '">' + esc(initials(r.p.name)) + '</span>' +
-        '<span class="lb-name">' + esc(r.p.name) + '</span>' +
+        '<span class="lb-name">' + esc(r.p.name) + btPlacesHTML(s, r.p.id) + '</span>' +
         '<span class="lb-rank" style="background:' + rk.bg + ';color:' + rk.color + '">' + rk.label + '</span>' +
         '<span class="lb-pts">' + r.pts + '</span></div>';
     }).join('');
@@ -1270,8 +1367,9 @@
           '<span class="lb-gval">' + x.total + '</span></div>';
       }).join('') + '</div>';
     }
-    return '<div class="lb-wrap">' + btPodium(s, top3) +
-      '<div class="lb-panel"><h3 class="lb-h">Class leaderboard</h3>' + (listRows || '<div class="empty">Everyone is on the podium!</div>') + '</div>' +
+    var unit = s.lbWindow === 'week' ? 'this week' : s.lbWindow === 'month' ? 'this month' : 'pts';
+    return '<div class="lb-wrap">' + seg + btPodium(s, top3) +
+      '<div class="lb-panel"><h3 class="lb-h">Class leaderboard <span class="lb-sub">· ' + unit + '</span></h3>' + (listRows || '<div class="empty">Everyone is on the podium!</div>') + '</div>' +
       groupStand + '</div>';
   }
   function btPodium(s, top3){
@@ -1279,12 +1377,12 @@
     var medalColor = { 1:'#e0a106', 2:'#9aa6aa', 3:'#c2724f' }, medalBg = { 1:'#fdf6e3', 2:'#eef1f1', 3:'#fbeee6' };
     var cols = stageOrder.map(function (r, idx){
       if (!r) return '<div class="pod-col"></div>';
-      var pos = place[idx], rk = btRankFor(s, r.pts);
+      var pos = place[idx], rk = btRankFor(s, btPts(s, r.p.id));
       return '<div class="pod-col pod-' + pos + '"><div class="pod-person">' +
         (pos === 1 ? '<div class="pod-crown">👑</div>' : '') +
         '<div class="pod-av" style="background:' + btAvColor(r.p.id) + '"><span>' + esc(initials(r.p.name)) + '</span>' +
           '<span class="pod-medal" style="background:' + medalBg[pos] + ';color:' + medalColor[pos] + '">' + pos + '</span></div>' +
-        '<div class="pod-name">' + esc(r.p.name) + '</div><div class="pod-rank" style="color:' + rk.color + '">' + rk.label + '</div></div>' +
+        '<div class="pod-name">' + esc(r.p.name) + '</div>' + (btPlacesHTML(s, r.p.id) || '<div class="pod-rank" style="color:' + rk.color + '">' + rk.label + '</div>') + '</div>' +
         '<div class="pod-block" style="--mc:' + medalColor[pos] + '"><span class="pod-pts">' + r.pts + '</span><span class="pod-u">pts</span></div></div>';
     }).join('');
     return '<div class="podium">' + cols + '</div>';
@@ -1391,5 +1489,7 @@
   window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
                      cap: btBossCap, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
                      shockwave: btBossShockwave, tickShock: btBossTickShockwaves, launchMissile: btBossLaunchMissile, tickMissiles: btBossTickMissiles,
-                     dropBomb: btBossDropBomb, tickBombs: btBossTickBombs, gravity: btBossGravity, shield: btBossShield, heal: btBossHeal, ai: btBossAI, COLORS: BT_COLORS };
+                     dropBomb: btBossDropBomb, tickBombs: btBossTickBombs, gravity: btBossGravity, shield: btBossShield, heal: btBossHeal, ai: btBossAI, COLORS: BT_COLORS,
+                     baseline: btBossBaseline };
+  window._btLb = { finishOrder: btFinishOrder, awardPlacements: btAwardPlacements, lbPoints: btLbPoints, windowNet: btWindowNet, logDaily: btLogDaily, place: btPlace, ordinal: btOrdinal };
 })();
