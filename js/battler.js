@@ -18,7 +18,7 @@
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
-             bossUnlocked:false, lbWindow:'all', boardView:'classic',
+             bossUnlocked:false, lbWindow:'all',
              points:{}, badges:{}, tables:[], placements:{}, daily:{}, recent:[], boss:{ name:'Grumble the Gremlin', max:50, dealt:0, active:false } };
   }
   // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
@@ -38,12 +38,22 @@
     if (!s.daily || typeof s.daily !== 'object') s.daily = {};
     if (['all','month','week'].indexOf(s.lbWindow) < 0) s.lbWindow = 'all';
     if (!Array.isArray(s.recent)) s.recent = [];
-    if (BT_BOARD_VIEWS.indexOf(s.boardView) < 0) s.boardView = 'classic';
     return s;
   }
   // Smartboard display views (Settings → Smartboard view). 'classic' = the card grid.
+  // The choice is DEVICE-LOCAL (not synced): one screen can show a different view
+  // from another. Stored in its own localStorage key, never in the synced blob.
   var BT_BOARD_VIEWS = ['classic','spotlight','split','scoreboard','lanes','constellation','glowcity'];
   var BT_BOARD_LABELS = { classic:'Classic', spotlight:'Spotlight Stage', split:'Split Stage', scoreboard:'Scoreboard Wall', lanes:'Rank Lanes', constellation:'Constellation', glowcity:'Glow City' };
+  var BT_VIEW_KEY = 'tp_gg_view';
+  function btView(){
+    var v = null;
+    try { v = window.localStorage.getItem(BT_VIEW_KEY); } catch (e) {}
+    if (!v){   // one-time migration: seed from the old (synced) s.boardView if present
+      try { var s = Store.get('tp_battler', null); if (s && s.boardView){ v = s.boardView; window.localStorage.setItem(BT_VIEW_KEY, v); } } catch (e) {}
+    }
+    return BT_BOARD_VIEWS.indexOf(v) >= 0 ? v : 'classic';
+  }
   // Neon rank palette for the dark smartboard (RANK_TEMPLATE's light colours stay for the planner).
   var BT_NEON = { rookie:'#8fa0cc', rising:'#5eead4', champ:'#fb7185', hero:'#fde047', legend:'#c084fc' };
   // recent point-getters feed (newest first, capped) — powers the Spotlight view + ticker
@@ -496,7 +506,11 @@
     btBoardRefreshT = setTimeout(function (){
       btBoardRefreshT = null;
       var s = btLoad();
-      if (!AR.running && s.tab === 'points' && s.boardView && s.boardView !== 'classic') btRender();
+      if (AR.running || s.tab !== 'points' || btView() === 'classic') return;
+      // preserve scroll: re-rendering the stage must not jump a scrolled board to the top
+      var sx = window.scrollX, sy = window.scrollY;
+      btRender();
+      window.scrollTo(sx, sy);
     }, 90);
   }
   function btOnGain(s, pid, name, n, oldLevel, newLevel, oldRank, newRank, before, after, opts){
@@ -540,7 +554,11 @@
   /* ── Handlers (window) ──────────────────────────────────── */
   window.btSetTab   = function (t){ var s = btLoad(); s.tab = t; btSave(s); btRender(); };
   window.btSetStep  = function (n){ var s = btLoad(); s.step = n; btSave(s); btRender(); };
-  window.btSetBoardView = function (v){ var s = btLoad(); s.boardView = (BT_BOARD_VIEWS.indexOf(v) >= 0) ? v : 'classic'; btSave(s); btRender(); };
+  window.btSetBoardView = function (v){
+    v = (BT_BOARD_VIEWS.indexOf(v) >= 0) ? v : 'classic';
+    try { window.localStorage.setItem(BT_VIEW_KEY, v); } catch (e) {}   // device-local; not synced
+    btRender();
+  };
   window.btSetMinPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.minPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
   window.btSetStartPoints = function (v){ var s = btLoad(); var n = parseInt(v,10); s.startPoints = (n >= 0 ? n : 0); btApplyConfig(s); btSave(s); btRender(); };
   window.btSetMaxPoints = function (v){ var s = btLoad(); if (v === '' || v == null){ s.maxPoints = ''; } else { var n = parseInt(v,10); s.maxPoints = (n >= 0 ? n : ''); } btApplyConfig(s); btSave(s); btRender(); };
@@ -1354,7 +1372,7 @@
   }
 
   function btPointsTab(s){
-    if (s.boardView && s.boardView !== 'classic'){
+    if (btView() !== 'classic'){
       return '<div class="gg-fit"><div class="gg-stage" id="gg-stage">' + btBoardView(s) + '</div></div>';
     }
     return btBossChargeHTML(s) +
@@ -1368,7 +1386,7 @@
      scales it to #bt-view). Awards/toasts/celebrations are unchanged.
      ════════════════════════════════════════════════════════════ */
   function btBoardView(s){
-    switch (s.boardView){
+    switch (btView()){
       case 'spotlight':     return btViewSpotlight(s);
       case 'split':         return btViewSplit(s);
       case 'scoreboard':    return btViewScoreboard(s);
@@ -1697,12 +1715,13 @@
       var req = b.streakOnly ? '3 awards in a row' : (b.min + (b.min === 1 ? ' point' : ' points'));
       return '<div class="leg-row"><span class="leg-badge">' + b.icon + '</span><span class="leg-name">' + b.name + '</span><span class="leg-req">' + req + '</span></div>';
     }).join('');
+    var curView = btView();
     var viewChooser = '<div class="bv-seg">' + BT_BOARD_VIEWS.map(function (v){
-      return '<button class="' + (s.boardView === v ? 'on' : '') + '" onclick="btSetBoardView(\'' + v + '\')">' + BT_BOARD_LABELS[v] + '</button>';
+      return '<button class="' + (curView === v ? 'on' : '') + '" onclick="btSetBoardView(\'' + v + '\')">' + BT_BOARD_LABELS[v] + '</button>';
     }).join('') + '</div>';
     return '<div class="set-grid">' +
       '<div class="set-card"><h3 class="set-h">Smartboard view</h3>' +
-        '<p class="set-note">How the Points board is laid out on the smartboard. Awards, sounds and celebrations work the same in every view.</p>' +
+        '<p class="set-note">How the Points board is laid out on <b>this device</b> — your laptop and iPad can each show a different view. Awards, sounds and celebrations work the same in every view.</p>' +
         viewChooser +
       '</div>' +
       '<div class="set-card"><h3 class="set-h">Reactions</h3>' +
@@ -1751,8 +1770,8 @@
     }
     var board = document.getElementById('bt-board');
     // display views draw their own header/mascot/total, so hide the persistent board for them
-    var classicPoints = s.tab === 'points' && (!s.boardView || s.boardView === 'classic');
-    var showBoard = !AR.running && (classicPoints || s.tab === 'tables' || s.tab === 'leaderboard');
+    var displayView = s.tab === 'points' && btView() !== 'classic';
+    var showBoard = !AR.running && (!displayView) && (s.tab === 'points' || s.tab === 'tables' || s.tab === 'leaderboard');
     if (board) board.style.display = showBoard ? 'flex' : 'none';
     if (!roster.length){ view.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first — they become your battlers.</p></div>'; return; }
     btEnsureBadges(s);
@@ -1763,7 +1782,7 @@
              : btBattleTab(s);
     if (showBoard) btUpdateClassTotal(s, true);
     btUpdateBossCharge(s);   // keep the charge bar + board "Boss ready" badge in sync
-    if (s.tab === 'points' && s.boardView && s.boardView !== 'classic') btFitStage();   // scale the display-view stage to fit
+    if (displayView) btFitStage();   // scale the display-view stage to fit
   }
 
   /* bind the celebration overlay click-to-dismiss once */

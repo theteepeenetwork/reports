@@ -421,7 +421,9 @@
    scale), so every hardcoded coordinate from the design holds.
    Tokens mirror glow-getters.html; rank colours are the neon set.
    ============================================================ */
-.gg-fit { position: relative; width: 100%; overflow: hidden; }
+/* aspect-ratio reserves the height from CSS so a re-render never collapses the
+   wrapper to 0 (which would clamp a scrolled board to the top); JS only sets scale. */
+.gg-fit { position: relative; width: 100%; overflow: hidden; aspect-ratio: 1920 / 1080; }
 .gg-stage {
   position: absolute; top: 0; left: 0; width: 1920px; height: 1080px;
   transform-origin: top left; overflow: hidden; border-radius: 18px;
