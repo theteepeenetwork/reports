@@ -679,8 +679,17 @@
      (each its own HP + spinning arm); clear all limbs, then the
      core. The boss's limb-arms knock points off pupils. */
   var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
-  var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_SHRINK = 0.04;
-  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0 };
+  var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_FFA_MS = 120000, BT_FFA_MIN = 50;
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0, ffaElapsed:0, lastT:0 };
+  // Free-for-all shrink is TIME-based (not pixels/frame) so it's resolution-independent:
+  // the arena closes from full to a tiny ~BT_FFA_MIN px square linearly over BT_FFA_MS (2:00),
+  // by which point a winner has long been forced. Returns the shrink-progress scalar (px inset
+  // on the long axis); btInsets() turns it into per-axis insets (shave to a square, then equally).
+  function btFfaInset(W, H, elapsedMs){
+    var maxP = Math.max(W, H) / 2 - BT_FFA_MIN / 2;   // full shrink leaves a ~BT_FFA_MIN px square
+    if (maxP <= 0) return 0;
+    return Math.max(0, Math.min(maxP, maxP * elapsedMs / BT_FFA_MS));
+  }
   // Derive per-axis insets from the single shrink-progress scalar so the WIDER axis
   // shaves down first (to a square), then both axes shrink together — keeping the zone
   // square instead of degenerating into a long thin rectangle on wide screens.
@@ -1245,10 +1254,14 @@
     if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
     if (!AR.paused){
       var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
-      // free-for-all slowly closes in to force a winner; the boss arena stays full-size
-      // shave the wide axis first to a square, then shrink equally; the square side stays
-      // >= ~120 (maxP = max(W,H)/2 - 60). Boss arena never shrinks.
-      if (AR.mode !== 'boss') AR.inset = Math.min(AR.inset + BT_SHRINK, Math.max(W, H)/2 - 60);
+      // free-for-all closes in by % of TIME (full shrink over 2:00, resolution-independent);
+      // the boss arena stays full-size. dt is clamped so a pause/tab-stall doesn't jump it.
+      if (AR.mode !== 'boss'){
+        var dt = AR.lastT ? Math.min(120, now - AR.lastT) : 16;
+        AR.ffaElapsed += dt;
+        AR.inset = btFfaInset(W, H, AR.ffaElapsed);
+      }
+      AR.lastT = now;
       btPaintFrame(W, H);
       if (AR.mode === 'boss'){
         var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.insetX, AR.insetY); btPaint(); btStatus();
@@ -1266,7 +1279,7 @@
   window.btStartBattle = function (){
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
-    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0; AR.ffaElapsed = 0; AR.lastT = 0;
     AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
@@ -1833,7 +1846,7 @@
     changed.forEach(function (c){ award(c.pid, c.delta, { remote: true }); });
     return true;
   };
-  window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR; window._btInsets = btInsets;  /* test hooks */
+  window._btTick = btTick; window._btTickBoss = btTickBoss; window._btSpawn = btSpawn; window._btSpawnBoss = btSpawnBoss; window._btAR = AR; window._btInsets = btInsets; window._btFfaInset = btFfaInset;  /* test hooks */
   window._btBoss = { blast: btBossBlast, fireLaser: btBossFireLaser, tickLasers: btBossTickLasers, spawnMini: btBossSpawnMini, tickMinis: btBossTickMinis, makeSats: btMakeSats,
                      cap: btBossCap, charge: btBossCharge, target: btBossTarget, pct: btBossPct, checkUnlock: btCheckBossUnlock,
                      shockwave: btBossShockwave, tickShock: btBossTickShockwaves, launchMissile: btBossLaunchMissile, tickMissiles: btBossTickMissiles,
