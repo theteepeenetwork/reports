@@ -259,21 +259,53 @@
   }
 
   /* ===================================================================
-     STARTER SETS  (week-keyed; generator supplies content)
+     STARTER WEEKS — 5 sets (Mon–Fri) per week beginning; ONE renderer
+     tp_starter_weeks : { [mondayISO]: Question[][] }   // exactly 5 day arrays
+     tp_starter_ann   : { [dayISO+':'+view]: Stroke[] } // normalised 0..1, persists
+     tp_starter_cfg   : { qCount:10|15|20, xtb:boolean }
+     Scores reuse the Mental Starters store (msData), keyed by the day's date.
      =================================================================== */
-  function starterSets() { return Store.get('tp_starter_sets', {}); }
-  function saveSets(s) { Store.set('tp_starter_sets', s); }
-  function currentSet() { return starterSets()[mondayOf()] || null; }
-  function generateSet(weekISO, confirmReplace) {
-    var sets = starterSets();
-    if (sets[weekISO] && confirmReplace && !confirm('Replace the saved set for ' + fmtWB(weekISO) + '? This cannot be undone.')) return false;
+  var stCurWeek = mondayOf(), stCurDay = 0;
+  function stCfg() { var c = Store.get('tp_starter_cfg', null) || {}; return { qCount: [10, 15, 20].indexOf(c.qCount) >= 0 ? c.qCount : 10, xtb: c.xtb !== false }; }
+  function stSaveCfg(c) { Store.set('tp_starter_cfg', c); }
+  function stWeeks() { return Store.get('tp_starter_weeks', {}); }
+  function stSaveWeeks(w) { Store.set('tp_starter_weeks', w); }
+  function stWeek(monday) { return stWeeks()[monday] || null; }
+  function stDayISO(monday, i) { return addDaysISO(monday, i); }
+  function stBuildDay(qCount) {
     var ht = currentHalfTerm();
-    var days = (typeof window.genBuildDays === 'function')
-      ? window.genBuildDays(ht, 'worksheet', 10, false, {})
-      : null;
-    sets[weekISO] = { days: days, generatedISO: todayISO(), max: 22, halfTerm: ht };
-    saveSets(sets); flashSaved();
-    return true;
+    var qs = (typeof window.genBuild === 'function') ? window.genBuild(ht, 'worksheet', 20) : [];
+    return qs.slice(0, qCount);                          // 10 / 15 / 20, sliced from the real generator
+  }
+  function stGenerateWeek(monday, qCount) {
+    var w = stWeeks(), days = [];
+    for (var i = 0; i < 5; i++) days.push(stBuildDay(qCount));   // five DIFFERENT sheets
+    w[monday] = days; stSaveWeeks(w); flashSaved(); return days;
+  }
+  function stFreshDay(monday, i, qCount) {
+    var w = stWeeks(); if (!w[monday]) { stGenerateWeek(monday, qCount); w = stWeeks(); }
+    w[monday][i] = stBuildDay(qCount); stSaveWeeks(w); flashSaved(); return w[monday][i];
+  }
+  function stEnsureCurrent() { var m = mondayOf(); if (!stWeek(m)) stGenerateWeek(m, stCfg().qCount); }
+  /* annotation layers (per day AND per view) */
+  function stAnn() { return Store.get('tp_starter_ann', {}); }
+  function stSaveAnn(a) { Store.set('tp_starter_ann', a); }
+  function stLayer(key) { return stAnn()[key] || []; }
+  function stSetLayer(key, strokes) { var a = stAnn(); if (strokes && strokes.length) a[key] = strokes; else delete a[key]; stSaveAnn(a); }
+  function stDayHasAnn(dayISO) { var a = stAnn(); return Object.keys(a).some(function (k) { return k.indexOf(dayISO + ':') === 0 && a[k] && a[k].length; }); }
+  function stClearDay(dayISO) { var a = stAnn(); Object.keys(a).forEach(function (k) { if (k.indexOf(dayISO + ':') === 0) delete a[k]; }); stSaveAnn(a); }
+  /* scores live in msData (the Mental Starters store), keyed by the day's date */
+  function stScoreBlock() { var ht = currentHalfTerm(); if (!msData[ht]) msData[ht] = { max: 22, dates: [], scores: {} }; return msData[ht]; }
+  function stDayHasScores(dayISO) {
+    var b = stScoreBlock();
+    return Object.keys(b.scores || {}).some(function (pid) { return b.scores[pid][dayISO] && b.scores[pid][dayISO].v != null; });
+  }
+  /* deterministic ×tables back page (16 items seeded from the day's date) */
+  function stSeed(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h += 0x6D2B79F5; var t = Math.imul(h ^ (h >>> 15), 1 | h); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function stTablesFor(dayISO) {
+    var rnd = stSeed(dayISO + ':xt'), bases = [2, 3, 4, 5, 6, 10], out = [];
+    for (var i = 0; i < 16; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 10) });
+    return out;
   }
 
   /* ===================================================================
@@ -285,7 +317,7 @@
     t.innerHTML =
       '<div class="teach-view active" id="tv-home"></div>' +
       '<div class="teach-view" id="tv-starter"></div>' +
-      '<div class="teach-view" id="tv-board"></div>' +
+      '<div class="teach-view" id="tv-day"></div>' +
       '<div class="teach-view" id="tv-scores"></div>' +
       '<div class="teach-view" id="tv-pick"></div>' +
       '<div class="teach-view" id="tv-seats"></div>';
@@ -296,8 +328,8 @@
     var el = document.getElementById('tv-' + screen); if (el) el.classList.add('active');
     window.scrollTo(0, 0);
     if (screen === 'home') renderTeachHome();
-    if (screen === 'starter') renderStarterHome();
-    if (screen === 'board') renderBoard2();
+    if (screen === 'starter') renderStarterWeek();
+    if (screen === 'day') renderDayView();
     if (screen === 'scores') renderScores();
     if (screen === 'pick') renderPick();
     if (screen === 'seats') renderSeats();
@@ -326,8 +358,8 @@
           '<span class="glance-subject">No timetable yet</span></div>' +
           '<div class="glance-next"><span class="nxt">Set it up in Plan › Organise › Timetable</span></div></div>';
 
-    var set = currentSet();
-    var starterStatus = set ? "this week's set ready ✓" : 'tap to set this week';
+    var set = stWeek(mondayOf());
+    var starterStatus = set ? "this week's 5 sets saved ✓" : 'tap to set this week';
     var picker = Store.get('tp_picker', { picked: [] });
     var pickStatus = (picker.picked ? picker.picked.length : 0) + ' of ' + roster.length + ' had a turn';
 
@@ -364,206 +396,284 @@
   }
   function wireBack(v) { v.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = function () { teachGo(b.dataset.back); }; }); }
 
-  /* ── Starter home ── */
-  function renderStarterHome() {
-    var v = document.getElementById('tv-starter');
-    var sets = starterSets();
-    var cur = mondayOf();
-    var weeks = [];
-    for (var i = 3; i >= 1; i--) weeks.push(addDaysISO(cur, -7 * i));
-    weeks.push(cur);
-    var chips = weeks.map(function (w) {
-      var has = !!sets[w], isCur = w === cur;
-      if (isCur) return '<button class="week-chip active" data-week="' + w + '" style="border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700;white-space:nowrap;cursor:pointer">' + fmtWBShort(w) + ' · this week</button>';
-      return '<button class="week-chip" data-week="' + w + '" style="border:1px solid var(--line);background:var(--card);color:var(--faint);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer">' + fmtWBShort(w) + (has ? ' ✓' : '') + '</button>';
-    }).join('');
-    chips += '<button class="week-chip" id="newSet" style="border:1px dashed var(--faint);background:var(--card);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer">⊕ new set</button>';
+  function GRQ(q){ return (typeof window.genRenderQuestion === 'function') ? window.genRenderQuestion(q) : esc(JSON.stringify(q)); }
+  function chunk(arr, n){ var out = []; for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
+  function stDayShort(monday, i){ var d = new Date(stDayISO(monday, i)); return ['Mon','Tue','Wed','Thu','Fri'][i] + ' ' + d.getDate(); }
+  function stDayFull(monday, i){ return new Date(stDayISO(monday, i)).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }); }
+  function qPreview(qs){
+    return qs.slice(0, 3).map(function (q){
+      return String(GRQ(q)).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').replace(' =', '').trim();
+    }).join('  ·  ') + '  …';
+  }
 
-    var set = sets[cur];
-    var preview;
-    if (set && set.days && set.days[0]) {
-      var qs = set.days[0].questions || [];
-      preview = '<div style="flex:1;border:1px solid var(--line-2);border-radius:12px;padding:14px;background:var(--card);min-height:120px;overflow:auto">' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
-        qs.slice(0, 6).map(function (q, i) {
-          return '<div style="display:flex;gap:8px;align-items:flex-start;font-size:15px"><b style="color:var(--teal-700)">' + (i + 1) + ')</b><div>' + (typeof window.genRenderQuestion === 'function' ? window.genRenderQuestion(q) : '…') + '</div></div>';
-        }).join('') + '</div></div>';
-    } else {
-      preview = '<div style="flex:1;border:1px solid var(--line-2);border-radius:12px;background:repeating-linear-gradient(45deg,#f7f8fa 0 8px,#fdfdfe 8px 16px);display:flex;align-items:center;justify-content:center;color:var(--faint);text-align:center;padding:16px;min-height:120px">No set saved for this week yet — tap “⊕ new set”.</div>';
-    }
-    var count = set && set.days && set.days[0] ? (set.days[0].questions || []).length : 0;
+  /* ── Week view (teach screen 'starter') ── */
+  function renderStarterWeek(){
+    stEnsureCurrent();
+    var v = document.getElementById('tv-starter');
+    var cfg = stCfg(), thisMon = mondayOf(), weeks = stWeeks();
+    var keys = Object.keys(weeks);
+    if (keys.indexOf(thisMon) < 0) keys.push(thisMon);
+    if (keys.indexOf(stCurWeek) < 0) keys.push(stCurWeek);
+    keys.sort();
+    var chips = keys.map(function (k){
+      var sel = k === stCurWeek, suffix = k === thisMon ? ' · this week' : (k < thisMon ? ' ✓' : '');
+      var style = sel ? 'border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700;padding:6px 14px'
+                      : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600;padding:7px 14px';
+      return '<button class="wk-chip" data-wk="' + k + '" style="border-radius:999px;font-size:12.5px;white-space:nowrap;cursor:pointer;' + style + '">' + fmtWBShort(k) + suffix + '</button>';
+    }).join('');
+    chips += '<button class="wk-chip" id="newWeek" style="border:1px dashed var(--faint);background:var(--card);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12.5px;white-space:nowrap;cursor:pointer">⊕ new week</button>';
+
+    var days = weeks[stCurWeek] || [];
+    var rows = [0,1,2,3,4].map(function (i){
+      var dayISO = stDayISO(stCurWeek, i), qs = days[i] || [], isToday = dayISO === todayISO();
+      var hasAnn = stDayHasAnn(dayISO), hasSc = stDayHasScores(dayISO), status, scol;
+      if (hasAnn || hasSc){ var parts = []; if (hasAnn) parts.push('✏ annotated'); if (hasSc) parts.push('✓ scores'); status = parts.join(' · '); scol = 'var(--success)'; }
+      else if (isToday){ status = 'tap to open'; scol = 'var(--teal-700)'; }
+      else { status = 'not used yet'; scol = 'var(--faint)'; }
+      var rowStyle = isToday ? 'border:2px solid var(--teal-600);background:var(--teal-50);box-shadow:0 4px 14px rgba(47,85,224,.12)'
+                             : 'border:1px solid var(--line);background:var(--card);box-shadow:0 4px 14px rgba(20,24,29,.04)';
+      return '<button class="day-row" data-day="' + i + '" style="' + rowStyle + '">' +
+        '<span style="flex:1;min-width:0;text-align:left">' +
+          '<span class="dr-label">' + stDayShort(stCurWeek, i) + (isToday ? ' · today' : '') + '</span>' +
+          '<span class="dr-prev">' + esc(qs.length ? qPreview(qs) : 'no set yet') + '</span></span>' +
+        '<span class="dr-status" style="color:' + scol + '">' + esc(status) + '</span></button>';
+    }).join('');
 
     v.innerHTML = teachHead('home', 'Home', '<span class="pill pill-saved"><span>✓</span> saved</span>') +
-      '<div><span class="glance eyebrow" style="display:none"></span>' +
-      '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
-      '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Starter</div></div>' +
+      '<div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
+      '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Starter</div>' +
+      '<div style="font-size:12.5px;color:var(--faint)">Pick a week, then a day — sheet, whiteboard or scores.</div></div>' +
       '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">' + chips + '</div>' +
-      '<div class="glance" style="flex:1;display:flex;flex-direction:column;gap:12px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:baseline">' +
-          '<b style="font-size:14.5px">This week\'s questions</b>' +
-          (set ? '<button id="regen" style="font-size:12px;color:var(--faint);font-weight:600;background:none;border:0;cursor:pointer">⋯ regenerate</button>' : '') + '</div>' +
-        preview +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);font-weight:600">' +
-          '<span style="background:var(--page);border-radius:999px;padding:4px 11px">' + count + ' questions</span>' +
-          '<span style="background:var(--page);border-radius:999px;padding:4px 11px">out of ' + (set ? set.max : 22) + '</span>' +
-          '<span style="background:var(--gold-50);color:var(--gold-600);border-radius:999px;padding:4px 11px">📱 rewards on</span>' +
-        '</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' + rows + '</div>' +
+      '<button id="xtbToggle" style="border-radius:12px;padding:11px 14px;font-size:13px;text-align:left;cursor:pointer;' + (cfg.xtb ? 'border:1.5px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700' : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600') + '">' + (cfg.xtb ? '☑' : '☐') + ' ×tables on the back of every sheet</button>' +
+      '<button id="printWeek" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:14px;font-size:14px;font-weight:700">🖨 Print all 5 days</button>';
+    wireBack(v);
+    v.querySelectorAll('[data-wk]').forEach(function (b){ b.onclick = function (){ stCurWeek = b.dataset.wk; stCurDay = (stCurWeek === thisMon) ? Math.min((new Date().getDay() + 6) % 7, 4) : 0; renderStarterWeek(); }; });
+    document.getElementById('newWeek').onclick = openNewWeek;
+    v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stCurDay = +b.dataset.day; teachGo('day'); }; });
+    document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderStarterWeek(); };
+    document.getElementById('printWeek').onclick = function (){ stPrintWeek(stCurWeek); };
+  }
+
+  /* ── New week bottom sheet ── */
+  function openNewWeek(){ document.getElementById('stBackdrop').classList.add('open'); renderNewWeek(); }
+  function closeNewWeek(){ document.getElementById('stBackdrop').classList.remove('open'); }
+  function renderNewWeek(){
+    var cfg = stCfg();
+    var counts = [10,15,20].map(function (n){ var sel = cfg.qCount === n;
+      return '<button class="nw-count" data-n="' + n + '" style="border-radius:999px;padding:6px 15px;font-size:13px;cursor:pointer;' + (sel ? 'border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700' : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600') + '">' + n + '</button>';
+    }).join('');
+    var weeks = stWeeks(), opts = [];
+    for (var i = 1; i <= 4 && opts.length < 3; i++){ var k = addDaysISO(mondayOf(), 7 * i); if (!weeks[k]) opts.push(k); }
+    var rows = opts.map(function (k){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line-2)"><span style="font-size:13.5px;font-weight:600">' + fmtWB(k) + (k === addDaysISO(mondayOf(), 7) ? ' — next week' : '') + '</span><button class="nw-gen" data-k="' + k + '" style="background:none;border:0;color:var(--teal-600);font-weight:700;font-size:13px;cursor:pointer">generate &amp; save ›</button></div>';
+    }).join('') || '<p class="hint small">All upcoming weeks already have sets.</p>';
+    document.getElementById('stSheet').innerHTML =
+      '<div class="ql-grab"></div>' +
+      '<div class="ql-head"><span class="ql-title">New week of starters</span><span class="spacer"></span><button class="ql-x" id="nwClose">✕</button></div>' +
+      '<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Five fresh sets — one each for Monday to Friday — saved to the week beginning you pick.</p>' +
+      '<label style="margin:0 0 6px">Questions per day</label><div style="display:flex;gap:8px;margin-bottom:6px">' + counts + '</div>' +
+      rows +
+      '<p class="hint small" style="margin-top:12px">A saved set never changes unless you explicitly regenerate it.</p>';
+    document.getElementById('nwClose').onclick = closeNewWeek;
+    document.querySelectorAll('.nw-count').forEach(function (b){ b.onclick = function (){ var c = stCfg(); c.qCount = +b.dataset.n; stSaveCfg(c); renderNewWeek(); }; });
+    document.querySelectorAll('.nw-gen').forEach(function (b){ b.onclick = function (){ var k = b.dataset.k; stGenerateWeek(k, stCfg().qCount); stCurWeek = k; stCurDay = 0; closeNewWeek(); renderStarterWeek(); toast('✓ 5 fresh sets saved to ' + fmtWB(k)); }; });
+  }
+
+  /* ── Day view — the printable sheet (teach screen 'day') ── */
+  function renderDayView(){
+    var v = document.getElementById('tv-day');
+    var days = stWeek(stCurWeek) || stGenerateWeek(stCurWeek, stCfg().qCount);
+    var qs = days[stCurDay] || [], dayISO = stDayISO(stCurWeek, stCurDay);
+    var isToday = dayISO === todayISO(), hasAnn = stDayHasAnn(dayISO), cfg = stCfg();
+    var badge = isToday ? '<span style="font-size:11px;font-weight:700;background:var(--teal-50);color:var(--teal-700);border-radius:999px;padding:3px 10px">today</span>'
+              : (hasAnn ? '<span style="font-size:11px;font-weight:700;background:var(--success-50);color:var(--success);border-radius:999px;padding:3px 10px">✏ annotated</span>' : '');
+    var cells = qs.map(function (q, i){ return '<div class="ds-q"><span class="ds-num">' + (i + 1) + '</span><div class="ds-text">' + GRQ(q) + '</div></div>'; }).join('');
+    var xt = '';
+    if (cfg.xtb){ var xts = stTablesFor(dayISO);
+      xt = '<div class="ds-divider">back of sheet · ×tables</div><div class="ds-xtgrid">' +
+        xts.map(function (q, i){ return '<div class="ds-xt"><span class="ds-xtn">' + (i + 1) + '</span>' + GRQ(q) + '</div>'; }).join('') + '</div>';
+    }
+    var pages = Math.max(1, Math.ceil(qs.length / 10));
+    var note = qs.length <= 10 ? 'this is exactly the A4 sheet that prints — same questions, same layout'
+                               : qs.length + ' questions — prints on ' + pages + ' A4 pages, 10 per page';
+    v.innerHTML = teachHead('starter', fmtWB(stCurWeek),
+        '<button class="back-link" id="freshDay" style="color:var(--muted)">⟳ fresh set</button><button class="pill pill-ghost" id="printDay" style="margin-left:6px">🖨 Print</button>') +
+      '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:21px;font-weight:700;letter-spacing:-.01em">' + esc(stDayFull(stCurWeek, stCurDay)) + '</span>' + badge + '</div>' +
+      '<div class="ds-sheet">' +
+        '<div class="ds-sheethead"><b>Mental Starter</b><span>name ________&nbsp;&nbsp;date ________</span></div>' +
+        '<div class="ds-grid">' + cells + '</div>' + xt +
+      '</div>' +
+      '<p class="hint small" style="text-align:center;margin:0">' + note + '</p>' +
       '<div style="display:flex;gap:10px">' +
-        '<button class="dock" id="goBoard" style="flex:1.4' + (set ? '' : ';opacity:.5') + '">Project on board</button>' +
-        '<button id="goScores" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:18px;font-size:15.5px;font-weight:700">Enter scores</button>' +
+        '<button class="dock" id="toBoard" style="flex:1.5">▶ Display on Whiteboard</button>' +
+        '<button id="toScores" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:16px;font-size:15px;font-weight:700">Enter scores</button>' +
       '</div>';
     wireBack(v);
-    v.querySelectorAll('[data-week]').forEach(function (b) {
-      b.onclick = function () { var w = b.dataset.week; if (!starterSets()[w]) { if (confirm('Generate a starter set for ' + fmtWB(w) + '?')) { generateSet(w, false); renderStarterHome(); } } };
-    });
-    var ns = document.getElementById('newSet'); if (ns) ns.onclick = function () { if (generateSet(mondayOf(), true)) renderStarterHome(); };
-    var rg = document.getElementById('regen'); if (rg) rg.onclick = function () { if (generateSet(mondayOf(), true)) renderStarterHome(); };
-    document.getElementById('goBoard').onclick = function () { if (currentSet()) teachGo('board'); else if (generateSet(mondayOf(), false)) teachGo('board'); };
-    document.getElementById('goScores').onclick = function () { teachGo('scores'); };
+    document.getElementById('freshDay').onclick = function (){
+      if ((stDayHasAnn(dayISO) || stDayHasScores(dayISO)) && !confirm('This day has annotations or scores. Generate a fresh set anyway? The old questions will be gone.')) return;
+      stFreshDay(stCurWeek, stCurDay, stCfg().qCount); renderDayView(); toast('✓ Fresh questions for ' + stDayShort(stCurWeek, stCurDay) + ' — the old set is gone');
+    };
+    document.getElementById('printDay').onclick = function (){ stPrintDay(stCurWeek, stCurDay); };
+    document.getElementById('toBoard').onclick = function (){ openWhiteboard(); };
+    document.getElementById('toScores').onclick = function (){ teachGo('scores'); };
   }
 
-  /* ── Board view (numbered cards + pencil layer + squares) ── */
-  var boardSquare = null;
-  function renderBoard2() {
-    var v = document.getElementById('tv-board');
-    var set = currentSet();
-    var qs = (set && set.days && set.days[0] && set.days[0].questions) || [];
-    var cards = qs.map(function (q, i) {
-      return '<div class="board-q" style="position:relative;border:1px solid var(--line);border-radius:12px;padding:14px 14px 14px 52px;min-height:64px;font-size:21px;font-weight:700;display:flex;align-items:center">' +
-        '<span style="position:absolute;left:12px;top:12px;width:28px;height:28px;border-radius:8px;background:var(--teal-50);color:var(--teal-700);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">' + (i + 1) + '</span>' +
-        '<div>' + (typeof window.genRenderQuestion === 'function' ? window.genRenderQuestion(q) : '') + '</div></div>';
-    }).join('');
-    v.innerHTML = teachHead('starter', 'Starter', '<span style="font-size:12px;color:var(--faint);font-weight:600">Apple Pencil to annotate</span>') +
-      '<div style="position:relative;flex:1;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden">' +
-        '<div id="boardScroll" style="flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;position:relative">' +
-          (cards || '<div class="empty">No questions — generate a set first.</div>') +
-          '<canvas id="boardInk" style="position:absolute;inset:0;pointer-events:none"></canvas>' +
-        '</div>' +
-        '<div id="boardSquare"></div>' +
-        '<div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid var(--line-2);background:var(--page);flex-wrap:wrap">' +
-          '<button id="tPen" style="background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700">✏ Pen</button>' +
-          '<button id="tRub" style="background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600">Rubber</button>' +
-          '<button id="tClr" style="background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600">Clear</button>' +
-          '<span style="flex:1"></span>' +
-          '<button id="t100" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700">▦ 100</button>' +
-          '<button id="tTimes" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:700">▦ ×</button>' +
-        '</div>' +
+  /* ── Whiteboard mode (full-screen takeover) ── */
+  var wbTool = 'pen', wbPage = 0, wbFocus = null, wbPopup = null;
+  var wbCanvas = null, wbCtx = null, wbLive = null, wbErasing = false, wbPenActive = false;
+  function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
+  function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
+  function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
+  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
+  function closeWhiteboard(){ document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
+  function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
+  function renderWhiteboard(){
+    var wb = document.getElementById('whiteboard'), qs = wbQs(), pages = Math.max(1, Math.ceil(qs.length / 10)), grid = wbFocus == null, stage;
+    if (grid){
+      var page = Math.min(wbPage, pages - 1), pageQs = qs.slice(page * 10, page * 10 + 10);
+      stage = '<div class="wb-grid">' + pageQs.map(function (q, i){ return '<div class="wb-card"><span class="wb-num">' + (page * 10 + i + 1) + '</span><div class="wb-q">' + GRQ(q) + '</div></div>'; }).join('') + '</div>';
+    } else {
+      stage = '<div class="wb-focus"><span class="wb-num big">' + (wbFocus + 1) + '</span><div class="wb-q big">' + GRQ(qs[wbFocus]) + '</div></div>';
+    }
+    var pager = (grid && pages > 1) ? '<button class="wb-tb" id="wbPagePrev">‹</button><span class="wb-pagelbl">page ' + (Math.min(wbPage, pages - 1) + 1) + ' / ' + pages + '</span><button class="wb-tb" id="wbPageNext">›</button>' : '';
+    var modeBtn = grid ? '<button class="wb-tb" id="wbFocusFirst">1 at a time ›</button>'
+                       : '<button class="wb-tb" id="wbFocusPrev">‹</button><span class="wb-pagelbl">' + (wbFocus + 1) + ' / ' + qs.length + '</span><button class="wb-tb" id="wbFocusNext">›</button><button class="wb-tb" id="wbFocusAll">⊞ all</button>';
+    wb.innerHTML =
+      '<div class="wb-top">' +
+        '<button class="wb-tb" id="wbExit">✕ exit</button>' +
+        '<b style="font-size:15px">' + stDayShort(stCurWeek, stCurDay) + '</b>' +
+        '<span style="font-size:12.5px;color:var(--faint)">' + fmtWB(stCurWeek) + '</span>' +
+        '<span style="flex:1"></span>' +
+        '<span class="wb-airplay">📡 AirPlay · classroom board</span>' +
+        (stCurDay > 0 ? '<button class="wb-tb" id="wbPrevDay">‹ ' + stDayShort(stCurWeek, stCurDay - 1) + '</button>' : '') +
+        (stCurDay < 4 ? '<button class="wb-tb" id="wbNextDay">' + stDayShort(stCurWeek, stCurDay + 1) + ' ›</button>' : '') +
+      '</div>' +
+      '<div class="wb-stage" id="wbStage">' + stage + '<canvas id="wbCanvas"></canvas>' + (wbPopup ? wbPopupHTML() : '') + '</div>' +
+      '<div class="wb-toolbar">' +
+        '<button class="wb-tb" id="wbPen" style="' + tbStyle(wbTool === 'pen') + '">✏ Pen</button>' +
+        '<button class="wb-tb" id="wbRub" style="' + tbStyle(wbTool === 'rubber') + '">◌ Rubber</button>' +
+        '<button class="wb-tb" id="wbClear">Clear all</button>' +
+        '<span style="flex:1"></span>' +
+        '<button class="wb-tb" id="wb100" style="' + tbStyle(wbPopup === 'hundred') + '">▦ 100 square</button>' +
+        '<button class="wb-tb" id="wbTimes" style="' + tbStyle(wbPopup === 'times') + '">▦ × tables</button>' +
+        pager + modeBtn +
       '</div>';
-    wireBack(v);
-    setupInk();
-    document.getElementById('t100').onclick = function () { boardSquare = boardSquare === 'hundred' ? null : 'hundred'; renderSquare(); };
-    document.getElementById('tTimes').onclick = function () { boardSquare = boardSquare === 'times' ? null : 'times'; renderSquare(); };
-    document.getElementById('tClr').onclick = function () { clearInk(); toast('Board cleared — annotations also wipe overnight automatically'); };
-    document.getElementById('tRub').onclick = function () { inkMode = inkMode === 'rub' ? 'pen' : 'rub'; document.getElementById('tRub').style.background = inkMode === 'rub' ? 'var(--coral-50)' : 'var(--card)'; };
-    renderSquare();
+    document.getElementById('wbExit').onclick = closeWhiteboard;
+    var pd = document.getElementById('wbPrevDay'); if (pd) pd.onclick = function (){ stCurDay--; wbPage = 0; wbFocus = null; renderWhiteboard(); };
+    var nd = document.getElementById('wbNextDay'); if (nd) nd.onclick = function (){ stCurDay++; wbPage = 0; wbFocus = null; renderWhiteboard(); };
+    document.getElementById('wbPen').onclick = function (){ wbTool = 'pen'; renderWhiteboard(); };
+    document.getElementById('wbRub').onclick = function (){ wbTool = 'rubber'; renderWhiteboard(); };
+    document.getElementById('wbClear').onclick = function (){ stClearDay(wbDayKey()); redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
+    document.getElementById('wb100').onclick = function (){ wbPopup = wbPopup === 'hundred' ? null : 'hundred'; renderWhiteboard(); };
+    document.getElementById('wbTimes').onclick = function (){ wbPopup = wbPopup === 'times' ? null : 'times'; renderWhiteboard(); };
+    var pp = document.getElementById('wbPagePrev'); if (pp) pp.onclick = function (){ wbPage = Math.max(0, wbPage - 1); renderWhiteboard(); };
+    var pn = document.getElementById('wbPageNext'); if (pn) pn.onclick = function (){ wbPage = Math.min(pages - 1, wbPage + 1); renderWhiteboard(); };
+    var ff = document.getElementById('wbFocusFirst'); if (ff) ff.onclick = function (){ wbFocus = Math.min(wbPage, pages - 1) * 10; renderWhiteboard(); };
+    var fp = document.getElementById('wbFocusPrev'); if (fp) fp.onclick = function (){ wbFocus = Math.max(0, wbFocus - 1); renderWhiteboard(); };
+    var fn = document.getElementById('wbFocusNext'); if (fn) fn.onclick = function (){ wbFocus = Math.min(qs.length - 1, wbFocus + 1); renderWhiteboard(); };
+    var fa = document.getElementById('wbFocusAll'); if (fa) fa.onclick = function (){ wbPage = Math.floor(wbFocus / 10); wbFocus = null; renderWhiteboard(); };
+    var px = document.getElementById('wbPopX'); if (px) px.onclick = function (){ wbPopup = null; renderWhiteboard(); };
+    setupWBCanvas();
+  }
+  function wbPopupHTML(){
+    var label = wbPopup === 'hundred' ? '100 square' : '× tables', cells = '';
+    if (wbPopup === 'hundred'){ for (var n = 1; n <= 100; n++) cells += '<span class="wb-cell">' + n + '</span>'; }
+    else { for (var r = 1; r <= 10; r++) for (var c = 1; c <= 10; c++){ cells += '<span class="wb-cell' + ((r === 1 || c === 1) ? ' hdr' : '') + '">' + (r * c) + '</span>'; } }
+    return '<div class="wb-popup"><div class="wb-popup-head"><b>' + label + '</b><button id="wbPopX">✕</button></div><div class="wb-popup-grid">' + cells + '</div></div>';
+  }
+  function wbPt(e){ var r = wbCanvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+  function sizeWB(){ if (!wbCanvas) return; var r = wbCanvas.getBoundingClientRect(); if (!r.width || !r.height) return; var dpr = window.devicePixelRatio || 1; wbCanvas.width = Math.round(r.width * dpr); wbCanvas.height = Math.round(r.height * dpr); redrawWB(); }
+  function redrawWB(){
+    if (!wbCtx) return; wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
+    var strokes = stLayer(wbAnnKey()).concat(wbLive ? [wbLive] : []);
+    wbCtx.strokeStyle = '#2f55e0'; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; wbCtx.lineWidth = Math.max(3, wbCanvas.width / 340);
+    strokes.forEach(function (st){ wbCtx.beginPath(); st.pts.forEach(function (p, i){ var x = p[0] * wbCanvas.width, y = p[1] * wbCanvas.height; i ? wbCtx.lineTo(x, y) : wbCtx.moveTo(x, y); }); wbCtx.stroke(); });
+  }
+  function eraseWB(p){
+    var key = wbAnnKey(), list = stLayer(key);
+    var hit = function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.028; }); };
+    if (list.some(hit)){ stSetLayer(key, list.filter(function (st){ return !hit(st); })); redrawWB(); }
+  }
+  function setupWBCanvas(){
+    wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d'); wbLive = null;
+    wbCanvas.onpointerdown = function (e){
+      if (e.pointerType === 'pen') wbPenActive = true;
+      if (e.pointerType === 'touch' && wbPenActive) return;          // palm rejection
+      e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+      if (wbTool === 'rubber'){ wbErasing = true; eraseWB(wbPt(e)); return; }
+      wbLive = { pts: [wbPt(e)] };
+    };
+    wbCanvas.onpointermove = function (e){
+      if (e.pointerType === 'touch' && wbPenActive) return;
+      if (wbErasing){ eraseWB(wbPt(e)); return; }
+      if (!wbLive) return; wbLive.pts.push(wbPt(e)); redrawWB();
+    };
+    var up = function (e){
+      if (e && e.pointerType === 'pen') wbPenActive = false;
+      if (wbErasing){ wbErasing = false; return; }
+      if (!wbLive) return; var st = wbLive; wbLive = null;
+      if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
+      var key = wbAnnKey(); stSetLayer(key, stLayer(key).concat([st])); redrawWB();
+    };
+    wbCanvas.onpointerup = up; wbCanvas.onpointercancel = up;
+    setTimeout(sizeWB, 30);
   }
 
-  /* ink layer: persists strokes per ISO date; reads today only */
-  var inkMode = 'pen', inkDrawing = false, inkStrokes = [], inkCur = null, inkCanvas = null, inkCtx = null;
-  function inkStore() { return Store.get('tp_board_ink', {}); }
-  function setupInk() {
-    inkCanvas = document.getElementById('boardInk'); if (!inkCanvas) return;
-    var scroll = document.getElementById('boardScroll');
-    function size() { inkCanvas.width = scroll.scrollWidth; inkCanvas.height = scroll.scrollHeight; redrawInk(); }
-    inkCtx = inkCanvas.getContext('2d');
-    inkStrokes = (inkStore()[todayISO()] || []);
-    setTimeout(size, 30);
-    scroll.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'pen') return;       // finger taps fall through to buttons/cards
-      inkDrawing = true; inkCur = { color: '#2f55e0', erase: inkMode === 'rub', pts: [] };
-      addPt(e); e.preventDefault();
-    });
-    scroll.addEventListener('pointermove', function (e) { if (inkDrawing && e.pointerType === 'pen') { addPt(e); redrawInk(); } });
-    window.addEventListener('pointerup', function () { if (inkDrawing) { inkDrawing = false; if (inkCur && inkCur.pts.length) inkStrokes.push(inkCur); inkCur = null; persistInk(); } });
-  }
-  function addPt(e) { var r = inkCanvas.getBoundingClientRect(); inkCur.pts.push({ x: e.clientX - r.left, y: e.clientY - r.top }); }
-  function redrawInk() {
-    if (!inkCtx) return; inkCtx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
-    var all = inkStrokes.concat(inkCur ? [inkCur] : []);
-    all.forEach(function (s) {
-      inkCtx.globalCompositeOperation = s.erase ? 'destination-out' : 'source-over';
-      inkCtx.strokeStyle = s.color; inkCtx.lineWidth = s.erase ? 18 : 3; inkCtx.lineCap = 'round'; inkCtx.lineJoin = 'round';
-      inkCtx.beginPath();
-      s.pts.forEach(function (p, i) { i ? inkCtx.lineTo(p.x, p.y) : inkCtx.moveTo(p.x, p.y); });
-      inkCtx.stroke();
-    });
-    inkCtx.globalCompositeOperation = 'source-over';
-  }
-  function persistInk() { var st = inkStore(); st[todayISO()] = inkStrokes; Store.set('tp_board_ink', st); }
-  function clearInk() { inkStrokes = []; persistInk(); redrawInk(); }
-  function renderSquare() {
-    var host = document.getElementById('boardSquare'); if (!host) return;
-    if (!boardSquare) { host.innerHTML = ''; return; }
-    var rows = '';
-    for (var r = 0; r < 10; r++) { var cells = '';
-      for (var c = 0; c < 10; c++) { var val = boardSquare === 'hundred' ? (r * 10 + c + 1) : ((r + 1) * (c + 1)); cells += '<td style="border:1px solid var(--line-2);padding:2px 3px;text-align:center;font-size:10px;color:var(--muted)">' + val + '</td>'; }
-      rows += '<tr>' + cells + '</tr>'; }
-    host.innerHTML = '<div style="position:absolute;right:18px;top:64px;width:240px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 40px rgba(20,24,29,.25);overflow:hidden;z-index:5">' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line-2);background:var(--page)">' +
-        '<b style="font-size:12px;color:var(--teal-700)' + (boardSquare === 'hundred' ? ';border-bottom:2px solid var(--teal-600)' : '') + '">100 square</b>' +
-        '<b style="font-size:12px;color:var(--' + (boardSquare === 'times' ? 'teal-700' : 'faint') + ')' + (boardSquare === 'times' ? ';border-bottom:2px solid var(--teal-600)' : '') + '">× tables</b>' +
-        '<span style="flex:1"></span><button id="sqX" style="background:none;border:0;color:var(--faint);font-size:12px">✕</button></div>' +
-      '<table style="border-collapse:collapse;width:100%">' + rows + '</table></div>';
-    document.getElementById('sqX').onclick = function () { boardSquare = null; renderSquare(); };
-    host.querySelectorAll('b').forEach(function (b, i) { b.style.cursor = 'pointer'; b.onclick = function () { boardSquare = i === 0 ? 'hundred' : 'times'; renderSquare(); }; });
-  }
-
-  /* ── Score entry (writes into Mental Starters store, today's column) ── */
+  /* ── Score entry (per open day; writes to the Mental Starters store) ── */
   var scoreSel = 0;
-  function starterBlock() {
-    var ht = currentHalfTerm();
-    if (!msData[ht]) msData[ht] = { max: 22, dates: [], scores: {} };
-    var b = msData[ht];
-    var d = todayISO();
-    if (b.dates.indexOf(d) === -1) { b.dates.push(d); b.dates.sort(); }
-    return b;
-  }
-  function renderScores() {
-    var v = document.getElementById('tv-scores');
-    var b = starterBlock(); var d = todayISO();
-    var list = sortedRoster();
-    if (!list.length) { v.innerHTML = teachHead('starter', 'Starter', '') + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; wireBack(v); return; }
-    var rows = list.map(function (p, i) {
-      var cell = (b.scores[p.id] && b.scores[p.id][d]) || {};
-      var sel = i === scoreSel;
-      var val = cell.v != null ? cell.v : (sel ? '|' : '—');
-      return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-2)">' +
-        '<span style="flex:1;font-weight:600;font-size:14.5px">' + esc(p.name) + '</span>' +
-        '<button class="score-cell" data-i="' + i + '" data-pid="' + p.id + '" style="width:64px;text-align:center;border-radius:10px;font-weight:700;font-size:14px;padding:' + (sel ? '8px 0;border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700)' : '9px 0;border:1px solid var(--line);background:var(--card);color:var(--ink)') + '">' + esc(String(val)) + '</button>' +
-        '<button class="ipad-tog" data-pid="' + p.id + '" style="border-radius:10px;padding:8px 13px;font-size:13px;' + (cell.ipad ? 'border:1.5px solid var(--gold-600);background:var(--gold-100)' : 'border:1px solid var(--line);background:var(--card);opacity:.35') + '">📱</button>' +
-        '</div>';
+  function scoreDayISO(){ return stDayISO(stCurWeek, stCurDay); }
+  function ensureScoreCol(){ var b = stScoreBlock(), d = scoreDayISO(); if (b.dates.indexOf(d) < 0){ b.dates.push(d); b.dates.sort(); } return b; }
+  function renderScores(){
+    var v = document.getElementById('tv-scores'), b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster();
+    if (!list.length){ v.innerHTML = teachHead('day', stDayShort(stCurWeek, stCurDay), '') + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; wireBack(v); return; }
+    var rows = list.map(function (p, i){
+      var cell = (b.scores[p.id] && b.scores[p.id][d]) || {}, sel = i === scoreSel, val = cell.v != null ? cell.v : (sel ? '|' : '—');
+      return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-2)"><span style="flex:1;font-weight:600;font-size:14.5px">' + esc(p.name) + '</span>' +
+        '<button class="score-cell" data-i="' + i + '" style="width:64px;text-align:center;border-radius:10px;font-weight:700;font-size:14px;padding:' + (sel ? '8px 0;border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700)' : '9px 0;border:1px solid var(--line);background:var(--card);color:var(--ink)') + '">' + esc(String(val)) + '</button>' +
+        '<button class="ipad-tog" data-pid="' + p.id + '" style="border-radius:10px;padding:8px 13px;font-size:13px;' + (cell.ipad ? 'border:1.5px solid var(--gold-600);background:var(--gold-100)' : 'border:1px solid var(--line);background:var(--card);opacity:.35') + '">📱</button></div>';
     }).join('');
-    var pad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '⌫', '↵'].map(function (k) {
-      return '<button class="pad" data-k="' + k + '" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;color:var(--ink)">' + k + '</button>';
-    }).join('');
-    v.innerHTML = teachHead('starter', 'Starter', '<span class="pill pill-saved"><span>✓</span> saved · today\'s column auto-created</span>') +
+    var pad = ['1','2','3','4','5','6','7','8','9','0','⌫','↵'].map(function (k){ return '<button class="pad" data-k="' + k + '" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;color:var(--ink)">' + k + '</button>'; }).join('');
+    v.innerHTML = teachHead('day', stDayShort(stCurWeek, stCurDay), '<span class="pill pill-saved"><span>✓</span> saved · ' + stDayShort(stCurWeek, stCurDay) + ' column</span>') +
       '<div style="flex:1;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 14px;min-height:0">' + rows + '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">' + pad + '</div>';
     wireBack(v);
-    v.querySelectorAll('.score-cell').forEach(function (b2) { b2.onclick = function () { scoreSel = +b2.dataset.i; renderScores(); }; });
-    v.querySelectorAll('.ipad-tog').forEach(function (b2) { b2.onclick = function () { toggleIpad(b2.dataset.pid); }; });
-    v.querySelectorAll('.pad').forEach(function (b2) { b2.onclick = function () { padKey(b2.dataset.k); }; });
+    v.querySelectorAll('.score-cell').forEach(function (b2){ b2.onclick = function (){ scoreSel = +b2.dataset.i; renderScores(); }; });
+    v.querySelectorAll('.ipad-tog').forEach(function (b2){ b2.onclick = function (){ toggleIpad(b2.dataset.pid); }; });
+    v.querySelectorAll('.pad').forEach(function (b2){ b2.onclick = function (){ padKey(b2.dataset.k); }; });
   }
-  function padKey(k) {
-    var b = starterBlock(); var d = todayISO(); var list = sortedRoster();
-    var p = list[scoreSel]; if (!p) return;
-    if (k === '↵') { scoreSel = Math.min(scoreSel + 1, list.length - 1); renderScores(); return; }
+  function padKey(k){
+    var b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster(), p = list[scoreSel]; if (!p) return;
+    if (k === '↵'){ scoreSel = Math.min(scoreSel + 1, list.length - 1); renderScores(); return; }
     if (!b.scores[p.id]) b.scores[p.id] = {};
     if (!b.scores[p.id][d]) b.scores[p.id][d] = { v: null, ipad: false };
-    var cur = b.scores[p.id][d].v;
-    cur = cur == null ? '' : String(cur);
+    var cur = b.scores[p.id][d].v; cur = cur == null ? '' : String(cur);
     var next = k === '⌫' ? cur.slice(0, -1) : (cur.length >= 2 ? cur : cur + k);
     b.scores[p.id][d].v = next === '' ? null : Number(next);
-    if (typeof msSave === 'function') msSave(); flashSaved();
-    renderScores();
+    if (typeof msSave === 'function') msSave(); flashSaved(); renderScores();
   }
-  function toggleIpad(pid) {
-    var b = starterBlock(); var d = todayISO();
+  function toggleIpad(pid){
+    var b = ensureScoreCol(), d = scoreDayISO();
     if (!b.scores[pid]) b.scores[pid] = {};
     if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
     b.scores[pid][d].ipad = !b.scores[pid][d].ipad;
     if (typeof msSave === 'function') msSave(); flashSaved(); renderScores();
   }
+
+  /* ── Print (one renderer; reuses the existing .gen-day A4 print CSS) ── */
+  function stSheetHTML(label, title, questions, isTables){
+    var cells = questions.map(function (q, i){ return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
+    return '<div class="card gen-sheet gen-day"><h2 class="gen-heading">' + (label ? '<span class="gen-day-name">' + esc(label) + '</span> · ' : '') + esc(title) + '</h2><div class="gen-grid' + (isTables ? ' gen-grid-tables' : '') + '">' + cells + '</div></div>';
+  }
+  function stPrintHTML(html){ var c = document.getElementById('starterPrint'); c.innerHTML = html; window.print(); }
+  function stDayPagesHTML(monday, i){
+    var days = stWeek(monday) || [], qs = days[i] || [], dayISO = stDayISO(monday, i), cfg = stCfg(), label = stDayFull(monday, i), html = '';
+    chunk(qs, 10).forEach(function (pg){ html += stSheetHTML(label, 'Mental Starter — ' + currentHalfTerm(), pg, false); });
+    if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO), true);
+    return html;
+  }
+  function stPrintDay(monday, i){ stPrintHTML(stDayPagesHTML(monday, i)); }
+  function stPrintWeek(monday){ var html = ''; for (var i = 0; i < 5; i++) html += stDayPagesHTML(monday, i); stPrintHTML(html); }
 
   /* ── Pick a name (uses the tp_picker store, no-repeats) ── */
   function renderPick() {
@@ -756,7 +866,7 @@
     if (concerns) n.push({ b: concerns + ' concern' + (concerns === 1 ? '' : 's'), t: ' this week to review', go: 'pupils', link: 'Pupils ›' });
     var starThisWeek = (spData || []).some(function (e) { return mondayOf(e.date) === monday; });
     if (roster.length && !starThisWeek) n.push({ b: 'Star pupil', t: ' not chosen this week', go: 'pupils', link: 'Pupils ›' });
-    if (!starterSets()[addDaysISO(monday, 7)]) n.push({ b: "Next week's starter", t: ' not set yet', go: '__teach_starter', link: 'Starter ›' });
+    if (!stWeek(addDaysISO(monday, 7))) n.push({ b: "Next week's starter", t: ' not set yet', go: '__teach_starter', link: 'Starter ›' });
     return n;
   }
   function renderToday() {
@@ -979,6 +1089,16 @@
   function init() {
     buildTeachShell();
     buildPlan();
+
+    /* extra shared DOM: new-week sheet, whiteboard overlay, print container */
+    document.body.insertAdjacentHTML('beforeend',
+      '<div class="ql-backdrop" id="stBackdrop"><div class="ql-sheet" id="stSheet"></div></div>' +
+      '<div id="whiteboard"></div>' +
+      '<div id="starterPrint"></div>');
+    var stb = document.getElementById('stBackdrop');
+    if (stb) stb.addEventListener('click', function (e) { if (e.target === stb) closeNewWeek(); });
+    window.addEventListener('resize', function () { if (document.getElementById('whiteboard').style.display === 'flex') sizeWB(); });
+    window.addEventListener('afterprint', function () { var c = document.getElementById('starterPrint'); if (c) c.innerHTML = ''; });
 
     /* tap the dimmed backdrop (outside the sheet) to dismiss Quick log */
     var bd = document.getElementById('qlBackdrop');
