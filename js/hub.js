@@ -36,15 +36,20 @@
   /* ── date / week helpers ─────────────────────────────────────────── */
   var DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   function todayLabel() { return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); }
+  /* LOCAL-date helpers — never use toISOString() for date keys (it is UTC and
+     rolls a BST/forward-offset midnight back to the previous day). */
+  function isoLocal(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  function parseISO(iso) { var p = String(iso).split('-'); return new Date(+p[0], (+p[1] || 1) - 1, +p[2] || 1); }
+  function todayKey() { return isoLocal(new Date()); }
   function mondayOf(d) {
-    d = d ? new Date(d) : new Date();
+    d = d ? (typeof d === 'string' ? parseISO(d) : new Date(d)) : new Date();
     var off = (d.getDay() + 6) % 7;            // 0 = Monday
     d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - off);
-    return d.toISOString().slice(0, 10);
+    return isoLocal(d);
   }
-  function addDaysISO(iso, n) { var d = new Date(iso); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
-  function fmtWB(iso) { var d = new Date(iso); return 'w/b ' + d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'long' }); }
-  function fmtWBShort(iso) { var d = new Date(iso); return 'w/b ' + d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
+  function addDaysISO(iso, n) { var d = parseISO(iso); d.setDate(d.getDate() + n); return isoLocal(d); }
+  function fmtWB(iso) { var d = parseISO(iso); return 'w/b ' + d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'long' }); }
+  function fmtWBShort(iso) { var d = parseISO(iso); return 'w/b ' + d.getDate() + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }); }
   function isThisWeek(iso) { return mondayOf(iso) === mondayOf(); }
 
   /* ── current half-term (matches the Mental Starters store) ───────── */
@@ -286,6 +291,19 @@
     var w = stWeeks(); if (!w[monday]) { stGenerateWeek(monday, qCount); w = stWeeks(); }
     w[monday][i] = stBuildDay(qCount); stSaveWeeks(w); flashSaved(); return w[monday][i];
   }
+  /* one-time fix: weeks saved under the old UTC bug were keyed to the Sunday
+     before the real Monday — shift each Sunday-keyed week +1 day onto its Monday. */
+  function stMigrateDates() {
+    var w = stWeeks(), changed = false;
+    Object.keys(w).forEach(function (k) {
+      if (parseISO(k).getDay() === 0) {                 // Sunday key
+        var nk = addDaysISO(k, 1);
+        if (!w[nk]) w[nk] = w[k];
+        delete w[k]; changed = true;
+      }
+    });
+    if (changed) stSaveWeeks(w);
+  }
   function stEnsureCurrent() {
     var m = mondayOf(), w = stWeek(m), qc = stCfg().qCount;
     if (!w) { stGenerateWeek(m, qc); return; }
@@ -405,8 +423,8 @@
 
   function GRQ(q){ return (typeof window.genRenderQuestion === 'function') ? window.genRenderQuestion(q) : esc(JSON.stringify(q)); }
   function chunk(arr, n){ var out = []; for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
-  function stDayShort(monday, i){ var d = new Date(stDayISO(monday, i)); return ['Mon','Tue','Wed','Thu','Fri'][i] + ' ' + d.getDate(); }
-  function stDayFull(monday, i){ return new Date(stDayISO(monday, i)).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }); }
+  function stDayShort(monday, i){ var d = parseISO(stDayISO(monday, i)); return ['Mon','Tue','Wed','Thu','Fri'][i] + ' ' + d.getDate(); }
+  function stDayFull(monday, i){ return parseISO(stDayISO(monday, i)).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }); }
   function qPreview(qs){
     return qs.slice(0, 3).map(function (q){
       return String(GRQ(q)).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').replace(' =', '').trim();
@@ -418,7 +436,7 @@
     stEnsureCurrent();
     var v = document.getElementById('tv-starter');
     var cfg = stCfg(), thisMon = mondayOf(), weeks = stWeeks();
-    var keys = Object.keys(weeks);
+    var keys = Object.keys(weeks).filter(function (k) { return parseISO(k).getDay() === 1; });   // Mondays only
     if (keys.indexOf(thisMon) < 0) keys.push(thisMon);
     if (keys.indexOf(stCurWeek) < 0) keys.push(stCurWeek);
     keys.sort();
@@ -432,7 +450,7 @@
 
     var days = weeks[stCurWeek] || [];
     var rows = [0,1,2,3,4].map(function (i){
-      var dayISO = stDayISO(stCurWeek, i), qs = days[i] || [], isToday = dayISO === todayISO();
+      var dayISO = stDayISO(stCurWeek, i), qs = days[i] || [], isToday = dayISO === todayKey();
       var hasAnn = stDayHasAnn(dayISO), hasSc = stDayHasScores(dayISO), status, scol;
       if (hasAnn || hasSc){ var parts = []; if (hasAnn) parts.push('✏ annotated'); if (hasSc) parts.push('✓ scores'); status = parts.join(' · '); scol = 'var(--success)'; }
       else if (isToday){ status = 'tap to open'; scol = 'var(--teal-700)'; }
@@ -495,7 +513,7 @@
     var v = document.getElementById('tv-day');
     var days = stWeek(stCurWeek) || stGenerateWeek(stCurWeek, stCfg().qCount);
     var qs = days[stCurDay] || [], dayISO = stDayISO(stCurWeek, stCurDay);
-    var isToday = dayISO === todayISO(), hasAnn = stDayHasAnn(dayISO), cfg = stCfg();
+    var isToday = dayISO === todayKey(), hasAnn = stDayHasAnn(dayISO), cfg = stCfg();
     var badge = isToday ? '<span style="font-size:11px;font-weight:700;background:var(--teal-50);color:var(--teal-700);border-radius:999px;padding:3px 10px">today</span>'
               : (hasAnn ? '<span style="font-size:11px;font-weight:700;background:var(--success-50);color:var(--success);border-radius:999px;padding:3px 10px">✏ annotated</span>' : '');
     var cells = qs.map(function (q, i){ return '<div class="ds-q"><span class="ds-num">' + (i + 1) + '</span><div class="ds-text">' + GRQ(q) + '</div></div>'; }).join('');
@@ -504,9 +522,7 @@
       xt = '<div class="ds-divider">back of sheet · ×tables</div><div class="ds-xtgrid">' +
         xts.map(function (q, i){ return '<div class="ds-xt"><span class="ds-xtn">' + (i + 1) + '</span>' + GRQ(q) + '</div>'; }).join('') + '</div>';
     }
-    var pages = Math.max(1, Math.ceil(qs.length / 10));
-    var note = qs.length <= 10 ? 'this is exactly the A4 sheet that prints — same questions, same layout'
-                               : qs.length + ' questions — prints on ' + pages + ' A4 pages, 10 per page';
+    var note = 'this is exactly the A4 sheet that prints — same questions, same layout' + (cfg.xtb ? ' · ×tables on the back' : '');
     v.innerHTML = teachHead('starter', fmtWB(stCurWeek),
         '<button class="back-link" id="freshDay" style="color:var(--muted)">⟳ fresh set</button><button class="pill pill-ghost" id="printDay" style="margin-left:6px">🖨 Print</button>') +
       '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:21px;font-weight:700;letter-spacing:-.01em">' + esc(stDayFull(stCurWeek, stCurDay)) + '</span>' + badge + '</div>' +
@@ -678,7 +694,7 @@
   function stPrintHTML(html){ var c = document.getElementById('starterPrint'); c.innerHTML = html; window.print(); }
   function stDayPagesHTML(monday, i){
     var days = stWeek(monday) || [], qs = days[i] || [], dayISO = stDayISO(monday, i), cfg = stCfg(), label = stDayFull(monday, i), html = '';
-    chunk(qs, 10).forEach(function (pg){ html += stSheetHTML(label, 'Mental Starter — ' + currentHalfTerm(), pg, false); });
+    html += stSheetHTML(label, 'Mental Starter — ' + currentHalfTerm(), qs, false);   // all questions on one A4 page
     if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO, cfg.xtCount), true);
     return html;
   }
@@ -1097,6 +1113,7 @@
      BOOT
      =================================================================== */
   function init() {
+    stMigrateDates();
     buildTeachShell();
     buildPlan();
 
