@@ -35,47 +35,44 @@
   function heading(name, children) { return { id: grpUid(), type: 'heading', name: name, collapsed: false, children: children || [] }; }
   function group(name, colorIdx, ta, notes) { return { id: grpUid(), type: 'group', name: name, colorIdx: colorIdx || 0, pupilIds: [], ta: ta || '', notes: notes || '' }; }
 
-  /* A ready-made Literacy / Numeracy scaffold so the outline isn't blank.
-     Groups start empty — the teacher drops their own children in. */
-  function seed() {
-    return [
-      heading('Literacy', [
-        heading('Reading', [
-          heading('Phonics', [
-            group('Red group', 1, 'Mrs Patel', 'Set 5 digraphs — ai, ee, igh'),
-            group('Blue group', 0, '', 'Set 3 review')
-          ]),
-          heading('Guided Reading', [
-            group('Foxes', 2, '', 'Turquoise band'),
-            group('Owls', 3, '', 'Purple band'),
-            group('Hedgehogs', 4, '', 'Gold band')
-          ])
-        ]),
-        heading('Writing', [
-          group('Handwriting boost', 5, 'Mr Doyle', 'Tues + Thurs, 15 min')
-        ])
-      ]),
-      heading('Numeracy', [
-        heading('Morning starter', [
-          group('Counters', 0, '', ''),
-          group('Calculators', 3, '', '')
-        ]),
-        heading('Intervention', [
-          group('Precision Teaching', 1, 'Mrs Patel', '10 min daily — number bonds to 20')
-        ])
-      ])
-    ];
+  /* First-load migration: if there's no tp_groups yet but the old Reading
+     Groups store has data, lift those groups under a "Reading" heading so the
+     teacher keeps their real groups. Otherwise start empty. (Old per-group
+     session logs are out of scope for this design.) */
+  function migrateFromReading() {
+    try {
+      var old = Store.get('tp_reading_groups', null);
+      var gs = old && old.groups;
+      if (Array.isArray(gs) && gs.length) {
+        return [heading('Reading', gs.map(function (g, i) {
+          var n = group(g.name || 'Group', i % GRP_COLORS.length);
+          n.pupilIds = Array.isArray(g.pupilIds) ? g.pupilIds.slice() : [];
+          return n;
+        }))];
+      }
+    } catch (e) {}
+    return [];
   }
 
-  /* Seed-aware load. The seed lives in memory only — it is never written
-     until the teacher makes an edit (keeps the cloud adopt/owner flow from
-     treating an untouched device as "has data"). */
+  /* Load is migration-aware. A migrated/empty tree lives in memory only — it
+     is never written until the first edit, so an untouched device doesn't trip
+     the cloud adopt/owner flow. */
   function grpLoad() {
     var t = Store.get(GROUPS_KEY, null);
     if (Array.isArray(t) && t.length) return t;
-    return seed();
+    return migrateFromReading();
   }
-  function grpSave(tree) { Store.set(GROUPS_KEY, tree); }
+
+  /* Drop pupil ids that are no longer on the roster, then persist. */
+  function pruneTree(list) {
+    (list || []).forEach(function (n) {
+      if (n.type === 'group') n.pupilIds = (n.pupilIds || []).filter(rosterHas);
+      else if (n.type === 'heading') pruneTree(n.children);
+    });
+  }
+  function grpSave(tree) { pruneTree(tree); Store.set(GROUPS_KEY, tree); }
+
+  function rosterHas(pid) { return (roster || []).some(function (p) { return p.id === pid; }); }
 
   function findNode(id, list, parent) {
     for (var i = 0; i < list.length; i++) {
@@ -164,7 +161,7 @@
   }
 
   function memberPills(node) {
-    return node.pupilIds.map(function (pid) {
+    return node.pupilIds.filter(rosterHas).map(function (pid) {
       var nm = esc(pupilName(pid));
       return '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--teal-100);color:var(--teal-700);border-radius:999px;padding:2.5px 5px 2.5px 11px;font-size:12.5px;font-weight:600;">'
         + nm
@@ -256,8 +253,21 @@
     if (!root) return;
     ensureStyle();
 
+    /* Empty roster guard — same pattern as the page it replaces. */
+    if (!roster || !roster.length) {
+      root.innerHTML = '<div class="card"><p class="empty">No pupils on the class list yet. '
+        + 'Add pupils in <strong>Plan › Pupils</strong> first.</p></div>';
+      return;
+    }
+
     var tree = grpLoad();
     var html = walkPlan(tree, 0);
+
+    if (!tree.length) {
+      html += '<div class="card" style="max-width:760px;margin-bottom:12px;"><p class="empty" style="margin:0;">'
+        + 'No groups yet. Start with a <strong>＋ Heading</strong> (e.g. Literacy or Numeracy), then add groups inside it.'
+        + '</p></div>';
+    }
 
     html += '<div style="margin-top:6px;max-width:760px;">'
       + '<button class="grp-addroot" data-act="addroot" '

@@ -829,7 +829,8 @@
           if (!closed) walk(node.children, depth + 1);
         } else {
           var bar = GRP_COLORS_T[node.colorIdx % GRP_COLORS_T.length];
-          var memberLine = node.pupilIds.length ? node.pupilIds.map(function (p) { return esc(pupilName(p)); }).join(' · ') : 'No children yet';
+          var known = node.pupilIds.filter(function (pid) { return roster.some(function (p) { return p.id === pid; }); });
+          var memberLine = known.length ? known.map(function (p) { return esc(pupilName(p)); }).join(' · ') : 'No children yet';
           body += '<div style="margin-left:' + (depth * 14) + 'px;background:#fff;border:1px solid var(--line);border-left:4px solid ' + bar + ';border-radius:14px;padding:12px 16px;box-shadow:var(--shadow);">'
             + '<div style="display:flex;align-items:baseline;gap:8px;">'
             + '<span style="font-size:16.5px;font-weight:700;letter-spacing:-.01em;">' + esc(node.name) + '</span>'
@@ -845,13 +846,20 @@
 
     if (!body) body = '<div class="empty">No groups yet — build your outline in Plan › Organise › Groups.</div>';
 
-    v.innerHTML = teachHead('home', 'Home', '<span class="pill pill-saved"><span>✓</span> saved</span>') +
+    v.innerHTML = teachHead('home', 'Home',
+        '<span class="pill pill-saved"><span>✓</span> saved</span>' +
+        '<button class="pill pill-ghost" id="grpToPlan" style="margin-left:8px">Plan ↗</button>') +
       '<div style="margin:2px 0 4px"><div class="eyebrow" style="color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
       '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Groups</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:14px">' + body + '</div>' +
       '<p style="font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0">read-only here — edit in Plan › Organise › Groups</p>';
 
     wireBack(v);
+    var toPlan = document.getElementById('grpToPlan');
+    if (toPlan) toPlan.onclick = function () {
+      setMode('plan'); go('organise');
+      try { showSub('orgTabs', 'org-groups'); } catch (e) {}
+    };
     v.querySelectorAll('[data-gtoggle]').forEach(function (b) {
       b.onclick = function () { var id = b.dataset.gtoggle; groupsTeachClosed[id] = !groupsTeachClosed[id]; renderGroupsTeach(); };
     });
