@@ -814,7 +814,7 @@
 
       <div class="nav-group-label">Groups</div>
       <button class="nav-link" data-page="seating"><span class="ico" data-icon="layout-grid"></span> <span>Seating &amp; Groups</span></button>
-      <button class="nav-link" data-page="reading-groups"><span class="ico" data-icon="book-open"></span> <span>Reading Groups</span></button>
+      <button class="nav-link" data-page="groups"><span class="ico" data-icon="book-open"></span> <span>Groups</span></button>
 
       <div class="nav-group-label">Tools</div>
       <button class="nav-link" data-page="reports"><span class="ico" data-icon="file-text"></span> <span>Report Generator</span></button>
@@ -1121,13 +1121,13 @@
         <div id="seat-root"></div>
       </section>
 
-      <!-- ================= READING GROUPS ================= -->
-      <section class="page" id="page-reading-groups">
+      <!-- ================= GROUPS ================= -->
+      <section class="page" id="page-groups">
         <div class="page-header">
-          <h1>Guided Reading &amp; Phonics Groups</h1>
-          <p>Organise pupils into groups and log each session's date, book and notes.</p>
+          <h1>Groups</h1>
+          <p>One outline for every grouping — nest headings as deep as you need, and put children in any number of groups.</p>
         </div>
-        <div id="rg2-root"></div>
+        <div id="grp-root"></div>
       </section>
 
       <!-- ================= PROGRESS CHARTS ================= -->
@@ -1225,7 +1225,7 @@ function renderPage(page){
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
   if (page === 'timetable' && typeof ttRender === 'function') ttRender();
   if (page === 'seating' && typeof seatRender === 'function') seatRender();
-  if (page === 'reading-groups' && typeof rgGroupsRender === 'function') rgGroupsRender();
+  if (page === 'groups' && typeof grpRender === 'function') grpRender();
   if (page === 'charts' && typeof chRender === 'function') chRender();
   if (page === 'reports' && typeof renderBoard === 'function') renderBoard();
 }
@@ -1735,7 +1735,7 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_reading_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
 function exportAll(){
   const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
   dump._meta = { app:'Classroom Hub', exportedAt:new Date().toISOString(), ver:1,
@@ -1843,7 +1843,7 @@ applyProfile();
 <script src="js/picker.js"></script>
 <script src="js/timetable.js"></script>
 <script src="js/seating.js"></script>
-<script src="js/reading-groups.js"></script>
+<script src="js/groups.js"></script>
 <script src="js/charts.js"></script>
 
 <!-- ===================================================================
