@@ -3,7 +3,7 @@
    ------------------------------------------------------------------
    Recreates the design-handoff prototype on top of the existing
    vanilla-JS app: reuses Store, the shared `roster`, the per-feature
-   modules (generator/picker/timetable/seating/reading-groups/charts),
+   modules (generator/picker/timetable/seating/groups/charts),
    and the existing data stores (tp_starters, tp_star, tp_behaviour,
    tp_assess, tp_battler …). Glow Getters (battler) is untouched —
    Quick log awards points via the public window.btAward path.
@@ -118,14 +118,13 @@
     { key: 'note',    icon: '✎',  label: 'Note',              cls: 'note',    tl: 'note' }
   ];
 
+  /* Group lookups read the nested Groups tree (js/groups.js, store 'tp_groups').
+     groupList() returns a flat list of every group node across all headings. */
+  function groupList() { try { return (typeof grpFlatGroups === 'function') ? grpFlatGroups() : []; } catch (e) { return []; } }
   function readingGroupName(pupilId) {
-    try {
-      var data = Store.get('tp_reading_groups', { groups: [] });
-      var g = (data.groups || []).find(function (g) { return (g.pupilIds || []).indexOf(pupilId) !== -1; });
-      return g ? g.name : '';
-    } catch (e) { return ''; }
+    try { return (typeof grpGroupNameFor === 'function') ? grpGroupNameFor(pupilId) : ''; } catch (e) { return ''; }
   }
-  function readingGroups() { try { return (Store.get('tp_reading_groups', { groups: [] }).groups) || []; } catch (e) { return []; } }
+  function readingGroups() { return groupList(); }
 
   function openQuickLog(prefillId) {
     var bd = document.getElementById('qlBackdrop');
@@ -353,7 +352,8 @@
       '<div class="teach-view" id="tv-day"></div>' +
       '<div class="teach-view" id="tv-scores"></div>' +
       '<div class="teach-view" id="tv-pick"></div>' +
-      '<div class="teach-view" id="tv-seats"></div>';
+      '<div class="teach-view" id="tv-seats"></div>' +
+      '<div class="teach-view" id="tv-groups"></div>';
   }
   function teachGo(screen) {
     teachScreen = screen;
@@ -366,12 +366,17 @@
     if (screen === 'scores') renderScores();
     if (screen === 'pick') renderPick();
     if (screen === 'seats') renderSeats();
+    if (screen === 'groups') renderGroupsTeach();
   }
 
   function topRow() {
+    var cls = '';
+    try { cls = (typeof tpActiveClassMeta === 'function') ? (tpActiveClassMeta().name || '') : ''; } catch (e) {}
+    var classPill = cls ? '<button class="pill pill-ghost" id="teachClassPill" title="Switch class">' + esc(cls) + ' ▾</button>' : '';
     return '<div class="teach-top">' +
       '<span class="teach-date">' + esc(todayLabel()) + '</span>' +
       '<span class="spacer"></span>' +
+      classPill +
       '<span class="pill pill-saved"><span>✓</span> saved</span>' +
       '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';
   }
@@ -400,6 +405,7 @@
       tile('starter', 'calculator', 'Starter', starterStatus, set ? 'ok' : '') +
       tile('pick', 'target', 'Pick a name', pickStatus, '') +
       tile('seats', 'layout-grid', 'Who sits where', 'seating · groups', '') +
+      tile('groups', 'book-open', 'Groups', grpCountLabel(), '') +
       tile('glow', 'zap', 'Glow Getters', 'opens full-screen', '', true);
 
     v.innerHTML = topRow() + glance +
@@ -407,6 +413,8 @@
       '<button class="dock" id="teachDock">' + svg('plus', 22) + ' Quick log</button>';
 
     document.getElementById('goPlan').onclick = function () { setMode('plan'); };
+    var clsPill = document.getElementById('teachClassPill');
+    if (clsPill && typeof window.openClassSwitcher === 'function') clsPill.onclick = function () { window.openClassSwitcher(); };
     document.getElementById('teachDock').onclick = function () { openQuickLog(); };
     v.querySelectorAll('[data-tile]').forEach(function (b) {
       b.onclick = function () {
@@ -798,6 +806,71 @@
       '<span style="font-size:13px;color:var(--muted);line-height:1.6">' + esc(names) + '</span></div>';
   }
 
+  /* ── Groups (read-only, mirrors Plan › Organise › Groups) ── */
+  var GRP_COLORS_T = ['#2f55e0', '#e11d48', '#d99a07', '#6d4bdc', '#1f8a4c', '#5c6a6e'];
+  var groupsTeachClosed = {};
+  function grpCountLabel() {
+    var n = (typeof grpFlatGroups === 'function') ? grpFlatGroups().length : 0;
+    return n + (n === 1 ? ' group' : ' groups');
+  }
+  function renderGroupsTeach() {
+    var v = document.getElementById('tv-groups');
+    var tree = (typeof grpTree === 'function') ? grpTree() : [];
+    var T_SIZES = ['14px', '13.5px', '12.5px', '12px'];
+
+    function countGroups(node) { return node.type === 'group' ? 1 : node.children.reduce(function (a, c) { return a + countGroups(c); }, 0); }
+
+    var body = '';
+    (function walk(list, depth) {
+      list.forEach(function (node) {
+        if (node.type === 'heading') {
+          var closed = !!groupsTeachClosed[node.id];
+          var n = countGroups(node);
+          body += '<button class="grp-tband" data-gtoggle="' + esc(node.id) + '" '
+            + 'style="margin:' + (depth === 0 ? '8px' : '0') + ' 0 0 ' + (depth * 14) + 'px;display:flex;align-items:center;gap:7px;width:auto;background:none;border:none;padding:2px 6px 2px 0;cursor:pointer;text-align:left;border-radius:7px;">'
+            + '<span style="color:var(--faint);font-size:10px;">' + (closed ? '▶' : '▼') + '</span>'
+            + '<span style="font-size:' + T_SIZES[Math.min(depth, 3)] + ';font-weight:' + (depth === 0 ? '800' : '700') + ';letter-spacing:-.01em;color:' + (depth === 0 ? 'var(--ink)' : 'var(--muted)') + ';">' + esc(depth === 0 ? node.name.toUpperCase() : node.name) + '</span>'
+            + '<span style="font-size:11.5px;font-weight:600;color:var(--faint);">' + n + (n === 1 ? ' group' : ' groups') + '</span>'
+            + '</button>';
+          if (!closed) walk(node.children, depth + 1);
+        } else {
+          var bar = GRP_COLORS_T[node.colorIdx % GRP_COLORS_T.length];
+          var known = node.pupilIds.filter(function (pid) { return roster.some(function (p) { return p.id === pid; }); });
+          var memberLine = known.length ? known.map(function (p) { return esc(pupilName(p)); }).join(' · ') : 'No children yet';
+          body += '<div style="margin-left:' + (depth * 14) + 'px;background:#fff;border:1px solid var(--line);border-left:4px solid ' + bar + ';border-radius:14px;padding:12px 16px;box-shadow:var(--shadow);">'
+            + '<div style="display:flex;align-items:baseline;gap:8px;">'
+            + '<span style="font-size:16.5px;font-weight:700;letter-spacing:-.01em;">' + esc(node.name) + '</span>'
+            + '<span style="flex:1"></span>'
+            + '<span style="font-size:11.5px;font-weight:600;color:var(--faint);">' + esc(node.ta || '') + '</span>'
+            + '</div>'
+            + '<div style="font-size:15px;font-weight:500;color:var(--ink);line-height:1.65;margin-top:3px;">' + memberLine + '</div>'
+            + (node.notes ? '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--line-2);">' + esc(node.notes) + '</div>' : '')
+            + '</div>';
+        }
+      });
+    })(tree, 0);
+
+    if (!body) body = '<div class="empty">No groups yet — build your outline in Plan › Organise › Groups.</div>';
+
+    v.innerHTML = teachHead('home', 'Home',
+        '<span class="pill pill-saved"><span>✓</span> saved</span>' +
+        '<button class="pill pill-ghost" id="grpToPlan" style="margin-left:8px">Plan ↗</button>') +
+      '<div style="margin:2px 0 4px"><div class="eyebrow" style="color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
+      '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Groups</div></div>' +
+      '<div style="display:flex;flex-direction:column;gap:14px">' + body + '</div>' +
+      '<p style="font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0">read-only here — edit in Plan › Organise › Groups</p>';
+
+    wireBack(v);
+    var toPlan = document.getElementById('grpToPlan');
+    if (toPlan) toPlan.onclick = function () {
+      setMode('plan'); go('organise');
+      try { showSub('orgTabs', 'org-groups'); } catch (e) {}
+    };
+    v.querySelectorAll('[data-gtoggle]').forEach(function (b) {
+      b.onclick = function () { var id = b.dataset.gtoggle; groupsTeachClosed[id] = !groupsTeachClosed[id]; renderGroupsTeach(); };
+    });
+  }
+
   /* ===================================================================
      PLAN MODE — sidebar regroup + aggregator pages
      =================================================================== */
@@ -855,11 +928,11 @@
     /* Organise */
     var org = section('organise');
     org.innerHTML =
-      '<div class="page-header"><h1>Organise</h1><p>Edit your timetable, seating &amp; groups and reading groups.</p></div>' +
+      '<div class="page-header"><h1>Organise</h1><p>Edit your timetable, seating &amp; groups.</p></div>' +
       '<div class="tabs" id="orgTabs"></div>' +
       '<div class="subview" id="org-timetable"></div>' +
       '<div class="subview" id="org-seating"></div>' +
-      '<div class="subview" id="org-reading"></div>';
+      '<div class="subview" id="org-groups"></div>';
     /* Settings */
     var settings = section('settings');
     settings.innerHTML = '<div class="page-header"><h1>Settings</h1><p>Your profile, plus backup &amp; data.</p></div><div id="settings-profile"></div><div id="settings-data"></div>';
@@ -870,7 +943,7 @@
     move('#page-charts', document.getElementById('mb-charts'));
     move('#page-timetable', document.getElementById('org-timetable'));
     move('#page-seating', document.getElementById('org-seating'));
-    move('#page-reading-groups', document.getElementById('org-reading'));
+    move('#page-groups', document.getElementById('org-groups'));
     move('#page-class-list', document.getElementById('manageBody'));
     move('#page-profile', document.getElementById('settings-profile'));
     move('#page-data', document.getElementById('settings-data'));
@@ -881,10 +954,10 @@
       if (id === 'mb-starters' && typeof msRender === 'function') msRender();
       if (id === 'mb-charts' && typeof chRender === 'function') chRender();
     });
-    buildTabs('orgTabs', [['org-timetable', 'Timetable'], ['org-seating', 'Seating & Groups'], ['org-reading', 'Reading Groups']], function (id) {
+    buildTabs('orgTabs', [['org-timetable', 'Timetable'], ['org-seating', 'Seating & Groups'], ['org-groups', 'Groups']], function (id) {
       if (id === 'org-timetable' && typeof ttRender === 'function') ttRender();
       if (id === 'org-seating' && typeof seatRender === 'function') seatRender();
-      if (id === 'org-reading' && typeof rgGroupsRender === 'function') rgGroupsRender();
+      if (id === 'org-groups' && typeof grpRender === 'function') grpRender();
     });
 
     /* manage-class panel toggle */
@@ -1071,7 +1144,7 @@
     if (p.ehcpLink) chips += '<span class="chip ehcp">EHCP plan</span>';
     var rg = readingGroupName(p.id);
     var starCount = (spData || []).filter(function (e) { return e.pupilId === p.id; }).length;
-    var sub = [rg && (rg + ' (reading)'), 'star pupil ×' + starCount].filter(Boolean).join(' · ');
+    var sub = [rg && (rg + ' (group)'), 'star pupil ×' + starCount].filter(Boolean).join(' · ');
 
     var tl = pupilTimeline(p.id);
     var tlHTML = tl.length ? tl.map(function (e) {

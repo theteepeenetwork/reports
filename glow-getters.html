@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Glow Getters — Smartboard</title>
+<script src="js/classkeys.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
@@ -250,8 +251,8 @@
      ============================================================ -->
 <script>
   const Store = {
-    get(k, def){ try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; } catch { return def; } },
-    set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+    get(k, def){ try { const v = JSON.parse(localStorage.getItem(tpPhysicalKey(k))); return v === null ? def : v; } catch { return def; } },
+    set(k, v){ localStorage.setItem(tpPhysicalKey(k), JSON.stringify(v)); }
   };
   const uid = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 
@@ -278,12 +279,11 @@
   };
   function iconSVG(name, size){ size = size || 18; return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`; }
 
-  /* class label from the planner profile, if present */
+  /* class label from the active class, if present */
   (function(){
-    const p = Store.get('tp_profile', null);
-    if (p && (p.yearGroup || p.room)) {
-      document.getElementById('sbSub').textContent = [p.yearGroup, p.room].filter(Boolean).join(' · ') + ' · Smartboard';
-    }
+    const m = (typeof tpActiveClassMeta === 'function') ? tpActiveClassMeta() : {};
+    const label = [m.name || m.year, m.room].filter(Boolean).join(' · ');
+    if (label) document.getElementById('sbSub').textContent = label + ' · Smartboard';
   })();
 
   function toggleFS(){
