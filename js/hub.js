@@ -304,6 +304,9 @@
     });
     if (changed) stSaveWeeks(w);
   }
+  function stWeekTouched(monday) { for (var i = 0; i < 5; i++) { var d = stDayISO(monday, i); if (stDayHasAnn(d)) return true; } return false; }
+  function stClearWeekAnn(monday) { for (var i = 0; i < 5; i++) stClearDay(stDayISO(monday, i)); }
+  function stDeleteWeek(monday) { var w = stWeeks(); delete w[monday]; stSaveWeeks(w); stClearWeekAnn(monday); }
   function stEnsureCurrent() {
     var m = mondayOf(), w = stWeek(m), qc = stCfg().qCount;
     if (!w) { stGenerateWeek(m, qc); return; }
@@ -470,6 +473,10 @@
       '<div style="font-size:12.5px;color:var(--faint)">Pick a week, then a day — sheet, whiteboard or scores.</div></div>' +
       '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">' + chips + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' + rows + '</div>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button id="replaceWeek" class="secondary" style="flex:1;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">⟳ Replace all 5 sets</button>' +
+        '<button id="deleteWeek" class="danger" style="border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🗑 Delete week</button>' +
+      '</div>' +
       '<button id="xtbToggle" style="border-radius:12px;padding:11px 14px;font-size:13px;text-align:left;cursor:pointer;' + (cfg.xtb ? 'border:1.5px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700' : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600') + '">' + (cfg.xtb ? '☑' : '☐') + ' ×tables on the back of every sheet</button>' +
       (cfg.xtb ? '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><label style="margin:0;flex:1">How many ×tables questions</label>' +
         '<select id="xtCount" style="width:110px">' + [10, 20, 30, 40, 50, 60, 80, 100].map(function (n){ return '<option value="' + n + '"' + (cfg.xtCount === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' : '') +
@@ -480,6 +487,17 @@
     v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stCurDay = +b.dataset.day; teachGo('day'); }; });
     document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderStarterWeek(); };
     var xc = document.getElementById('xtCount'); if (xc) xc.onchange = function (){ var c = stCfg(); c.xtCount = +xc.value; stSaveCfg(c); renderStarterWeek(); };
+    document.getElementById('replaceWeek').onclick = function (){
+      if (!confirm('Replace all five sets for ' + fmtWB(stCurWeek) + ' with fresh questions?' + (stWeekTouched(stCurWeek) ? ' This week has whiteboard annotations — they will be cleared too.' : '') + ' This cannot be undone.')) return;
+      stClearWeekAnn(stCurWeek); stGenerateWeek(stCurWeek, stCfg().qCount); renderStarterWeek();
+      toast('✓ 5 fresh sets saved to ' + fmtWB(stCurWeek));
+    };
+    document.getElementById('deleteWeek').onclick = function (){
+      var wk = stCurWeek, isCur = wk === thisMon;
+      if (!confirm('Delete the saved sets for ' + fmtWB(wk) + '? This removes the questions and any whiteboard annotations for that week.' + (isCur ? ' This week will be replaced with a fresh set.' : ''))) return;
+      stDeleteWeek(wk); stCurWeek = thisMon; stCurDay = Math.min((new Date().getDay() + 6) % 7, 4);
+      renderStarterWeek(); toast(isCur ? '✓ Week reset with fresh sets' : '✓ Deleted ' + fmtWB(wk));
+    };
     document.getElementById('printWeek').onclick = function (){ stPrintWeek(stCurWeek); };
   }
 
