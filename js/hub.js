@@ -702,6 +702,7 @@
     var pad = ['1','2','3','4','5','6','7','8','9','0','⌫','↵'].map(function (k){ return '<button class="pad" data-k="' + k + '" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;color:var(--ink)">' + k + '</button>'; }).join('');
     v.innerHTML = teachHead('day', stDayShort(stCurWeek, stCurDay), '<span class="pill pill-saved"><span>✓</span> saved · ' + stDayShort(stCurWeek, stCurDay) + ' column</span>') +
       '<div style="flex:1;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 14px;min-height:0">' + rows + '</div>' +
+      '<p class="hint small" style="margin:0;text-align:center">Tap a pupil, then tap the keypad — or just type on your keyboard (↵ / ↓ moves to the next pupil).</p>' +
       '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">' + pad + '</div>';
     wireBack(v);
     v.querySelectorAll('.score-cell').forEach(function (b2){ b2.onclick = function (){ scoreSel = +b2.dataset.i; renderScores(); }; });
@@ -1166,6 +1167,18 @@
     if (stb) stb.addEventListener('click', function (e) { if (e.target === stb) closeNewWeek(); });
     window.addEventListener('resize', function () { if (document.getElementById('whiteboard').style.display === 'flex') sizeWB(); });
     window.addEventListener('afterprint', function () { var c = document.getElementById('starterPrint'); if (c) c.innerHTML = ''; });
+
+    /* physical-keyboard entry on the score sheet (laptop / iPad keyboard) */
+    document.addEventListener('keydown', function (e) {
+      if (document.body.dataset.mode !== 'teach') return;
+      var sv = document.getElementById('tv-scores'); if (!sv || !sv.classList.contains('active')) return;
+      var t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (/^[0-9]$/.test(e.key)) { padKey(e.key); e.preventDefault(); }
+      else if (e.key === 'Backspace') { padKey('⌫'); e.preventDefault(); }
+      else if (e.key === 'Enter') { padKey('↵'); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { scoreSel = Math.min(scoreSel + 1, sortedRoster().length - 1); renderScores(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { scoreSel = Math.max(0, scoreSel - 1); renderScores(); e.preventDefault(); }
+    });
 
     /* tap the dimmed backdrop (outside the sheet) to dismiss Quick log */
     var bd = document.getElementById('qlBackdrop');
