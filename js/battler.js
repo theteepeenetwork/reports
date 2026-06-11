@@ -1108,7 +1108,10 @@
   /* ── Painting ───────────────────────────────────────────── */
   function btPopEl(holder){ if (holder.el && !holder.el.classList.contains('pop')){ holder.el.classList.add('pop');
     var el = holder.el; setTimeout(function (){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 320); holder.el = null;
-    if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; } } }
+    if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; }
+    // satellite limb-arms live in the arena layer (not inside the bot) — drop them too
+    if (holder.arm && holder.arm.classList.contains('bt-sat-arm')){ if (holder.arm.parentNode) holder.arm.parentNode.removeChild(holder.arm); holder.arm = null; }
+    if (holder.arm2 && holder.arm2.classList.contains('bt-sat-arm')){ if (holder.arm2.parentNode) holder.arm2.parentNode.removeChild(holder.arm2); holder.arm2 = null; } } }
   function btPaintBot(b){
     if (!b.el) return;
     if (!b.alive){ if (!b._popped){ b._popped = true; sfx('pop'); } btPopEl(b); return; }   // pop sound on elimination
@@ -1119,8 +1122,20 @@
   }
   function btMountSat(arena, st){
     var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
-    var el = btMakeBot(st, 'bt-sat');
-    if (st.arms === 2){ var a2 = document.createElement('div'); a2.className = 'bt-arm'; a2.style.width = ((st.reach || BT_REACH) + 6) + 'px'; el.insertBefore(a2, el.firstChild); st.arm2 = a2; }
+    // The limb-arms live in their own low layer (appended to the arena, not the bot)
+    // so they always paint *behind* every satellite and the boss core — the HP numbers
+    // stay readable instead of being swept over by a spinning arm.
+    var aw = ((st.reach || BT_REACH) + 6) + 'px';
+    var a1 = document.createElement('div'); a1.className = 'bt-arm bt-sat-arm'; a1.style.width = aw; arena.appendChild(a1); st.arm = a1;
+    if (st.arms === 2){ var a2 = document.createElement('div'); a2.className = 'bt-arm bt-sat-arm'; a2.style.width = aw; arena.appendChild(a2); st.arm2 = a2; }
+    // The bot itself now holds only the HP ball, so it can sit above the arm layer.
+    var el = document.createElement('div'); el.className = 'bt-bot bt-sat';
+    el.style.width = el.style.height = (st.r * 2) + 'px';
+    el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
+    var ball = document.createElement('div'); ball.className = 'bt-ball'; if (st.color) ball.style.background = st.color;
+    ball.appendChild(document.createTextNode(st.hp));
+    el.appendChild(ball);
+    st.el = el; st.ball = ball; st.lastHp = st.hp;
     arena.appendChild(el);
   }
   function btPaint(){
@@ -1151,8 +1166,8 @@
       if (!st.el) return;
       if (!st.alive){ if (!st._popped){ st._popped = true; sfx('pop'); } btPopEl(st); return; }
       st.el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
-      if (st.arm) st.arm.style.transform = 'rotate(' + st.ownAng + 'rad)';
-      if (st.arm2) st.arm2.style.transform = 'rotate(' + (st.ownAng + Math.PI) + 'rad)';
+      if (st.arm) st.arm.style.transform = 'translate(' + (st.x - 6) + 'px,' + (st.y - 3.5) + 'px) rotate(' + st.ownAng + 'rad)';
+      if (st.arm2) st.arm2.style.transform = 'translate(' + (st.x - 6) + 'px,' + (st.y - 3.5) + 'px) rotate(' + (st.ownAng + Math.PI) + 'rad)';
       if (st.hp !== st.lastHp){ st.ball.firstChild.nodeValue = st.hp; st.lastHp = st.hp; }
       if (st.conn){
         var len = Math.hypot(st.x - core.x, st.y - core.y), ang = Math.atan2(st.y - core.y, st.x - core.x);
@@ -1251,7 +1266,7 @@
   }
   function btFrame(){
     var arena = document.getElementById('bt-arena'), page = document.getElementById('page-battler');
-    if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
+    if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; btReleaseWake(); return; }
     if (!AR.paused){
       var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
       // free-for-all closes in by % of TIME (full shrink over 2:00, resolution-independent);
@@ -1276,6 +1291,26 @@
   }
 
   /* ── Controls / lifecycle ───────────────────────────────── */
+  /* Keep the display awake for the duration of a battle. A fight runs hands-free
+     (no clicks or key presses), so on some classroom laptops the OS screen-blank /
+     screensaver kicks in mid-battle and the class can't see what's happening — it
+     comes down to that machine's power settings, which is why it only shows up on
+     some computers. The Screen Wake Lock API holds the display on while we fight. */
+  var btWake = null;
+  function btKeepAwake(){
+    if (btWake || !navigator.wakeLock) return;
+    try {
+      navigator.wakeLock.request('screen').then(function (lock){
+        btWake = lock;
+        lock.addEventListener('release', function (){ btWake = null; });
+      }, function (){ /* request rejected (e.g. tab not visible) — nothing to do */ });
+    } catch (e){ /* unsupported browser */ }
+  }
+  function btReleaseWake(){ if (btWake){ try { btWake.release(); } catch (e){} btWake = null; } }
+  // A wake lock is auto-released when the tab is hidden; re-arm it on return if a battle is still live.
+  document.addEventListener('visibilitychange', function (){
+    if (document.visibilityState === 'visible' && AR.running) btKeepAwake();
+  });
   window.btStartBattle = function (){
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
@@ -1284,7 +1319,7 @@
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
     AR.boss = AR.mode === 'boss' ? btSpawnBoss(s) : null;
-    btRender(); btMount();
+    btRender(); btMount(); btKeepAwake();
     cancelAnimationFrame(AR.raf); AR.raf = requestAnimationFrame(btFrame);
   };
   window.btPauseBattle = function (){
@@ -1292,7 +1327,7 @@
     var btn = document.getElementById('btPauseBtn');
     if (btn) btn.innerHTML = AR.paused ? (iconSVG('play',16) + ' Resume') : (iconSVG('pause',16) + ' Pause');
   };
-  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; AR.boss = null; btRender(); };
+  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake(); AR.bots = []; AR.boss = null; btRender(); };
   function btOrdinal(p){ return ['', '1st','2nd','3rd','4th','5th'][p] || (p + 'th'); }
   // Finishing order: the survivor is 1st, then the eliminated in REVERSE knock-out order (last out = next place).
   function btFinishOrder(bots){
@@ -1326,7 +1361,7 @@
       '<div class="wp-sub">Earn more points and try again!</div><div class="wp-tap">tap to continue</div></div>';
   }
   function btFinish(){
-    AR.running = false; cancelAnimationFrame(AR.raf);
+    AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake();
     var order = btFinishOrder(AR.bots);
     AR.lastWinner = order[0] ? pupilName(order[0]) : '';
     var html = btFfaWinHTML(order);                  // build before clearing refs
@@ -1334,7 +1369,7 @@
     btShowWinPop(html, true, false, function (){ btAwardPlacements(order); btRender(); });
   }
   function btFinishBoss(win){
-    AR.running = false; cancelAnimationFrame(AR.raf);
+    AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake();
     var survivors = AR.bots.filter(function (b){ return b.alive; }).map(function (b){ return b.pid; });
     AR.result = win ? 'win' : 'lose';
     AR.bossMsg = win ? 'The class defeated the boss!' : 'The boss won this time — try again!';
