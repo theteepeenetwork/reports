@@ -266,7 +266,7 @@
      Scores reuse the Mental Starters store (msData), keyed by the day's date.
      =================================================================== */
   var stCurWeek = mondayOf(), stCurDay = 0;
-  function stCfg() { var c = Store.get('tp_starter_cfg', null) || {}; return { qCount: [10, 15, 20].indexOf(c.qCount) >= 0 ? c.qCount : 10, xtb: c.xtb !== false }; }
+  function stCfg() { var c = Store.get('tp_starter_cfg', null) || {}; return { qCount: [10, 15, 20].indexOf(c.qCount) >= 0 ? c.qCount : 20, xtb: c.xtb !== false, xtCount: (c.xtCount > 0 ? c.xtCount : 50) }; }
   function stSaveCfg(c) { Store.set('tp_starter_cfg', c); }
   function stWeeks() { return Store.get('tp_starter_weeks', {}); }
   function stSaveWeeks(w) { Store.set('tp_starter_weeks', w); }
@@ -286,7 +286,13 @@
     var w = stWeeks(); if (!w[monday]) { stGenerateWeek(monday, qCount); w = stWeeks(); }
     w[monday][i] = stBuildDay(qCount); stSaveWeeks(w); flashSaved(); return w[monday][i];
   }
-  function stEnsureCurrent() { var m = mondayOf(); if (!stWeek(m)) stGenerateWeek(m, stCfg().qCount); }
+  function stEnsureCurrent() {
+    var m = mondayOf(), w = stWeek(m), qc = stCfg().qCount;
+    if (!w) { stGenerateWeek(m, qc); return; }
+    // bring an untouched current week up to the configured length (e.g. old 10-default → 20)
+    var touched = w.some(function (_, i) { var d = stDayISO(m, i); return stDayHasAnn(d) || stDayHasScores(d); });
+    if (!touched && (w[0] || []).length !== qc) stGenerateWeek(m, qc);
+  }
   /* annotation layers (per day AND per view) */
   function stAnn() { return Store.get('tp_starter_ann', {}); }
   function stSaveAnn(a) { Store.set('tp_starter_ann', a); }
@@ -302,9 +308,10 @@
   }
   /* deterministic ×tables back page (16 items seeded from the day's date) */
   function stSeed(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h += 0x6D2B79F5; var t = Math.imul(h ^ (h >>> 15), 1 | h); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  function stTablesFor(dayISO) {
+  function stTablesFor(dayISO, count) {
+    count = count > 0 ? count : 50;
     var rnd = stSeed(dayISO + ':xt'), bases = [2, 3, 4, 5, 6, 10], out = [];
-    for (var i = 0; i < 16; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 10) });
+    for (var i = 0; i < count; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 12) });
     return out;
   }
 
@@ -446,12 +453,15 @@
       '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">' + chips + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:10px">' + rows + '</div>' +
       '<button id="xtbToggle" style="border-radius:12px;padding:11px 14px;font-size:13px;text-align:left;cursor:pointer;' + (cfg.xtb ? 'border:1.5px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700' : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600') + '">' + (cfg.xtb ? '☑' : '☐') + ' ×tables on the back of every sheet</button>' +
+      (cfg.xtb ? '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><label style="margin:0;flex:1">How many ×tables questions</label>' +
+        '<select id="xtCount" style="width:110px">' + [10, 20, 30, 40, 50, 60, 80, 100].map(function (n){ return '<option value="' + n + '"' + (cfg.xtCount === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' : '') +
       '<button id="printWeek" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:14px;font-size:14px;font-weight:700">🖨 Print all 5 days</button>';
     wireBack(v);
     v.querySelectorAll('[data-wk]').forEach(function (b){ b.onclick = function (){ stCurWeek = b.dataset.wk; stCurDay = (stCurWeek === thisMon) ? Math.min((new Date().getDay() + 6) % 7, 4) : 0; renderStarterWeek(); }; });
     document.getElementById('newWeek').onclick = openNewWeek;
     v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stCurDay = +b.dataset.day; teachGo('day'); }; });
     document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderStarterWeek(); };
+    var xc = document.getElementById('xtCount'); if (xc) xc.onchange = function (){ var c = stCfg(); c.xtCount = +xc.value; stSaveCfg(c); renderStarterWeek(); };
     document.getElementById('printWeek').onclick = function (){ stPrintWeek(stCurWeek); };
   }
 
@@ -490,7 +500,7 @@
               : (hasAnn ? '<span style="font-size:11px;font-weight:700;background:var(--success-50);color:var(--success);border-radius:999px;padding:3px 10px">✏ annotated</span>' : '');
     var cells = qs.map(function (q, i){ return '<div class="ds-q"><span class="ds-num">' + (i + 1) + '</span><div class="ds-text">' + GRQ(q) + '</div></div>'; }).join('');
     var xt = '';
-    if (cfg.xtb){ var xts = stTablesFor(dayISO);
+    if (cfg.xtb){ var xts = stTablesFor(dayISO, cfg.xtCount);
       xt = '<div class="ds-divider">back of sheet · ×tables</div><div class="ds-xtgrid">' +
         xts.map(function (q, i){ return '<div class="ds-xt"><span class="ds-xtn">' + (i + 1) + '</span>' + GRQ(q) + '</div>'; }).join('') + '</div>';
     }
@@ -669,7 +679,7 @@
   function stDayPagesHTML(monday, i){
     var days = stWeek(monday) || [], qs = days[i] || [], dayISO = stDayISO(monday, i), cfg = stCfg(), label = stDayFull(monday, i), html = '';
     chunk(qs, 10).forEach(function (pg){ html += stSheetHTML(label, 'Mental Starter — ' + currentHalfTerm(), pg, false); });
-    if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO), true);
+    if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO, cfg.xtCount), true);
     return html;
   }
   function stPrintDay(monday, i){ stPrintHTML(stDayPagesHTML(monday, i)); }
