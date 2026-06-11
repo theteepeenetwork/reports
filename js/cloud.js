@@ -19,12 +19,50 @@
   var LS = window.localStorage;
   var SYNC_KEYS = (typeof DATA_KEYS !== 'undefined' && Array.isArray(DATA_KEYS)) ? DATA_KEYS
     : ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable',
-       'tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
+       'tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren',
+       'tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
 
   var CLOUD_VER = 1;   // schema version stamped on every push; readers accept {v,t} and {v,t,ver}
   var CLOUD = { uid:null, email:null, db:null, applying:false, resetting:false, listening:false,
                 wasSignedIn:false, timers:{}, lastSeen:{}, status:'local', offlineDismissed:false };
   window.CLOUD = CLOUD;
+
+  /* ---- multi-class key routing (classkeys.js is loaded first) ----
+     Physical keys may be class-suffixed (e.g. tp_roster::c2). A key is syncable
+     if it (or its pre-'::' base) is a sync key. The Firebase path is the exact
+     physical key — rules accept any $key, so no schema change is needed. */
+  function keyBase (k){ return (typeof tpKeyBase === 'function') ? tpKeyBase(k) : k; }
+  function isSyncKey (k){ return SYNC_KEYS.indexOf(k) >= 0 || SYNC_KEYS.indexOf(keyBase(k)) >= 0; }
+  function activePhysKey (base){ return (typeof tpPhysicalKey === 'function') ? tpPhysicalKey(base) : base; }
+  function isPerClassBase (base){ return (typeof TP_PER_CLASS !== 'undefined') && TP_PER_CLASS.indexOf(base) >= 0; }
+  /* Is this physical key relevant to the live UI? (active class, or a shared key) */
+  function keyIsLive (k){ var b = keyBase(k); return isPerClassBase(b) ? (activePhysKey(b) === k) : true; }
+  /* All physical localStorage keys whose base is a sync key (across every class).
+     excludeRegistry skips the auto-seeded tp_classes so a fresh device still
+     reads as "no data" for the adopt/owner decision. */
+  function syncPhysKeys (excludeRegistry){
+    var out = [];
+    for (var i = 0; i < LS.length; i++){
+      var k = LS.key(i); if (!k) continue;
+      var b = keyBase(k);
+      if (SYNC_KEYS.indexOf(k) < 0 && SYNC_KEYS.indexOf(b) < 0) continue;
+      if (excludeRegistry && b === 'tp_classes') continue;
+      out.push(k);
+    }
+    return out;
+  }
+  /* A class was deleted (possibly on another device): recover if it was active. */
+  function handleClassesChange (){
+    try {
+      if (typeof activeClassId !== 'function' || typeof tpClasses !== 'function') return;
+      var id = activeClassId(), cs = tpClasses();
+      if (id !== 'default' && cs.length && !cs.some(function (c){ return c && c.id === id; })){
+        if (typeof setActiveClass === 'function') setActiveClass('default');
+        else { try { LS.removeItem('tp_active_class'); } catch (e) {} }
+        location.reload();
+      }
+    } catch (e) {}
+  }
 
   /* ---- write-through hook ----
      Override Storage.prototype.setItem (NOT localStorage.setItem — assigning to
@@ -35,7 +73,7 @@
   function rawSet(k, v){ if (SProto) origSetItem.call(LS, k, v); else origSetItem(k, v); }
   function hookedSetItem(k, v){
     if (SProto) origSetItem.call(this, k, v); else origSetItem(k, v);
-    try { if ((!SProto || this === LS) && CLOUD.uid && !CLOUD.applying && !CLOUD.resetting && SYNC_KEYS.indexOf(k) >= 0) cloudSchedulePush(k); } catch (e) {}
+    try { if ((!SProto || this === LS) && CLOUD.uid && !CLOUD.applying && !CLOUD.resetting && isSyncKey(k)) cloudSchedulePush(k); } catch (e) {}
   }
   if (SProto) SProto.setItem = hookedSetItem; else LS.setItem = hookedSetItem;
 
@@ -60,24 +98,28 @@
       .catch(function () { cloudSetStatus('offline'); });
   }
   function cloudIncoming (k, rec) {
-    if (SYNC_KEYS.indexOf(k) < 0 || !rec || rec.v == null) return;
+    if (!isSyncKey(k) || !rec || rec.v == null) return;
     var raw = rec.v === '' ? null : rec.v;
     if (raw === CLOUD.lastSeen[k]) return;                 // our own echo
     if (window.localStorage.getItem(k) === raw) return;    // already current
     CLOUD.applying = true;
     var oldRaw = window.localStorage.getItem(k);
-    if (k === 'tp_battler' && typeof btReplayRemote === 'function' && raw != null) {
-      // animate the point change on this device, then converge to the exact state
-      var animated = btReplayRemote(oldRaw, raw);   // award() reactions run while points are still old
-      rawSet(k, raw);                                // exact remote state (badges/tables/config) — no push (applying)
-      CLOUD.lastSeen[k] = raw;
-      if (!animated && typeof btRender === 'function') btRender();   // bulk/structural → render exact
-      if (typeof renderBattlerLaunch === 'function') {               // planner launcher: refresh the points stat
-        var act = document.querySelector('.page.active');
-        if (act && act.id === 'page-battler') renderBattlerLaunch();
+    if (keyBase(k) === 'tp_battler' && raw != null) {
+      if (k === activePhysKey('tp_battler') && typeof btReplayRemote === 'function') {
+        // active class: animate the point change on this device, then converge to exact state
+        var animated = btReplayRemote(oldRaw, raw);   // award() reactions run while points are still old
+        rawSet(k, raw);                                // exact remote state (badges/tables/config) — no push (applying)
+        CLOUD.lastSeen[k] = raw;
+        if (!animated && typeof btRender === 'function') btRender();   // bulk/structural → render exact
+        if (typeof renderBattlerLaunch === 'function') {               // planner launcher: refresh the points stat
+          var act = document.querySelector('.page.active');
+          if (act && act.id === 'page-battler') renderBattlerLaunch();
+        }
+        CLOUD.applying = false;
+        return;
       }
-      CLOUD.applying = false;
-      return;
+      // a non-active class's battler changed — store it, but never animate/render here
+      rawSet(k, raw); CLOUD.lastSeen[k] = raw; CLOUD.applying = false; return;
     }
     if (raw == null) LS.removeItem(k); else rawSet(k, raw);
     CLOUD.applying = false;
@@ -87,15 +129,19 @@
 
   /* ---- refresh in-memory state + re-render after a remote change ---- */
   function cloudRefreshMirrors (k) {
+    if (!keyIsLive(k)) return;             // an inactive class changed — leave live mirrors alone
+    var b = keyBase(k);
     try {
-      if (k === 'tp_roster'      && typeof roster  !== 'undefined') roster  = JSON.parse(window.localStorage.getItem('tp_roster')   || '[]');
-      if (k === 'tp_starters'    && typeof msData  !== 'undefined') msData  = JSON.parse(window.localStorage.getItem('tp_starters') || '{}');
-      if (k === 'tp_star'        && typeof spData  !== 'undefined') spData  = JSON.parse(window.localStorage.getItem('tp_star')     || '[]');
-      if (k === 'tp_behaviour'   && typeof bhData  !== 'undefined') bhData  = JSON.parse(window.localStorage.getItem('tp_behaviour')|| '[]');
-      if (k === 'tp_assess'      && typeof asData  !== 'undefined') asData  = JSON.parse(window.localStorage.getItem('tp_assess')   || '{}');
+      if (b === 'tp_roster'    && typeof roster !== 'undefined') roster = JSON.parse(window.localStorage.getItem(k) || '[]');
+      if (b === 'tp_starters'  && typeof msData !== 'undefined') msData = JSON.parse(window.localStorage.getItem(k) || '{}');
+      if (b === 'tp_star'      && typeof spData !== 'undefined') spData = JSON.parse(window.localStorage.getItem(k) || '[]');
+      if (b === 'tp_behaviour' && typeof bhData !== 'undefined') bhData = JSON.parse(window.localStorage.getItem(k) || '[]');
+      if (b === 'tp_assess'    && typeof asData !== 'undefined') asData = JSON.parse(window.localStorage.getItem(k) || '{}');
     } catch (e) {}
   }
   function cloudApplyRemote (k) {
+    if (keyBase(k) === 'tp_classes') handleClassesChange();
+    if (!keyIsLive(k)) return;             // inactive class: localStorage already updated, no UI work
     cloudRefreshMirrors(k);
     cloudBroadcast(k, 'cloud');
   }
@@ -108,7 +154,9 @@
      Getters window hears it). The browser has already updated this window's
      localStorage before the event fires, so just refresh mirrors + broadcast. */
   window.addEventListener('storage', function (e) {
-    if (!e.key || SYNC_KEYS.indexOf(e.key) < 0 || CLOUD.applying) return;
+    if (!e.key || !isSyncKey(e.key) || CLOUD.applying) return;
+    if (keyBase(e.key) === 'tp_classes') handleClassesChange();
+    if (!keyIsLive(e.key)) return;
     cloudRefreshMirrors(e.key);
     cloudBroadcast(e.key, 'storage');
   });
@@ -130,11 +178,10 @@
   }
   function cloudOwner ()      { try { return LS.getItem('tp_owner_uid'); } catch (e) { return null; } }
   function cloudStampOwner () { try { rawSet('tp_owner_uid', CLOUD.uid); rawSet('tp_owner_email', CLOUD.email || ''); } catch (e) {} }
-  function cloudLocalHasData (){ for (var i=0;i<SYNC_KEYS.length;i++){ if (LS.getItem(SYNC_KEYS[i]) != null) return true; } return false; }
+  function cloudLocalHasData (){ return syncPhysKeys(true).length > 0; }   // ignore the auto-seeded tp_classes
   function cloudLocalSummary (){
-    var keys = 0, names = 0;
-    SYNC_KEYS.forEach(function (k){ if (LS.getItem(k) != null) keys++; });
-    try { var r = JSON.parse(LS.getItem('tp_roster') || '[]'); names = Array.isArray(r) ? r.length : 0; } catch (e) {}
+    var keys = syncPhysKeys(true).length, names = 0;
+    try { var r = JSON.parse(LS.getItem(activePhysKey('tp_roster')) || '[]'); names = Array.isArray(r) ? r.length : 0; } catch (e) {}
     return { keys: keys, names: names };
   }
   function cloudDetach (){
@@ -146,7 +193,10 @@
   // Wipe this device's class data to empty (UNHOOKED removal → never pushes to the cloud) and blank every view.
   function cloudWipeLocalData (){
     CLOUD.resetting = true;
-    try { SYNC_KEYS.forEach(function (k){ try { LS.removeItem(k); } catch (e) {} }); } finally { CLOUD.resetting = false; }
+    try {
+      syncPhysKeys().forEach(function (k){ try { LS.removeItem(k); } catch (e) {} });   // all classes + registry
+      try { LS.removeItem('tp_active_class'); } catch (e) {}                            // back to default
+    } finally { CLOUD.resetting = false; }
     CLOUD.lastSeen = {};
     if (typeof window.appResetState === 'function'){ try { window.appResetState(); } catch (e) {} }
     try { window.dispatchEvent(new CustomEvent('tp:reset')); } catch (e) {}
@@ -160,8 +210,13 @@
   // Explicit "upload this device's data into the signed-in account".
   window.cloudAdoptLocal = function (){
     if (!CLOUD.uid || !CLOUD.db) return;
-    SYNC_KEYS.forEach(function (k){ if (LS.getItem(k) != null) cloudPush(k); });
+    syncPhysKeys().forEach(function (k){ if (LS.getItem(k) != null) cloudPush(k); });   // upload every class
     cloudStampOwner();
+  };
+  // Remove a single physical key from the cloud (used when a class is deleted).
+  window.cloudRemoveKey = function (k){
+    if (!CLOUD.uid || !CLOUD.db) return;
+    try { CLOUD.lastSeen[k] = null; CLOUD.db.ref('users/' + CLOUD.uid + '/keys/' + k).remove(); } catch (e) {}
   };
   window.cloudSwitchAccount = function (){
     if (typeof firebase === 'undefined' || !firebase.apps.length){ if (typeof window.resetSession === 'function') window.resetSession(); cloudShowGate(); return; }

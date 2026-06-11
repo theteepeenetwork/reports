@@ -370,9 +370,13 @@
   }
 
   function topRow() {
+    var cls = '';
+    try { cls = (typeof tpActiveClassMeta === 'function') ? (tpActiveClassMeta().name || '') : ''; } catch (e) {}
+    var classPill = cls ? '<button class="pill pill-ghost" id="teachClassPill" title="Switch class">' + esc(cls) + ' ▾</button>' : '';
     return '<div class="teach-top">' +
       '<span class="teach-date">' + esc(todayLabel()) + '</span>' +
       '<span class="spacer"></span>' +
+      classPill +
       '<span class="pill pill-saved"><span>✓</span> saved</span>' +
       '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';
   }
@@ -409,6 +413,8 @@
       '<button class="dock" id="teachDock">' + svg('plus', 22) + ' Quick log</button>';
 
     document.getElementById('goPlan').onclick = function () { setMode('plan'); };
+    var clsPill = document.getElementById('teachClassPill');
+    if (clsPill && typeof window.openClassSwitcher === 'function') clsPill.onclick = function () { window.openClassSwitcher(); };
     document.getElementById('teachDock').onclick = function () { openQuickLog(); };
     v.querySelectorAll('[data-tile]').forEach(function (b) {
       b.onclick = function () {

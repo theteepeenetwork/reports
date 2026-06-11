@@ -1412,7 +1412,7 @@
   /* ── shared view bits ── */
   function ggBrand(){
     var sub = '';
-    try { var p = Store.get('tp_profile', null); if (p){ sub = [p.yearGroup, p.room].filter(Boolean).join(' · '); } } catch (e) {}
+    try { var m = (typeof tpActiveClassMeta === 'function') ? tpActiveClassMeta() : {}; sub = [m.name || m.year, m.room].filter(Boolean).join(' · '); } catch (e) {}
     return '<div class="gg-brand"><span class="bolt">⚡</span><span>GLOW GETTERS' +
       (sub ? '<br><small>' + esc(sub) + '</small>' : '') + '</span></div>';
   }

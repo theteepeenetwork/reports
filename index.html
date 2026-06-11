@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Classroom Hub</title>
+  <script src="js/classkeys.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -1179,8 +1180,8 @@
    STORE + SHARED ROSTER
    =================================================================== */
 const Store = {
-  get(k, def){ try { const v = JSON.parse(localStorage.getItem(k)); return v === null ? def : v; } catch { return def; } },
-  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+  get(k, def){ try { const v = JSON.parse(localStorage.getItem(tpPhysicalKey(k))); return v === null ? def : v; } catch { return def; } },
+  set(k, v){ localStorage.setItem(tpPhysicalKey(k), JSON.stringify(v)); }
 };
 
 const HALF_TERMS = ['Autumn 1','Autumn 2','Spring 1','Spring 2','Summer 1','Summer 2'];
@@ -1289,7 +1290,11 @@ function refreshNames(){ saveRoster(); window.dispatchEvent(new CustomEvent('tp:
 
 /* One redraw path: any data change (local edit, another tab, or cloud) fires
    'tp:sync'; refresh the pupil selectors and re-render whichever page is open. */
-window.addEventListener('tp:sync', function(){
+window.addEventListener('tp:sync', function(e){
+  var key = e && e.detail && e.detail.key;
+  var base = (typeof tpKeyBase === 'function' && key) ? tpKeyBase(key) : key;
+  if (base === 'tp_profile' && typeof applyProfile === 'function') applyProfile();
+  if ((base === 'tp_classes' || base === 'tp_profile') && typeof applyClass === 'function') applyClass();
   if (typeof syncPupilSelectors === 'function') syncPupilSelectors();
   var active = document.querySelector('.page.active');
   if (active && typeof renderPage === 'function') renderPage(active.id.replace('page-', ''));
@@ -1306,6 +1311,8 @@ window.appResetState = function(){
   try { spData = []; } catch(e){}
   try { bhData = []; } catch(e){}
   try { asData = {}; } catch(e){}
+  try { if (typeof ensureClasses === 'function') ensureClasses(); } catch(e){}   // re-seed default registry after a wipe
+  try { if (typeof applyClass === 'function') applyClass(); } catch(e){}
   try { if (typeof syncPupilSelectors === 'function') syncPupilSelectors(); } catch(e){}
   try { var a = document.querySelector('.page.active'); if (a && typeof renderPage === 'function') renderPage(a.id.replace('page-','')); } catch(e){}
 };
@@ -1615,19 +1622,151 @@ let profile = Object.assign(
   Store.get('tp_profile', {})
 );
 function saveProfile(){ Store.set('tp_profile', profile); }
+
+/* ===================================================================
+   CLASS REGISTRY (multi-class). The active class is per-device
+   (tp_active_class); the registry (tp_classes) is shared & synced.
+   The first class keeps un-suffixed keys (id 'default') for back-compat.
+   =================================================================== */
+function getClasses(){ const cs = Store.get('tp_classes', null); return Array.isArray(cs) ? cs : []; }
+function saveClasses(cs){ Store.set('tp_classes', cs); }
+function activeClassId(){ const id = Store.get('tp_active_class', 'default'); return (typeof id === 'string' && id) ? id : 'default'; }
+function setActiveClass(id){ Store.set('tp_active_class', id || 'default'); }
+function activeClass(){ const id = activeClassId(); return getClasses().filter(c => c && c.id === id)[0] || null; }
+
+/* Seed the registry from the legacy single class on first run. Idempotent. */
+function ensureClasses(){
+  let cs = getClasses();
+  if (!cs.length){
+    cs = [{ id:'default', name:(profile.yearGroup || 'My class'), year:(profile.yearGroup || ''), room:(profile.room || ''), createdAt:Date.now() }];
+    saveClasses(cs);
+  }
+  if (!cs.some(c => c && c.id === activeClassId())) setActiveClass('default');   // recover dangling pointer
+}
+
+function classPhysKey(base, id){ return (!id || id === 'default') ? base : base + '::' + id; }
+
+/* Copy structural setup (question generator whole; Glow Getters config only)
+   from the current class into a new class's keys. Pupils stay empty. */
+function seedClassConfig(newId){
+  try {
+    const gen = localStorage.getItem(tpPhysicalKey('tp_generator'));
+    if (gen != null) localStorage.setItem(classPhysKey('tp_generator', newId), gen);
+  } catch (e) {}
+  try {
+    const raw = localStorage.getItem(tpPhysicalKey('tp_battler'));
+    if (raw != null){
+      const bat = JSON.parse(raw);
+      if (bat && typeof bat === 'object'){
+        bat.points = {}; bat.badges = {}; bat.placements = {}; bat.daily = {}; bat.recent = [];
+        if (bat.boss) bat.boss = Object.assign({}, bat.boss, { dealt:0, active:false });
+        localStorage.setItem(classPhysKey('tp_battler', newId), JSON.stringify(bat));
+      }
+    }
+  } catch (e) {}
+}
+
+function createClass(meta){
+  meta = meta || {};
+  const id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const cs = getClasses();
+  cs.push({ id, name:(meta.name || 'New class'), year:(meta.year || ''), room:(meta.room || ''), createdAt:Date.now() });
+  saveClasses(cs);
+  seedClassConfig(id);
+  return id;
+}
+function renameClass(id, patch){ const cs = getClasses(); const c = cs.filter(x => x.id === id)[0]; if (!c) return; Object.assign(c, patch); saveClasses(cs); }
+
+/* Remove every physical key for a class, locally and (if signed in) in the cloud. */
+function removeClassKeys(id){
+  if (!id || id === 'default') return;
+  const suffix = '::' + id;
+  const kill = [];
+  for (let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if (k && k.slice(-suffix.length) === suffix && tpKeyBase(k) !== k && TP_PER_CLASS.indexOf(tpKeyBase(k)) >= 0) kill.push(k);
+  }
+  kill.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} if (typeof window.cloudRemoveKey === 'function') window.cloudRemoveKey(k); });
+}
+function deleteClass(id){
+  if (id === 'default') return false;
+  const cs = getClasses(); if (cs.length <= 1) return false;
+  saveClasses(cs.filter(c => c.id !== id));
+  removeClassKeys(id);
+  if (activeClassId() === id) setActiveClass('default');
+  return true;
+}
+
 function applyProfile(){
   setText('sideAvatar', initials(profile.name));
   setText('sideWho', profile.name || '—');
   setText('sideRole', profile.title || '');
-  setText('brandSub', [profile.yearGroup, profile.room].filter(Boolean).join(' · ') || 'Classroom Hub');
   const greet = document.getElementById('dashGreeting');
   if (greet) greet.textContent = 'Welcome back' + (profile.name ? ', ' + profile.name : '');
 }
+
+/* Active-class identity in the sidebar brand (the brand opens the switcher). */
+function applyClass(){
+  const c = activeClass() || { name:'', year:'', room:'' };
+  setText('brandSub', [c.name, c.room].filter(Boolean).join(' · ') || 'Classroom Hub');
+  const brand = document.querySelector('#planApp .brand');
+  if (brand && !brand._classWired){ brand.style.cursor = 'pointer'; brand.title = 'Switch class'; brand.onclick = openClassSwitcher; brand._classWired = true; }
+  if (typeof setText === 'function') setText('teachClassName', c.name || '');
+}
+
+/* ── Class switcher / manager (self-contained overlay) ── */
+function openClassSwitcher(){
+  const old = document.getElementById('tpClassSwitch'); if (old) old.remove();
+  const ov = document.createElement('div'); ov.id = 'tpClassSwitch';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(20,24,29,.45);display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  const active = activeClassId();
+  const rows = getClasses().map(c => {
+    const isActive = c.id === active;
+    return `<div class="tpcs-row" data-id="${esc(c.id)}" style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid ${isActive ? 'var(--teal-600)' : 'var(--line)'};border-radius:12px;margin-bottom:8px;background:${isActive ? 'var(--teal-50)' : 'var(--card)'}">
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        <input class="tpcs-name" value="${esc(c.name || '')}" placeholder="Class name" style="font-weight:700;font-size:14px;border:1px solid transparent;border-radius:8px;padding:3px 6px;background:none" />
+        <div style="display:flex;gap:6px">
+          <input class="tpcs-year" value="${esc(c.year || '')}" placeholder="Year group" style="flex:1;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 6px" />
+          <input class="tpcs-room" value="${esc(c.room || '')}" placeholder="Room" style="width:90px;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 6px" />
+        </div>
+      </div>
+      ${isActive
+        ? '<span class="pill" style="background:var(--teal-50);color:var(--teal-700);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px">Active</span>'
+        : '<button class="tpcs-use" style="font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer">Use ▸</button>'}
+      ${(c.id !== 'default' && getClasses().length > 1)
+        ? '<button class="tpcs-del" title="Delete class" style="width:28px;height:28px;border:none;background:none;color:#c4cad2;font-size:14px;cursor:pointer;border-radius:8px">✕</button>'
+        : ''}
+    </div>`;
+  }).join('');
+  ov.innerHTML = `<div style="background:var(--card);border-radius:18px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(20,24,29,.3)">
+    <div style="display:flex;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:18px;font-weight:800">Your classes</h3><span style="flex:1"></span><button id="tpcsClose" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">✕ close</button></div>
+    <p class="muted" style="font-size:12.5px;margin:0 0 14px">Switch class on this device. Pupils, scores, behaviour, groups and reports are per class; your timetable and name are shared.</p>
+    ${rows}
+    <button id="tpcsAdd" style="width:100%;border:1.5px dashed #c4cad2;background:none;color:var(--muted);font-size:13px;font-weight:700;border-radius:12px;padding:11px;cursor:pointer;margin-top:4px">＋ Add a class</button>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('tpcsClose').onclick = () => ov.remove();
+  document.getElementById('tpcsAdd').onclick = () => { const id = createClass({ name:'New class' }); setActiveClass(id); setTimeout(() => location.reload(), 650); };  // let the cloud push (debounced 250ms) land
+  ov.querySelectorAll('.tpcs-row').forEach(row => {
+    const id = row.dataset.id;
+    const nameEl = row.querySelector('.tpcs-name'), yearEl = row.querySelector('.tpcs-year'), roomEl = row.querySelector('.tpcs-room');
+    const commit = () => { renameClass(id, { name:nameEl.value.trim() || 'Class', year:yearEl.value.trim(), room:roomEl.value.trim() }); applyClass(); };
+    [nameEl, yearEl, roomEl].forEach(el => el.addEventListener('change', commit));
+    const use = row.querySelector('.tpcs-use'); if (use) use.onclick = () => { setActiveClass(id); location.reload(); };
+    const del = row.querySelector('.tpcs-del'); if (del) del.onclick = () => {
+      if (!confirm('Delete this class and all its pupils, scores and notes? This cannot be undone.')) return;
+      const wasActive = activeClassId() === id;
+      deleteClass(id);
+      if (wasActive) setTimeout(() => location.reload(), 400); else openClassSwitcher();
+    };
+  });
+}
+window.openClassSwitcher = openClassSwitcher;
+/* Year group & room now live on each class (Switch class ▾), not the teacher profile. */
 const PROFILE_FIELDS = [
   { k:'name',      label:'Name',               ph:'e.g. Miss Hart' },
   { k:'title',     label:'Role / job title',   ph:'e.g. Class teacher' },
-  { k:'yearGroup', label:'Year group / class', ph:'e.g. Year 2' },
-  { k:'room',      label:'Room',               ph:'e.g. Room 12' },
   { k:'school',    label:'School',             ph:'e.g. Oakfield Primary' },
   { k:'email',     label:'Email',              ph:'you@school.org' }
 ];
@@ -1642,7 +1781,7 @@ function renderProfile(){
          <span class="av coral" id="profAvatar" style="width:56px;height:56px;font-size:19px">${esc(initials(profile.name))}</span>
          <div>
            <div id="profNamePrev" style="font-weight:700;font-size:17px">${esc(profile.name || 'Your name')}</div>
-           <div class="muted" id="profRolePrev" style="font-size:13px">${esc([profile.title, profile.yearGroup].filter(Boolean).join(' · '))}</div>
+           <div class="muted" id="profRolePrev" style="font-size:13px">${esc([profile.title, profile.school].filter(Boolean).join(' · '))}</div>
          </div>
        </div>
        <div class="field-grid" style="margin-top:12px">${fields}</div>
@@ -1654,7 +1793,7 @@ function renderProfile(){
 function profInput(k, val){
   profile[k] = val;
   if (k === 'name'){ setText('profAvatar', initials(val)); setText('profNamePrev', val || 'Your name'); }
-  if (k === 'title' || k === 'yearGroup') setText('profRolePrev', [profile.title, profile.yearGroup].filter(Boolean).join(' · '));
+  if (k === 'title' || k === 'school') setText('profRolePrev', [profile.title, profile.school].filter(Boolean).join(' · '));
 }
 function profSave(){ saveProfile(); applyProfile(); alert('Profile saved.'); }
 
@@ -1735,9 +1874,20 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren','tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
+/* Every physical localStorage key (across ALL classes) whose base is a synced
+   data key — backups are whole-account, not just the active class. */
+function allClassDataKeys(){
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i); if (!k) continue;
+    if (DATA_KEYS.indexOf(tpKeyBase(k)) >= 0) out.push(k);
+  }
+  return out;
+}
 function exportAll(){
-  const dump = {}; DATA_KEYS.forEach(k => dump[k] = Store.get(k, null));
+  const dump = {};
+  allClassDataKeys().forEach(k => { try { dump[k] = JSON.parse(localStorage.getItem(k)); } catch (e) {} });
   dump._meta = { app:'Classroom Hub', exportedAt:new Date().toISOString(), ver:1,
     ownerUid:(window.CLOUD && window.CLOUD.uid) || null, ownerEmail:(window.CLOUD && window.CLOUD.email) || null };
   download('classroom-hub-backup-' + todayISO() + '.json', JSON.stringify(dump, null, 2));
@@ -1748,7 +1898,11 @@ function importAll(ev){
   r.onload = e => {
     try {
       const d = JSON.parse(e.target.result);
-      DATA_KEYS.forEach(k => { if (d[k] !== undefined && d[k] !== null) Store.set(k, d[k]); });
+      Object.keys(d).forEach(k => {
+        if (k === '_meta' || d[k] === undefined || d[k] === null) return;
+        if (DATA_KEYS.indexOf(tpKeyBase(k)) < 0) return;          // ignore unknown keys
+        localStorage.setItem(k, JSON.stringify(d[k]));            // restore suffixed keys verbatim
+      });
       alert('Backup restored. Reloading.');
       location.reload();
     } catch { alert('That does not look like a valid backup file.'); }
@@ -1756,9 +1910,10 @@ function importAll(ev){
   r.readAsText(file);
 }
 function wipeAll(){
-  if (!confirm('Delete ALL Classroom Hub data from this browser? This cannot be undone.')) return;
+  if (!confirm('Delete ALL Classroom Hub data (every class) from this browser? This cannot be undone.')) return;
   if (!confirm('Really sure? Export a backup first if unsure.')) return;
-  DATA_KEYS.forEach(k => localStorage.removeItem(k));
+  allClassDataKeys().forEach(k => localStorage.removeItem(k));
+  try { localStorage.removeItem('tp_active_class'); } catch (e) {}
   location.reload();
 }
 
@@ -1832,7 +1987,9 @@ function syncPupilSelectors(){
 /* render the line icons in the static shell (sidebar, topbar) + nav badge + profile */
 injectIcons();
 updateNavCount();
+ensureClasses();
 applyProfile();
+applyClass();
 </script>
 
 <!-- ===================================================================
@@ -2053,14 +2210,14 @@ applyProfile();
        from sortedRoster() — there is no separate child list on this page.
        =================================================================== */
     const REPORT_SEL_KEY = 'tp_report_sel';
-    let reportSel = {};
-    try { reportSel = JSON.parse(localStorage.getItem(REPORT_SEL_KEY) || '{}') || {}; } catch (e) { reportSel = {}; }
+    /* tp_report_sel + reportBuilderChildren are per-class — go through Store
+       (class-aware) rather than raw localStorage, so they don't bleed classes. */
+    let reportSel = Store.get(REPORT_SEL_KEY, {}) || {};
 
     /* one-time migration: carry over comments sorted under the old name-keyed builder */
     (function migrateReportSel() {
       if (reportSel && Object.keys(reportSel).length) return;
-      let legacy = [];
-      try { legacy = JSON.parse(localStorage.getItem('reportBuilderChildren') || '[]'); } catch (e) { legacy = []; }
+      let legacy = Store.get('reportBuilderChildren', []);
       if (!Array.isArray(legacy) || !legacy.length) return;
       const byName = {};
       sortedRoster().forEach((p) => { byName[String(p.name).trim().toLowerCase()] = p.id; });
@@ -2068,10 +2225,10 @@ applyProfile();
         const id = byName[String(c && c.name || '').trim().toLowerCase()];
         if (id && c.selections) reportSel[id] = Object.assign({}, c.selections);
       });
-      if (Object.keys(reportSel).length) localStorage.setItem(REPORT_SEL_KEY, JSON.stringify(reportSel));
+      if (Object.keys(reportSel).length) Store.set(REPORT_SEL_KEY, reportSel);
     })();
 
-    function rsPersist() { localStorage.setItem(REPORT_SEL_KEY, JSON.stringify(reportSel)); }
+    function rsPersist() { Store.set(REPORT_SEL_KEY, reportSel); }
     function rsFor(pid) { if (!reportSel[pid]) reportSel[pid] = {}; return reportSel[pid]; }
     function rsVal(pid, field) { const s = reportSel[pid]; return (s && s[field]) || ''; }
 
