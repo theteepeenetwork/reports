@@ -680,7 +680,7 @@
      core. The boss's limb-arms knock points off pupils. */
   var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
   var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_FFA_MS = 120000, BT_FFA_MIN = 50;
-  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0, ffaElapsed:0, lastT:0 };
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0, ffaElapsed:0, lastT:0, clock:0 };
   // Free-for-all shrink is TIME-based (not pixels/frame) so it's resolution-independent:
   // the arena closes from full to a tiny ~BT_FFA_MIN px square linearly over BT_FFA_MS (2:00),
   // by which point a winner has long been forced. Returns the shrink-progress scalar (px inset
@@ -1108,19 +1108,34 @@
   /* ── Painting ───────────────────────────────────────────── */
   function btPopEl(holder){ if (holder.el && !holder.el.classList.contains('pop')){ holder.el.classList.add('pop');
     var el = holder.el; setTimeout(function (){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 320); holder.el = null;
-    if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; } } }
+    if (holder.conn && holder.conn.parentNode){ holder.conn.parentNode.removeChild(holder.conn); holder.conn = null; }
+    // satellite limb-arms live in the arena layer (not inside the bot) — drop them too
+    if (holder.arm && holder.arm.classList.contains('bt-sat-arm')){ if (holder.arm.parentNode) holder.arm.parentNode.removeChild(holder.arm); holder.arm = null; }
+    if (holder.arm2 && holder.arm2.classList.contains('bt-sat-arm')){ if (holder.arm2.parentNode) holder.arm2.parentNode.removeChild(holder.arm2); holder.arm2 = null; } } }
   function btPaintBot(b){
     if (!b.el) return;
     if (!b.alive){ if (!b._popped){ b._popped = true; sfx('pop'); } btPopEl(b); return; }   // pop sound on elimination
     b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
     b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
     if (b.hp !== b.lastHp){ if (b.hp < b.lastHp) sfx('hit'); b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }   // tick on losing a point
-    if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
+    if (b.justHit && AR.clock - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
   }
   function btMountSat(arena, st){
     var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
-    var el = btMakeBot(st, 'bt-sat');
-    if (st.arms === 2){ var a2 = document.createElement('div'); a2.className = 'bt-arm'; a2.style.width = ((st.reach || BT_REACH) + 6) + 'px'; el.insertBefore(a2, el.firstChild); st.arm2 = a2; }
+    // The limb-arms live in their own low layer (appended to the arena, not the bot)
+    // so they always paint *behind* every satellite and the boss core — the HP numbers
+    // stay readable instead of being swept over by a spinning arm.
+    var aw = ((st.reach || BT_REACH) + 6) + 'px';
+    var a1 = document.createElement('div'); a1.className = 'bt-arm bt-sat-arm'; a1.style.width = aw; arena.appendChild(a1); st.arm = a1;
+    if (st.arms === 2){ var a2 = document.createElement('div'); a2.className = 'bt-arm bt-sat-arm'; a2.style.width = aw; arena.appendChild(a2); st.arm2 = a2; }
+    // The bot itself now holds only the HP ball, so it can sit above the arm layer.
+    var el = document.createElement('div'); el.className = 'bt-bot bt-sat';
+    el.style.width = el.style.height = (st.r * 2) + 'px';
+    el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
+    var ball = document.createElement('div'); ball.className = 'bt-ball'; if (st.color) ball.style.background = st.color;
+    ball.appendChild(document.createTextNode(st.hp));
+    el.appendChild(ball);
+    st.el = el; st.ball = ball; st.lastHp = st.hp;
     arena.appendChild(el);
   }
   function btPaint(){
@@ -1144,22 +1159,22 @@
         }
       }
       if (!core.alive){ if (!core._popped){ core._popped = true; } btPopEl(core); }
-      if (core.justHit && Date.now() - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
+      if (core.justHit && AR.clock - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
     }
     boss.sats.forEach(function (st){
       if (st.alive && !st.el) btMountSat(arena, st);            // lazy-mount (covers regenerated + new-wave limbs)
       if (!st.el) return;
       if (!st.alive){ if (!st._popped){ st._popped = true; sfx('pop'); } btPopEl(st); return; }
       st.el.style.transform = 'translate(' + (st.x - st.r) + 'px,' + (st.y - st.r) + 'px)';
-      if (st.arm) st.arm.style.transform = 'rotate(' + st.ownAng + 'rad)';
-      if (st.arm2) st.arm2.style.transform = 'rotate(' + (st.ownAng + Math.PI) + 'rad)';
+      if (st.arm) st.arm.style.transform = 'translate(' + (st.x - 6) + 'px,' + (st.y - 3.5) + 'px) rotate(' + st.ownAng + 'rad)';
+      if (st.arm2) st.arm2.style.transform = 'translate(' + (st.x - 6) + 'px,' + (st.y - 3.5) + 'px) rotate(' + (st.ownAng + Math.PI) + 'rad)';
       if (st.hp !== st.lastHp){ st.ball.firstChild.nodeValue = st.hp; st.lastHp = st.hp; }
       if (st.conn){
         var len = Math.hypot(st.x - core.x, st.y - core.y), ang = Math.atan2(st.y - core.y, st.x - core.x);
         st.conn.style.width = len + 'px';
         st.conn.style.transform = 'translate(' + core.x + 'px,' + (core.y - 4) + 'px) rotate(' + ang + 'rad)';
       }
-      if (st.justHit && Date.now() - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
+      if (st.justHit && AR.clock - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
     });
     // mini-me bosses (lazy-mount)
     boss.minis.forEach(function (M){
@@ -1169,7 +1184,7 @@
       M.el.style.transform = 'translate(' + (M.x - M.r) + 'px,' + (M.y - M.r) + 'px)';
       if (M.arm) M.arm.style.transform = 'rotate(' + M.ang + 'rad)';
       if (M.hp !== M.lastHp){ M.ball.firstChild.nodeValue = M.hp; M.lastHp = M.hp; }
-      if (M.justHit && Date.now() - M.justHit < 200) M.el.classList.add('hit'); else M.el.classList.remove('hit');
+      if (M.justHit && AR.clock - M.justHit < 200) M.el.classList.add('hit'); else M.el.classList.remove('hit');
     });
     // laser beams
     boss.lasers.forEach(function (L){
@@ -1180,7 +1195,7 @@
     // explosion rings (transient)
     boss.blasts = (boss.blasts || []).filter(function (bl){
       if (!bl.el){ var be = document.createElement('div'); be.className = 'bt-blast'; be.style.left = (bl.x - bl.r) + 'px'; be.style.top = (bl.y - bl.r) + 'px'; be.style.width = be.style.height = (bl.r*2) + 'px'; arena.appendChild(be); bl.el = be; }
-      if (Date.now() - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
+      if (AR.clock - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
       return true;
     });
     // shockwave rings (expanding)
@@ -1251,17 +1266,25 @@
   }
   function btFrame(){
     var arena = document.getElementById('bt-arena'), page = document.getElementById('page-battler');
-    if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; return; }
+    if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; btReleaseWake(); return; }
     if (!AR.paused){
-      var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
+      var W = arena.clientWidth, H = arena.clientHeight, real = Date.now();
+      // The simulation runs on a *virtual* clock that only advances with rendered
+      // frames, and by a clamped step. Motion is frame-based (one step per frame) but
+      // cooldowns / limb-regen / the AI cadence are time-based; keying them off the same
+      // clamped clock keeps them in lock-step. So when the window is unfocused/hidden and
+      // the browser pauses or throttles rAF, the fight just slows or freezes evenly — it
+      // never builds up a backlog of overdue events that all "pop" at once on return.
+      var dt = AR.lastT ? Math.min(120, real - AR.lastT) : 16;
+      AR.lastT = real;
+      AR.clock += dt;
+      var now = AR.clock;
       // free-for-all closes in by % of TIME (full shrink over 2:00, resolution-independent);
-      // the boss arena stays full-size. dt is clamped so a pause/tab-stall doesn't jump it.
+      // the boss arena stays full-size.
       if (AR.mode !== 'boss'){
-        var dt = AR.lastT ? Math.min(120, now - AR.lastT) : 16;
         AR.ffaElapsed += dt;
         AR.inset = btFfaInset(W, H, AR.ffaElapsed);
       }
-      AR.lastT = now;
       btPaintFrame(W, H);
       if (AR.mode === 'boss'){
         var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.insetX, AR.insetY); btPaint(); btStatus();
@@ -1276,15 +1299,35 @@
   }
 
   /* ── Controls / lifecycle ───────────────────────────────── */
+  /* Keep the display awake for the duration of a battle. A fight runs hands-free
+     (no clicks or key presses), so on some classroom laptops the OS screen-blank /
+     screensaver kicks in mid-battle and the class can't see what's happening — it
+     comes down to that machine's power settings, which is why it only shows up on
+     some computers. The Screen Wake Lock API holds the display on while we fight. */
+  var btWake = null;
+  function btKeepAwake(){
+    if (btWake || !navigator.wakeLock) return;
+    try {
+      navigator.wakeLock.request('screen').then(function (lock){
+        btWake = lock;
+        lock.addEventListener('release', function (){ btWake = null; });
+      }, function (){ /* request rejected (e.g. tab not visible) — nothing to do */ });
+    } catch (e){ /* unsupported browser */ }
+  }
+  function btReleaseWake(){ if (btWake){ try { btWake.release(); } catch (e){} btWake = null; } }
+  // A wake lock is auto-released when the tab is hidden; re-arm it on return if a battle is still live.
+  document.addEventListener('visibilitychange', function (){
+    if (document.visibilityState === 'visible' && AR.running) btKeepAwake();
+  });
   window.btStartBattle = function (){
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
-    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0; AR.ffaElapsed = 0; AR.lastT = 0;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0; AR.ffaElapsed = 0; AR.lastT = 0; AR.clock = 0;
     AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
     AR.boss = AR.mode === 'boss' ? btSpawnBoss(s) : null;
-    btRender(); btMount();
+    btRender(); btMount(); btKeepAwake();
     cancelAnimationFrame(AR.raf); AR.raf = requestAnimationFrame(btFrame);
   };
   window.btPauseBattle = function (){
@@ -1292,7 +1335,7 @@
     var btn = document.getElementById('btPauseBtn');
     if (btn) btn.innerHTML = AR.paused ? (iconSVG('play',16) + ' Resume') : (iconSVG('pause',16) + ' Pause');
   };
-  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); AR.bots = []; AR.boss = null; btRender(); };
+  window.btEndBattle = function (){ AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake(); AR.bots = []; AR.boss = null; btRender(); };
   function btOrdinal(p){ return ['', '1st','2nd','3rd','4th','5th'][p] || (p + 'th'); }
   // Finishing order: the survivor is 1st, then the eliminated in REVERSE knock-out order (last out = next place).
   function btFinishOrder(bots){
@@ -1326,7 +1369,7 @@
       '<div class="wp-sub">Earn more points and try again!</div><div class="wp-tap">tap to continue</div></div>';
   }
   function btFinish(){
-    AR.running = false; cancelAnimationFrame(AR.raf);
+    AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake();
     var order = btFinishOrder(AR.bots);
     AR.lastWinner = order[0] ? pupilName(order[0]) : '';
     var html = btFfaWinHTML(order);                  // build before clearing refs
@@ -1334,7 +1377,7 @@
     btShowWinPop(html, true, false, function (){ btAwardPlacements(order); btRender(); });
   }
   function btFinishBoss(win){
-    AR.running = false; cancelAnimationFrame(AR.raf);
+    AR.running = false; cancelAnimationFrame(AR.raf); btReleaseWake();
     var survivors = AR.bots.filter(function (b){ return b.alive; }).map(function (b){ return b.pid; });
     AR.result = win ? 'win' : 'lose';
     AR.bossMsg = win ? 'The class defeated the boss!' : 'The boss won this time — try again!';
@@ -1786,6 +1829,12 @@
     var displayView = s.tab === 'points' && btView() !== 'classic';
     var showBoard = !AR.running && (!displayView) && (s.tab === 'points' || s.tab === 'tables' || s.tab === 'leaderboard');
     if (board) board.style.display = showBoard ? 'flex' : 'none';
+    // A running battle owns the arena DOM. A background re-render — e.g. a cloud or
+    // cross-window data sync firing 'tp:sync', which the app routes to renderPage('battler')
+    // — must NOT rebuild the view here: that replaces #bt-arena and orphans every live
+    // sprite element, so they freeze on screen (only respawned ones re-mount into the new
+    // arena). The animation loop already keeps the battle view current, so leave it intact.
+    if (AR.running && document.getElementById('bt-arena')) return;
     if (!roster.length){ view.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first — they become your battlers.</p></div>'; return; }
     btEnsureBadges(s);
     view.innerHTML = s.tab === 'points' ? btPointsTab(s)
