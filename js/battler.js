@@ -1829,6 +1829,12 @@
     var displayView = s.tab === 'points' && btView() !== 'classic';
     var showBoard = !AR.running && (!displayView) && (s.tab === 'points' || s.tab === 'tables' || s.tab === 'leaderboard');
     if (board) board.style.display = showBoard ? 'flex' : 'none';
+    // A running battle owns the arena DOM. A background re-render — e.g. a cloud or
+    // cross-window data sync firing 'tp:sync', which the app routes to renderPage('battler')
+    // — must NOT rebuild the view here: that replaces #bt-arena and orphans every live
+    // sprite element, so they freeze on screen (only respawned ones re-mount into the new
+    // arena). The animation loop already keeps the battle view current, so leave it intact.
+    if (AR.running && document.getElementById('bt-arena')) return;
     if (!roster.length){ view.innerHTML = '<div class="card"><p class="empty">Add pupils on the Class List page first — they become your battlers.</p></div>'; return; }
     btEnsureBadges(s);
     view.innerHTML = s.tab === 'points' ? btPointsTab(s)
