@@ -680,7 +680,7 @@
      core. The boss's limb-arms knock points off pupils. */
   var BT_R = 30, BT_REACH = 80, BT_MIN = 0.55, BT_MAX = 3.6, BT_REST = 1.07;
   var BT_SPIN_ACC = 0.0005, BT_SPIN_MAX = 0.10, BT_KNOCK = 3.2, BT_FFA_MS = 120000, BT_FFA_MIN = 50;
-  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0, ffaElapsed:0, lastT:0 };
+  var AR = { running:false, paused:false, mode:'ffa', bots:[], boss:null, raf:0, lastWinner:'', result:'', bossMsg:'', inset:0, insetX:0, insetY:0, ffaElapsed:0, lastT:0, clock:0 };
   // Free-for-all shrink is TIME-based (not pixels/frame) so it's resolution-independent:
   // the arena closes from full to a tiny ~BT_FFA_MIN px square linearly over BT_FFA_MS (2:00),
   // by which point a winner has long been forced. Returns the shrink-progress scalar (px inset
@@ -1118,7 +1118,7 @@
     b.el.style.transform = 'translate(' + (b.x - b.r) + 'px,' + (b.y - b.r) + 'px)';
     b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
     if (b.hp !== b.lastHp){ if (b.hp < b.lastHp) sfx('hit'); b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }   // tick on losing a point
-    if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
+    if (b.justHit && AR.clock - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
   }
   function btMountSat(arena, st){
     var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
@@ -1159,7 +1159,7 @@
         }
       }
       if (!core.alive){ if (!core._popped){ core._popped = true; } btPopEl(core); }
-      if (core.justHit && Date.now() - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
+      if (core.justHit && AR.clock - core.justHit < 240) core.el.classList.add('hit'); else core.el && core.el.classList.remove('hit');
     }
     boss.sats.forEach(function (st){
       if (st.alive && !st.el) btMountSat(arena, st);            // lazy-mount (covers regenerated + new-wave limbs)
@@ -1174,7 +1174,7 @@
         st.conn.style.width = len + 'px';
         st.conn.style.transform = 'translate(' + core.x + 'px,' + (core.y - 4) + 'px) rotate(' + ang + 'rad)';
       }
-      if (st.justHit && Date.now() - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
+      if (st.justHit && AR.clock - st.justHit < 200) st.el.classList.add('hit'); else st.el.classList.remove('hit');
     });
     // mini-me bosses (lazy-mount)
     boss.minis.forEach(function (M){
@@ -1184,7 +1184,7 @@
       M.el.style.transform = 'translate(' + (M.x - M.r) + 'px,' + (M.y - M.r) + 'px)';
       if (M.arm) M.arm.style.transform = 'rotate(' + M.ang + 'rad)';
       if (M.hp !== M.lastHp){ M.ball.firstChild.nodeValue = M.hp; M.lastHp = M.hp; }
-      if (M.justHit && Date.now() - M.justHit < 200) M.el.classList.add('hit'); else M.el.classList.remove('hit');
+      if (M.justHit && AR.clock - M.justHit < 200) M.el.classList.add('hit'); else M.el.classList.remove('hit');
     });
     // laser beams
     boss.lasers.forEach(function (L){
@@ -1195,7 +1195,7 @@
     // explosion rings (transient)
     boss.blasts = (boss.blasts || []).filter(function (bl){
       if (!bl.el){ var be = document.createElement('div'); be.className = 'bt-blast'; be.style.left = (bl.x - bl.r) + 'px'; be.style.top = (bl.y - bl.r) + 'px'; be.style.width = be.style.height = (bl.r*2) + 'px'; arena.appendChild(be); bl.el = be; }
-      if (Date.now() - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
+      if (AR.clock - bl.born > 420){ if (bl.el && bl.el.parentNode) bl.el.parentNode.removeChild(bl.el); return false; }
       return true;
     });
     // shockwave rings (expanding)
@@ -1268,15 +1268,23 @@
     var arena = document.getElementById('bt-arena'), page = document.getElementById('page-battler');
     if (!AR.running || !arena || !(page && page.classList.contains('active'))){ AR.running = false; btReleaseWake(); return; }
     if (!AR.paused){
-      var W = arena.clientWidth, H = arena.clientHeight, now = Date.now();
+      var W = arena.clientWidth, H = arena.clientHeight, real = Date.now();
+      // The simulation runs on a *virtual* clock that only advances with rendered
+      // frames, and by a clamped step. Motion is frame-based (one step per frame) but
+      // cooldowns / limb-regen / the AI cadence are time-based; keying them off the same
+      // clamped clock keeps them in lock-step. So when the window is unfocused/hidden and
+      // the browser pauses or throttles rAF, the fight just slows or freezes evenly — it
+      // never builds up a backlog of overdue events that all "pop" at once on return.
+      var dt = AR.lastT ? Math.min(120, real - AR.lastT) : 16;
+      AR.lastT = real;
+      AR.clock += dt;
+      var now = AR.clock;
       // free-for-all closes in by % of TIME (full shrink over 2:00, resolution-independent);
-      // the boss arena stays full-size. dt is clamped so a pause/tab-stall doesn't jump it.
+      // the boss arena stays full-size.
       if (AR.mode !== 'boss'){
-        var dt = AR.lastT ? Math.min(120, now - AR.lastT) : 16;
         AR.ffaElapsed += dt;
         AR.inset = btFfaInset(W, H, AR.ffaElapsed);
       }
-      AR.lastT = now;
       btPaintFrame(W, H);
       if (AR.mode === 'boss'){
         var r = btTickBoss(AR.bots, AR.boss, W, H, now, AR.insetX, AR.insetY); btPaint(); btStatus();
@@ -1314,7 +1322,7 @@
   window.btStartBattle = function (){
     var s = btLoad();
     if (btActiveRoster().length < 2) return;
-    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0; AR.ffaElapsed = 0; AR.lastT = 0;
+    AR.lastWinner = ''; AR.result = ''; AR.bossMsg = ''; AR.running = true; AR.paused = false; AR.inset = 0; AR.insetX = 0; AR.insetY = 0; AR.ffaElapsed = 0; AR.lastT = 0; AR.clock = 0;
     AR.mode = (s.arenaMode === 'boss' && s.bossUnlocked) ? 'boss' : 'ffa';
     s.tab = 'battle'; btSave(s);
     AR.bots = btSpawn(s);
