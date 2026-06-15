@@ -83,6 +83,18 @@
     .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 0; }
     .bt-tag { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); white-space: nowrap; z-index: 3; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
     .bt-bot.hit .bt-ball { box-shadow: 0 0 0 4px var(--coral-500), 0 0 16px var(--coral-500); }
+    /* ── Power-ups: earned-badge indicator + active-effect auras ── */
+    .bt-pu { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; z-index: 4; pointer-events: none; }
+    .bt-pu-i { font-size: 13px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); transition: opacity .2s; }
+    .bt-pu-i.used { opacity: .28; filter: grayscale(1); }
+    .bt-pu-n { font-size: 11px; font-weight: 800; color: #fff; background: var(--coral-500); border-radius: 8px; padding: 0 4px; margin-left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    .bt-bot.pu-heal   .bt-ball { box-shadow: 0 0 0 4px rgba(34,197,94,.55), 0 0 18px #22c55e; }
+    .bt-bot.pu-invuln .bt-ball { box-shadow: 0 0 0 4px rgba(250,204,21,.65), 0 0 22px #fde047; }
+    .bt-bot.pu-dash   .bt-ball::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; box-shadow: -14px 0 18px rgba(56,189,248,.55); }
+    .bt-bot.pu-strike .bt-arm { background: #fbbf24; border-color: #b45309; box-shadow: 0 0 10px rgba(251,191,36,.85); }
+    .bt-bot.pu-fire   .bt-ball { box-shadow: 0 0 0 4px rgba(239,68,68,.55), 0 0 22px #ef4444; }
+    .bt-bot.pu-shock::before { content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 3px solid rgba(56,189,248,.7); transform: translate(-50%,-50%); width: 0; height: 0; animation: puShock .5s ease-out forwards; }
+    @keyframes puShock { from { width: 0; height: 0; opacity: .9; } to { width: 300px; height: 300px; opacity: 0; } }
     .bt-bot.pop { animation: btfade .32s forwards; }
     .bt-bot.pop .bt-ball { animation: btpopout .32s forwards; }
     @keyframes btfade { to { opacity: 0; } }
