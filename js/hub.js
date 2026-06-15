@@ -595,16 +595,16 @@
 
   /* ── Whiteboard mode (full-screen takeover) ── */
   var wbTool = 'pen', wbPage = 0, wbFocus = null, wbPopup = null;
-  var wbCanvas = null, wbCtx = null, wbLive = null, wbErasing = false;
+  var wbCanvas = null, wbCtx = null;
   /* Pencil / palm arbitration state.
-     Once a pencil has been used we latch into pen-only mode and reject every finger/palm
-     touch until the pencil has been idle for WB_PEN_IDLE ms. This stops a resting palm from
-     ever competing for the drawing slot mid-write (the cause of dropped "every other" strokes),
-     while still allowing finger drawing before the pencil is picked up — or after it's set down. */
+     Every contact is tracked independently by pointerId (wbStrokes / wbErasers) so the pencil
+     can never be blocked by leftover state from another pointer — the bug that dropped a pencil
+     stroke when a palm was also resting on the board. A pen is always allowed to draw; finger /
+     palm touches are rejected while a pencil is in use, and re-enabled once it's been idle. */
+  var wbStrokes = {};       // pointerId -> in-progress stroke { pts:[…] }
+  var wbErasers = {};       // pointerId -> true while that pointer is erasing
   var wbPenEver = false;    // has a pencil touched the canvas since the whiteboard opened?
   var wbLastPenAt = 0;      // timestamp (ms) of the most recent pen activity
-  var wbActiveId = null;    // pointerId that currently owns the live stroke / erase
-  var wbActiveType = null;  // pointerType of the owning pointer ('pen' | 'touch' | 'mouse')
   var WB_PEN_IDLE = 2500;   // ms the pencil must be idle before finger/palm drawing is re-enabled
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
@@ -670,7 +670,8 @@
   function sizeWB(){ if (!wbCanvas) return; var r = wbCanvas.getBoundingClientRect(); if (!r.width || !r.height) return; var dpr = window.devicePixelRatio || 1; wbCanvas.width = Math.round(r.width * dpr); wbCanvas.height = Math.round(r.height * dpr); redrawWB(); }
   function redrawWB(){
     if (!wbCtx) return; wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-    var strokes = stLayer(wbAnnKey()).concat(wbLive ? [wbLive] : []);
+    var live = []; for (var id in wbStrokes) live.push(wbStrokes[id]);
+    var strokes = stLayer(wbAnnKey()).concat(live);
     wbCtx.strokeStyle = '#2f55e0'; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; wbCtx.lineWidth = Math.max(3, wbCanvas.width / 340);
     strokes.forEach(function (st){ wbCtx.beginPath(); st.pts.forEach(function (p, i){ var x = p[0] * wbCanvas.width, y = p[1] * wbCanvas.height; i ? wbCtx.lineTo(x, y) : wbCtx.moveTo(x, y); }); wbCtx.stroke(); });
   }
@@ -693,42 +694,34 @@
     if (e.getCoalescedEvents){ var c = e.getCoalescedEvents(); if (c && c.length) return c; }
     return [e];
   }
-  /* Abandon the in-progress stroke / erase (used when a palm grabbed the slot before the pencil). */
-  function wbCancelActive(){
-    if (wbActiveId != null){ try { wbCanvas.releasePointerCapture(wbActiveId); } catch (err) {} }
-    wbActiveId = null; wbActiveType = null; wbLive = null; wbErasing = false;
-  }
   function setupWBCanvas(){
     wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
-    wbLive = null; wbErasing = false; wbActiveId = null; wbActiveType = null;
+    wbStrokes = {}; wbErasers = {};
     wbCanvas.onpointerdown = function (e){
       if (e.pointerType === 'pen'){
-        wbPenEver = true; wbLastPenAt = Date.now();
-        // A palm may have grabbed the drawing slot a moment before the pencil landed — drop it
-        // so the pencil takes over (otherwise the "one pointer at a time" guard blocks the pen).
-        if (wbActiveType === 'touch'){ wbCancelActive(); redrawWB(); }
+        var firstPen = !wbPenEver; wbPenEver = true; wbLastPenAt = Date.now();
+        // First pencil contact: any strokes in progress were finger/palm — drop them so the
+        // pencil starts clean. (A pen is never blocked, so it always proceeds below.)
+        if (firstPen){ wbStrokes = {}; wbErasers = {}; redrawWB(); }
       } else if (wbTouchBlocked(e)) {
         return;                                  // pencil in use → reject finger / palm outright
       }
-      if (wbActiveId != null) return;            // one pointer at a time — ignore extra contacts
       e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
-      wbActiveId = e.pointerId; wbActiveType = e.pointerType;
-      if (wbTool === 'rubber'){ wbErasing = true; eraseWB(wbPt(e)); return; }
-      wbLive = { pts: [wbPt(e)] };
+      if (wbTool === 'rubber'){ wbErasers[e.pointerId] = true; eraseWB(wbPt(e)); return; }
+      wbStrokes[e.pointerId] = { pts: [wbPt(e)] };
     };
     wbCanvas.onpointermove = function (e){
       if (e.pointerType === 'pen') wbLastPenAt = Date.now();
-      if (e.pointerId !== wbActiveId) return;    // only the owning pointer draws / erases
-      if (wbErasing){ wbSamples(e).forEach(function (ev){ eraseWB(wbPt(ev)); }); return; }
-      if (!wbLive) return;
-      wbSamples(e).forEach(function (ev){ wbLive.pts.push(wbPt(ev)); }); redrawWB();
+      if (wbErasers[e.pointerId]){ wbSamples(e).forEach(function (ev){ eraseWB(wbPt(ev)); }); return; }
+      var st = wbStrokes[e.pointerId]; if (!st) return;
+      wbSamples(e).forEach(function (ev){ st.pts.push(wbPt(ev)); }); redrawWB();
     };
     var up = function (e){
-      if (e && e.pointerType === 'pen') wbLastPenAt = Date.now();
-      if (e && e.pointerId !== wbActiveId) return;  // a non-drawing pointer (e.g. a resting palm) lifted
-      wbActiveId = null; wbActiveType = null;
-      if (wbErasing){ wbErasing = false; return; }
-      if (!wbLive) return; var st = wbLive; wbLive = null;
+      if (!e) return;
+      if (e.pointerType === 'pen') wbLastPenAt = Date.now();
+      try { wbCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; return; }
+      var st = wbStrokes[e.pointerId]; if (!st) return; delete wbStrokes[e.pointerId];
       if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
       var key = wbAnnKey(); stSetLayer(key, stLayer(key).concat([st])); redrawWB();
     };
