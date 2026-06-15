@@ -596,16 +596,20 @@
   /* ── Whiteboard mode (full-screen takeover) ── */
   var wbTool = 'pen', wbPage = 0, wbFocus = null, wbPopup = null;
   var wbCanvas = null, wbCtx = null, wbLive = null, wbErasing = false;
-  /* Pencil / palm arbitration state */
-  var wbPenDown = 0;        // how many pen pointers are currently in contact
+  /* Pencil / palm arbitration state.
+     Once a pencil has been used we latch into pen-only mode and reject every finger/palm
+     touch until the pencil has been idle for WB_PEN_IDLE ms. This stops a resting palm from
+     ever competing for the drawing slot mid-write (the cause of dropped "every other" strokes),
+     while still allowing finger drawing before the pencil is picked up — or after it's set down. */
+  var wbPenEver = false;    // has a pencil touched the canvas since the whiteboard opened?
   var wbLastPenAt = 0;      // timestamp (ms) of the most recent pen activity
   var wbActiveId = null;    // pointerId that currently owns the live stroke / erase
   var wbActiveType = null;  // pointerType of the owning pointer ('pen' | 'touch' | 'mouse')
-  var WB_PALM_GRACE = 700;  // ignore touches for this long after the pen lifts (palm still resting)
+  var WB_PEN_IDLE = 2500;   // ms the pencil must be idle before finger/palm drawing is re-enabled
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
-  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
+  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; wbLastPenAt = 0; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
   function closeWhiteboard(){ document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
@@ -675,34 +679,37 @@
     var hit = function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.028; }); };
     if (list.some(hit)){ stSetLayer(key, list.filter(function (st){ return !hit(st); })); redrawWB(); }
   }
-  /* A touch is ignored while the pencil is in use — actively in contact, or lifted only
-     momentarily (palm still resting on the board between letters / strokes). Finger drawing
-     still works when no pencil is in play. */
+  /* True when a finger/palm touch must be ignored because the pencil is (or was just) in use.
+     Pen and mouse are never blocked. Once a pencil has been seen, touch stays blocked until the
+     pencil has been idle for WB_PEN_IDLE ms — so a palm resting through normal writing pauses
+     can never start a stroke, but finger drawing returns once the pencil is set down. */
   function wbTouchBlocked(e){
     if (e.pointerType !== 'touch') return false;
-    if (wbPenDown > 0) return true;
-    return wbLastPenAt > 0 && (Date.now() - wbLastPenAt) < WB_PALM_GRACE;
+    if (!wbPenEver) return false;
+    return (Date.now() - wbLastPenAt) < WB_PEN_IDLE;
   }
   /* Expand a pointer event into its coalesced samples so fast pencil strokes stay smooth. */
   function wbSamples(e){
     if (e.getCoalescedEvents){ var c = e.getCoalescedEvents(); if (c && c.length) return c; }
     return [e];
   }
-  /* Abandon a stroke / erase that turned out to be a palm once the pencil lands. */
+  /* Abandon the in-progress stroke / erase (used when a palm grabbed the slot before the pencil). */
   function wbCancelActive(){
     if (wbActiveId != null){ try { wbCanvas.releasePointerCapture(wbActiveId); } catch (err) {} }
     wbActiveId = null; wbActiveType = null; wbLive = null; wbErasing = false;
   }
   function setupWBCanvas(){
     wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
-    wbLive = null; wbErasing = false; wbPenDown = 0; wbActiveId = null; wbActiveType = null;
+    wbLive = null; wbErasing = false; wbActiveId = null; wbActiveType = null;
     wbCanvas.onpointerdown = function (e){
       if (e.pointerType === 'pen'){
-        wbPenDown++; wbLastPenAt = Date.now();
-        // If a touch had started a stroke just before the pencil landed, it was a palm — drop it.
+        wbPenEver = true; wbLastPenAt = Date.now();
+        // A palm may have grabbed the drawing slot a moment before the pencil landed — drop it
+        // so the pencil takes over (otherwise the "one pointer at a time" guard blocks the pen).
         if (wbActiveType === 'touch'){ wbCancelActive(); redrawWB(); }
+      } else if (wbTouchBlocked(e)) {
+        return;                                  // pencil in use → reject finger / palm outright
       }
-      if (wbTouchBlocked(e)) return;             // palm / incidental touch rejected
       if (wbActiveId != null) return;            // one pointer at a time — ignore extra contacts
       e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
       wbActiveId = e.pointerId; wbActiveType = e.pointerType;
@@ -717,7 +724,7 @@
       wbSamples(e).forEach(function (ev){ wbLive.pts.push(wbPt(ev)); }); redrawWB();
     };
     var up = function (e){
-      if (e && e.pointerType === 'pen'){ wbPenDown = Math.max(0, wbPenDown - 1); wbLastPenAt = Date.now(); }
+      if (e && e.pointerType === 'pen') wbLastPenAt = Date.now();
       if (e && e.pointerId !== wbActiveId) return;  // a non-drawing pointer (e.g. a resting palm) lifted
       wbActiveId = null; wbActiveType = null;
       if (wbErasing){ wbErasing = false; return; }
