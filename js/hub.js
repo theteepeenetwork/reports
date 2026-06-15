@@ -595,7 +595,13 @@
 
   /* ── Whiteboard mode (full-screen takeover) ── */
   var wbTool = 'pen', wbPage = 0, wbFocus = null, wbPopup = null;
-  var wbCanvas = null, wbCtx = null, wbLive = null, wbErasing = false, wbPenActive = false;
+  var wbCanvas = null, wbCtx = null, wbLive = null, wbErasing = false;
+  /* Pencil / palm arbitration state */
+  var wbPenDown = 0;        // how many pen pointers are currently in contact
+  var wbLastPenAt = 0;      // timestamp (ms) of the most recent pen activity
+  var wbActiveId = null;    // pointerId that currently owns the live stroke / erase
+  var wbActiveType = null;  // pointerType of the owning pointer ('pen' | 'touch' | 'mouse')
+  var WB_PALM_GRACE = 700;  // ignore touches for this long after the pen lifts (palm still resting)
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
@@ -669,22 +675,51 @@
     var hit = function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.028; }); };
     if (list.some(hit)){ stSetLayer(key, list.filter(function (st){ return !hit(st); })); redrawWB(); }
   }
+  /* A touch is ignored while the pencil is in use — actively in contact, or lifted only
+     momentarily (palm still resting on the board between letters / strokes). Finger drawing
+     still works when no pencil is in play. */
+  function wbTouchBlocked(e){
+    if (e.pointerType !== 'touch') return false;
+    if (wbPenDown > 0) return true;
+    return wbLastPenAt > 0 && (Date.now() - wbLastPenAt) < WB_PALM_GRACE;
+  }
+  /* Expand a pointer event into its coalesced samples so fast pencil strokes stay smooth. */
+  function wbSamples(e){
+    if (e.getCoalescedEvents){ var c = e.getCoalescedEvents(); if (c && c.length) return c; }
+    return [e];
+  }
+  /* Abandon a stroke / erase that turned out to be a palm once the pencil lands. */
+  function wbCancelActive(){
+    if (wbActiveId != null){ try { wbCanvas.releasePointerCapture(wbActiveId); } catch (err) {} }
+    wbActiveId = null; wbActiveType = null; wbLive = null; wbErasing = false;
+  }
   function setupWBCanvas(){
-    wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d'); wbLive = null;
+    wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
+    wbLive = null; wbErasing = false; wbPenDown = 0; wbActiveId = null; wbActiveType = null;
     wbCanvas.onpointerdown = function (e){
-      if (e.pointerType === 'pen') wbPenActive = true;
-      if (e.pointerType === 'touch' && wbPenActive) return;          // palm rejection
+      if (e.pointerType === 'pen'){
+        wbPenDown++; wbLastPenAt = Date.now();
+        // If a touch had started a stroke just before the pencil landed, it was a palm — drop it.
+        if (wbActiveType === 'touch'){ wbCancelActive(); redrawWB(); }
+      }
+      if (wbTouchBlocked(e)) return;             // palm / incidental touch rejected
+      if (wbActiveId != null) return;            // one pointer at a time — ignore extra contacts
       e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+      wbActiveId = e.pointerId; wbActiveType = e.pointerType;
       if (wbTool === 'rubber'){ wbErasing = true; eraseWB(wbPt(e)); return; }
       wbLive = { pts: [wbPt(e)] };
     };
     wbCanvas.onpointermove = function (e){
-      if (e.pointerType === 'touch' && wbPenActive) return;
-      if (wbErasing){ eraseWB(wbPt(e)); return; }
-      if (!wbLive) return; wbLive.pts.push(wbPt(e)); redrawWB();
+      if (e.pointerType === 'pen') wbLastPenAt = Date.now();
+      if (e.pointerId !== wbActiveId) return;    // only the owning pointer draws / erases
+      if (wbErasing){ wbSamples(e).forEach(function (ev){ eraseWB(wbPt(ev)); }); return; }
+      if (!wbLive) return;
+      wbSamples(e).forEach(function (ev){ wbLive.pts.push(wbPt(ev)); }); redrawWB();
     };
     var up = function (e){
-      if (e && e.pointerType === 'pen') wbPenActive = false;
+      if (e && e.pointerType === 'pen'){ wbPenDown = Math.max(0, wbPenDown - 1); wbLastPenAt = Date.now(); }
+      if (e && e.pointerId !== wbActiveId) return;  // a non-drawing pointer (e.g. a resting palm) lifted
+      wbActiveId = null; wbActiveType = null;
       if (wbErasing){ wbErasing = false; return; }
       if (!wbLive) return; var st = wbLive; wbLive = null;
       if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
