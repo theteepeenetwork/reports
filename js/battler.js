@@ -16,6 +16,7 @@
   /* ── State ──────────────────────────────────────────────── */
   function btDefault(){
     return { v:1, tab:'points', step:1, sound:true, mascot:true, confetti:true, logBh:false, winnerBonus:5,
+             showLevels:true, showBadges:true, powerups:true,
              minPoints:5, startPoints:10, maxPoints:'',
              arenaMode:'ffa', satHP:8, coreHP:30,
              bossUnlocked:false, lbWindow:'all',
@@ -23,6 +24,17 @@
   }
   // pupil battle colours — cool only (blues/teals/greens/cyans/indigos); red is reserved for the boss & its minions
   var BT_COLORS = ['#3b82f6','#06b6d4','#14b8a6','#10b981','#0ea5e9','#6366f1','#22d3ee','#2563eb','#0d9488','#84cc16','#38bdf8','#4f46e5'];
+  // Each earned badge becomes a single-use battle power-up. Keys match btBadgesDef().
+  var BT_PU = {
+    first:  { icon:'🌱', name:'Regrow',        fx:'heal',   heal:2 },
+    ten:    { icon:'⭐', name:'Shooting Star',  fx:'dash',   dashMs:1400, invulMs:1400 },
+    q:      { icon:'🏅', name:'Shockwave',      fx:'shock',  shockR:150 },
+    half:   { icon:'🏆', name:'Power Strike',   fx:'strike', strikeMs:3000, dmgBonus:1, reachBonus:34 },
+    streak: { icon:'🔥', name:'Firestorm',      fx:'fire',   fireMs:3000, spinBoost:0.04, burnR:120, burnMs:520 }
+  };
+  var BT_PU_ORDER   = ['first','ten','q','half','streak'];
+  var BT_PU_ROLL_MS = 1500;   // per-bot roll throttle (ms)
+  var BT_PU_P_EACH  = 0.16;   // per-roll base probability per remaining power-up
   function btLoad(){
     var s = Store.get('tp_battler', null);
     if (!s || typeof s !== 'object') s = btDefault();
@@ -34,6 +46,9 @@
     if (!Array.isArray(s.tables)) s.tables = [];
     if ([1,2,5].indexOf(s.step) < 0) s.step = 1;
     if (typeof s.bossUnlocked !== 'boolean') s.bossUnlocked = false;
+    if (typeof s.showLevels !== 'boolean') s.showLevels = true;
+    if (typeof s.showBadges !== 'boolean') s.showBadges = true;
+    if (typeof s.powerups !== 'boolean') s.powerups = true;
     if (!s.placements || typeof s.placements !== 'object') s.placements = {};
     if (!s.daily || typeof s.daily !== 'object') s.daily = {};
     if (['all','month','week'].indexOf(s.lbWindow) < 0) s.lbWindow = 'all';
@@ -433,7 +448,7 @@
           '<svg class="p-ring" viewBox="0 0 76 76"><circle class="ring-track" cx="38" cy="38" r="' + RING_R + '"></circle>' +
           '<circle class="ring-prog" cx="38" cy="38" r="' + RING_R + '" style="stroke:' + rk.color + ';stroke-dasharray:' + RING_C.toFixed(1) + ';stroke-dashoffset:' + btRingOffset(s, pts).toFixed(1) + '"></circle></svg>' +
           '<span class="p-init" style="background:' + av + '">' + esc(initials(p.name)) + '</span>' +
-          '<span class="p-lvl">Lv ' + btLevelOf(s, pts) + '</span>' +
+          (s.showLevels ? '<span class="p-lvl">Lv ' + btLevelOf(s, pts) + '</span>' : '') +
         '</div>' +
         '<div class="p-info">' +
           '<div class="p-name">' + esc(p.name) + '</div>' +
@@ -441,7 +456,7 @@
           '<div class="p-next">' + (nr ? ((nr.min - pts) + ' to ' + nr.label) : '★ Top rank!') + '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="p-badges">' + btBadgesHTML(s, p.id) + '</div>' +
+      (s.showBadges ? '<div class="p-badges">' + btBadgesHTML(s, p.id) + '</div>' : '') +
       '<div class="p-btns">' +
         '<button class="pbtn minus" title="Take a point" onclick="btAwardOne(\'' + p.id + '\',' + (-s.step) + ')">−</button>' +
         '<button class="pbtn plus" onclick="btAwardOne(\'' + p.id + '\',' + s.step + ')">+' + s.step + '</button>' +
@@ -456,13 +471,13 @@
     d.querySelector('.p-emblem').style.color = rk.color;
     d.querySelector('.rank-glow').style.background = 'radial-gradient(120% 120% at 85% 100%, ' + rk.color + '22, transparent 60%)';
     var pe = d.querySelector('.p-pts'); pe.style.color = rk.color; if (instant) pe.textContent = pts;
-    d.querySelector('.p-lvl').textContent = 'Lv ' + btLevelOf(s, pts);
+    var lvl = d.querySelector('.p-lvl'); if (lvl) lvl.textContent = 'Lv ' + btLevelOf(s, pts);
     d.querySelector('.p-next').textContent = nr ? ((nr.min - pts) + ' to ' + nr.label) : '★ Top rank!';
     var ring = d.querySelector('.ring-prog'); ring.style.stroke = rk.color;
     if (instant) ring.style.transition = 'none';
     ring.style.strokeDashoffset = btRingOffset(s, pts);
     if (instant){ void ring.getBoundingClientRect(); ring.style.transition = ''; }
-    d.querySelector('.p-badges').innerHTML = btBadgesHTML(s, pid, justGot);
+    var bd = d.querySelector('.p-badges'); if (bd) bd.innerHTML = btBadgesHTML(s, pid, justGot);
   }
   function btUpdateClassTotal(s, instant){
     var el = document.getElementById('bt-classtotal'); if (!el) return; var total = btClassTotal(s);
@@ -737,7 +752,7 @@
     var sz = btArenaSize(), W = sz.W, H = sz.H;
     return btActiveRoster().map(function (p, i){
       var r = BT_R, sp = 1.0 + Math.random(), a = Math.random() * Math.PI * 2;
-      return {
+      var bot = {
         pid: p.id, name: p.name, color: BT_COLORS[i % BT_COLORS.length], r: r,
         hp: Math.max(1, btPts(s, p.id)),  // pupil's points = battle HP (starting + awards, clamped)
         x: r + Math.random() * (W - 2*r), y: r + 20 + Math.random() * (H - 2*r - 20),
@@ -745,7 +760,74 @@
         ang: Math.random() * Math.PI * 2, spin: (Math.random() < 0.5 ? -1 : 1) * (0.024 + Math.random()*0.03),
         cd: 0, alive: true, el: null, ball: null, arm: null, lastHp: -1
       };
+      // earned badges become single-use power-ups; transient effect state below
+      var got = s.powerups ? btBadgesOf(s, p.id) : {};
+      bot.powerups = BT_PU_ORDER.filter(function (k){ return got[k]; })
+        .map(function (k){ return { key:k, icon:BT_PU[k].icon, name:BT_PU[k].name, used:false }; });
+      bot.nextRoll = 0;
+      bot.dmgBonus = 0; bot.reachBonus = 0; bot.strikeUntil = 0;
+      bot.invulnUntil = 0; bot.dashUntil = 0;
+      bot.fireUntil = 0; bot.nextBurn = 0; bot.spinBoost = 0;
+      bot.healUntil = 0; bot.shockUntil = 0; bot._puDirty = true;
+      bot.puEl = null; bot.puCells = null; bot.puCnt = null;
+      return bot;
     });
+  }
+  /* ── Power-ups: roll, fire, and damage-over-time. A pupil holds one single-use
+     power-up per earned badge; each fires at most once, by chance, with the odds
+     rising as more remain. Works in both free-for-all and boss battles. ── */
+  function btPuEnemies(b, bots, ffa){
+    if (ffa) return bots.filter(function (o){ return o !== b && o.alive; });
+    var e = [], boss = AR.boss; if (!boss) return e;
+    (boss.sats || []).forEach(function (S){ if (S.alive) e.push(S); });
+    (boss.minis || []).forEach(function (M){ if (M.alive) e.push(M); });
+    if (boss.core && boss.core.alive && boss.core.vuln) e.push(boss.core);
+    return e;
+  }
+  function btPuFire(b, bots, key, now, ffa){
+    var c = BT_PU[key];
+    if (c.fx === 'heal'){ b.hp += c.heal; b.healUntil = now + 600; }
+    else if (c.fx === 'dash'){ b.dashUntil = now + c.dashMs; b.invulnUntil = now + c.invulMs;
+      var sp = Math.hypot(b.vx, b.vy) || 0.0001, k = (BT_MAX * 1.4) / sp; b.vx *= k; b.vy *= k; }
+    else if (c.fx === 'shock'){ b.shockUntil = now + 500;
+      btPuEnemies(b, bots, ffa).forEach(function (o){
+        var dx = o.x - b.x, dy = o.y - b.y; if (dx*dx + dy*dy < c.shockR*c.shockR){
+          btKnock(o, b.x, b.y);
+          if (!ffa && now >= (o.cd || 0) && !(o.invulnUntil > now)){ o.hp -= 1; o.cd = now + 200; o.justHit = now;
+            if (o.hp <= 0){ o.alive = false; o.poppedAt = now; } } } }); }
+    else if (c.fx === 'strike'){ b.strikeUntil = now + c.strikeMs; b.dmgBonus = c.dmgBonus; b.reachBonus = c.reachBonus; }
+    else if (c.fx === 'fire'){ b.fireUntil = now + c.fireMs; b.spinBoost = c.spinBoost; b.nextBurn = now; }
+    b._puDirty = true;
+    if (typeof sfx === 'function') sfx('hit');
+  }
+  function btPuBurn(b, bots, now, ffa){
+    var c = BT_PU.streak;
+    btPuEnemies(b, bots, ffa).forEach(function (o){
+      if (o.invulnUntil > now) return;
+      var dx = o.x - b.x, dy = o.y - b.y;
+      if (dx*dx + dy*dy < c.burnR*c.burnR && now >= (o.cd || 0)){ o.hp -= 1; o.cd = now + 420; o.justHit = now;
+        if (o.hp <= 0){ o.alive = false; o.poppedAt = now; } } });
+  }
+  function btPuTick(b, bots, now, ffa){
+    if (b.strikeUntil && now >= b.strikeUntil){ b.strikeUntil = 0; b.dmgBonus = 0; b.reachBonus = 0; }
+    if (b.fireUntil && now >= b.fireUntil){ b.fireUntil = 0; b.spinBoost = 0; }
+    if (b.dashUntil && now >= b.dashUntil){ b.dashUntil = 0; }
+    if (b.fireUntil && now >= b.nextBurn){ b.nextBurn = now + BT_PU.streak.burnMs; btPuBurn(b, bots, now, ffa); }
+    if (!b.powerups || !b.powerups.length || now < b.nextRoll) return;
+    b.nextRoll = now + BT_PU_ROLL_MS;
+    var pool = b.powerups.filter(function (p){ return !p.used; });
+    if (!pool.length) return;
+    var pFire = 1 - Math.pow(1 - BT_PU_P_EACH, pool.length);   // more remaining → higher chance
+    if (Math.random() >= pFire) return;
+    var pu = pool[(Math.random() * pool.length) | 0]; pu.used = true;
+    btPuFire(b, bots, pu.key, now, ffa);
+  }
+  // Shared damage helper so an invulnerable pupil shrugs off every hazard. Returns true if hurt.
+  function btHurt(P, dmg, now){
+    if (P.invulnUntil > now) return false;
+    P.hp -= dmg; P.justHit = now;
+    if (P.hp <= 0){ P.alive = false; P.poppedAt = now; }
+    return true;
   }
   /* ── Boss balancing — auto-scales to class strength (sum of pupils' points
      = sum of their battle HP) so it's hard but winnable for any class. ── */
@@ -795,9 +877,9 @@
     boss.blasts.push({ x:x, y:y, born:now, r:BOSS.blastR, el:null });
     for (var i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
       var dx = P.x - x, dy = P.y - y;
-      if (dx*dx + dy*dy < BOSS.blastR*BOSS.blastR){
-        P.hp = Math.floor(P.hp * (1 - BOSS.blastFrac)); P.justHit = now; btKnock(P, x, y);
-        if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+      if (dx*dx + dy*dy < BOSS.blastR*BOSS.blastR){ btKnock(P, x, y);
+        if (!(P.invulnUntil > now)){ P.hp = Math.floor(P.hp * (1 - BOSS.blastFrac)); P.justHit = now;
+          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } } }
   }
   function btBossFireLaser(boss, now){
     boss.lasers.push({ ang: Math.random()*Math.PI*2, sweep: (Math.random()<0.5?-1:1)*BOSS.laserSweep, born:now, life:BOSS.laserLife, cur:0, el:null });
@@ -811,7 +893,7 @@
       for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
         var rx = P.x - core.x, ry = P.y - core.y, proj = rx*ux + ry*uy;
         if (proj > core.r && proj < len && Math.abs(rx*(-uy) + ry*ux) < P.r + 6 && now >= (P.cd||0)){
-          P.hp -= 1; P.cd = now + 640; P.justHit = now; if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+          P.cd = now + 640; btHurt(P, 1, now); } }
       keep.push(L);
     }
     boss.lasers = keep;
@@ -834,11 +916,11 @@
         if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d, push = (rr - d)/2;
           P.x += nx*push; P.y += ny*push; M.x -= nx*push; M.y -= ny*push; btBump(M, P); }
         var hx = P.x - tx, hy = P.y - ty;
-        if (hx*hx + hy*hy < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 580; P.justHit = now; btKnock(P, M.x, M.y);
-          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } }
-        var ptx = P.x + Math.cos(P.ang)*BT_REACH, pty = P.y + Math.sin(P.ang)*BT_REACH;
+        if (hx*hx + hy*hy < P.r*P.r && now >= P.cd){ P.cd = now + 580; btKnock(P, M.x, M.y); btHurt(P, 1, now); }
+        var preach = BT_REACH + (P.reachBonus || 0);
+        var ptx = P.x + Math.cos(P.ang)*preach, pty = P.y + Math.sin(P.ang)*preach;
         var mx = M.x - ptx, my = M.y - pty;
-        if (mx*mx + my*my < M.r*M.r && now >= M.cd){ M.hp -= 1; M.cd = now + 260; M.justHit = now;
+        if (mx*mx + my*my < M.r*M.r && now >= M.cd){ M.hp -= (1 + (P.dmgBonus || 0)); M.cd = now + 260; M.justHit = now;
           if (M.hp <= 0){ M.alive = false; M.poppedAt = now; } }
       }
     }
@@ -855,10 +937,10 @@
       for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive || S.hit[P.pid]) continue;
         var dd = Math.hypot(P.x - S.x, P.y - S.y);
         if (dd >= S.r - BOSS.shockThick && dd <= S.r + P.r){
-          S.hit[P.pid] = 1; P.hp -= BOSS.shockDmg; P.justHit = now;
+          S.hit[P.pid] = 1;
           var dx = P.x - S.x, dy = P.y - S.y, dn = Math.hypot(dx, dy) || 1;
           P.vx = dx/dn * BOSS.shockKnock; P.vy = dy/dn * BOSS.shockKnock; btSpeedClamp(P);
-          if (P.hp <= 0){ P.alive = false; P.poppedAt = now; }
+          btHurt(P, BOSS.shockDmg, now);
         }
       }
       keep.push(S);
@@ -890,8 +972,7 @@
       var hit = null;
       for (k = 0; k < bots.length; k++){ var Q = bots[k]; if (!Q.alive) continue;
         var hx = Q.x - M.x, hy = Q.y - M.y; if (hx*hx + hy*hy < (Q.r + M.r)*(Q.r + M.r)){ hit = Q; break; } }
-      if (hit){ hit.hp -= BOSS.missileDmg; hit.justHit = now; btKnock(hit, M.x, M.y);
-        if (hit.hp <= 0){ hit.alive = false; hit.poppedAt = now; }
+      if (hit){ btKnock(hit, M.x, M.y); btHurt(hit, BOSS.missileDmg, now);
         boss.blasts.push({ x:M.x, y:M.y, r:42, born:now, el:null });   // visual splash only
         if (M.el && M.el.parentNode) M.el.parentNode.removeChild(M.el); continue;
       }
@@ -912,8 +993,9 @@
       if (now - B.born >= B.fuse){
         for (var k = 0; k < bots.length; k++){ var P = bots[k]; if (!P.alive) continue;
           var dx = P.x - B.x, dy = P.y - B.y;
-          if (dx*dx + dy*dy < B.r*B.r){ P.hp = Math.floor(P.hp * (1 - BOSS.bombFrac)); P.justHit = now; btKnock(P, B.x, B.y);
-            if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } }
+          if (dx*dx + dy*dy < B.r*B.r){ btKnock(P, B.x, B.y);
+            if (!(P.invulnUntil > now)){ P.hp = Math.floor(P.hp * (1 - BOSS.bombFrac)); P.justHit = now;
+              if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } } } }
         boss.blasts.push({ x:B.x, y:B.y, r:B.r, born:now, el:null });
         if (B.el && B.el.parentNode) B.el.parentNode.removeChild(B.el); continue;
       }
@@ -974,9 +1056,15 @@
   function btMovePupils(bots, W, H, withArmHits, now, insetX, insetY){
     var i, j;
     for (i = 0; i < bots.length; i++){ var b = bots[i]; if (!b.alive) continue;
-      b.x += b.vx; b.y += b.vy; b.ang += b.spin; btAccSpin(b, 'spin'); btWalls(b, W, H, insetX, insetY); btSpeedClamp(b); }
+      btPuTick(b, bots, now, withArmHits);   // power-ups: expire buffs, burn, maybe fire one
+      b.x += b.vx; b.y += b.vy;
+      b.ang += b.spin + (b.spinBoost ? (b.spin >= 0 ? b.spinBoost : -b.spinBoost) : 0);
+      btAccSpin(b, 'spin'); btWalls(b, W, H, insetX, insetY);
+      if (!(b.dashUntil > now)) btSpeedClamp(b);   // a Shooting-Star dash briefly exceeds the cap
+    }
     for (i = 0; i < bots.length; i++){ var A = bots[i]; if (!A.alive) continue;
-      var tx = A.x + Math.cos(A.ang)*BT_REACH, ty = A.y + Math.sin(A.ang)*BT_REACH;
+      var reach = BT_REACH + (A.reachBonus || 0);
+      var tx = A.x + Math.cos(A.ang)*reach, ty = A.y + Math.sin(A.ang)*reach;
       for (j = i+1; j < bots.length; j++){ var B = bots[j]; if (!B.alive) continue;
         var dx = B.x - A.x, dy = B.y - A.y, d2 = dx*dx + dy*dy, rr = A.r + B.r;
         if (d2 < rr*rr && d2 > 0.01){
@@ -988,10 +1076,11 @@
       if (withArmHits){
         for (j = 0; j < bots.length; j++){ if (i===j) continue; var C = bots[j]; if (!C.alive) continue;
           var hx = C.x - tx, hy = C.y - ty;
-          if (hx*hx + hy*hy < C.r*C.r && now >= C.cd){ C.hp -= 1; C.cd = now + 420; C.justHit = now;
+          if (hx*hx + hy*hy < C.r*C.r && now >= C.cd){
+            C.cd = now + 420;       // throttle the interaction (Power Strike adds +damage)
             btKnock(C, A.x, A.y);   // bounce the struck avatar away from the attacker
             A.spin = -A.spin;       // the arm bounces off, reversing its spin
-            if (C.hp <= 0){ C.alive = false; C.poppedAt = now; } }
+            btHurt(C, 1 + (A.dmgBonus || 0), now); }   // invuln avatars take no damage
         }
       }
     }
@@ -1049,21 +1138,21 @@
 
     // pupils attack limbs/core; limbs bump + their spinning arm(s) hit pupils
     for (i = 0; i < bots.length; i++){ var P = bots[i]; if (!P.alive) continue;
-      var tx = P.x + Math.cos(P.ang)*BT_REACH, ty = P.y + Math.sin(P.ang)*BT_REACH;
+      var preach2 = BT_REACH + (P.reachBonus || 0);   // Power Strike extends the pupil's reach
+      var tx = P.x + Math.cos(P.ang)*preach2, ty = P.y + Math.sin(P.ang)*preach2;
       for (k = 0; k < sats.length; k++){ var S = sats[k]; if (!S.alive) continue;
         var dx = P.x - S.x, dy = P.y - S.y, d2 = dx*dx + dy*dy, rr = P.r + S.r;
         if (d2 < rr*rr && d2 > 0.01){ var d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
           P.x = S.x + nx*rr; P.y = S.y + ny*rr;
           var vn = P.vx*nx + P.vy*ny; if (vn < 0){ P.vx -= 2*vn*nx; P.vy -= 2*vn*ny; btSpeedClamp(P); } }
         var hx = S.x - tx, hy = S.y - ty;
-        if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= 1; S.cd = now + 230; S.justHit = now; P.spin = -P.spin;
+        if (hx*hx + hy*hy < S.r*S.r && now >= S.cd){ S.hp -= (1 + (P.dmgBonus || 0)); S.cd = now + 230; S.justHit = now; P.spin = -P.spin;
           if (S.hp <= 0){ S.alive = false; S.poppedAt = now; if (S.explode) btBossBlast(boss, bots, S.x, S.y, now); } }
         for (ai = 0; ai < (S.arms || 1); ai++){
           var sang = S.ownAng + ai*(Math.PI*2/(S.arms || 1));
           var sx = S.x + Math.cos(sang)*S.reach, sy = S.y + Math.sin(sang)*S.reach;
           var px = P.x - sx, py = P.y - sy;
-          if (px*px + py*py < P.r*P.r && now >= P.cd){ P.hp -= 1; P.cd = now + 580; P.justHit = now; btKnock(P, S.x, S.y);
-            if (P.hp <= 0){ P.alive = false; P.poppedAt = now; } break; }
+          if (px*px + py*py < P.r*P.r && now >= P.cd){ P.cd = now + 580; btKnock(P, S.x, S.y); btHurt(P, 1, now); break; }
         }
       }
       if (core.vuln && core.alive){
@@ -1072,7 +1161,7 @@
           P.x = core.x + cnx*crr; P.y = core.y + cny*crr;
           var cvn = P.vx*cnx + P.vy*cny; if (cvn < 0){ P.vx -= 2*cvn*cnx; P.vy -= 2*cvn*cny; btSpeedClamp(P); } }
         var ctx = core.x - tx, cty = core.y - ty;
-        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd && !core.shield){ core.hp -= 1; core.cd = now + 57; core.justHit = now; core.lastDamaged = now;
+        if (ctx*ctx + cty*cty < core.r*core.r && now >= core.cd && !core.shield){ core.hp -= (1 + (P.dmgBonus || 0)); core.cd = now + 57; core.justHit = now; core.lastDamaged = now;
           if (core.hp <= 0){ core.hp = 0; core.alive = false; } }
       }
     }
@@ -1083,8 +1172,7 @@
         var atx = core.x + Math.cos(aang)*core.reach, aty = core.y + Math.sin(aang)*core.reach;
         for (k = 0; k < bots.length; k++){ var Q = bots[k]; if (!Q.alive) continue;
           var qx = Q.x - atx, qy = Q.y - aty;
-          if (qx*qx + qy*qy < Q.r*Q.r && now >= Q.cd){ Q.hp -= 1; Q.cd = now + 580; Q.justHit = now; btKnock(Q, core.x, core.y);
-            if (Q.hp <= 0){ Q.alive = false; Q.poppedAt = now; } }
+          if (qx*qx + qy*qy < Q.r*Q.r && now >= Q.cd){ Q.cd = now + 580; btKnock(Q, core.x, core.y); btHurt(Q, 1, now); }
         }
       }
       // phase milestones (the AI picks WHICH power-ups to fire; these just escalate)
@@ -1116,6 +1204,20 @@
     b.arm.style.transform = 'rotate(' + b.ang + 'rad)';
     if (b.hp !== b.lastHp){ if (b.hp < b.lastHp) sfx('hit'); b.ball.firstChild.nodeValue = b.hp; b.lastHp = b.hp; }   // tick on losing a point
     if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
+    // power-up indicator (remaining count + greyed-out used) and active-effect auras
+    if (b.puEl && b._puDirty){ b._puDirty = false; var rem = 0;
+      for (var pk = 0; pk < b.powerups.length; pk++){ var pp = b.powerups[pk];
+        b.puCells[pk].classList.toggle('used', pp.used); if (!pp.used) rem++; }
+      b.puCnt.textContent = rem ? rem : '';
+    }
+    if (b.powerups && b.powerups.length){ var nw = Date.now();
+      b.el.classList.toggle('pu-heal',   b.healUntil   > nw);
+      b.el.classList.toggle('pu-invuln', b.invulnUntil > nw);
+      b.el.classList.toggle('pu-dash',   b.dashUntil   > nw);
+      b.el.classList.toggle('pu-shock',  b.shockUntil  > nw);
+      b.el.classList.toggle('pu-strike', b.strikeUntil > nw);
+      b.el.classList.toggle('pu-fire',   b.fireUntil   > nw);
+    }
   }
   function btMountSat(arena, st){
     var conn = document.createElement('div'); conn.className = 'bt-conn'; arena.appendChild(conn); st.conn = conn;
@@ -1210,6 +1312,13 @@
     ball.appendChild(document.createTextNode(b.hp));
     el.appendChild(arm); el.appendChild(ball);
     if (b.name){ var tag = document.createElement('div'); tag.className = 'bt-tag'; tag.textContent = b.name; el.appendChild(tag); }
+    if (b.powerups && b.powerups.length){          // earned-badge power-ups + remaining-to-fire count
+      var pu = document.createElement('div'); pu.className = 'bt-pu';
+      b.puCells = b.powerups.map(function (p){ var c = document.createElement('span');
+        c.className = 'bt-pu-i'; c.textContent = p.icon; c.title = p.name; pu.appendChild(c); return c; });
+      b.puCnt = document.createElement('span'); b.puCnt.className = 'bt-pu-n'; pu.appendChild(b.puCnt);
+      el.appendChild(pu); b.puEl = pu; b._puDirty = true;
+    }
     b.el = el; b.arm = arm; b.ball = ball; b.lastHp = b.hp;
     return el;
   }
@@ -1746,6 +1855,11 @@
           '<div class="steps">' + [1,2,5].map(function (n){ return '<button class="step' + (s.step===n?' on':'') + '" onclick="btSetStep(' + n + ')">+' + n + '</button>'; }).join('') + '</div></div>' +
         '<div class="set-row"><div><b>Battle winner bonus</b><div class="set-hint">Points the last-standing pupil (or boss survivors) earn.</div></div>' +
           '<input class="num" type="number" min="0" value="' + s.winnerBonus + '" onchange="btSetWinnerBonus(this.value)" /></div>' +
+      '</div>' +
+      '<div class="set-card"><h3 class="set-h">Pupil cards &amp; power-ups</h3>' +
+        tog('showLevels','Show level pills','The “Lv N” badge on each pupil avatar.') +
+        tog('showBadges','Show badges','The earned-badge row on each pupil card.') +
+        tog('powerups','Battle power-ups','Earned badges become single-use power-ups in the arena — they fire by chance, and the more a pupil holds the likelier one triggers.') +
       '</div>' +
       '<div class="set-card"><h3 class="set-h">Points range</h3>' +
         '<div class="cfg-row" style="margin:0;border:0;padding:0;background:none">' +
