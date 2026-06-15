@@ -28,7 +28,7 @@
   var BT_PU = {
     first:  { icon:'🌱', name:'Regrow',        fx:'heal',   heal:2 },
     ten:    { icon:'⭐', name:'Shooting Star',  fx:'dash',   dashMs:1400, invulMs:1400 },
-    q:      { icon:'🏅', name:'Shockwave',      fx:'shock',  shockR:150 },
+    q:      { icon:'🏅', name:'Shockwave',      fx:'shock',  shockR:150, dmg:2 },
     half:   { icon:'🏆', name:'Power Strike',   fx:'strike', strikeMs:3000, dmgBonus:1, reachBonus:34 },
     streak: { icon:'🔥', name:'Firestorm',      fx:'fire',   fireMs:3000, spinBoost:0.04, burnR:120, burnMs:520 }
   };
@@ -791,10 +791,8 @@
       var sp = Math.hypot(b.vx, b.vy) || 0.0001, k = (BT_MAX * 1.4) / sp; b.vx *= k; b.vy *= k; }
     else if (c.fx === 'shock'){ b.shockUntil = now + 500;
       btPuEnemies(b, bots, ffa).forEach(function (o){
-        var dx = o.x - b.x, dy = o.y - b.y; if (dx*dx + dy*dy < c.shockR*c.shockR){
-          btKnock(o, b.x, b.y);
-          if (!ffa && now >= (o.cd || 0) && !(o.invulnUntil > now)){ o.hp -= 1; o.cd = now + 200; o.justHit = now;
-            if (o.hp <= 0){ o.alive = false; o.poppedAt = now; } } } }); }
+        var dx = o.x - b.x, dy = o.y - b.y;
+        if (dx*dx + dy*dy < c.shockR*c.shockR){ btKnock(o, b.x, b.y); btHurt(o, c.dmg, now); } }); }
     else if (c.fx === 'strike'){ b.strikeUntil = now + c.strikeMs; b.dmgBonus = c.dmgBonus; b.reachBonus = c.reachBonus; }
     else if (c.fx === 'fire'){ b.fireUntil = now + c.fireMs; b.spinBoost = c.spinBoost; b.nextBurn = now; }
     b._puDirty = true;
@@ -1206,8 +1204,9 @@
     if (b.justHit && Date.now() - b.justHit < 240) b.el.classList.add('hit'); else b.el.classList.remove('hit');
     // power-up indicator (remaining count + greyed-out used) and active-effect auras
     if (b.puEl && b._puDirty){ b._puDirty = false; var rem = 0;
-      for (var pk = 0; pk < b.powerups.length; pk++){ var pp = b.powerups[pk];
-        b.puCells[pk].classList.toggle('used', pp.used); if (!pp.used) rem++; }
+      for (var pk = 0; pk < b.powerups.length; pk++){ var pp = b.powerups[pk], cell = b.puCells[pk];
+        if (pp.used && !cell.classList.contains('used')) cell.classList.add('used', 'spent');   // pop the icon as it's spent
+        if (!pp.used) rem++; }
       b.puCnt.textContent = rem ? rem : '';
     }
     if (b.powerups && b.powerups.length){ var nw = Date.now();

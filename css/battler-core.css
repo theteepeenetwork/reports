@@ -80,21 +80,39 @@
     .bt-minrow input::placeholder { color: var(--faint); }
     .bt-bot { position: absolute; left: 0; top: 0; will-change: transform; }
     .bt-ball { position: relative; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 16px; border: 3px solid rgba(0,0,0,.12); box-shadow: 0 2px 6px rgba(0,0,0,.18); z-index: 2; }
-    .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 0; }
+    .bt-arm { position: absolute; left: 50%; top: 50%; width: 86px; height: 7px; margin-top: -3.5px; margin-left: -6px; background: #aab1b5; border: 1.5px solid #6b7378; border-radius: 6px; transform-origin: 6px 50%; z-index: 0; transition: width .15s, background .15s; }
     .bt-tag { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--ink); white-space: nowrap; z-index: 3; text-shadow: 0 1px 0 #fff, 0 0 3px #fff; }
     .bt-bot.hit .bt-ball { box-shadow: 0 0 0 4px var(--coral-500), 0 0 16px var(--coral-500); }
     /* ── Power-ups: earned-badge indicator + active-effect auras ── */
     .bt-pu { position: absolute; left: 50%; top: -40px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; z-index: 4; pointer-events: none; }
     .bt-pu-i { font-size: 13px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); transition: opacity .2s; }
     .bt-pu-i.used { opacity: .28; filter: grayscale(1); }
+    .bt-pu-i.spent { animation: puSpent .5s ease-out; }
     .bt-pu-n { font-size: 11px; font-weight: 800; color: #fff; background: var(--coral-500); border-radius: 8px; padding: 0 4px; margin-left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
-    .bt-bot.pu-heal   .bt-ball { box-shadow: 0 0 0 4px rgba(34,197,94,.55), 0 0 18px #22c55e; }
-    .bt-bot.pu-invuln .bt-ball { box-shadow: 0 0 0 4px rgba(250,204,21,.65), 0 0 22px #fde047; }
-    .bt-bot.pu-dash   .bt-ball::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; box-shadow: -14px 0 18px rgba(56,189,248,.55); }
-    .bt-bot.pu-strike .bt-arm { background: #fbbf24; border-color: #b45309; box-shadow: 0 0 10px rgba(251,191,36,.85); }
-    .bt-bot.pu-fire   .bt-ball { box-shadow: 0 0 0 4px rgba(239,68,68,.55), 0 0 22px #ef4444; }
-    .bt-bot.pu-shock::before { content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 3px solid rgba(56,189,248,.7); transform: translate(-50%,-50%); width: 0; height: 0; animation: puShock .5s ease-out forwards; }
-    @keyframes puShock { from { width: 0; height: 0; opacity: .9; } to { width: 300px; height: 300px; opacity: 0; } }
+    /* Each effect gets a loud, distinct tell so it's obvious which power-up just fired. */
+    .bt-bot.pu-heal   .bt-ball { box-shadow: 0 0 0 4px rgba(34,197,94,.6), 0 0 22px #22c55e; animation: puHeal .5s ease-in-out infinite; }
+    .bt-bot.pu-dash   .bt-ball::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; box-shadow: -16px 0 20px rgba(56,189,248,.6); animation: puDash .3s ease-in-out infinite; }
+    .bt-bot.pu-strike .bt-arm { width: 122px !important; background: linear-gradient(90deg,#f59e0b,#fde047); border-color: #b45309; box-shadow: 0 0 14px rgba(251,191,36,.95); animation: puStrikeArm .35s ease-in-out infinite; }
+    .bt-bot.pu-fire   .bt-ball { animation: puFire .32s steps(2,end) infinite; }
+    /* pu-invuln is listed last so its rainbow wins any .bt-ball animation overlap */
+    .bt-bot.pu-invuln .bt-ball { animation: puRainbow .5s linear infinite, puHue .7s linear infinite; }
+    .bt-bot.pu-shock::before { content: ''; position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 5px solid rgba(56,189,248,.85); transform: translate(-50%,-50%); width: 0; height: 0; animation: puShock .5s ease-out forwards; }
+    @keyframes puShock  { from { width: 0; height: 0; opacity: .95; } to { width: 340px; height: 340px; opacity: 0; } }
+    @keyframes puSpent  { 0% { transform: scale(1.9); } 60% { transform: scale(.85); } 100% { transform: scale(1); } }
+    @keyframes puHeal   { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    @keyframes puDash   { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+    @keyframes puFire   { 0%,100% { box-shadow: 0 0 0 4px rgba(239,68,68,.6), 0 0 24px #ef4444; } 50% { box-shadow: 0 0 0 7px rgba(255,140,0,.85), 0 0 38px #ff6a00; } }
+    @keyframes puStrikeArm { 0%,100% { box-shadow: 0 0 12px rgba(251,191,36,.85); } 50% { box-shadow: 0 0 24px rgba(251,191,36,1); } }
+    @keyframes puHue    { to { filter: hue-rotate(360deg); } }
+    @keyframes puRainbow {
+      0%   { box-shadow: 0 0 0 5px rgba(255,0,0,.75),   0 0 26px #ff0000; }
+      17%  { box-shadow: 0 0 0 5px rgba(255,150,0,.75), 0 0 26px #ff9600; }
+      34%  { box-shadow: 0 0 0 5px rgba(255,255,0,.75), 0 0 26px #ffff00; }
+      50%  { box-shadow: 0 0 0 5px rgba(0,210,0,.75),   0 0 26px #00d200; }
+      67%  { box-shadow: 0 0 0 5px rgba(0,140,255,.75), 0 0 26px #008cff; }
+      84%  { box-shadow: 0 0 0 5px rgba(150,0,255,.75), 0 0 26px #9600ff; }
+      100% { box-shadow: 0 0 0 5px rgba(255,0,0,.75),   0 0 26px #ff0000; }
+    }
     .bt-bot.pop { animation: btfade .32s forwards; }
     .bt-bot.pop .bt-ball { animation: btpopout .32s forwards; }
     @keyframes btfade { to { opacity: 0; } }
