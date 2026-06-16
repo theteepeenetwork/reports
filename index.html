@@ -1240,19 +1240,19 @@ function rosAdd(){
   const inp = document.getElementById('rosNew');
   const name = inp.value.trim();
   if (!name) return;
-  roster.push({ id: uid(), name, pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '', allergies: false, allergyNotes: '', medical: false, medicalNotes: '' });
+  roster.push({ id: uid(), name, gender: '', pronouns: 'neutral', send: 'None', pp: false, ehcpLink: '', notes: '', behaviour: '', allergies: false, allergyNotes: '', medical: false, medicalNotes: '' });
   inp.value = '';
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosBulkAdd(){
   const lines = document.getElementById('rosBulk').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  lines.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
+  lines.forEach(name => roster.push({ id: uid(), name, gender:'', pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
   document.getElementById('rosBulk').value = '';
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosSeed(){
   if (roster.length && !confirm('Add the 29 sample pupils to your current list?')) return;
-  SAMPLE_NAMES.forEach(name => roster.push({ id: uid(), name, pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
+  SAMPLE_NAMES.forEach(name => roster.push({ id: uid(), name, gender:'', pronouns:'neutral', send:'None', pp:false, ehcpLink:'', notes:'', behaviour:'', allergies:false, allergyNotes:'', medical:false, medicalNotes:'' }));
   saveRoster(); rosRender(); syncPupilSelectors();
 }
 function rosDelete(id){
@@ -1268,10 +1268,13 @@ function rosRender(){
   document.getElementById('rosCount').textContent = roster.length;
   const t = document.getElementById('rosTable');
   if (!roster.length){ t.innerHTML = '<tr><td class="empty">No pupils yet. Add names above or load the sample class.</td></tr>'; return; }
-  let h = '<tr><th>Name</th><th>Pronouns</th><th>Attendance</th><th></th></tr>';
+  let h = '<tr><th>Name</th><th>Gender</th><th>Pronouns</th><th>Attendance</th><th></th></tr>';
   sortedRoster().forEach(p => {
     h += `<tr>
       <td><input value="${esc(p.name)}" onchange="rosEdit('${p.id}','name',this.value);refreshNames()" /></td>
+      <td><select onchange="rosEdit('${p.id}','gender',this.value)">
+        ${opt('','—',p.gender||'')}${opt('Boy','Boy',p.gender||'')}${opt('Girl','Girl',p.gender||'')}
+      </select></td>
       <td><select onchange="rosEdit('${p.id}','pronouns',this.value)">
         ${opt('female','she/her',p.pronouns)}${opt('male','he/him',p.pronouns)}${opt('neutral','they/them',p.pronouns)}
       </select></td>

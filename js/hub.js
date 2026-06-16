@@ -1137,97 +1137,433 @@
     var el = document.getElementById('navClassCount'); if (el) el.textContent = list.length || '';
   }
 
-  /* ── Plan › Pupil record ── */
+  /* ===================================================================
+     PLAN › PUPIL RECORD  (redesign — "do everything for a pupil")
+     One screen: gender, behaviour log with a real note field, allergies,
+     medical, key notes, group memberships and the OneDrive SEND/EHCP link.
+     Behaviour log = bhData (positive|concern|note) + spData (star) + Glow
+     (btAward), each entry carrying an editable note, a `pinned` flag and an
+     id so it can be edited / deleted / pinned in place.
+     =================================================================== */
   var openPid = null;
-  function openRecord(pid) { openPid = pid; go('pupil'); }
+  var recFilter = 'all';                 // 'all' | praise | concern | star | glow | note
+  var recEhcpEditing = false;            // OneDrive link: input vs linked-row
+  var recSheet = { open: false, mode: 'add', type: 'praise', editId: null, note: '', date: '' };
+  var REC_DEFAULT_TYPE = 'praise';       // which type the compose sheet opens on
+  var REC_PINNED_FIRST = true;           // pinned entries sort above the rest
+
+  /* icon / colour / label per entry type — shared by entries, summary, filters, sheet */
+  var REC_META = {
+    praise:  { icon: '👍', label: 'Praise',     color: '#1f8a5b' },
+    concern: { icon: '⚠',  label: 'Concern',    color: '#e11d48' },
+    star:    { icon: '★',  label: 'Star pupil', color: '#b9810f' },
+    glow:    { icon: '⚡', label: 'Glow point', color: '#6d4bdc' },
+    note:    { icon: '✎',  label: 'Note',       color: '#5c6a6e' }
+  };
+  function recMeta(k) { return REC_META[k] || REC_META.note; }
+
+  function openRecord(pid) {
+    openPid = pid; recFilter = 'all'; recEhcpEditing = false;
+    recSheet = { open: false, mode: 'add', type: REC_DEFAULT_TYPE, editId: null, note: '', date: '' };
+    go('pupil');
+  }
+
+  /* "15 Jun" date label */
+  function recFmtDate(iso) {
+    var pp = String(iso || '').split('-');
+    if (pp.length < 3) return iso || '';
+    var mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return (+pp[2]) + ' ' + mon[(+pp[1]) - 1];
+  }
+  function recFirstClause(s, fb) {
+    if (!s) return fb;
+    var t = String(s).split(/[,.;\n]/)[0].trim();
+    return t.length > 28 ? t.slice(0, 26) + '…' : t;
+  }
+
+  /* Merge of the two behaviour stores into one editable list. Each item keeps
+     its source store + id so edit / delete / pin map straight back. */
   function pupilTimeline(pid) {
     var items = [];
     (bhData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) {
       var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
-      var kind = glow ? 'glow' : (e.type === 'positive' ? 'praise' : (e.type === 'concern' ? 'concern' : 'note'));
-      items.push({ date: e.date, kind: kind, label: glow ? 'Glow Getter point' : (kind === 'praise' ? 'Praise' : kind === 'concern' ? 'Concern' : 'Note'), note: e.note });
+      var type = glow ? 'glow' : (e.type === 'positive' ? 'praise' : (e.type === 'concern' ? 'concern' : 'note'));
+      items.push({ id: e.id, store: 'bh', type: type, date: e.date, text: e.note || '', pinned: !!e.pinned });
     });
-    (spData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) { items.push({ date: e.date, kind: 'star', label: 'Star pupil', note: e.reason }); });
-    return items.sort(function (a, b) { return b.date.localeCompare(a.date); });
-  }
-  function termMarks(pid) {
-    var out = [];
-    ASSESS_TERMS.forEach(function (t) {
-      var r = (asData[t] || {})[pid] || {};
-      var num = (Number(r.num1) || 0) + (Number(r.num2) || 0);
-      out.push({ term: t, val: num });
+    (spData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) {
+      items.push({ id: e.id, store: 'sp', type: 'star', date: e.date, text: e.reason || '', pinned: !!e.pinned });
     });
-    return out;
+    return items;
   }
-  function starterAvg(pid) {
-    var vals = [];
-    Object.keys(msData || {}).forEach(function (ht) {
-      var row = (msData[ht].scores || {})[pid] || {};
-      Object.keys(row).forEach(function (d) { if (row[d] && row[d].v != null) vals.push(row[d].v); });
+  function recFindEntry(id) {
+    var e = (bhData || []).find(function (x) { return x.id === id; }); if (e) return { store: 'bh', e: e };
+    e = (spData || []).find(function (x) { return x.id === id; }); if (e) return { store: 'sp', e: e };
+    return null;
+  }
+
+  /* Groups this pupil belongs to, with the nearest ancestor heading (the flat
+     list doesn't carry the parent, so walk the tree once to find it). */
+  function recGroupsFor(pid) {
+    var flat = []; try { flat = (typeof grpFlatGroups === 'function') ? grpFlatGroups() : []; } catch (e) {}
+    var mine = flat.filter(function (g) { return (g.pupilIds || []).indexOf(pid) !== -1; });
+    var headingOf = {};
+    try {
+      var tree = (typeof grpTree === 'function') ? grpTree() : [];
+      (function walk(list, h) {
+        (list || []).forEach(function (n) {
+          if (n.type === 'heading') walk(n.children, n.name);
+          else if (n.type === 'group') headingOf[n.id] = h || '';
+        });
+      })(tree, '');
+    } catch (e) {}
+    var colors = window.GRP_COLORS || ['#2f55e0', '#e11d48', '#d99a07', '#6d4bdc', '#1f8a4c', '#5c6a6e'];
+    return mine.map(function (g) {
+      return { name: g.name, heading: headingOf[g.id] || '', color: colors[(g.colorIdx || 0) % colors.length], ta: g.ta || '' };
     });
-    if (!vals.length) return null;
-    return (vals.reduce(function (a, b) { return a + b; }, 0) / vals.length).toFixed(1);
   }
+
+  /* persist a profile field (saves; no focus-stealing re-render) */
+  function recEdit(field, value) { if (typeof rosEdit === 'function') rosEdit(openPid, field, value); }
+
+  /* grow every auto-grow textarea to fit its content */
+  function recAutosizeAll() {
+    try {
+      document.querySelectorAll('#pupil-root textarea[data-autosize]').forEach(function (t) {
+        t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px';
+      });
+    } catch (e) {}
+  }
+
+  /* ── behaviour-log mutations (write the underlying stores, then repaint) ── */
+  function recPersistLogs() {
+    try { window.bhData = bhData; window.spData = spData; } catch (e) {}
+    if (typeof bhSave === 'function') bhSave();
+    if (typeof spSave === 'function') spSave();
+    flashSaved();
+    window.dispatchEvent(new CustomEvent('tp:sync', { detail: { key: 'tp_behaviour', source: 'local' } }));
+    renderRecord();
+  }
+  function recTogglePin(id) {
+    var f = recFindEntry(id); if (!f) return;
+    f.e.pinned = !f.e.pinned; recPersistLogs();
+  }
+  function recDeleteEntry(id) {
+    var f = recFindEntry(id); if (!f) return;
+    var removed = f.e, store = f.store;
+    if (store === 'bh') bhData = bhData.filter(function (e) { return e.id !== id; });
+    else spData = spData.filter(function (e) { return e.id !== id; });
+    recPersistLogs();
+    toast('✓ Entry deleted', function () {
+      if (store === 'bh') bhData.push(removed); else spData.push(removed);
+      recPersistLogs();
+    });
+  }
+  /* create / update an entry from the compose sheet */
+  function recApplyEntry(editId, type, text, date, pinned) {
+    if (editId) { bhData = bhData.filter(function (e) { return e.id !== editId; }); spData = spData.filter(function (e) { return e.id !== editId; }); }
+    if (type === 'star') {
+      spData.push({ id: editId || uid(), date: date, pupilId: openPid, reason: text, pinned: !!pinned });
+    } else if (type === 'glow') {
+      if (editId) bhData.push({ id: editId, date: date, pupilId: openPid, type: 'positive', note: text || 'Glow Getter point', pinned: !!pinned });
+      else if (typeof window.btAward === 'function') window.btAward(openPid, 1, { silent: true, label: 'Quick log' });
+    } else {
+      var bt = type === 'praise' ? 'positive' : (type === 'concern' ? 'concern' : 'note');
+      bhData.push({ id: editId || uid(), date: date, pupilId: openPid, type: bt, note: text, pinned: !!pinned });
+    }
+  }
+
+  /* ── compose / edit sheet ── */
+  function recOpenSheet(mode, entry) {
+    recSheet = {
+      open: true, mode: mode,
+      type: entry ? entry.type : REC_DEFAULT_TYPE,
+      editId: entry ? entry.id : null,
+      note: entry ? (entry.text || '') : '',
+      date: entry ? entry.date : todayISO()
+    };
+    renderRecord();
+  }
+  function recCloseSheet() { recSheet.open = false; renderRecord(); }
+  function recSetSheetType(t) {
+    var n = document.getElementById('recNote'); if (n) recSheet.note = n.value;
+    var d = document.getElementById('recDate'); if (d) recSheet.date = d.value;
+    recSheet.type = t; renderRecord();
+  }
+  function recSubmitSheet() {
+    var n = document.getElementById('recNote'), d = document.getElementById('recDate');
+    var text = ((n && n.value) || '').trim();
+    var date = (d && d.value) || todayISO();
+    var sh = recSheet, pinned = false;
+    if (sh.mode === 'edit') { var f = recFindEntry(sh.editId); if (f) pinned = !!f.e.pinned; }
+    recApplyEntry(sh.mode === 'edit' ? sh.editId : null, sh.type, text, date, pinned);
+    recSheet.open = false;
+    recPersistLogs();
+    toast(sh.mode === 'edit' ? '✓ Entry updated' : '✓ ' + recMeta(sh.type).label + ' added to log');
+  }
+
   function renderRecord() {
     var root = document.getElementById('pupil-root'); if (!root) return;
     var p = roster.find(function (x) { return x.id === openPid; });
     if (!p) { root.innerHTML = '<div class="empty">Pupil not found. <button class="link" onclick="go(\'pupils\')">Back to Pupils</button></div>'; return; }
-    var chips = '';
-    if (p.send && p.send !== 'None') chips += '<span class="chip send">' + esc(p.send) + '</span>';
-    if (p.pp) chips += '<span class="chip pp">Pupil Premium</span>';
-    if (p.allergies) chips += '<span class="chip allergy">⚠ ' + esc(p.allergyNotes ? p.allergyNotes.split(/[,.;]/)[0] : 'allergy') + '</span>';
-    if (p.ehcpLink) chips += '<span class="chip ehcp">EHCP plan</span>';
-    var rg = readingGroupName(p.id);
-    var starCount = (spData || []).filter(function (e) { return e.pupilId === p.id; }).length;
-    var sub = [rg && (rg + ' (group)'), 'star pupil ×' + starCount].filter(Boolean).join(' · ');
 
+    var inits = esc(initials(p.name));
     var tl = pupilTimeline(p.id);
-    var tlHTML = tl.length ? tl.map(function (e) {
-      return '<div class="tl-item ' + e.kind + '"><div class="tl-top"><span class="tl-kind">' + esc(e.label) + '</span><span class="tl-date">' + fmtDate(e.date) + '</span></div>' +
-        (e.note ? '<div class="tl-note">' + esc(e.note) + '</div>' : '') + '</div>';
-    }).join('') : '<div class="empty">Nothing logged yet. Use “Log something”.</div>';
+    function countT(t) { return tl.filter(function (e) { return e.type === t; }).length; }
 
-    var marks = termMarks(p.id);
-    var maxv = Math.max(10, Math.max.apply(null, marks.map(function (m) { return m.val; })));
-    var ramp = ['#dde4fb', '#b5c4f4', '#6b86ec', '#2f55e0'];
-    var marksHTML = marks.map(function (m, i) {
-      return '<div class="termbar"><div class="lab"><span>' + esc(m.term) + '</span><span>' + (m.val || '—') + '</span></div>' +
-        '<div class="track"><div class="fill" style="width:' + Math.round((m.val / maxv) * 100) + '%;background:' + ramp[i] + '"></div></div></div>';
+    /* header: gender pill + context chips + sub-line */
+    var genderPill = p.gender ? '<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:#f0f2f5;color:var(--muted)">' + esc(p.gender) + '</span>' : '';
+    var chips = [];
+    if (p.send && p.send !== 'None') chips.push({ label: p.send, bg: 'var(--gold-50)', color: '#8a6209' });
+    if (p.pp) chips.push({ label: 'Pupil Premium', bg: 'var(--teal-50)', color: 'var(--teal-700)' });
+    if (p.allergies) chips.push({ label: '⚠ ' + recFirstClause(p.allergyNotes, 'Allergy'), bg: 'var(--coral-50)', color: 'var(--coral-600)' });
+    if (p.medical) chips.push({ label: '✚ Medical', bg: 'var(--violet-50)', color: 'var(--violet-600)' });
+    var chipsHTML = chips.map(function (c) {
+      return '<span style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;background:' + c.bg + ';color:' + c.color + '">' + esc(c.label) + '</span>';
     }).join('');
-    var avg = starterAvg(p.id);
+    var starN = countT('star');
+    var subLine = starN ? 'star pupil ×' + starN : '';
+
+    /* OneDrive SEND / EHCP plan link — linked row vs editable input */
+    var ehcpHasLink = !!(p.ehcpLink && String(p.ehcpLink).trim());
+    var ehcpHTML;
+    if (ehcpHasLink && !recEhcpEditing) {
+      ehcpHTML =
+        '<div style="display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:#f8f9fb;width:100%">' +
+          '<span style="width:7px;height:7px;border-radius:50%;background:var(--success);flex:0 0 auto"></span>' +
+          '<a href="' + esc(p.ehcpLink) + '" target="_blank" style="font-size:13px;font-weight:700;color:var(--teal-700);text-decoration:none;white-space:nowrap">Open plan ↗</a>' +
+          '<span style="display:flex;gap:13px;margin-left:auto">' +
+            '<button data-rec="ehcpEdit" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer">Replace</button>' +
+            '<button data-rec="ehcpRemove" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--coral-600);cursor:pointer">Remove</button>' +
+          '</span>' +
+        '</div>';
+    } else {
+      ehcpHTML = '<input id="recEhcp" value="' + esc(p.ehcpLink || '') + '" placeholder="Paste a OneDrive link…" style="width:100%" />';
+    }
+
+    /* groups card */
+    var groups = recGroupsFor(p.id);
+    var groupsBody = groups.length
+      ? '<div style="display:flex;flex-direction:column">' + groups.map(function (g) {
+          return '<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-top:1px solid var(--line-2)">' +
+            '<span style="width:11px;height:11px;border-radius:50%;background:' + g.color + ';flex:0 0 auto"></span>' +
+            '<div style="min-width:0;flex:1">' +
+              '<div style="font-size:13px;font-weight:700;color:var(--ink)">' + esc(g.name) + '</div>' +
+              (g.heading ? '<div style="font-size:11px;color:var(--faint);font-weight:600">' + esc(g.heading) + '</div>' : '') +
+            '</div>' +
+            (g.ta ? '<span style="font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap">' + esc(g.ta) + '</span>' : '') +
+          '</div>';
+        }).join('') + '</div>'
+      : '<div style="font-size:12.5px;color:var(--faint);padding:8px 0 2px">Not in any group yet — add this pupil in Organise › Groups.</div>';
+
+    /* behaviour log: summary, filters, entries */
+    var summary = [
+      { n: countT('praise'),  label: 'Praise',      color: '#1f8a5b' },
+      { n: countT('concern'), label: 'Concern',     color: '#e11d48' },
+      { n: countT('star'),    label: 'Star pupil',  color: '#b9810f' },
+      { n: countT('glow'),    label: 'Glow points', color: '#6d4bdc' }
+    ];
+    var summaryHTML = summary.map(function (s) {
+      return '<div style="display:flex;flex-direction:column"><span style="font-size:22px;font-weight:800;letter-spacing:-.02em;line-height:1;color:' + s.color + '">' + s.n + '</span>' +
+        '<span style="font-size:11px;font-weight:600;color:var(--muted);margin-top:3px">' + esc(s.label) + '</span></div>';
+    }).join('');
+
+    var fdefs = [['all', 'All'], ['praise', 'Praise'], ['concern', 'Concern'], ['star', 'Star'], ['glow', 'Glow'], ['note', 'Note']];
+    var filterHTML = fdefs.map(function (x) {
+      var active = recFilter === x[0];
+      var bg = active ? 'var(--accent)' : '#fff', col = active ? '#fff' : 'var(--muted)', bc = active ? 'var(--accent)' : 'var(--line)';
+      return '<button data-filter="' + x[0] + '" style="padding:5px 12px;border-radius:999px;font-size:11.5px;font-weight:700;cursor:pointer;background:' + bg + ';color:' + col + ';border:1px solid ' + bc + '">' + x[1] + '</button>';
+    }).join('');
+
+    var sorted = tl.slice().sort(function (a, b) {
+      if (REC_PINNED_FIRST && a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return String(b.date).localeCompare(String(a.date));
+    });
+    var visible = (recFilter === 'all') ? sorted : sorted.filter(function (e) { return e.type === recFilter; });
+    var entriesHTML = visible.length ? visible.map(function (e) {
+      var m = recMeta(e.type);
+      return '<div style="border-left:3px solid ' + m.color + ';padding:11px 0 13px 15px;margin-bottom:5px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+          '<span style="font-size:12.5px;font-weight:700;color:' + m.color + '">' + m.icon + ' ' + m.label + '</span>' +
+          (e.pinned ? '<span style="font-size:9.5px;font-weight:800;letter-spacing:.05em;color:#8a6209;background:var(--gold-50);padding:1px 7px;border-radius:999px">PINNED</span>' : '') +
+          '<span style="margin-left:auto;font-size:11px;color:var(--faint);font-weight:600">' + recFmtDate(e.date) + '</span>' +
+        '</div>' +
+        '<div style="font-size:13.5px;color:#414851;margin-top:4px;line-height:1.55">' + (e.text ? esc(e.text) : '<span style="color:var(--faint)">No note added.</span>') + '</div>' +
+        '<div style="display:flex;gap:16px;margin-top:9px">' +
+          '<button data-pin="' + e.id + '" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer">' + (e.pinned ? 'Unpin' : 'Pin') + '</button>' +
+          '<button data-edit="' + e.id + '" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer">Edit</button>' +
+          '<button data-del="' + e.id + '" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--coral-600);cursor:pointer">Delete</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') : '<div style="color:var(--muted);padding:26px;text-align:center;font-size:12.5px;border:1.5px dashed var(--line);border-radius:12px">Nothing to show here. Tap <b>+ Log something</b> to add the first entry.</div>';
+
+    /* field-card chrome helpers */
+    var eyebrow = function (t) { return '<div style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">' + t + '</div>'; };
+    var flabel = function (t) { return '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:12px 0 5px">' + t + '</label>'; };
+    var fieldStyle = 'border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13.5px;background:#fff;color:var(--ink);width:100%;outline:none;font-family:inherit';
+    var taStyle = fieldStyle + ';line-height:1.5;overflow:hidden;resize:vertical';
+    var ppOn = !!p.pp;
+
+    var sheetHTML = recSheet.open ? recSheetHTML(p, inits) : '';
 
     root.innerHTML =
-      '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--faint);font-weight:600;margin-bottom:14px">' +
-        '<button class="link" id="crumb">Pupils</button> › ' + esc(p.name) + '</div>' +
-      '<div class="card rec-head">' +
-        '<span class="rec-avatar">' + esc(initials(p.name)) + '</span>' +
-        '<div style="flex:1;min-width:200px"><span class="rec-name">' + esc(p.name) + '</span>' +
-          '<div class="rec-chips">' + chips + '</div>' +
-          (sub ? '<div class="hint small" style="margin-top:4px">' + esc(sub) + '</div>' : '') +
-          (p.ehcpLink ? ' <a href="' + esc(p.ehcpLink) + '" target="_blank" class="link">EHCP plan ↗</a>' : '') +
+      '<div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--faint);font-weight:600;margin-bottom:16px">' +
+        '<button class="link" data-rec="crumb" style="color:var(--teal-700)">Pupils</button><span>›</span><span style="color:var(--muted)">' + esc(p.name) + '</span></div>' +
+
+      /* header card */
+      '<div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px;flex-wrap:wrap">' +
+        '<div style="width:52px;height:52px;border-radius:50%;background:var(--teal-50);color:var(--teal-700);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px;flex:0 0 auto">' + inits + '</div>' +
+        '<div style="flex:1;min-width:180px">' +
+          '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span style="font-size:21px;font-weight:700;letter-spacing:-.01em;color:var(--ink)">' + esc(p.name) + '</span>' + genderPill + '</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + chipsHTML + '</div>' +
+          (subLine ? '<div style="font-size:12px;color:var(--faint);font-weight:600;margin-top:7px">' + esc(subLine) + '</div>' : '') +
         '</div>' +
-        '<button id="logBtn" style="background:var(--teal-600);color:#fff">' + svg('plus', 16) + ' Log something</button>' +
+        '<button data-rec="log" style="background:var(--accent);color:#fff;border:0;border-radius:11px;padding:11px 17px;font-size:13.5px;font-weight:700;cursor:pointer;white-space:nowrap">+ Log something</button>' +
       '</div>' +
-      '<div class="rec-grid">' +
-        '<div class="card"><h2>Context</h2>' +
-          ctxField(p, 'send', 'SEND status', ['None', 'SEN Support', 'EHCP']) +
-          '<label>OneDrive SEND / EHCP plan link</label><input value="' + esc(p.ehcpLink || '') + '" placeholder="Paste OneDrive link" onchange="rosEdit(\'' + p.id + '\',\'ehcpLink\',this.value)" />' +
-          '<label>Allergies</label><textarea onchange="rosEdit(\'' + p.id + '\',\'allergyNotes\',this.value);rosEdit(\'' + p.id + '\',\'allergies\',!!this.value)" placeholder="Allergens, EpiPen location…">' + esc(p.allergyNotes || '') + '</textarea>' +
-          '<label>Medical / health</label><textarea onchange="rosEdit(\'' + p.id + '\',\'medicalNotes\',this.value);rosEdit(\'' + p.id + '\',\'medical\',!!this.value)" placeholder="Conditions, medication…">' + esc(p.medicalNotes || '') + '</textarea>' +
-          '<label>Key notes</label><textarea onchange="rosEdit(\'' + p.id + '\',\'notes\',this.value)" placeholder="Strategies that work, context…">' + esc(p.notes || '') + '</textarea>' +
+
+      '<div class="pr-grid">' +
+
+        /* LEFT column */
+        '<div>' +
+          /* Profile & context */
+          '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px">' +
+            eyebrow('Profile &amp; context') +
+            flabel('Gender') +
+            '<select id="recGender" style="' + fieldStyle + '"><option value="">—</option>' +
+              '<option value="Boy"' + (p.gender === 'Boy' ? ' selected' : '') + '>Boy</option>' +
+              '<option value="Girl"' + (p.gender === 'Girl' ? ' selected' : '') + '>Girl</option></select>' +
+            flabel('SEND status') +
+            '<select id="recSend" style="' + fieldStyle + '">' +
+              ['None', 'SEN Support', 'EHCP'].map(function (o) { return '<option' + ((p.send || 'None') === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select>' +
+            flabel('Pupil Premium') +
+            '<button data-rec="pp" style="border:1px solid ' + (ppOn ? '#cdd9f7' : 'var(--line)') + ';background:' + (ppOn ? '#eef2fd' : '#fff') + ';color:' + (ppOn ? 'var(--teal-700)' : 'var(--muted)') + ';border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;width:100%;text-align:left">' + (ppOn ? 'Pupil Premium · Yes' : 'Pupil Premium · No') + '</button>' +
+            flabel('OneDrive SEND / EHCP plan link') + ehcpHTML +
+          '</div>' +
+
+          /* Groups */
+          '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px">' +
+            '<div style="display:flex;align-items:baseline;gap:8px;margin:0 0 2px">' +
+              '<div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)">Groups</div>' +
+              '<span style="font-size:11px;color:var(--faint);font-weight:600;margin-left:auto">set in Organise › Groups</span></div>' +
+            groupsBody +
+          '</div>' +
+
+          /* Health & safety */
+          '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px">' +
+            eyebrow('Health &amp; safety') +
+            flabel('Allergies') +
+            '<textarea id="recAllergy" data-autosize="1" placeholder="Allergens, EpiPen location, who is trained…" style="' + taStyle + ';min-height:74px">' + esc(p.allergyNotes || '') + '</textarea>' +
+            flabel('Medical / health') +
+            '<textarea id="recMedical" data-autosize="1" placeholder="Conditions, medication, when to act…" style="' + taStyle + ';min-height:74px">' + esc(p.medicalNotes || '') + '</textarea>' +
+          '</div>' +
+
+          /* Key notes */
+          '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:0">' +
+            eyebrow('Key notes') +
+            '<textarea id="recNotes" data-autosize="1" placeholder="Strategies that work, seating, things to remember…" style="' + taStyle + ';min-height:92px">' + esc(p.notes || '') + '</textarea>' +
+          '</div>' +
         '</div>' +
-        '<div class="card"><h2>Timeline</h2><div class="timeline">' + tlHTML + '</div></div>' +
-        '<div class="card"><h2>Marks</h2>' + marksHTML +
-          '<p class="hint small" style="margin-top:10px">starter average <b style="color:var(--ink)">' + (avg != null ? avg + ' / 22' : '—') + '</b></p>' +
-          '<button class="link" id="toMarkbook">open in Markbook ›</button></div>' +
-      '</div>';
-    document.getElementById('crumb').onclick = function () { go('pupils'); };
-    document.getElementById('logBtn').onclick = function () { openQuickLog(p.id); };
-    document.getElementById('toMarkbook').onclick = function () { go('markbook'); };
+
+        /* RIGHT column — behaviour log */
+        '<div>' +
+          '<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+              '<div style="font-size:14px;font-weight:700;letter-spacing:-.01em;color:var(--ink)">Behaviour log</div>' +
+              '<span style="font-size:11.5px;color:var(--faint);font-weight:600">' + visible.length + ' shown</span>' +
+              '<button data-rec="log" style="margin-left:auto;background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 15px;font-size:12.5px;font-weight:700;cursor:pointer">+ Log something</button>' +
+            '</div>' +
+            '<div style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap">' + summaryHTML + '</div>' +
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;padding-top:14px;border-top:1px solid var(--line-2)">' + filterHTML + '</div>' +
+            '<div>' + entriesHTML + '</div>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>' + sheetHTML;
+
+    recWire(p);
+    recAutosizeAll();
   }
-  function ctxField(p, field, label, opts) {
-    return '<label>' + label + '</label><select onchange="rosEdit(\'' + p.id + '\',\'' + field + '\',this.value)">' +
-      opts.map(function (o) { return '<option' + (p[field] === o ? ' selected' : '') + '>' + o + '</option>'; }).join('') + '</select>';
+
+  /* the compose / edit bottom sheet markup (shown inside #pupil-root) */
+  function recSheetHTML(p, inits) {
+    var sh = recSheet;
+    var typeChips = ['praise', 'concern', 'star', 'glow', 'note'].map(function (k) {
+      var m = recMeta(k), active = sh.type === k;
+      var bg = active ? m.color : '#f5f6f8', col = active ? '#fff' : 'var(--muted)', bc = active ? m.color : 'var(--line)';
+      return '<button data-sheettype="' + k + '" style="display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:11px;font-size:13px;font-weight:700;cursor:pointer;background:' + bg + ';color:' + col + ';border:1px solid ' + bc + '">' + m.icon + ' ' + m.label + '</button>';
+    }).join('');
+    var fieldStyle = 'border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13.5px;background:#fff;color:var(--ink);width:100%;outline:none;font-family:inherit';
+    return '<div data-rec="sheetBackdrop" style="position:fixed;inset:0;z-index:2000;background:rgba(20,24,29,.45);display:flex;align-items:flex-end;justify-content:center">' +
+      '<div data-rec="sheetInner" style="background:#fff;width:100%;max-width:540px;border-radius:20px 20px 0 0;padding:10px 20px 26px;max-height:90vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(20,24,29,.2)">' +
+        '<div style="width:38px;height:4px;border-radius:999px;background:var(--line);margin:8px auto 16px"></div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+          '<span style="font-size:16px;font-weight:700">' + (sh.mode === 'add' ? 'Log behaviour' : 'Edit entry') + '</span>' +
+          '<button data-rec="sheetClose" style="margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px;font-weight:600">✕ close</button>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+          '<div style="width:30px;height:30px;border-radius:50%;background:var(--teal-50);color:var(--teal-700);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px">' + inits + '</div>' +
+          '<span style="font-size:15px;font-weight:700">' + esc(p.name) + '</span>' +
+        '</div>' +
+        '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:0 0 6px">Type</label>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap">' + typeChips + '</div>' +
+        '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:16px 0 5px">Note <span style="color:var(--faint);font-weight:500">(optional)</span></label>' +
+        '<textarea id="recNote" data-autosize="1" placeholder="What happened? Add the detail you\'ll want when you look back…" style="' + fieldStyle + ';min-height:96px;line-height:1.5;resize:vertical">' + esc(sh.note || '') + '</textarea>' +
+        '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:14px 0 5px">Date</label>' +
+        '<input id="recDate" type="date" value="' + esc(sh.date || todayISO()) + '" style="' + fieldStyle + '" />' +
+        '<button data-rec="sheetSave" style="background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:20px">' + (sh.mode === 'add' ? 'Add to log' : 'Save changes') + '</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  /* attach all record interactions after each paint */
+  function recWire(p) {
+    var root = document.getElementById('pupil-root'); if (!root) return;
+    function on(sel, ev, fn) { root.querySelectorAll(sel).forEach(function (el) { el.addEventListener(ev, fn); }); }
+
+    on('[data-rec="crumb"]', 'click', function () { go('pupils'); });
+    on('[data-rec="log"]', 'click', function () { recOpenSheet('add', null); });
+
+    var gen = document.getElementById('recGender'); if (gen) gen.onchange = function () { recEdit('gender', gen.value); renderRecord(); };
+    var snd = document.getElementById('recSend'); if (snd) snd.onchange = function () { recEdit('send', snd.value); renderRecord(); };
+    on('[data-rec="pp"]', 'click', function () { recEdit('pp', !p.pp); renderRecord(); });
+
+    /* OneDrive link */
+    on('[data-rec="ehcpEdit"]', 'click', function () { recEhcpEditing = true; renderRecord(); });
+    on('[data-rec="ehcpRemove"]', 'click', function () { recEdit('ehcpLink', ''); recEhcpEditing = false; renderRecord(); });
+    var eh = document.getElementById('recEhcp');
+    if (eh) {
+      if (recEhcpEditing) { try { eh.focus(); } catch (e) {} }
+      eh.onblur = function () { recEdit('ehcpLink', eh.value); recEhcpEditing = false; renderRecord(); };
+    }
+
+    /* health / key-notes textareas — save on blur, keep focus while typing */
+    var al = document.getElementById('recAllergy');
+    if (al) { al.oninput = function () { al.style.height = 'auto'; al.style.height = (al.scrollHeight + 2) + 'px'; };
+      al.onchange = function () { recEdit('allergyNotes', al.value); recEdit('allergies', !!al.value.trim()); }; }
+    var me = document.getElementById('recMedical');
+    if (me) { me.oninput = function () { me.style.height = 'auto'; me.style.height = (me.scrollHeight + 2) + 'px'; };
+      me.onchange = function () { recEdit('medicalNotes', me.value); recEdit('medical', !!me.value.trim()); }; }
+    var nt = document.getElementById('recNotes');
+    if (nt) { nt.oninput = function () { nt.style.height = 'auto'; nt.style.height = (nt.scrollHeight + 2) + 'px'; };
+      nt.onchange = function () { recEdit('notes', nt.value); }; }
+
+    /* behaviour-log filters + entry actions */
+    on('[data-filter]', 'click', function () { recFilter = this.getAttribute('data-filter'); renderRecord(); });
+    on('[data-pin]', 'click', function () { recTogglePin(this.getAttribute('data-pin')); });
+    on('[data-edit]', 'click', function () {
+      var f = recFindEntry(this.getAttribute('data-edit')); if (!f) return;
+      var item = pupilTimeline(openPid).filter(function (x) { return x.id === f.e.id; })[0];
+      recOpenSheet('edit', item);
+    });
+    on('[data-del]', 'click', function () { recDeleteEntry(this.getAttribute('data-del')); });
+
+    /* compose / edit sheet */
+    on('[data-rec="sheetBackdrop"]', 'click', function (e) { if (e.target === this) recCloseSheet(); });
+    on('[data-rec="sheetClose"]', 'click', function () { recCloseSheet(); });
+    on('[data-sheettype]', 'click', function () { recSetSheetType(this.getAttribute('data-sheettype')); });
+    on('[data-rec="sheetSave"]', 'click', function () { recSubmitSheet(); });
+    var note = document.getElementById('recNote');
+    if (note) { note.oninput = function () { recSheet.note = note.value; note.style.height = 'auto'; note.style.height = (note.scrollHeight + 2) + 'px'; }; try { note.focus(); } catch (e) {} }
+    var dt = document.getElementById('recDate'); if (dt) dt.onchange = function () { recSheet.date = dt.value; };
   }
 
   /* ===================================================================
