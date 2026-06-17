@@ -1113,11 +1113,11 @@
         <div id="tt-root"></div>
       </section>
 
-      <!-- ================= SEATING & GROUPS ================= -->
+      <!-- ================= SEATING PLAN ================= -->
       <section class="page" id="page-seating">
         <div class="page-header">
-          <h1>Seating &amp; Groups</h1>
-          <p>Make fair random groups in a click, or lay out a seating plan for the class.</p>
+          <h1>Seating plan</h1>
+          <p>Lay out where everyone sits — drag pupils onto the desk grid and rearrange as you need. (Fair random grouping now lives under <b>Instant Groups</b>.)</p>
         </div>
         <div id="seat-root"></div>
       </section>
@@ -1225,7 +1225,8 @@ function renderPage(page){
   if (page === 'battler') renderBattlerLaunch();
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
   if (page === 'timetable' && typeof ttRender === 'function') ttRender();
-  if (page === 'seating' && typeof seatRender === 'function') seatRender();
+  if (page === 'seating' && typeof seatRender === 'function') seatRender('plan');
+  if (page === 'instant' && typeof seatRender === 'function') seatRender('groups');
   if (page === 'groups' && typeof grpRender === 'function') grpRender();
   if (page === 'charts' && typeof chRender === 'function') chRender();
   if (page === 'reports' && typeof renderBoard === 'function') renderBoard();
@@ -1314,6 +1315,7 @@ window.appResetState = function(){
   try { spData = []; } catch(e){}
   try { bhData = []; } catch(e){}
   try { asData = {}; } catch(e){}
+  try { if (typeof mkReset === 'function') mkReset(); } catch(e){}
   try { if (typeof ensureClasses === 'function') ensureClasses(); } catch(e){}   // re-seed default registry after a wipe
   try { if (typeof applyClass === 'function') applyClass(); } catch(e){}
   try { if (typeof syncPupilSelectors === 'function') syncPupilSelectors(); } catch(e){}
@@ -1877,7 +1879,7 @@ function updateNavCount(){ const el = document.getElementById('navClassCount'); 
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
-const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren','tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
+const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_marking','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren','tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
 /* Every physical localStorage key (across ALL classes) whose base is a synced
    data key — backups are whole-account, not just the active class. */
 function allClassDataKeys(){
@@ -2005,6 +2007,7 @@ applyClass();
 <script src="js/seating.js"></script>
 <script src="js/groups.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/marking.js"></script>
 
 <!-- ===================================================================
      REPORT COMMENT BUILDER (your original tool, integrated)

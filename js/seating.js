@@ -47,9 +47,19 @@ function seatGroupsText() {
   }).join('\n');
 }
 
-/* ---- main render ---- */
-function seatRender() {
-  var root = document.getElementById('seat-root');
+/* ---- main render ----
+   seatRender()          — legacy combined view (Group maker + Seating plan tabs)
+   seatRender('groups')  — Instant Groups page only, into #ig-root, no tab bar
+   seatRender('plan')    — Seating page only, into #seat-root, no tab bar
+   The last requested view is sticky so internal re-renders (make groups, drag a
+   desk) redraw the right tool without re-passing the argument. */
+var seatView = null;
+function seatRender(view) {
+  if (view === 'groups' || view === 'plan' || view === null) seatView = view;
+  view = seatView;                                  // null => combined legacy view
+  var which = (view == null) ? seatState.tab : view;
+  var rootId = (which === 'groups' && view != null) ? 'ig-root' : 'seat-root';
+  var root = document.getElementById(rootId) || document.getElementById('seat-root');
   if (!root) return;
 
   var pupils = sortedRoster();
@@ -58,18 +68,16 @@ function seatRender() {
     return;
   }
 
-  /* tabs */
-  var html = '<div class="tabs">' +
-    '<button class="tab button' + (seatState.tab === 'groups' ? ' active' : '') + '" onclick="seatSetTab(\'groups\')">Group maker</button>' +
-    '<button class="tab button' + (seatState.tab === 'plan' ? ' active' : '') + '" onclick="seatSetTab(\'plan\')">Seating plan</button>' +
-    '</div>';
-
-  if (seatState.tab === 'groups') {
-    html += seatGroupsHTML(pupils);
-  } else {
-    html += seatPlanHTML(pupils);
+  var html = '';
+  if (view == null) {
+    /* tabs only in the combined view */
+    html += '<div class="tabs">' +
+      '<button class="tab button' + (seatState.tab === 'groups' ? ' active' : '') + '" onclick="seatSetTab(\'groups\')">Group maker</button>' +
+      '<button class="tab button' + (seatState.tab === 'plan' ? ' active' : '') + '" onclick="seatSetTab(\'plan\')">Seating plan</button>' +
+      '</div>';
   }
 
+  html += (which === 'groups') ? seatGroupsHTML(pupils) : seatPlanHTML(pupils);
   root.innerHTML = html;
 }
 
@@ -194,7 +202,7 @@ function seatFallbackCopy(text) {
 
 function seatFlash(id, msg) {
   /* find the copy button and briefly change its label */
-  var btns = document.querySelectorAll('#seat-root button');
+  var btns = document.querySelectorAll('#seat-root button, #ig-root button');
   btns.forEach(function (btn) {
     if (btn.textContent.indexOf('Copy') !== -1 || btn.textContent.indexOf('📋') !== -1) {
       var orig = btn.textContent;
