@@ -352,6 +352,7 @@
       '<div class="teach-view" id="tv-day"></div>' +
       '<div class="teach-view" id="tv-scores"></div>' +
       '<div class="teach-view" id="tv-pick"></div>' +
+      '<div class="teach-view" id="tv-points"></div>' +
       '<div class="teach-view" id="tv-seats"></div>' +
       '<div class="teach-view" id="tv-groups"></div>';
   }
@@ -365,6 +366,7 @@
     if (screen === 'day') renderDayView();
     if (screen === 'scores') renderScores();
     if (screen === 'pick') renderPick();
+    if (screen === 'points') renderPoints();
     if (screen === 'seats') renderSeats();
     if (screen === 'groups') renderGroupsTeach();
   }
@@ -404,6 +406,7 @@
     var tiles =
       tile('starter', 'calculator', 'Starter', starterStatus, set ? 'ok' : '') +
       tile('pick', 'target', 'Pick a name', pickStatus, '') +
+      tile('points', 'zap', 'Points', 'award glow getters fast', '') +
       tile('seats', 'layout-grid', 'Who sits where', 'seating · groups', '') +
       tile('groups', 'book-open', 'Groups', grpCountLabel(), '') +
       tile('glow', 'zap', 'Glow Getters', 'opens full-screen', '', true);
@@ -791,11 +794,28 @@
     var st = Store.get('tp_picker', { noRepeats: true, picked: [], currentId: null });
     var name = st.currentId ? pupilName(st.currentId) : '—';
     var counter = (st.picked ? st.picked.length : 0) + ' of ' + roster.length + ' had a turn';
+
+    /* Glow Getters award row — only when someone is currently picked and the
+       battler award path is available (it is loaded alongside this hub). */
+    var glowRow = '';
+    if (st.currentId && typeof window.btAward === 'function') {
+      var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
+      var pts = (typeof window.btGetPoints === 'function') ? window.btGetPoints(st.currentId) : 0;
+      glowRow =
+        '<div class="glow-row">' +
+          '<button class="glow-minus" id="pickGlowMinus" title="Take a glow getters point">−</button>' +
+          '<div class="glow-tally"><span class="glow-n" id="pickGlowN">' + pts + '</span>' +
+            '<span class="glow-l">⚡ glow getters points</span></div>' +
+          '<button class="glow-plus" id="pickGlowPlus" title="Give a glow getters point">+' + step + '</button>' +
+        '</div>';
+    }
+
     v.innerHTML = teachHead('home', 'Home', '<span style="font-size:12.5px;color:var(--faint);font-weight:600">' + counter + '</span>') +
       '<div class="glance" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;border-radius:20px">' +
         '<span style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)">' + (st.currentId ? 'Your turn,' : 'Tap pick to start') + '</span>' +
         '<div style="font-size:52px;font-weight:800;letter-spacing:-.02em;color:var(--teal-700);line-height:1.1">' + esc(name) + '</div>' +
         '<span style="font-size:13px;color:var(--muted)">no repeats until everyone has had a turn</span>' +
+        glowRow +
       '</div>' +
       '<div style="display:flex;gap:10px">' +
         '<button class="dock" id="pickBtn" style="flex:1.4">Pick someone</button>' +
@@ -813,6 +833,72 @@
     document.getElementById('pickReset').onclick = function () {
       var st = Store.get('tp_picker', {}); st.picked = []; st.currentId = null; Store.set('tp_picker', st); renderPick();
     };
+
+    /* Award / remove a glow getters point for the currently picked pupil.
+       Mirrors Quick log: silent award (no smartboard-only animations), then
+       repaint just the tally so the picked name stays put. */
+    var glowMinus = document.getElementById('pickGlowMinus');
+    var glowPlus = document.getElementById('pickGlowPlus');
+    function pickGlow(sign) {
+      var cur = Store.get('tp_picker', {}).currentId;
+      if (!cur || typeof window.btAward !== 'function') return;
+      var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
+      window.btAward(cur, sign * step, { silent: true, label: 'Pick a name' });
+      var n = document.getElementById('pickGlowN');
+      if (n && typeof window.btGetPoints === 'function') n.textContent = window.btGetPoints(cur);
+      flashSaved();
+      toast(pupilName(cur) + ' ' + (sign > 0 ? '+' : '−') + step + ' ⚡');
+    }
+    if (glowMinus) glowMinus.onclick = function () { pickGlow(-1); };
+    if (glowPlus) glowPlus.onclick = function () { pickGlow(1); };
+  }
+
+  /* ── Points (quick glow getters point picker — award without the board) ── */
+  function renderPoints() {
+    var v = document.getElementById('tv-points');
+    var list = sortedRoster();
+    var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
+
+    if (!list.length) {
+      v.innerHTML = teachHead('home', 'Home', '') +
+        '<div class="empty">No pupils yet — add some in Plan › Pupils first.</div>';
+      wireBack(v);
+      return;
+    }
+
+    var cards = list.map(function (p) {
+      var pts = (typeof window.btGetPoints === 'function') ? window.btGetPoints(p.id) : 0;
+      return '<div class="pts-card">' +
+        '<span class="pts-name">' + esc(p.name) + '</span>' +
+        '<div class="pts-row">' +
+          '<button class="pts-minus" data-pid="' + esc(p.id) + '" data-sign="-1" title="Take a point">−</button>' +
+          '<span class="pts-n" id="ptsn-' + esc(p.id) + '">' + pts + '</span>' +
+          '<button class="pts-plus" data-pid="' + esc(p.id) + '" data-sign="1" title="Give a point">+' + step + '</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    v.innerHTML = teachHead('home', 'Home',
+        '<button class="pill pill-ghost" id="ptsOpenBoard">Open board ↗</button>') +
+      '<div style="margin:2px 0 2px"><div class="eyebrow" style="color:var(--teal-600)">Glow Getters</div>' +
+        '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Award points</div></div>' +
+      '<p style="font-size:12.5px;color:var(--faint);margin:0 0 6px">Tap + or − to award glow getters points — no need to open the full board.</p>' +
+      '<div class="pts-grid">' + cards + '</div>';
+
+    wireBack(v);
+    var openBoard = document.getElementById('ptsOpenBoard');
+    if (openBoard && typeof openBattler === 'function') openBoard.onclick = function () { openBattler(); };
+
+    v.querySelectorAll('.pts-minus, .pts-plus').forEach(function (b) {
+      b.onclick = function () {
+        var pid = b.dataset.pid, sign = +b.dataset.sign;
+        if (typeof window.btAward !== 'function') return;
+        window.btAward(pid, sign * step, { silent: true, label: 'Points picker' });
+        var n = document.getElementById('ptsn-' + pid);
+        if (n && typeof window.btGetPoints === 'function') n.textContent = window.btGetPoints(pid);
+        flashSaved();
+      };
+    });
   }
 
   /* ── Who sits where (read-only from seating store) ── */

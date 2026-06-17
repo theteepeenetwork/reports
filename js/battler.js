@@ -514,6 +514,10 @@
     btScheduleBoardRefresh();   // display views (non-classic) repaint from the new totals/order
   }
   window.btAward = award;
+  // Read-only point helpers for callers outside the board (e.g. the Teach hub's
+  // Pick-a-name and Points screens) — reuse the same start/clamp logic.
+  window.btGetPoints = function (pid){ return btPts(btLoad(), pid); };
+  window.btGetStep   = function (){ var s = btLoad(); return [1,2,5].indexOf(s.step) >= 0 ? s.step : 1; };
   // Coalesced re-render for the smartboard display views (classic uses in-place card paints).
   var btBoardRefreshT = null;
   function btScheduleBoardRefresh(){

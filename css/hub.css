@@ -106,6 +106,56 @@ body[data-mode="plan"]  #teach   { display: none; }
 }
 .back-link:hover { color: var(--ink); background: none; transform: none; }
 
+/* Glow Getters award row on the Pick-a-name screen */
+.glow-row {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line-2);
+  width: 100%; max-width: 360px;
+}
+.glow-tally { display: flex; flex-direction: column; align-items: center; min-width: 100px; }
+.glow-n { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); line-height: 1; }
+.glow-l { font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--faint); margin-top: 3px; }
+.glow-minus, .glow-plus {
+  flex: 0 0 auto; min-width: 56px; height: 56px; border-radius: 14px;
+  font-size: 20px; font-weight: 800; cursor: pointer; border: 1px solid transparent;
+  transition: transform .1s, background .12s, filter .12s;
+}
+.glow-minus:active, .glow-plus:active { transform: scale(.95); }
+.glow-plus { background: var(--teal-600); color: #fff; }
+.glow-plus:hover { background: var(--teal-700); }
+.glow-minus { background: var(--coral-50); color: var(--coral-600); border-color: var(--coral-100); }
+.glow-minus:hover { background: var(--coral-100); }
+
+/* Points picker grid (Teach › Points) */
+.pts-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+  align-content: start;
+}
+.pts-card {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 14px; box-shadow: 0 4px 14px rgba(20,24,29,.04);
+}
+.pts-name {
+  font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pts-row { display: flex; align-items: center; gap: 10px; }
+.pts-n {
+  flex: 1; text-align: center; font-size: 26px; font-weight: 800;
+  letter-spacing: -.02em; color: var(--teal-700); line-height: 1;
+}
+.pts-minus, .pts-plus {
+  flex: 0 0 auto; min-width: 48px; height: 44px; border-radius: 12px;
+  font-size: 17px; font-weight: 800; cursor: pointer; border: 1px solid transparent;
+  transition: transform .1s, background .12s;
+}
+.pts-minus:active, .pts-plus:active { transform: scale(.95); }
+.pts-plus { background: var(--teal-600); color: #fff; }
+.pts-plus:hover { background: var(--teal-700); }
+.pts-minus { background: var(--coral-50); color: var(--coral-600); border-color: var(--coral-100); }
+.pts-minus:hover { background: var(--coral-100); }
+
 /* ===================================================================
    QUICK LOG — bottom sheet + toast (shared by Teach & Plan)
    =================================================================== */
