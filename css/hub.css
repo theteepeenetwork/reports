@@ -519,6 +519,25 @@ body[data-mode="plan"]  #teach   { display: none; }
 .mk-modal-ctx { font-size: 12.5px; color: var(--muted); }
 .mk-modal-x { border: 0; background: var(--line-2); color: var(--muted); border-radius: 8px; width: 30px; height: 30px; font-size: 15px; padding: 0; }
 .mk-modal-x:hover { background: var(--border); color: var(--ink); transform: none; }
+/* permanent customisable quick-insert buttons (top of the comment modal) */
+.mk-qbrow {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 10px 11px; margin-bottom: 12px;
+  background: var(--page); border: 1px solid var(--line); border-radius: 11px;
+}
+.mk-qblbl { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; color: var(--faint); margin-right: 2px; }
+.mk-qbtn {
+  border: 1px solid var(--teal-100); background: var(--teal-50); color: var(--teal-700);
+  border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font-weight: 600;
+}
+.mk-qbtn:hover { background: var(--teal-100); transform: none; }
+.mk-qbempty { font-size: 12.5px; color: var(--faint); }
+.mk-qbtoggle { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 9px; padding: 6px 11px; font-size: 12px; font-weight: 600; }
+.mk-qbtoggle:hover { background: var(--line-2); transform: none; }
+.mk-qbedit { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 12px; background: var(--card); }
+.mk-qbname { border: 0; outline: none; background: transparent; font-size: 12.5px; font-weight: 600; color: var(--ink); width: 132px; padding: 0; }
+.mk-qbname:focus { box-shadow: none; }
+
 .mk-draft { width: 100%; min-height: 66px; line-height: 1.45; font-size: 14px; }
 .mk-savebank {
   margin-top: 8px; border: 1px dashed var(--teal-500); color: var(--teal-700); background: var(--teal-50);

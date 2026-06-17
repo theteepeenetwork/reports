@@ -50,14 +50,20 @@
         { id: 'b6', text: 'Great effort today.', subject: 'General', fav: true, uses: 9 },
         { id: 'b7', text: 'Have another go at the tricky ones.', subject: 'General', fav: false, uses: 2 }
       ],
-      sort: 'name', seq: 100
+      sort: 'name', seq: 100,
+      quickButtons: [
+        { id: 'q1', text: 'Met the objective.' },
+        { id: 'q2', text: 'Working towards it.' },
+        { id: 'q3', text: 'Needs more practice.' },
+        { id: 'q4', text: 'Excellent effort.' }
+      ]
     };
   }
   function load() {
     var d = defaults();
     var s = (typeof Store !== 'undefined') ? Store.get(MK_KEY, null) : null;
     if (s && typeof s === 'object') {
-      ['sets', 'activeSetId', 'activities', 'activeActivityId', 'marks', 'lastMarked', 'bank', 'sort', 'seq'].forEach(function (k) {
+      ['sets', 'activeSetId', 'activities', 'activeActivityId', 'marks', 'lastMarked', 'bank', 'sort', 'seq', 'quickButtons'].forEach(function (k) {
         if (s[k] !== undefined) d[k] = s[k];
       });
     }
@@ -402,6 +408,26 @@
       return '<button class="mk-banktab' + (ui.bankFilter === t[0] && !ui.search ? ' on' : '') + '" data-banktab="' + t[0] + '">' + E(t[1]) + '</button>';
     }).join('');
 
+    /* permanent customisable quick-insert buttons (defined by the teacher) */
+    var qb = mk.quickButtons || [];
+    var qbHTML;
+    if (ui.qbEdit) {
+      qbHTML = qb.map(function (b) {
+        return '<span class="mk-qbedit"><input class="mk-qbname" data-qbrename="' + b.id + '" value="' + E(b.text) + '">' +
+          '<button class="mk-setx" data-qbremove="' + b.id + '" title="Remove button">✕</button></span>';
+      }).join('') +
+        '<span class="mk-newset"><input class="mk-newsetin" id="mkQbNew" placeholder="New button…">' +
+        '<button class="mk-newsetadd" id="mkQbAdd">+</button></span>';
+    } else {
+      qbHTML = qb.length
+        ? qb.map(function (b) { return '<button class="mk-qbtn" data-qbins="' + b.id + '">' + E(b.text) + '</button>'; }).join('')
+        : '<span class="mk-qbempty">No quick buttons yet — add your own →</span>';
+    }
+    var qbRow =
+      '<div class="mk-qbrow"><span class="mk-qblbl">Quick buttons</span>' + qbHTML +
+        '<span class="mk-spacer"></span>' +
+        '<button class="mk-qbtoggle" id="mkQbEdit">' + (ui.qbEdit ? '✓ Done' : '✎ Edit') + '</button></div>';
+
     var old = document.getElementById('mkBack'); if (old) old.remove();
     var bd = document.createElement('div');
     bd.className = 'mk-back'; bd.id = 'mkBack';
@@ -410,6 +436,7 @@
         '<div class="mk-modal-head"><span class="mk-modal-title">Comment · ' + E(p.name) + '</span>' +
           '<span class="mk-modal-ctx">' + E(setName + ' · ' + act.title) + '</span><span class="mk-spacer"></span>' +
           '<button class="mk-modal-x" id="mkEditClose">✕</button></div>' +
+        qbRow +
         '<textarea id="mkDraft" class="mk-draft" placeholder="Type a comment… (auto-capital + full stop on save)">' + E(ui.draft) + '</textarea>' +
         '<button class="mk-savebank" id="mkSaveBank">+ Save this phrase to my bank</button>' +
         '<div class="mk-bankhead"><span>Insert from your bank</span><span class="mk-hr"></span></div>' +
@@ -422,6 +449,33 @@
       '</div>';
     document.body.appendChild(bd);
     renderBank();
+
+    /* quick buttons: insert on tap; ✎ Edit toggles add / rename / remove */
+    bd.querySelectorAll('[data-qbins]').forEach(function (b) {
+      b.onclick = function () {
+        var t = (mk.quickButtons || []).find(function (x) { return x.id === b.dataset.qbins; });
+        if (!t) return;
+        ui.draft = smartAppend(ui.draft, t.text);
+        var ta2 = document.getElementById('mkDraft'); if (ta2) { ta2.value = ui.draft; ta2.focus(); }
+      };
+    });
+    var qbEditBtn = document.getElementById('mkQbEdit');
+    if (qbEditBtn) qbEditBtn.onclick = function () { ui.qbEdit = !ui.qbEdit; renderEditor(); };
+    bd.querySelectorAll('[data-qbrename]').forEach(function (inp) {
+      inp.onchange = function () { var t = (mk.quickButtons || []).find(function (x) { return x.id === inp.dataset.qbrename; }); if (t) { t.text = inp.value.trim() || t.text; save(); } };
+    });
+    bd.querySelectorAll('[data-qbremove]').forEach(function (b) {
+      b.onclick = function () { mk.quickButtons = (mk.quickButtons || []).filter(function (x) { return x.id !== b.dataset.qbremove; }); save(); renderEditor(); };
+    });
+    var qbNew = document.getElementById('mkQbNew');
+    var qbAdd = document.getElementById('mkQbAdd');
+    if (qbAdd) qbAdd.onclick = function () {
+      var v = (qbNew && qbNew.value || '').trim(); if (!v) return;
+      if (!mk.quickButtons) mk.quickButtons = [];
+      mk.quickButtons.push({ id: uid('q'), text: v });
+      save(); renderEditor();
+    };
+    if (qbNew) qbNew.onkeydown = function (e) { if (e.key === 'Enter' && qbAdd) qbAdd.click(); };
 
     bd.addEventListener('click', function (e) { if (e.target === bd) closeEditor(); });
     document.getElementById('mkEditClose').onclick = closeEditor;
