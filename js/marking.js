@@ -208,7 +208,7 @@
         return {
           p: p, marked: marked, last: last, met: met, hasC: hasC,
           _date: rec.markedDate || null, _metW: (met === 'not' ? 0 : (met == null ? 1 : 2)),
-          comment: rec.comment || ''
+          comment: rec.comment || '', markers: rec.markers || []
         };
       });
       if (mk.sort === 'name') rows.sort(function (a, b) { return a.p.name.localeCompare(b.p.name); });
@@ -225,7 +225,10 @@
             '<button class="mk-met-y' + (r.met === 'met' ? ' on' : '') + '" data-met="' + r.p.id + '" title="Met">✓</button>' +
             '<button class="mk-met-n' + (r.met === 'not' ? ' on' : '') + '" data-not="' + r.p.id + '" title="Not met">✗</button>' +
           '</span>' +
-          '<button class="mk-comment' + (r.hasC ? ' has' : '') + '" data-comment="' + r.p.id + '">' + (r.hasC ? E(r.comment) : '+ comment') + '</button>' +
+          '<span class="mk-commentwrap">' +
+            r.markers.map(function (mtxt) { return '<span class="mk-mk">' + E(mtxt) + '</span>'; }).join('') +
+            '<button class="mk-comment' + (r.hasC ? ' has' : '') + '" data-comment="' + r.p.id + '">' + (r.hasC ? E(r.comment) : (r.markers.length ? '+ note' : '+ comment')) + '</button>' +
+          '</span>' +
         '</div>';
       }).join('');
 
@@ -408,23 +411,25 @@
       return '<button class="mk-banktab' + (ui.bankFilter === t[0] && !ui.search ? ' on' : '') + '" data-banktab="' + t[0] + '">' + E(t[1]) + '</button>';
     }).join('');
 
-    /* permanent customisable quick-insert buttons (defined by the teacher) */
+    /* permanent customisable quick markers (defined by the teacher).
+       Tapping one toggles that marker on the child for this activity. */
     var qb = mk.quickButtons || [];
+    var appliedMarkers = ((mk.marks[act.id] || {})[ui.editingPupil] || {}).markers || [];
     var qbHTML;
     if (ui.qbEdit) {
       qbHTML = qb.map(function (b) {
         return '<span class="mk-qbedit"><input class="mk-qbname" data-qbrename="' + b.id + '" value="' + E(b.text) + '">' +
-          '<button class="mk-setx" data-qbremove="' + b.id + '" title="Remove button">✕</button></span>';
+          '<button class="mk-setx" data-qbremove="' + b.id + '" title="Remove marker">✕</button></span>';
       }).join('') +
-        '<span class="mk-newset"><input class="mk-newsetin" id="mkQbNew" placeholder="New button…">' +
+        '<span class="mk-newset"><input class="mk-newsetin" id="mkQbNew" placeholder="New marker…">' +
         '<button class="mk-newsetadd" id="mkQbAdd">+</button></span>';
     } else {
       qbHTML = qb.length
-        ? qb.map(function (b) { return '<button class="mk-qbtn" data-qbins="' + b.id + '">' + E(b.text) + '</button>'; }).join('')
-        : '<span class="mk-qbempty">No quick buttons yet — add your own →</span>';
+        ? qb.map(function (b) { var on = appliedMarkers.indexOf(b.text) >= 0; return '<button class="mk-qbtn' + (on ? ' on' : '') + '" data-qbins="' + b.id + '">' + (on ? '✓ ' : '') + E(b.text) + '</button>'; }).join('')
+        : '<span class="mk-qbempty">No quick markers yet — add your own →</span>';
     }
     var qbRow =
-      '<div class="mk-qbrow"><span class="mk-qblbl">Quick buttons</span>' + qbHTML +
+      '<div class="mk-qbrow"><span class="mk-qblbl">Quick markers</span>' + qbHTML +
         '<span class="mk-spacer"></span>' +
         '<button class="mk-qbtoggle" id="mkQbEdit">' + (ui.qbEdit ? '✓ Done' : '✎ Edit') + '</button></div>';
 
@@ -450,13 +455,26 @@
     document.body.appendChild(bd);
     renderBank();
 
-    /* quick buttons: insert on tap; ✎ Edit toggles add / rename / remove */
+    /* quick markers: tapping toggles the marker on the child (saved + stamped
+       today), not the comment text; ✎ Edit toggles add / rename / remove */
     bd.querySelectorAll('[data-qbins]').forEach(function (b) {
       b.onclick = function () {
+        var act2 = activeActivity(); if (!act2 || !ui.editingPupil) return;
         var t = (mk.quickButtons || []).find(function (x) { return x.id === b.dataset.qbins; });
         if (!t) return;
-        ui.draft = smartAppend(ui.draft, t.text);
-        var ta2 = document.getElementById('mkDraft'); if (ta2) { ta2.value = ui.draft; ta2.focus(); }
+        var today = todayISO();
+        var m = mk.marks[act2.id] || (mk.marks[act2.id] = {});
+        var r = m[ui.editingPupil] || (m[ui.editingPupil] = {});
+        if (!r.markers) r.markers = [];
+        var i = r.markers.indexOf(t.text);
+        var removing = i >= 0;
+        if (removing) { r.markers.splice(i, 1); }
+        else {
+          r.markers.push(t.text);
+          if (!r.markedDate) { r.markedDate = today; var L = mk.lastMarked[mk.activeSetId] || (mk.lastMarked[mk.activeSetId] = {}); L[ui.editingPupil] = today; }
+        }
+        save(); mkRender(); renderEditor();
+        toast(removing ? 'Marker removed' : 'Marker added · marked today');
       };
     });
     var qbEditBtn = document.getElementById('mkQbEdit');
