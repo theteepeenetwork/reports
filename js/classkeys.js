@@ -31,7 +31,7 @@
      and tp_starter_* are real per-class data that aren't (yet) in DATA_KEYS,
      and tp_reading_groups is the legacy groups-migration source. */
   var PER_CLASS = [
-    'tp_roster', 'tp_starters', 'tp_star', 'tp_behaviour', 'tp_assess',
+    'tp_roster', 'tp_starters', 'tp_star', 'tp_behaviour', 'tp_assess', 'tp_marking',
     'tp_seating', 'tp_groups', 'tp_generator', 'tp_battler', 'tp_report_sel',
     'reportBuilderChildren', 'tp_picker', 'tp_starter_cfg', 'tp_starter_weeks',
     'tp_starter_cleared', 'tp_starter_ann', 'tp_reading_groups'

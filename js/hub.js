@@ -115,8 +115,10 @@
     { key: 'concern', icon: '⚠',  label: 'Concern',           cls: 'concern', tl: 'concern' },
     { key: 'star',    icon: '★',  label: 'Star pupil today',  cls: 'star',    tl: 'star' },
     { key: 'glow',    icon: '⚡', label: 'Glow Getter point',  cls: 'glow',    tl: 'glow' },
-    { key: 'note',    icon: '✎',  label: 'Note',              cls: 'note',    tl: 'note' }
+    { key: 'note',    icon: '✎',  label: 'Note',              cls: 'note',    tl: 'note' },
+    { key: 'activity', icon: '📘', label: 'Mark activity',    cls: 'praise',  tl: 'activity' }
   ];
+  var qlMarkActId = null;   // Teach → "Mark activity" confirm step: selected activity
 
   /* Group lookups read the nested Groups tree (js/groups.js, store 'tp_groups').
      groupList() returns a flat list of every group node across all headings. */
@@ -187,8 +189,62 @@
       '<div class="ql-actions">' + rows + '</div>';
     document.getElementById('qlBack').onclick = qlWho;
     sheet.querySelectorAll('[data-act]').forEach(function (b) {
-      b.onclick = function () { logIt(who, b.dataset.act); };
+      b.onclick = function () {
+        if (b.dataset.act === 'activity') qlMarkActivity(who);
+        else logIt(who, b.dataset.act);
+      };
     });
+  }
+
+  /* Teach → "Mark activity": confirm screen that writes a comment + today's
+     marked date into Markbook › Marking for the chosen activity. */
+  function qlMarkActivity(who) {
+    var sheet = document.getElementById('qlSheet');
+    var name = targetLabel(who);
+    var acts = (typeof window.mkActivitiesForActiveSet === 'function') ? window.mkActivitiesForActiveSet() : [];
+    if (!acts.some(function (a) { return a.id === qlMarkActId; })) qlMarkActId = acts.length ? acts[0].id : null;
+    var bank = (typeof window.mkBankForActiveSet === 'function') ? window.mkBankForActiveSet() : [];
+
+    var chips = acts.length
+      ? acts.map(function (a) { return '<button class="ql-chip' + (a.id === qlMarkActId ? ' sel' : '') + '" data-mact="' + a.id + '">' + esc(a.title) + '</button>'; }).join('')
+      : '<p class="empty">No activities yet — add one in Plan › Markbook › Marking first.</p>';
+    var bankChips = bank.map(function (t, i) { return '<button class="ql-chip" data-mbank="' + i + '">' + esc(t) + '</button>'; }).join('');
+
+    sheet.innerHTML =
+      '<div class="ql-grab"></div>' +
+      '<div class="ql-who"><span class="ql-avatar">📘</span>' +
+        '<div><span class="ql-who-name">Mark activity</span> ' +
+        '<span class="ql-who-sub">— ' + esc(name) + '</span></div>' +
+        '<span class="spacer"></span><button class="ql-x" id="qlBack">‹ back</button></div>' +
+      '<div class="ql-special" style="margin-bottom:6px">' + chips + '</div>' +
+      (bank.length ? '<div class="ql-mlabel">Tap from your bank</div><div class="ql-special">' + bankChips + '</div>' : '') +
+      '<textarea id="qlMarkNote" class="ql-marknote" placeholder="Add a note (optional)…"></textarea>' +
+      '<div class="ql-markbtns">' +
+        '<button id="qlMarkSave"' + (acts.length ? '' : ' disabled') + '>Save</button>' +
+        '<button class="secondary" id="qlMarkBack">Back</button></div>';
+
+    document.getElementById('qlBack').onclick = function () { qlWhat(who); };
+    document.getElementById('qlMarkBack').onclick = function () { qlWhat(who); };
+    var note = document.getElementById('qlMarkNote');
+    sheet.querySelectorAll('[data-mact]').forEach(function (b) {
+      b.onclick = function () { qlMarkActId = b.dataset.mact; qlMarkActivity(who); };
+    });
+    sheet.querySelectorAll('[data-mbank]').forEach(function (b) {
+      b.onclick = function () {
+        var phrases = (typeof window.mkBankForActiveSet === 'function') ? window.mkBankForActiveSet() : [];
+        var add = phrases[+b.dataset.mbank] || '';
+        var cur = (note.value || '').trim();
+        note.value = cur ? (cur.replace(/[.!?]?$/, '.') + ' ' + add) : add;
+        note.focus();
+      };
+    });
+    var save = document.getElementById('qlMarkSave');
+    if (save) save.onclick = function () {
+      if (!qlMarkActId || typeof window.mkLogActivity !== 'function') return;
+      var title = window.mkLogActivity(qlMarkActId, targetIds(who), note ? note.value : '');
+      closeQuickLog(); flashSaved();
+      toast('✓ Saved to Markbook' + (title ? ' · ' + title : ''));
+    };
   }
 
   function logIt(who, actKey) {
@@ -893,13 +949,12 @@
       '<div style="margin:2px 0 4px"><div class="eyebrow" style="color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
       '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Groups</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:14px">' + body + '</div>' +
-      '<p style="font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0">read-only here — edit in Plan › Organise › Groups</p>';
+      '<p style="font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0">read-only here — edit in Plan › Groups</p>';
 
     wireBack(v);
     var toPlan = document.getElementById('grpToPlan');
     if (toPlan) toPlan.onclick = function () {
-      setMode('plan'); go('organise');
-      try { showSub('orgTabs', 'org-groups'); } catch (e) {}
+      setMode('plan'); go('groups');
     };
     v.querySelectorAll('[data-gtoggle]').forEach(function (b) {
       b.onclick = function () { var id = b.dataset.gtoggle; groupsTeachClosed[id] = !groupsTeachClosed[id]; renderGroupsTeach(); };
@@ -913,7 +968,12 @@
     { page: 'today', label: 'Today', icon: 'home' },
     { page: 'pupils', label: 'Pupils', icon: 'users' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
-    { page: 'organise', label: 'Organise', icon: 'layout-grid' },
+    { section: 'Organise' },
+    { page: 'timetable', label: 'Timetable', icon: 'calendar' },
+    { page: 'seating', label: 'Seating', icon: 'layout-grid' },
+    { page: 'instant', label: 'Instant Groups', icon: 'zap' },
+    { page: 'groups', label: 'Groups', icon: 'book-open' },
+    { section: 'Tools' },
     { page: 'reports', label: 'Reports', icon: 'file-text' }
   ];
 
@@ -928,6 +988,7 @@
     nav.innerHTML =
       '<button class="open-teach" id="openTeach">' + svg('play', 16) + ' Open Teach</button>' +
       PLAN_NAV.map(function (n) {
+        if (n.section) return '<div class="nav-section">' + n.section + '</div>';
         return '<button class="nav-link" data-page="' + n.page + '"><span class="ico">' + svg(n.icon, 18) + '</span> <span>' + n.label + '</span>' +
           (n.page === 'pupils' ? '<span class="count" id="navClassCount"></span>' : '') + '</button>';
       }).join('');
@@ -959,15 +1020,15 @@
       '<div class="tabs" id="mbTabs"></div>' +
       '<div class="subview" id="mb-assessments"></div>' +
       '<div class="subview" id="mb-starters"></div>' +
-      '<div class="subview" id="mb-charts"></div>';
-    /* Organise */
-    var org = section('organise');
-    org.innerHTML =
-      '<div class="page-header"><h1>Organise</h1><p>Edit your timetable, seating &amp; groups.</p></div>' +
-      '<div class="tabs" id="orgTabs"></div>' +
-      '<div class="subview" id="org-timetable"></div>' +
-      '<div class="subview" id="org-seating"></div>' +
-      '<div class="subview" id="org-groups"></div>';
+      '<div class="subview" id="mb-charts"></div>' +
+      '<div class="subview" id="mb-marking"></div>';
+    /* Organise split → Instant Groups gets its own page (the seating module's
+       "group maker" tool). Timetable / Seating / Groups reuse their existing
+       standalone pages as separate sidebar items. */
+    var instant = section('instant');
+    instant.innerHTML =
+      '<div class="page-header"><h1>Instant Groups</h1><p>Make fair random groups in a click — by number of groups or by group size. Reshuffle as often as you like.</p></div>' +
+      '<div id="ig-root"></div>';
     /* Settings */
     var settings = section('settings');
     settings.innerHTML = '<div class="page-header"><h1>Settings</h1><p>Your profile, plus backup &amp; data.</p></div><div id="settings-profile"></div><div id="settings-data"></div>';
@@ -976,23 +1037,16 @@
     move('#page-assessments', document.getElementById('mb-assessments'));
     move('#page-mental-starters', document.getElementById('mb-starters'));
     move('#page-charts', document.getElementById('mb-charts'));
-    move('#page-timetable', document.getElementById('org-timetable'));
-    move('#page-seating', document.getElementById('org-seating'));
-    move('#page-groups', document.getElementById('org-groups'));
     move('#page-class-list', document.getElementById('manageBody'));
     move('#page-profile', document.getElementById('settings-profile'));
     move('#page-data', document.getElementById('settings-data'));
 
     /* sub-tabs */
-    buildTabs('mbTabs', [['mb-assessments', 'Assessments'], ['mb-starters', 'Starter scores'], ['mb-charts', 'Charts']], function (id) {
+    buildTabs('mbTabs', [['mb-assessments', 'Assessments'], ['mb-starters', 'Starter scores'], ['mb-charts', 'Charts'], ['mb-marking', 'Marking']], function (id) {
       if (id === 'mb-assessments' && typeof asRender === 'function') asRender();
       if (id === 'mb-starters' && typeof msRender === 'function') msRender();
       if (id === 'mb-charts' && typeof chRender === 'function') chRender();
-    });
-    buildTabs('orgTabs', [['org-timetable', 'Timetable'], ['org-seating', 'Seating & Groups'], ['org-groups', 'Groups']], function (id) {
-      if (id === 'org-timetable' && typeof ttRender === 'function') ttRender();
-      if (id === 'org-seating' && typeof seatRender === 'function') seatRender();
-      if (id === 'org-groups' && typeof grpRender === 'function') grpRender();
+      if (id === 'mb-marking' && typeof mkRender === 'function') mkRender();
     });
 
     /* manage-class panel toggle */
@@ -1574,7 +1628,7 @@
     else if (page === 'pupils') renderPupils();
     else if (page === 'pupil') renderRecord();
     else if (page === 'markbook') { var h = document.getElementById('mbTabs'); if (h) { var sub = h.querySelector('.tab.active'); showSub('mbTabs', sub ? sub.dataset.sub : 'mb-assessments'); } }
-    else if (page === 'organise') { var h2 = document.getElementById('orgTabs'); if (h2) { var s2 = h2.querySelector('.tab.active'); showSub('orgTabs', s2 ? s2.dataset.sub : 'org-timetable'); } }
+    /* timetable / seating / instant / groups are rendered by the base renderPage */
     else if (page === 'settings') { if (typeof renderProfile === 'function') renderProfile(); }
   }
 
@@ -1590,7 +1644,7 @@
     document.body.dataset.mode = m;
     window.scrollTo(0, 0);
     if (m === 'teach') teachGo(teachScreen || 'home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'organise', 'reports', 'settings'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
   }
   window.hubSetMode = setMode;
 
@@ -1638,7 +1692,7 @@
     var mode = Store.get('tp_mode', null) || deviceDefaultMode();
     document.body.dataset.mode = mode;
     if (mode === 'teach') teachGo('home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'organise', 'reports', 'settings'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
