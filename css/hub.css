@@ -585,6 +585,38 @@ body[data-mode="plan"]  #teach   { display: none; }
 }
 .mk-toast.show { transform: translate(-50%, 0); }
 
+/* whole-class feedback panel */
+.mk-fbtoggle {
+  border: 1px solid var(--teal-100); background: var(--teal-50); color: var(--teal-700);
+  border-radius: 9px; padding: 6px 12px; font-size: 12.5px; font-weight: 600;
+}
+.mk-fbtoggle:hover { background: var(--teal-100); transform: none; }
+.mk-fbpanel { margin-top: 16px; padding: 18px; }
+.mk-fbhead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.mk-fbtitle { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.mk-fbsub {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700;
+  color: var(--faint); margin: 16px 0 9px;
+}
+.mk-fblink { border: 0; background: transparent; color: var(--teal-600); font-size: 11.5px; font-weight: 700; padding: 0; text-transform: none; letter-spacing: 0; }
+.mk-fblink:hover { background: transparent; transform: none; text-decoration: underline; }
+.mk-fbcols { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; align-items: flex-start; }
+.mk-fbcol { flex: 0 0 auto; min-width: 132px; max-width: 200px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.mk-fbcol-head { padding: 8px 11px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.mk-fbcol-head.met { background: var(--success-50); color: var(--success); }
+.mk-fbcol-head.not { background: var(--coral-50); color: var(--coral-600); }
+.mk-fbcol-head.mk { background: var(--teal-50); color: var(--teal-700); }
+.mk-fbn { margin-left: auto; font-size: 11px; font-weight: 800; opacity: .8; }
+.mk-fbname { padding: 7px 11px; font-size: 13px; font-weight: 600; color: var(--ink); border-top: 1px solid var(--line-2); }
+.mk-fbcomments { display: flex; flex-direction: column; gap: 8px; }
+.mk-fbcomment { border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+.mk-fbctext { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.mk-fbcnames { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.mk-fbsummary { width: 100%; min-height: 120px; line-height: 1.5; font-size: 13.5px; white-space: pre-wrap; }
+.mk-fbbtns { display: flex; gap: 9px; margin-top: 10px; }
+.mk-fbbtns button:first-child { flex: 0 0 auto; }
+
 /* Print: show only the dedicated starter print container */
 #starterPrint { display: none; }
 @media print {

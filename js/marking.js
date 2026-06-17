@@ -27,6 +27,37 @@
   function normalize(s) { s = (s || '').trim(); if (!s) return ''; s = s.charAt(0).toUpperCase() + s.slice(1); if (!/[.!?]$/.test(s)) s += '.'; return s; }
   function smartAppend(d, p) { d = (d || '').trim(); p = (p || '').trim(); if (!d) return normalize(p); if (!/[.!?]$/.test(d)) d += '.'; return normalize(d + ' ' + p); }
   function E(s) { return (typeof esc === 'function') ? esc(s) : String(s == null ? '' : s); }
+  function copyText(t) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(t); return; } } catch (e) {}
+    try { var ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch (e) {}
+  }
+  var mkLastAuto = '';   // last auto-generated class summary (for the Rebuild button)
+
+  /* Roll every pupil's outcome / markers / comment for an activity into
+     columns (label + the names underneath) plus grouped written comments. */
+  function aggregate(act) {
+    var P = pupils(), mks = mk.marks[act.id] || {};
+    var metNames = [], notNames = [], markerMap = {}, commentMap = {};
+    P.forEach(function (p) {
+      var rec = mks[p.id] || {};
+      if (rec.met === 'met') metNames.push(p.name);
+      else if (rec.met === 'not') notNames.push(p.name);
+      (rec.markers || []).forEach(function (t) { (markerMap[t] || (markerMap[t] = [])).push(p.name); });
+      if (rec.comment) (commentMap[rec.comment] || (commentMap[rec.comment] = [])).push(p.name);
+    });
+    var cols = [];
+    if (metNames.length) cols.push({ label: '✓ Met', cls: 'met', names: metNames });
+    if (notNames.length) cols.push({ label: '✗ Not met', cls: 'not', names: notNames });
+    Object.keys(markerMap).sort(function (a, b) { return markerMap[b].length - markerMap[a].length || a.localeCompare(b); })
+      .forEach(function (t) { cols.push({ label: t, cls: 'mk', names: markerMap[t] }); });
+    return { cols: cols, commentMap: commentMap };
+  }
+  function autoSummary(agg) {
+    var lines = agg.cols.map(function (c) { return c.label.replace(/^[✓✗]\s*/, '') + ': ' + c.names.join(', '); });
+    var ck = Object.keys(agg.commentMap);
+    if (ck.length) { lines.push(''); lines.push('Comments:'); ck.forEach(function (t) { lines.push('“' + t + '” — ' + agg.commentMap[t].join(', ')); }); }
+    return lines.join('\n');
+  }
   function pupils() { return (typeof sortedRoster === 'function') ? sortedRoster() : ((typeof roster !== 'undefined' && roster) ? roster.slice() : []); }
 
   /* ---------- store ---------- */
@@ -51,6 +82,7 @@
         { id: 'b7', text: 'Have another go at the tricky ones.', subject: 'General', fav: false, uses: 2 }
       ],
       sort: 'name', seq: 100,
+      summaries: {},
       quickButtons: [
         { id: 'q1', text: 'Met the objective.' },
         { id: 'q2', text: 'Working towards it.' },
@@ -63,7 +95,7 @@
     var d = defaults();
     var s = (typeof Store !== 'undefined') ? Store.get(MK_KEY, null) : null;
     if (s && typeof s === 'object') {
-      ['sets', 'activeSetId', 'activities', 'activeActivityId', 'marks', 'lastMarked', 'bank', 'sort', 'seq', 'quickButtons'].forEach(function (k) {
+      ['sets', 'activeSetId', 'activities', 'activeActivityId', 'marks', 'lastMarked', 'bank', 'sort', 'seq', 'quickButtons', 'summaries'].forEach(function (k) {
         if (s[k] !== undefined) d[k] = s[k];
       });
     }
@@ -237,7 +269,9 @@
       listCol =
         '<div class="mk-list card">' +
           '<div class="mk-list-head"><span class="mk-list-title">' + E(act.title) + '</span>' +
-            '<span class="mk-list-count">' + markedCount + '/' + P.length + ' marked</span></div>' +
+            '<span class="mk-list-count">' + markedCount + '/' + P.length + ' marked</span>' +
+            '<span class="mk-spacer"></span>' +
+            '<button class="mk-fbtoggle" id="mkFbToggle">' + (ui.feedbackOpen ? '✕ Hide feedback' : '📋 Class feedback') + '</button></div>' +
           '<div class="mk-datepills">' +
             '<span class="mk-pill">Date of work <b>' + E(fmt(act.workDate)) + '</b></span>' +
             '<span class="mk-pill marked">Date marked <b>today · ' + E(fmt(today)) + '</b></span>' +
@@ -256,10 +290,42 @@
       listCol = '<div class="mk-list card"><div class="mk-empty big">No activity selected. Create one on the left to start marking.</div></div>';
     }
 
-    host.innerHTML = setsBar + '<div class="mk-cols">' + activitiesCol + listCol + '</div>';
+    var feedback = (act && ui.feedbackOpen) ? buildFeedback(act) : '';
+    host.innerHTML = setsBar + '<div class="mk-cols">' + activitiesCol + listCol + '</div>' + feedback;
     wire(host);
   }
   window.mkRender = mkRender;
+
+  /* ---------- whole-class feedback panel ---------- */
+  function buildFeedback(act) {
+    var agg = aggregate(act);
+    mkLastAuto = autoSummary(agg);
+    if (ui.summaryActId !== act.id) { ui.summaryActId = act.id; ui.summaryDraft = (mk.summaries && mk.summaries[act.id]) || mkLastAuto; }
+
+    var colsHTML = agg.cols.length
+      ? agg.cols.map(function (c) {
+          return '<div class="mk-fbcol"><div class="mk-fbcol-head ' + c.cls + '">' + E(c.label) + ' <span class="mk-fbn">' + c.names.length + '</span></div>' +
+            c.names.map(function (n) { return '<div class="mk-fbname">' + E(n) + '</div>'; }).join('') + '</div>';
+        }).join('')
+      : '<div class="mk-empty">No outcomes or markers recorded yet — mark some pupils to see them grouped here.</div>';
+
+    var ck = Object.keys(agg.commentMap);
+    var commentsHTML = ck.length
+      ? ck.map(function (t) { return '<div class="mk-fbcomment"><div class="mk-fbctext">“' + E(t) + '”</div><div class="mk-fbcnames">' + E(agg.commentMap[t].join(', ')) + '</div></div>'; }).join('')
+      : '<div class="mk-empty">No written comments yet.</div>';
+
+    return '<div class="mk-fbpanel card">' +
+      '<div class="mk-fbhead"><span class="mk-fbtitle">Whole-class feedback · ' + E(act.title) + '</span>' +
+        '<span class="mk-spacer"></span><button class="mk-modal-x" id="mkFbClose">✕</button></div>' +
+      '<div class="mk-fbsub">Markers &amp; outcomes</div>' +
+      '<div class="mk-fbcols">' + colsHTML + '</div>' +
+      '<div class="mk-fbsub">Written comments</div>' +
+      '<div class="mk-fbcomments">' + commentsHTML + '</div>' +
+      '<div class="mk-fbsub">Class summary <button class="mk-fblink" id="mkFbRebuild">↻ Rebuild from above</button></div>' +
+      '<textarea id="mkSummary" class="mk-fbsummary" placeholder="A whole-class summary — auto-built from the markers, outcomes and comments above. Edit freely, then Save or Copy.">' + E(ui.summaryDraft) + '</textarea>' +
+      '<div class="mk-fbbtns"><button id="mkFbSave">Save summary</button><button class="secondary" id="mkFbCopy">Copy</button></div>' +
+    '</div>';
+  }
 
   /* ---------- event wiring ---------- */
   function wire(host) {
@@ -331,6 +397,20 @@
     host.querySelectorAll('[data-not]').forEach(function (b) { b.onclick = function () { setMet(b.dataset.not, 'not'); }; });
     host.querySelectorAll('[data-comment]').forEach(function (b) { b.onclick = function () { openEditor(b.dataset.comment); }; });
     host.querySelectorAll('[data-sort]').forEach(function (b) { b.onclick = function () { mk.sort = b.dataset.sort; save(); mkRender(); }; });
+
+    /* whole-class feedback panel */
+    var fbT = host.querySelector('#mkFbToggle');
+    if (fbT) fbT.onclick = function () { ui.feedbackOpen = !ui.feedbackOpen; mkRender(); };
+    var fbC = host.querySelector('#mkFbClose');
+    if (fbC) fbC.onclick = function () { ui.feedbackOpen = false; mkRender(); };
+    var sumTa = host.querySelector('#mkSummary');
+    if (sumTa) sumTa.oninput = function () { ui.summaryDraft = sumTa.value; };
+    var fbR = host.querySelector('#mkFbRebuild');
+    if (fbR) fbR.onclick = function () { ui.summaryDraft = mkLastAuto; if (sumTa) sumTa.value = mkLastAuto; };
+    var fbS = host.querySelector('#mkFbSave');
+    if (fbS) fbS.onclick = function () { if (!mk.summaries) mk.summaries = {}; mk.summaries[ui.summaryActId] = ui.summaryDraft; save(); toast('Class summary saved'); };
+    var fbCopy = host.querySelector('#mkFbCopy');
+    if (fbCopy) fbCopy.onclick = function () { copyText(ui.summaryDraft || ''); toast('Summary copied'); };
   }
 
   function markToggle(pid) {
