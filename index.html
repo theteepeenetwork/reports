@@ -344,6 +344,35 @@
     .rb-chip.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--soft); }
     .rb-chip.dragging { opacity: .25; }
     .rb-ghost { padding: 8px 12px; background: var(--card); border: 1px solid var(--accent); border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--ink); box-shadow: 0 12px 28px rgba(20,24,29,.22); transform: rotate(-2deg); }
+    /* paragraph-3 opener board: grouped headers + wider columns for full sentences */
+    .rb-group-head { display: flex; align-items: center; gap: 10px; margin: 14px 2px 2px; font-size: 12px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+    .rb-group-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+    .rb-group-head:first-child { margin-top: 4px; }
+    #rbOpenerBoard .rb-col-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+    /* anecdote editor */
+    .anec-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 1rem; }
+    @media (min-width: 860px){ .anec-grid { grid-template-columns: repeat(3, 1fr); } }
+    .anec-field label { display: block; font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+    .anec-field .anec-tag { font-size: 11px; font-weight: 700; color: var(--accent); }
+    .anec-field textarea { width: 100%; min-height: 96px; resize: vertical; font: inherit; font-size: 13px; line-height: 1.45; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); box-sizing: border-box; }
+    .anec-field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--soft); }
+    .anec-empty { color: var(--faint); font-size: 13px; }
+    /* floating "Not set yet" bubble for the opener board */
+    #reportOpenerCard { position: relative; }
+    .rb-unset-float { position: absolute; top: 0; right: 22px; bottom: 22px; width: 232px; pointer-events: none; z-index: 5; }
+    .rb-unset-bubble { position: sticky; top: 16px; pointer-events: auto; background: var(--card); border: 1px dashed var(--accent); border-radius: 16px; box-shadow: 0 16px 38px rgba(20,24,29,.18); padding: 12px 14px 14px; }
+    .rb-unset-bubble.drop { border-style: solid; box-shadow: 0 0 0 2px var(--soft), 0 16px 38px rgba(20,24,29,.22); }
+    .rb-unset-bubble .rb-col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .rb-unset-bubble .rb-col-title { font-size: 12px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+    .rb-unset-bubble .rb-col-count { font-size: 12px; font-weight: 700; color: var(--accent); background: var(--soft); border-radius: 999px; padding: 1px 9px; }
+    .rb-unset-bubble .rb-col-sub { font-size: 11px; color: var(--faint); margin: -4px 0 8px; line-height: 1.35; }
+    .rb-unset-bubble .rb-col-body { display: flex; flex-wrap: wrap; gap: 6px; max-height: 46vh; overflow: auto; }
+    #rbOpenerBoard { padding-right: 260px; }
+    @media (max-width: 859px){
+      .rb-unset-float { position: static; width: auto; bottom: auto; right: auto; pointer-events: auto; margin-top: 1rem; }
+      .rb-unset-bubble { position: static; box-shadow: none; }
+      #rbOpenerBoard { padding-right: 0; }
+    }
 
     /* ---------- Dashboard (Option 6) ---------- */
     .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--teal-600); }
@@ -1040,6 +1069,31 @@
           <div class="rb-board" id="rbBoard"></div>
         </section>
 
+        <section class="card" id="reportOpenerCard" style="margin-top:1rem">
+          <div class="row no-print" style="justify-content:space-between; align-items:flex-end; gap:14px">
+            <div>
+              <h2 style="margin:0">Opening line for paragraph 3</h2>
+              <p class="hint small" style="margin:.35rem 0 0; max-width:74ch">This is the sentence the whole final paragraph (attitude, behaviour, friendships, confidence) is built around. Drag each child into the opener that best matches their year — grouped from glowing through to warm and kind. Children left in <b>Not set yet</b> use the standard friendly opener.</p>
+            </div>
+          </div>
+          <div class="rb-board" id="rbOpenerBoard"></div>
+          <div class="rb-unset-float"><div class="rb-unset-bubble" id="rbOpenerUnset"></div></div>
+        </section>
+
+        <section class="card" id="reportAnecdoteCard" style="margin-top:1rem">
+          <div class="row no-print" style="justify-content:space-between; align-items:flex-end; gap:14px; flex-wrap:wrap">
+            <div>
+              <h2 style="margin:0">Personal anecdotes</h2>
+              <p class="hint small" style="margin:.35rem 0 0; max-width:74ch">Add a specific moment or detail for a child and it will be woven prominently into the matching paragraph — these are weighted heavily in the prompt, so the report leads with your own words rather than generic comments. Optional. Use <b>{name}</b>, <b>{pronoun}</b> and <b>{possessive}</b> if you like.</p>
+            </div>
+            <div>
+              <label for="anecPupil">Pupil</label>
+              <select id="anecPupil" style="min-width:200px" onchange="anecSetPupil(this.value)"></select>
+            </div>
+          </div>
+          <div id="anecBody"></div>
+        </section>
+
         <section class="card" id="reportOutputCard" style="margin-top:1rem">
           <div class="row no-print" style="justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap">
             <div>
@@ -1229,7 +1283,7 @@ function renderPage(page){
   if (page === 'instant' && typeof seatRender === 'function') seatRender('groups');
   if (page === 'groups' && typeof grpRender === 'function') grpRender();
   if (page === 'charts' && typeof chRender === 'function') chRender();
-  if (page === 'reports' && typeof renderBoard === 'function') renderBoard();
+  if (page === 'reports' && typeof renderBoard === 'function') { renderBoard(); if (typeof renderOpenerBoard === 'function') renderOpenerBoard(); if (typeof anecRender === 'function') anecRender(); }
 }
 document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));
 window.addEventListener('hashchange', () => showPage(location.hash.replace('#','')));
@@ -1982,7 +2036,7 @@ function syncPupilSelectors(){
   if (document.getElementById('page-assessments').classList.contains('active')) asRender();
   if (document.getElementById('page-class-context').classList.contains('active')) ctxRender();
   if (document.getElementById('page-star-pupil').classList.contains('active')) spRender();
-  if (document.getElementById('page-reports').classList.contains('active') && typeof renderBoard === 'function') renderBoard();
+  if (document.getElementById('page-reports').classList.contains('active') && typeof renderBoard === 'function') { renderBoard(); if (typeof renderOpenerBoard === 'function') renderOpenerBoard(); if (typeof anecRender === 'function') anecRender(); }
   updateNavCount();
 }
 
@@ -2211,6 +2265,49 @@ applyClass();
     ];
 
     /* ===================================================================
+       Paragraph-3 opening line (its own drag-and-drop board) + custom
+       per-pupil anecdotes. Stored in tp_report_sel alongside the rest:
+       paragraph3Opener (string) and {literacy,numeracy,general}Anecdote.
+       =================================================================== */
+    const OPENER_FIELD = 'paragraph3Opener';
+    const DEFAULT_OPENER = '{name} has had a wonderful year this year and enjoyed many aspects of Year 2.';
+    const OPENER_GROUPS = [
+      { title: 'Strong / clearly positive year', options: [
+        '{name} has had a great year in Year 2 and is a confident, capable learner with plenty to contribute.',
+        '{name} has had a wonderful year in Year 2 and should be very proud of all they have achieved.',
+        '{name} has had an excellent year in Year 2 and approaches every task with enthusiasm and care.',
+        '{name} has had an outstanding year in Year 2 and should feel extremely proud of all they have achieved.',
+        '{name} has had a brilliant year in Year 2 and brings real energy and curiosity to their learning.',
+        '{name} has had a thoroughly positive year in Year 2 and has grown into a thoughtful, hard-working member of the class.'
+      ] },
+      { title: 'Good, solid year with encouraging progress', options: [
+        '{name} has had a lovely year in Year 2 and approaches their learning with care and determination.',
+        '{name} has had a positive year in Year 2 and should be proud of the progress they have made.',
+        '{name} has had a good year in Year 2 and has made encouraging progress across the curriculum.',
+        '{name} has had a lovely year in Year 2 and should be proud of the encouraging progress they have made.',
+        '{name} has settled well into Year 2 and has made steady, encouraging progress this year.',
+        '{name} has worked hard throughout Year 2 and has made pleasing progress in many areas.'
+      ] },
+      { title: 'Warm, neutral openers (year has been tricky, but the wording stays kind and positive)', options: [
+        '{name} has had a wonderful year this year and enjoyed many aspects of Year 2.',
+        '{name} has enjoyed many aspects of Year 2 and brings warmth and personality to the class.',
+        '{name} has had a busy year in Year 2 and has approached each day with energy and good humour.',
+        '{name} has experienced lots of new learning in Year 2 and has plenty to be pleased with.',
+        '{name} is a valued member of the class who has enjoyed many parts of Year 2.',
+        '{name} has had an eventful year in Year 2 and continues to grow and develop in confidence.',
+        '{name} has enjoyed being part of Year 2 this year and has taken part in a wide range of activities.',
+        '{name} brings a lovely character to the classroom and has enjoyed many aspects of Year 2.'
+      ] }
+    ];
+
+    /* free-text anecdotes — keyed by field, each tied to a report paragraph */
+    const ANECDOTES = [
+      { field: 'literacyAnecdote', label: 'Literacy anecdote', tag: 'Paragraph 1', placeholder: 'e.g. {name} wrote a whole page about {possessive} trip to the seaside and read it proudly to the class.' },
+      { field: 'numeracyAnecdote', label: 'Numeracy anecdote', tag: 'Paragraph 2', placeholder: 'e.g. {name} was the first to crack the tricky multiplication challenge and helped a friend with it too.' },
+      { field: 'generalAnecdote',  label: 'General anecdote',  tag: 'Paragraph 3', placeholder: 'e.g. {name} took real pride in being class librarian and always looked after the younger children.' }
+    ];
+
+    /* ===================================================================
        Comments are stored per pupil, keyed by the shared Class List id,
        in tp_report_sel ({ pupilId: { field: value } }). Names always come
        from sortedRoster() — there is no separate child list on this page.
@@ -2265,8 +2362,33 @@ applyClass();
       const comments = lines.join('\n');
       const literacyLevel = sel.literacyLevel || 'meeting';
       const numeracyLevel = sel.numeracyLevel || 'meeting';
-      const prompt = `${comments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${pupil.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${pupil.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${pupil.name} has had a wonderful year this year and enjoyed many aspects of Year 2." Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.\n- Keep the tone warm, professional, encouraging and conversational.`;
-      return { comments, prompt };
+
+      // custom anecdotes — the teacher's own words, weighted heavily
+      const anec = {
+        literacyAnecdote: (sel.literacyAnecdote || '').trim(),
+        numeracyAnecdote: (sel.numeracyAnecdote || '').trim(),
+        generalAnecdote:  (sel.generalAnecdote  || '').trim()
+      };
+      const hasAnec = anec.literacyAnecdote || anec.numeracyAnecdote || anec.generalAnecdote;
+      let anecBlock = '';
+      if (hasAnec) {
+        const parts = ['', 'KEY ANECDOTES (the teacher\u2019s own words \u2014 these matter most):'];
+        if (anec.literacyAnecdote) parts.push(`- Literacy (Paragraph 1): ${tokenise(anec.literacyAnecdote, pupil)}`);
+        if (anec.numeracyAnecdote) parts.push(`- Numeracy (Paragraph 2): ${tokenise(anec.numeracyAnecdote, pupil)}`);
+        if (anec.generalAnecdote)  parts.push(`- General (Paragraph 3): ${tokenise(anec.generalAnecdote, pupil)}`);
+        anecBlock = parts.join('\n');
+      }
+      const fullComments = comments + anecBlock;
+
+      // paragraph-3 opener (chosen on the opener board) or the standard friendly one
+      const opener = tokenise(sel[OPENER_FIELD] || DEFAULT_OPENER, pupil);
+
+      const anecRule = hasAnec
+        ? '\n- IMPORTANT \u2014 the KEY ANECDOTES are the most important content. Weave each one into its paragraph naturally but prominently, keeping the specific detail intact, and let it lead that paragraph rather than the generic comments. Do not omit, summarise away or water them down.'
+        : '';
+
+      const prompt = `${fullComments}\n\nUsing only the comments above, write an individual end-of-year report for this Year 2 child.\n\nRules:\n- Do not invent extra information.\n- Use UK spelling and grammar.\n- Write in the third person.\n- Exactly three paragraphs, each under 100 words.\n- Paragraph 1 must begin: "${pupil.name} is ${literacyLevel} age-related expectation in literacy." Cover reading fluency and comprehension, handwriting, spelling and composition. Praise first, next steps second.\n- Paragraph 2 must begin: "${pupil.name} is ${numeracyLevel} age-related expectation in numeracy." Cover number sense, calculation, reasoning and recall speed. Praise first, next steps second.\n- Paragraph 3 must begin: "${opener}" Summarise attitude, behaviour, friendships, confidence and clubs only where mentioned. End with a forward-looking sentence about Year 3.${anecRule}\n- Keep the tone warm, professional, encouraging and conversational.`;
+      return { comments: fullComments, prompt };
     }
 
     function buildAllPrompts() {
@@ -2327,20 +2449,92 @@ applyClass();
         const chips = members.map((p) =>
           `<div class="rb-chip" data-pid="${p.id}" onpointerdown="rbDragStart(event,'${p.id}')">${esc(p.name)}</div>`
         ).join('');
-        return `<div class="rb-col${col.value === '' ? ' notset' : ''}" data-val="${esc(col.value)}">` +
+        return `<div class="rb-col${col.value === '' ? ' notset' : ''}" data-field="${field}" data-val="${esc(col.value)}">` +
           `<div class="rb-col-head"><span class="rb-col-title">${esc(col.label)}</span><span class="rb-col-count">${members.length}</span></div>` +
           `<div class="rb-col-body">${chips || '<span class="rb-col-empty">—</span>'}</div>` +
         '</div>';
       }).join('');
     }
 
-    function reportsRender() { renderBoard(); }
+    function reportsRender() { renderBoard(); renderOpenerBoard(); anecRender(); }
+
+    /* ---- paragraph-3 opener board (grouped, drag-and-drop) ---- */
+    function renderOpenerBoard() {
+      const board = document.getElementById('rbOpenerBoard');
+      if (!board) return;
+      const pupils = sortedRoster();
+      if (!pupils.length) { board.innerHTML = '<p class="hint small">Add pupils on the <b>Class List</b> page to start choosing openers.</p>'; return; }
+      function colHTML(value, label) {
+        const members = pupils.filter((p) => (rsVal(p.id, OPENER_FIELD) || '') === value);
+        const chips = members.map((p) =>
+          `<div class="rb-chip" data-pid="${p.id}" onpointerdown="rbDragStart(event,'${p.id}')">${esc(p.name)}</div>`
+        ).join('');
+        const shown = label.replace(/\{name\}/g, 'Pupil').replace(/\{pronoun\}/g, 'they').replace(/\{possessive\}/g, 'their');
+        return `<div class="rb-col${value === '' ? ' notset' : ''}" data-field="${OPENER_FIELD}" data-val="${esc(value)}">` +
+          `<div class="rb-col-head"><span class="rb-col-title">${esc(shown)}</span><span class="rb-col-count">${members.length}</span></div>` +
+          `<div class="rb-col-body">${chips || '<span class="rb-col-empty">—</span>'}</div>` +
+        '</div>';
+      }
+      let html = '';
+      OPENER_GROUPS.forEach((g) => {
+        html += `<div class="rb-group-head">${esc(g.title)}</div>`;
+        g.options.forEach((o) => { html += colHTML(o, o); });
+      });
+      board.innerHTML = html;
+
+      // "Not set yet" lives in a floating, droppable bubble pinned to the right
+      const unset = document.getElementById('rbOpenerUnset');
+      if (unset) {
+        const waiting = pupils.filter((p) => !(rsVal(p.id, OPENER_FIELD) || ''));
+        const chips = waiting.map((p) =>
+          `<div class="rb-chip" data-pid="${p.id}" onpointerdown="rbDragStart(event,'${p.id}')">${esc(p.name)}</div>`
+        ).join('');
+        unset.setAttribute('data-field', OPENER_FIELD);
+        unset.setAttribute('data-val', '');
+        unset.classList.add('rb-col', 'notset');
+        unset.innerHTML =
+          `<div class="rb-col-head"><span class="rb-col-title">Not set yet</span><span class="rb-col-count">${waiting.length}</span></div>` +
+          `<div class="rb-col-sub">Uses the standard friendly opener. Drag a child here to reset.</div>` +
+          `<div class="rb-col-body">${chips || '<span class="rb-col-empty">All pupils have an opener 🎉</span>'}</div>`;
+      }
+    }
+
+    /* ---- custom anecdotes editor ---- */
+    let anecPid = '';
+    function anecRender() {
+      const sel = document.getElementById('anecPupil');
+      const body = document.getElementById('anecBody');
+      if (!sel || !body) return;
+      const pupils = sortedRoster();
+      if (!pupils.length) {
+        sel.innerHTML = '<option value="">— pupil —</option>';
+        body.innerHTML = '<p class="anec-empty">Add pupils on the <b>Class List</b> page to add anecdotes.</p>';
+        return;
+      }
+      if (!anecPid || !pupils.some((p) => p.id === anecPid)) anecPid = pupils[0].id;
+      sel.innerHTML = pupils.map((p) => `<option value="${p.id}"${p.id === anecPid ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+      const s = reportSel[anecPid] || {};
+      body.innerHTML = '<div class="anec-grid">' + ANECDOTES.map((a) =>
+        `<div class="anec-field">` +
+          `<label>${esc(a.label)} <span class="anec-tag">→ ${esc(a.tag)}</span></label>` +
+          `<textarea placeholder="${esc(a.placeholder)}" oninput="anecSave('${a.field}', this.value)">${esc(s[a.field] || '')}</textarea>` +
+        `</div>`
+      ).join('') + '</div>';
+    }
+    function anecSetPupil(pid) { anecPid = pid; anecRender(); }
+    function anecSave(field, value) {
+      if (!anecPid) return;
+      const v = value.trim();
+      if (v) rsFor(anecPid)[field] = value; else delete (reportSel[anecPid] || {})[field];
+      rsPersist();
+    }
+
 
     /* drag + snap via pointer events (mouse + touch) */
     let rbDrag = null;
     function rbColAt(e) {
       let found = null;
-      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => {
+      document.querySelectorAll('.rb-col').forEach((c) => {
         const r = c.getBoundingClientRect();
         if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) found = c;
       });
@@ -2365,7 +2559,7 @@ applyClass();
       rbDrag.ghost.style.left = (e.clientX - rbDrag.dx) + 'px';
       rbDrag.ghost.style.top = (e.clientY - rbDrag.dy) + 'px';
       const col = rbColAt(e);
-      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => c.classList.toggle('drop', c === col));
+      document.querySelectorAll('.rb-col').forEach((c) => c.classList.toggle('drop', c === col));
     }
     function rbDragEnd(e) {
       window.removeEventListener('pointermove', rbDragMove);
@@ -2374,19 +2568,22 @@ applyClass();
       const d = rbDrag; rbDrag = null;
       if (d.ghost) d.ghost.remove();
       if (d.src) d.src.classList.remove('dragging');
-      document.querySelectorAll('#rbBoard .rb-col').forEach((c) => c.classList.remove('drop'));
+      document.querySelectorAll('.rb-col').forEach((c) => c.classList.remove('drop'));
       if (!d.moved) { return; }   // a tap with no drag — nothing to open
       const col = rbColAt(e);
-      if (!col) { renderBoard(); return; }
-      const field = document.getElementById('boardField').value;
+      if (!col) { renderBoard(); renderOpenerBoard(); return; }
+      const field = col.getAttribute('data-field') || document.getElementById('boardField').value;
       rsFor(d.pid)[field] = col.getAttribute('data-val');
       rsPersist();
       renderBoard();
+      renderOpenerBoard();
     }
 
     /* ---- init report board ---- */
     initBoard();
     renderBoard();
+    renderOpenerBoard();
+    anecRender();
 
     /* ===================================================================
        BOOT THE WHOLE APP
