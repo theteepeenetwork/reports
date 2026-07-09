@@ -670,11 +670,13 @@
   var wbEraseDirty = false; // strokes erased but not yet saved (saved once, on pointer-up)
   var wbRect = null;        // cached canvas rect (getBoundingClientRect per pointer sample causes jank)
   var wbRAF = 0;            // pending requestAnimationFrame id for a coalesced repaint
+  var wbSaveT = 0;          // pending debounced save — persisting on every pen-lift blocked the
+                            // main thread right when the next rapid stroke was landing
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
   function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
-  function closeWhiteboard(){ document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
+  function closeWhiteboard(){ wbFlushSave(); document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
     var wb = document.getElementById('whiteboard'), qs = wbQs(), pages = Math.max(1, Math.ceil(qs.length / 10)), grid = wbFocus == null, stage;
@@ -712,7 +714,7 @@
     var nd = document.getElementById('wbNextDay'); if (nd) nd.onclick = function (){ stCurDay++; wbPage = 0; wbFocus = null; renderWhiteboard(); };
     document.getElementById('wbPen').onclick = function (){ wbTool = 'pen'; renderWhiteboard(); };
     document.getElementById('wbRub').onclick = function (){ wbTool = 'rubber'; renderWhiteboard(); };
-    document.getElementById('wbClear').onclick = function (){ stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
+    document.getElementById('wbClear').onclick = function (){ clearTimeout(wbSaveT); wbSaveT = 0; stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
     document.getElementById('wb100').onclick = function (){ wbPopup = wbPopup === 'hundred' ? null : 'hundred'; renderWhiteboard(); };
     document.getElementById('wbTimes').onclick = function (){ wbPopup = wbPopup === 'times' ? null : 'times'; renderWhiteboard(); };
     var pp = document.getElementById('wbPagePrev'); if (pp) pp.onclick = function (){ wbPage = Math.max(0, wbPage - 1); renderWhiteboard(); };
@@ -733,8 +735,13 @@
   function wbPt(e){ var r = wbRect || (wbRect = wbCanvas.getBoundingClientRect()); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
   /* Committed strokes for the current view, cached — the old code re-parsed the whole
      annotation store from localStorage on every pointer move, which made the pencil stutter. */
-  function wbLayer(){ var key = wbAnnKey(); if (wbLayerKey !== key || !wbLayerCache){ wbLayerKey = key; wbLayerCache = stLayer(key).slice(); } return wbLayerCache; }
-  function wbSaveLayer(){ if (wbLayerKey != null) stSetLayer(wbLayerKey, wbLayerCache || []); }
+  function wbLayer(){ var key = wbAnnKey(); if (wbLayerKey !== key || !wbLayerCache){ if (wbSaveT) wbFlushSave(); wbLayerKey = key; wbLayerCache = stLayer(key).slice(); } return wbLayerCache; }
+  /* Save the cache back to the store on a short debounce: stringifying the whole annotation
+     store on every pen-lift stalled the main thread exactly when the next rapid handwriting
+     stroke was starting, so quick lift-and-touch strokes were missed. The cache is the truth
+     while the board is open; it flushes on idle, view change, exit, and pagehide. */
+  function wbScheduleSave(){ clearTimeout(wbSaveT); wbSaveT = setTimeout(wbFlushSave, 400); }
+  function wbFlushSave(){ clearTimeout(wbSaveT); wbSaveT = 0; if (wbLayerKey != null && wbLayerCache) stSetLayer(wbLayerKey, wbLayerCache); }
   function sizeWB(){
     if (!wbCanvas) return; var r = wbCanvas.getBoundingClientRect(); if (!r.width || !r.height) return;
     wbRect = r;
@@ -773,9 +780,18 @@
   }
   function setupWBCanvas(){
     wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
+    wbFlushSave();   // a debounced save may still be pending for the previous view — never drop it
     wbStrokes = {}; wbErasers = {}; wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbRect = null;
     // iPad long-press callout / context menu cancels the pencil stroke mid-word — suppress it.
     wbCanvas.oncontextmenu = function (e){ e.preventDefault(); };
+    /* Safari treats two quick pencil taps as a double-tap gesture (smart text selection you
+       then drag) — touch-action:none does NOT stop it; only preventDefault on the raw touch
+       events does. The pencil sends these alongside pointer events, so handwriting with rapid
+       lift-and-touch strokes turned into drag-selecting instead of ink. Non-passive so
+       preventDefault actually works. (Canvas is rebuilt each render, so no duplicates.) */
+    ['touchstart', 'touchmove', 'touchend'].forEach(function (t){
+      wbCanvas.addEventListener(t, function (e){ e.preventDefault(); }, { passive: false });
+    });
     wbCanvas.onpointerdown = function (e){
       if (e.pointerType === 'pen'){ wbPenEver = true; wbDropTouch(); }               // pen always draws; palm noise dies
       else if (e.pointerType === 'touch' && wbPenEver) return;                        // pencil owns the board → reject finger/palm
@@ -792,12 +808,12 @@
     var finish = function (e, commit){
       if (!e) return;
       try { wbCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
-      if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; if (wbEraseDirty){ wbEraseDirty = false; wbSaveLayer(); } return; }
+      if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; if (wbEraseDirty){ wbEraseDirty = false; wbScheduleSave(); } return; }
       var st = wbStrokes[e.pointerId]; if (!st) return; delete wbStrokes[e.pointerId];
       if (!commit){ paintWB(); return; }
       if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
       wbLayer().push({ pts: st.pts });
-      wbSaveLayer(); paintWB();
+      wbScheduleSave(); paintWB();
     };
     wbCanvas.onpointerup = function (e){ finish(e, true); };
     /* A cancel means the system took the pointer (gesture, palm, app switch). Keep pencil ink —
@@ -1768,6 +1784,9 @@
     var stb = document.getElementById('stBackdrop');
     if (stb) stb.addEventListener('click', function (e) { if (e.target === stb) closeNewWeek(); });
     window.addEventListener('resize', function () { if (document.getElementById('whiteboard').style.display === 'flex') sizeWB(); });
+    /* the whiteboard saves ink on a debounce — flush it if the app is backgrounded or closed */
+    window.addEventListener('pagehide', wbFlushSave);
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') wbFlushSave(); });
     window.addEventListener('afterprint', function () { var c = document.getElementById('starterPrint'); if (c) c.innerHTML = ''; });
 
     /* physical-keyboard entry on the score sheet (laptop / iPad keyboard) */
