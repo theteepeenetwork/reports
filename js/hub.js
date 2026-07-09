@@ -657,18 +657,23 @@
   var wbCanvas = null, wbCtx = null;
   /* Pencil / palm arbitration state.
      Every contact is tracked independently by pointerId (wbStrokes / wbErasers) so the pencil
-     can never be blocked by leftover state from another pointer — the bug that dropped a pencil
-     stroke when a palm was also resting on the board. A pen is always allowed to draw; finger /
-     palm touches are rejected while a pencil is in use, and re-enabled once it's been idle. */
-  var wbStrokes = {};       // pointerId -> in-progress stroke { pts:[…] }
-  var wbErasers = {};       // pointerId -> true while that pointer is erasing
+     can never be blocked by leftover state from another pointer. The moment a pencil touches
+     the board, finger/palm input stops drawing for the rest of the whiteboard session — the
+     old "re-enable after 2.5s idle" rule let a resting palm smear or erase real writing during
+     natural pauses. Finger drawing still works on boards where no pencil is used at all
+     (wbPenEver resets every time the whiteboard opens). */
+  var wbStrokes = {};       // pointerId -> in-progress stroke { pts:[…], touch:true? }
+  var wbErasers = {};       // pointerId -> pointerType while that pointer is erasing
   var wbPenEver = false;    // has a pencil touched the canvas since the whiteboard opened?
-  var wbLastPenAt = 0;      // timestamp (ms) of the most recent pen activity
-  var WB_PEN_IDLE = 2500;   // ms the pencil must be idle before finger/palm drawing is re-enabled
+  var wbLayerKey = null;    // annotation key the cache below belongs to
+  var wbLayerCache = null;  // committed strokes for that key — redraw must never re-parse the whole store mid-stroke
+  var wbEraseDirty = false; // strokes erased but not yet saved (saved once, on pointer-up)
+  var wbRect = null;        // cached canvas rect (getBoundingClientRect per pointer sample causes jank)
+  var wbRAF = 0;            // pending requestAnimationFrame id for a coalesced repaint
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
-  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; wbLastPenAt = 0; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
+  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
   function closeWhiteboard(){ document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
@@ -707,7 +712,7 @@
     var nd = document.getElementById('wbNextDay'); if (nd) nd.onclick = function (){ stCurDay++; wbPage = 0; wbFocus = null; renderWhiteboard(); };
     document.getElementById('wbPen').onclick = function (){ wbTool = 'pen'; renderWhiteboard(); };
     document.getElementById('wbRub').onclick = function (){ wbTool = 'rubber'; renderWhiteboard(); };
-    document.getElementById('wbClear').onclick = function (){ stClearDay(wbDayKey()); redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
+    document.getElementById('wbClear').onclick = function (){ stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
     document.getElementById('wb100').onclick = function (){ wbPopup = wbPopup === 'hundred' ? null : 'hundred'; renderWhiteboard(); };
     document.getElementById('wbTimes').onclick = function (){ wbPopup = wbPopup === 'times' ? null : 'times'; renderWhiteboard(); };
     var pp = document.getElementById('wbPagePrev'); if (pp) pp.onclick = function (){ wbPage = Math.max(0, wbPage - 1); renderWhiteboard(); };
@@ -725,28 +730,41 @@
     else { for (var r = 1; r <= 10; r++) for (var c = 1; c <= 10; c++){ cells += '<span class="wb-cell' + ((r === 1 || c === 1) ? ' hdr' : '') + '">' + (r * c) + '</span>'; } }
     return '<div class="wb-popup"><div class="wb-popup-head"><b>' + label + '</b><button id="wbPopX">✕</button></div><div class="wb-popup-grid">' + cells + '</div></div>';
   }
-  function wbPt(e){ var r = wbCanvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
-  function sizeWB(){ if (!wbCanvas) return; var r = wbCanvas.getBoundingClientRect(); if (!r.width || !r.height) return; var dpr = window.devicePixelRatio || 1; wbCanvas.width = Math.round(r.width * dpr); wbCanvas.height = Math.round(r.height * dpr); redrawWB(); }
+  function wbPt(e){ var r = wbRect || (wbRect = wbCanvas.getBoundingClientRect()); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
+  /* Committed strokes for the current view, cached — the old code re-parsed the whole
+     annotation store from localStorage on every pointer move, which made the pencil stutter. */
+  function wbLayer(){ var key = wbAnnKey(); if (wbLayerKey !== key || !wbLayerCache){ wbLayerKey = key; wbLayerCache = stLayer(key).slice(); } return wbLayerCache; }
+  function wbSaveLayer(){ if (wbLayerKey != null) stSetLayer(wbLayerKey, wbLayerCache || []); }
+  function sizeWB(){
+    if (!wbCanvas) return; var r = wbCanvas.getBoundingClientRect(); if (!r.width || !r.height) return;
+    wbRect = r;
+    var dpr = window.devicePixelRatio || 1, w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    // Setting width/height wipes the canvas, and iPad Safari fires resize when its toolbar
+    // collapses — only touch the bitmap when the size genuinely changed.
+    if (wbCanvas.width !== w || wbCanvas.height !== h){ wbCanvas.width = w; wbCanvas.height = h; }
+    redrawWB();
+  }
   function redrawWB(){
     if (!wbCtx) return; wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-    var live = []; for (var id in wbStrokes) live.push(wbStrokes[id]);
-    var strokes = stLayer(wbAnnKey()).concat(live);
+    var strokes = wbLayer().slice(); for (var id in wbStrokes) strokes.push(wbStrokes[id]);
     wbCtx.strokeStyle = '#2f55e0'; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; wbCtx.lineWidth = Math.max(3, wbCanvas.width / 340);
     strokes.forEach(function (st){ wbCtx.beginPath(); st.pts.forEach(function (p, i){ var x = p[0] * wbCanvas.width, y = p[1] * wbCanvas.height; i ? wbCtx.lineTo(x, y) : wbCtx.moveTo(x, y); }); wbCtx.stroke(); });
   }
+  /* Coalesce repaints to one per display frame — repainting on every pointer sample stutters. */
+  function paintWB(){ if (wbRAF) return; wbRAF = requestAnimationFrame(function (){ wbRAF = 0; redrawWB(); }); }
   function eraseWB(p){
-    var key = wbAnnKey(), list = stLayer(key);
+    var list = wbLayer();
     var hit = function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.028; }); };
-    if (list.some(hit)){ stSetLayer(key, list.filter(function (st){ return !hit(st); })); redrawWB(); }
+    var kept = list.filter(function (st){ return !hit(st); });
+    // Erase from the cache only; persist once on pointer-up (a localStorage write per sample froze the rubber).
+    if (kept.length !== list.length){ wbLayerCache = kept; wbEraseDirty = true; paintWB(); }
   }
-  /* True when a finger/palm touch must be ignored because the pencil is (or was just) in use.
-     Pen and mouse are never blocked. Once a pencil has been seen, touch stays blocked until the
-     pencil has been idle for WB_PEN_IDLE ms — so a palm resting through normal writing pauses
-     can never start a stroke, but finger drawing returns once the pencil is set down. */
-  function wbTouchBlocked(e){
-    if (e.pointerType !== 'touch') return false;
-    if (!wbPenEver) return false;
-    return (Date.now() - wbLastPenAt) < WB_PEN_IDLE;
+  /* Any in-progress finger/palm strokes are noise the moment a pencil arrives — drop them. */
+  function wbDropTouch(){
+    var dropped = false;
+    for (var id in wbStrokes){ if (wbStrokes[id].touch){ delete wbStrokes[id]; dropped = true; } }
+    for (var id2 in wbErasers){ if (wbErasers[id2] === 'touch'){ delete wbErasers[id2]; dropped = true; } }
+    if (dropped) paintWB();
   }
   /* Expand a pointer event into its coalesced samples so fast pencil strokes stay smooth. */
   function wbSamples(e){
@@ -755,36 +773,36 @@
   }
   function setupWBCanvas(){
     wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
-    wbStrokes = {}; wbErasers = {};
+    wbStrokes = {}; wbErasers = {}; wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbRect = null;
+    // iPad long-press callout / context menu cancels the pencil stroke mid-word — suppress it.
+    wbCanvas.oncontextmenu = function (e){ e.preventDefault(); };
     wbCanvas.onpointerdown = function (e){
-      if (e.pointerType === 'pen'){
-        var firstPen = !wbPenEver; wbPenEver = true; wbLastPenAt = Date.now();
-        // First pencil contact: any strokes in progress were finger/palm — drop them so the
-        // pencil starts clean. (A pen is never blocked, so it always proceeds below.)
-        if (firstPen){ wbStrokes = {}; wbErasers = {}; redrawWB(); }
-      } else if (wbTouchBlocked(e)) {
-        return;                                  // pencil in use → reject finger / palm outright
-      }
+      if (e.pointerType === 'pen'){ wbPenEver = true; wbDropTouch(); }               // pen always draws; palm noise dies
+      else if (e.pointerType === 'touch' && wbPenEver) return;                        // pencil owns the board → reject finger/palm
       e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
-      if (wbTool === 'rubber'){ wbErasers[e.pointerId] = true; eraseWB(wbPt(e)); return; }
-      wbStrokes[e.pointerId] = { pts: [wbPt(e)] };
+      wbRect = wbCanvas.getBoundingClientRect();
+      if (wbTool === 'rubber'){ wbErasers[e.pointerId] = e.pointerType; eraseWB(wbPt(e)); return; }
+      wbStrokes[e.pointerId] = { pts: [wbPt(e)], touch: e.pointerType === 'touch' };
     };
     wbCanvas.onpointermove = function (e){
-      if (e.pointerType === 'pen') wbLastPenAt = Date.now();
       if (wbErasers[e.pointerId]){ wbSamples(e).forEach(function (ev){ eraseWB(wbPt(ev)); }); return; }
       var st = wbStrokes[e.pointerId]; if (!st) return;
-      wbSamples(e).forEach(function (ev){ st.pts.push(wbPt(ev)); }); redrawWB();
+      wbSamples(e).forEach(function (ev){ st.pts.push(wbPt(ev)); }); paintWB();
     };
-    var up = function (e){
+    var finish = function (e, commit){
       if (!e) return;
-      if (e.pointerType === 'pen') wbLastPenAt = Date.now();
       try { wbCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
-      if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; return; }
+      if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; if (wbEraseDirty){ wbEraseDirty = false; wbSaveLayer(); } return; }
       var st = wbStrokes[e.pointerId]; if (!st) return; delete wbStrokes[e.pointerId];
+      if (!commit){ paintWB(); return; }
       if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
-      var key = wbAnnKey(); stSetLayer(key, stLayer(key).concat([st])); redrawWB();
+      wbLayer().push({ pts: st.pts });
+      wbSaveLayer(); paintWB();
     };
-    wbCanvas.onpointerup = up; wbCanvas.onpointercancel = up;
+    wbCanvas.onpointerup = function (e){ finish(e, true); };
+    /* A cancel means the system took the pointer (gesture, palm, app switch). Keep pencil ink —
+       a teacher's writing must never vanish — but treat cancelled finger/palm as accidental. */
+    wbCanvas.onpointercancel = function (e){ finish(e, e.pointerType !== 'touch'); };
     setTimeout(sizeWB, 30);
   }
 
