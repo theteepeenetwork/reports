@@ -11,13 +11,24 @@ than quietly crossing it.
 
 | Owner | Responsibility | Files |
 |---|---|---|
-| **Shell** | App skeleton, routing, surface switching, top bar, the board control | `index.html`, `js/nav.js`, `js/boot.js`, `js/helpers.js`, `css/app.css`, `css/hub.css` |
+| **Shell** | App skeleton, routing, surface switching, top bar, boot | `index.html`, `js/nav.js`, `js/helpers.js`, `js/boot.js`, `css/app.css`, `css/hub.css` |
 | **Desk** | The sitting-down surface | `js/roster.js`, `js/starters.js`, `js/star.js`, `js/behaviour.js`, `js/assess.js`, `js/class-context.js`, `js/profile.js`, `js/reports.js`, `js/marking.js`, `js/charts.js`, `js/timetable.js`, `js/seating.js`, `js/groups.js` |
 | **Class** | The standing-up surface | `js/hub.js`, `js/picker.js`, `js/generator.js` |
-| **Board** | Glow Getters, the seven board views, the starter sheet, the whiteboard | `js/glow.js`, `js/board/*`, `glow-getters.html`, `css/glow-core.css`, `css/board.css` |
+| **Board** | Glow Getters, the board views, the starter sheet, the whiteboard | `js/glow.js`, `js/board/glow-launch.js`, `js/board/board-control.js`, `glow-getters.html`, `css/glow-core.css`, `css/board.css` |
 | **Data** | Storage, sync, class routing, migrations — and the CONTRACT | `js/store.js`, `js/classes.js`, `js/classkeys.js`, `js/cloud.js`, `js/app-hooks.js`, `js/backup.js`, `firebase-config.js`, `firebase-rules.json`, `docs/CONTRACT.md` |
 | **QA** | Tests, CI, the teacher walkthrough | `tests/*`, `.github/workflows/*`, `playwright.config.js`, `package.json` |
 | **Lead** (Mark) | Product decisions, the CONTRACT sign-off, anything touching pupil data | — |
+
+## Script order is load-bearing
+
+Everything in `js/` is a classic script sharing one global scope — there are no modules and no
+build step. A `const` at the top of `js/store.js` is visible in `js/roster.js` because the browser
+evaluates them in the order `index.html` lists them, not because anything imports anything.
+
+So: **add your script tag in the right place, and never reorder the existing ones.** The order that
+matters most is `store.js` → the feature files → `reports.js` → `boot.js`, because `boot.js` calls
+into all of them. `js/cloud.js` loads last of all, on purpose: it hooks `Storage.prototype.setItem`
+and must not be listening while the app seeds its defaults.
 
 ## The Data owner has a veto
 
