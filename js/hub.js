@@ -436,7 +436,7 @@
       '<span class="spacer"></span>' +
       classPill +
       '<span class="pill pill-saved"><span>✓</span> saved</span>' +
-      '<button type="button" class="pill bd-btn" id="showOnBoard" '+
+      '<button type="button" class="pill bd-btn" id="showOnBoardTeach" data-board-open '+
         'title="Put Glow Getters or the starter sheet on the smartboard">'+
         '<span class="bolt">⚡</span> Show on board</button>' +
       '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';

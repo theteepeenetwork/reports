@@ -29,7 +29,8 @@
 (function () {
   'use strict';
 
-  var BTN_ID = 'showOnBoard';
+  var BTN_ID = 'showOnBoardPlan';   // Teach renders its own, id showOnBoardTeach
+  var HOOK = '[data-board-open]';
   var SHEET_ID = 'bdSheet';
 
   function has(fn) { return typeof window[fn] === 'function'; }
@@ -112,7 +113,7 @@
 
   /* ── the button ────────────────────────────────────────────────── */
   function buttonHTML(cls) {
-    return '<button type="button" class="' + cls + '" id="' + BTN_ID + '" ' +
+    return '<button type="button" class="' + cls + '" id="' + BTN_ID + '" data-board-open ' +
       'title="Put Glow Getters or the starter sheet on the smartboard">' +
       '<span class="bolt">⚡</span> Show on board</button>';
   }
@@ -121,7 +122,7 @@
      survives re-renders. Plan mode's top bar is static, so inject once. */
   function mountPlan() {
     var bar = document.querySelector('#planApp .topbar');
-    if (!bar || bar.querySelector('#' + BTN_ID)) return;
+    if (!bar || bar.querySelector(HOOK)) return;
     var spacer = bar.querySelector('.tb-spacer');
     var holder = document.createElement('span');
     holder.innerHTML = buttonHTML('bd-btn');
@@ -133,7 +134,7 @@
   /* Delegated so it works for both the injected Plan button and the
      Teach button that hub.js re-renders on every screen change. */
   document.addEventListener('click', function (e) {
-    if (e.target.closest('#' + BTN_ID)) { e.preventDefault(); openSheet(); }
+    if (e.target.closest(HOOK)) { e.preventDefault(); openSheet(); }
   });
 
   function boot() {

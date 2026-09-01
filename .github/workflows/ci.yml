@@ -1,0 +1,66 @@
+name: tests
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# The suite blocks the Firebase SDK at the network layer and installs a fake,
+# so a CI run can never reach the live project. See tests/fixtures.js.
+jobs:
+  smoke:
+    name: smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the smoke tests
+        run: npx playwright test
+
+      - name: Upload the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  guardrails:
+    name: guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # docs/CONTRACT.md freezes this key. Renaming it orphans every synced
+      # account, and it is exactly the kind of thing a tidy-up commit does by
+      # accident, so the check is mechanical rather than a matter of memory.
+      - name: tp_battler must not be renamed
+        run: |
+          count=$(grep -ro "tp_battler" --include=*.js --include=*.html . | wc -l)
+          echo "tp_battler occurrences: $count"
+          if [ "$count" -lt 18 ]; then
+            echo "::error::tp_battler occurrences dropped to $count (expected at least 18)."
+            echo "::error::This key is frozen — see docs/CONTRACT.md. Renaming it orphans every synced account."
+            exit 1
+          fi
+
+      - name: no duplicate element ids in index.html
+        run: |
+          dupes=$(grep -o 'id="[^"]*"' index.html | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "::error::duplicate ids in index.html:"; echo "$dupes"; exit 1
+          fi
