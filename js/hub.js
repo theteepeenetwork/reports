@@ -436,6 +436,9 @@
       '<span class="spacer"></span>' +
       classPill +
       '<span class="pill pill-saved"><span>✓</span> saved</span>' +
+      '<button type="button" class="pill bd-btn" id="showOnBoard" '+
+        'title="Put Glow Getters or the starter sheet on the smartboard">'+
+        '<span class="bolt">⚡</span> Show on board</button>' +
       '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';
   }
 
@@ -462,10 +465,9 @@
     var tiles =
       tile('starter', 'calculator', 'Starter', starterStatus, set ? 'ok' : '') +
       tile('pick', 'target', 'Pick a name', pickStatus, '') +
-      tile('points', 'zap', 'Points', 'award glow getters fast', '') +
+      tile('points', 'zap', 'Award points', 'without putting the board up', '') +
       tile('seats', 'layout-grid', 'Who sits where', 'seating · groups', '') +
-      tile('groups', 'book-open', 'Groups', grpCountLabel(), '') +
-      tile('glow', 'zap', 'Glow Getters', 'opens full-screen', '', true);
+      tile('groups', 'book-open', 'Groups', grpCountLabel(), '');
 
     v.innerHTML = topRow() + glance +
       '<div class="tile-grid">' + tiles + '</div>' +
@@ -1087,6 +1089,7 @@
   var PLAN_NAV = [
     { page: 'today', label: 'Today', icon: 'home' },
     { page: 'pupils', label: 'Pupils', icon: 'users' },
+    { page: 'class-context', label: 'Class Context', icon: 'clipboard-list' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -1764,9 +1767,10 @@
     document.body.dataset.mode = m;
     window.scrollTo(0, 0);
     if (m === 'teach') teachGo(teachScreen || 'home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'battler'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
   }
   window.hubSetMode = setMode;
+  window.hubTeachGo = teachGo;
 
   /* ===================================================================
      BOOT
@@ -1815,7 +1819,7 @@
     var mode = Store.get('tp_mode', null) || deviceDefaultMode();
     document.body.dataset.mode = mode;
     if (mode === 'teach') teachGo('home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'battler'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
