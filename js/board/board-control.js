@@ -7,7 +7,7 @@
    Why this file exists
    --------------------
    Glow Getters had no route in on desktop. PLAN_NAV (js/hub.js) does not
-   list it, and setMode()'s hash whitelist bounced #battler back to Today,
+   list it, and setMode()'s hash whitelist bounced #glow back to Today,
    so on any device >= 1024px the words "Glow Getters" did not appear
    anywhere in the app. The one device it was built for — the smartboard
    laptop — was the one device that hid it.
@@ -22,7 +22,7 @@
      window.hubSetMode(mode)   'teach' | 'plan'
      window.hubTeachGo(screen) navigate a teach screen
    Contract with index.html:
-     window.openBattler(sameTab)
+     window.openGlowGetters(sameTab)
    All three are probed defensively — if hub.js has not booted yet, the
    control degrades to the Glow Getters entry alone rather than throwing.
    =================================================================== */
@@ -42,7 +42,7 @@
       title: 'Glow Getters',
       sub: 'Points, ranks and badges — full screen for the class',
       bolt: true,
-      go: function () { if (has('openBattler')) window.openBattler(); }
+      go: function () { if (has('openGlowGetters')) window.openGlowGetters(); }
     });
     if (has('hubSetMode') && has('hubTeachGo')) {
       out.push({
