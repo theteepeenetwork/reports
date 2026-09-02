@@ -75,6 +75,14 @@ test('Autumn 1 asks what the September sheet asks', async ({ page }) => {
   }
   expect(await page.evaluate(() => window.genUsesClocks('Autumn 1'))).toBe(false);
   expect(await page.evaluate(() => window.genUsesClocks('Spring 2'))).toBe(true);
+
+  // Question 9 adds a multiple of ten. Capping the first ten at fifty makes it
+  // easy to leave no room and roll "+ 0", which is not a question.
+  for (const qs of runs) {
+    const m = qs[8].b;
+    expect(m % 10, `q9 adds ${m}, which is not a multiple of ten`).toBe(0);
+    expect(m, 'q9 rolled "+ 0" - there was no room left below fifty').toBeGreaterThanOrEqual(10);
+  }
 });
 
 test('Autumn 1 never asks for maths beyond what has been taught', async ({ page }) => {
@@ -123,6 +131,39 @@ test('Autumn 1 never asks for maths beyond what has been taught', async ({ page 
       if (q.t === 'words') {
         expect(q.n).toBeGreaterThanOrEqual(0);
         expect(q.n, 'September word-writing should stay small').toBeLessThanOrEqual(30);
+      }
+    });
+  }
+});
+
+/* Every number a child reads or writes in questions 1-10, and every answer
+   they work out, must be under fifty. Returning null for an unrecognised type
+   is deliberate: put a new question type in the first ten and this fails,
+   rather than quietly passing because nothing knew how to read it. */
+function numbersIn(q) {
+  switch (q.t) {
+    case 'words':    return [q.n];
+    case 'seq':      return Array.from({ length: q.len }, (_, i) => q.start + q.step * i);
+    case 'tensones': return [q.n];
+    case 'arith':    return [q.a, q.b, q.op === '+' ? q.a + q.b : q.a - q.b];
+    case 'placeval': return [q.tens * 10 + q.ones];
+    case 'future':   return [];  // a day of the week - no number on the page
+    default:         return null;
+  }
+}
+
+test('the first ten Autumn 1 questions stay under fifty', async ({ page }) => {
+  await open(page);
+  const runs = await sample(page, 'Autumn 1', 120);
+
+  for (const qs of runs) {
+    qs.slice(0, 10).forEach((q, i) => {
+      const where = `q${i + 1} (${q.t})`;
+      const nums = numbersIn(q);
+      expect(nums, `${where} is a type this guard cannot read`).not.toBeNull();
+      for (const n of nums) {
+        expect(n, `${where} uses ${n}, which is not under fifty`).toBeLessThan(50);
+        expect(n, `${where} uses ${n}, which is negative`).toBeGreaterThanOrEqual(0);
       }
     });
   }

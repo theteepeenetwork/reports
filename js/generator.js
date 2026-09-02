@@ -160,7 +160,13 @@
   /* ── Set: 'Autumn 1' ─────────────────────────────────────
      From Mark's "Mental starter Autumn September" sheet.
      Question order matches that sheet 1:1. Three deliberate
-     departures, all noted inline below. */
+     departures, all noted inline below.
+
+     Questions 1-10 stay under fifty: every number a child
+     reads or writes in the first half of the sheet, and every
+     answer, is 49 or less. Questions 11-20 still work within
+     100. Change a range in 1-10 and the guard in
+     tests/06-generator.spec.js will tell you. */
   function genSetAutumn1(){
     var TABLES = [2, 5, 10];        // the tables taught in Year 2
     var STEPS  = [2, 3, 4, 5];      // "two/three/four/five more than"
@@ -172,9 +178,9 @@
     // 2 — count on in ones, third term blank:  n, n+1, ___, n+3
     q.push({ t: 'seq', start: genRand(1, 20), step: 1, len: 4, blank: 2 });
     // 3 — how many tens / ones.
-    //     Sheet says 0-100; using 10-99 so both tens and ones are
+    //     Sheet says 0-100; using 10-49 so both tens and ones are
     //     non-zero and the question always has something to find.
-    q.push({ t: 'tensones', n: genRand(10, 99), part: genPick(['tens', 'ones']) });
+    q.push({ t: 'tensones', n: genRand(10, 49), part: genPick(['tens', 'ones']) });
     // 4 — subtraction within 20
     a = genRand(10, 20); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
     // 5 — addition, teens plus up to 20
@@ -182,18 +188,20 @@
     // 6 — days of the week
     q.push({ t: 'future', unit: 'day', n: genRand(1, 5) });
     // 7 — count back in twos, third term blank:  n, n-2, ___, n-6
-    q.push({ t: 'seq', start: genRand(20, 100), step: -2, len: 4, blank: 2 });
+    q.push({ t: 'seq', start: genRand(20, 49), step: -2, len: 4, blank: 2 });
     // 8 — place value. Sheet draws this with [ and ] characters;
     //     reusing the app's base-10 blocks, which print far better.
-    q.push({ t: 'placeval', tens: genRand(1, 9), ones: genRand(1, 9) });
-    // 9 — add a multiple of ten, staying inside 100.
-    //     The sheet's ROUNDUP can push the total past 100 (its own note
-    //     says it never should); this picks m so b + m <= 100 always.
-    a = genRand(0, 100); b = 100 - a;
-    m = genRand(0, Math.floor(a / 10)) * 10;
+    q.push({ t: 'placeval', tens: genRand(1, 4), ones: genRand(1, 9) });
+    // 9 — add a multiple of ten, staying inside the first-ten limit.
+    //     The sheet's ROUNDUP can push the total past its own stated
+    //     ceiling; picking m from what is left below 50 cannot.
+    //     Picking the multiple of ten FIRST keeps it a real question:
+    //     choosing b first leaves no room above 39 and forces "+ 0".
+    m = genRand(1, 4) * 10;
+    b = genRand(0, 49 - m);
     q.push({ t: 'arith', a: b, b: m, op: '+' });
     // 10 — subtract ten
-    q.push({ t: 'arith', a: genRand(10, 100), b: 10, op: '-' });
+    q.push({ t: 'arith', a: genRand(10, 49), b: 10, op: '-' });
     // 11 — two/three/four/five more than
     q.push({ t: 'step', n: genRand(10, 80), by: genPick(STEPS), dir: 'more' });
     // 12 — two/three/four/five less than
