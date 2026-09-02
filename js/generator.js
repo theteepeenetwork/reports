@@ -94,6 +94,18 @@
     return { op: op, a: a, b: b };
   }
 
+  /* Add or take away within 100, with both halves worth doing:
+     never a zero operand, never a negative or zero answer, and a
+     subtraction can take away as much as the first number allows. */
+  function genWithin100(){
+    if (genPick(['+', '-']) === '+'){
+      var a = genRand(1, 89);
+      return { t: 'arith', a: a, b: genRand(2, 100 - a), op: '+' };
+    }
+    var x = genRand(12, 100);
+    return { t: 'arith', a: x, b: genRand(2, x - 1), op: '-' };
+  }
+
   /* ── Set: 'Spring 2' ─────────────────────────────────────
      The original recipe, unchanged. Reflects what has been
      taught by the back half of Year 2: clocks, halving,
@@ -158,70 +170,87 @@
   }
 
   /* ── Set: 'Autumn 1' ─────────────────────────────────────
-     From Mark's "Mental starter Autumn September" sheet.
-     Question order matches that sheet 1:1. Three deliberate
-     departures, all noted inline below.
+     From Mark's "Mental starter Autumn September" sheet,
+     reordered to his layout of 2 Sep 2026.
 
-     Questions 1-10 stay under fifty: every number a child
-     reads or writes in the first half of the sheet, and every
-     answer, is 49 or less. Questions 11-20 still work within
-     100. Change a range in 1-10 and the guard in
-     tests/06-generator.spec.js will tell you. */
+     Questions 1-10 are arithmetic only -- eight calculations
+     and two sequences -- and stay under fifty: every number a
+     child reads or writes there, and every answer, is 49 or
+     less. That half is meant to be done unaided.
+
+     Questions 11-20 carry everything that is not a
+     calculation, then finish on three within 100. Slots 11-17
+     are fixed by name (blocks, partition, words, times table,
+     tens/ones, days, comparison), so changing one means
+     changing the shape assertion in the test too.
+
+     Guarded by tests/06-generator.spec.js. */
   function genSetAutumn1(){
     var TABLES = [2, 5, 10];        // the tables taught in Year 2
     var STEPS  = [2, 3, 4, 5];      // "two/three/four/five more than"
-    var a, b, m, base;
+    var a, b, m;
     var q = [];
 
-    // 1 — write a number in words (small numbers in September)
-    q.push({ t: 'words', n: genRand(0, 30) });
+    /* ── 1-10: arithmetic only, everything under fifty ───── */
+
+    // 1 — subtraction within 20
+    a = genRand(10, 20); q.push({ t: 'arith', a: a, b: genRand(1, a - 1), op: '-' });
     // 2 — count on in ones, third term blank:  n, n+1, ___, n+3
     q.push({ t: 'seq', start: genRand(1, 20), step: 1, len: 4, blank: 2 });
-    // 3 — how many tens / ones.
-    //     Sheet says 0-100; using 10-49 so both tens and ones are
-    //     non-zero and the question always has something to find.
-    q.push({ t: 'tensones', n: genRand(10, 49), part: genPick(['tens', 'ones']) });
-    // 4 — subtraction within 20
-    a = genRand(10, 20); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
-    // 5 — addition, teens plus up to 20
-    q.push({ t: 'arith', a: genRand(10, 20), b: genRand(0, 20), op: '+' });
-    // 6 — days of the week
-    q.push({ t: 'future', unit: 'day', n: genRand(1, 5) });
-    // 7 — count back in twos, third term blank:  n, n-2, ___, n-6
+    // 3 — addition, teens plus up to 20
+    q.push({ t: 'arith', a: genRand(10, 20), b: genRand(1, 20), op: '+' });
+    // 4 — subtraction within 50
+    a = genRand(20, 49); q.push({ t: 'arith', a: a, b: genRand(1, a - 1), op: '-' });
+    // 5 — two/three/four/five more than
+    q.push({ t: 'step', n: genRand(10, 44), by: genPick(STEPS), dir: 'more' });
+    // 6 — count back in twos, third term blank:  n, n-2, ___, n-6
     q.push({ t: 'seq', start: genRand(20, 49), step: -2, len: 4, blank: 2 });
-    // 8 — place value. Sheet draws this with [ and ] characters;
-    //     reusing the app's base-10 blocks, which print far better.
-    q.push({ t: 'placeval', tens: genRand(1, 4), ones: genRand(1, 9) });
-    // 9 — add a multiple of ten, staying inside the first-ten limit.
-    //     The sheet's ROUNDUP can push the total past its own stated
-    //     ceiling; picking m from what is left below 50 cannot.
-    //     Picking the multiple of ten FIRST keeps it a real question:
-    //     choosing b first leaves no room above 39 and forces "+ 0".
+    // 7 — add a multiple of ten. Picking the ten FIRST keeps it a real
+    //     question: choosing the start first leaves no room above 39
+    //     and forces "+ 0".
     m = genRand(1, 4) * 10;
-    b = genRand(0, 49 - m);
+    b = genRand(1, 49 - m);
     q.push({ t: 'arith', a: b, b: m, op: '+' });
-    // 10 — subtract ten
-    q.push({ t: 'arith', a: genRand(10, 49), b: 10, op: '-' });
-    // 11 — two/three/four/five more than
-    q.push({ t: 'step', n: genRand(10, 80), by: genPick(STEPS), dir: 'more' });
-    // 12 — two/three/four/five less than
-    q.push({ t: 'step', n: genRand(10, 80), by: genPick(STEPS), dir: 'less' });
-    // 13 — compare two products
+    // 8 — subtract ten. From 11, not 10, or the sheet asks "10 - 10".
+    q.push({ t: 'arith', a: genRand(11, 49), b: 10, op: '-' });
+    // 9 — two/three/four/five less than. Floor at STEPS' largest so the
+    //     answer cannot go below zero whichever step is drawn.
+    q.push({ t: 'step', n: genRand(10, 49), by: genPick(STEPS), dir: 'less' });
+    // 10 — addition within 50
+    a = genRand(1, 44); q.push({ t: 'arith', a: a, b: genRand(1, 49 - a), op: '+' });
+
+    /* ── 11-20: everything that is not a calculation, then
+          three within 100 ────────────────────────────────── */
+
+    // 11 — what number is this (base-10 blocks, up to 99)
+    q.push({ t: 'placeval', tens: genRand(1, 9), ones: genRand(1, 9) });
+    // 12 — partition a two-digit number into tens and ones. Both digits
+    //      non-zero, or the sheet asks a child to partition 80 into 80 + 0.
+    q.push({ t: 'partition', n: genRand(1, 9) * 10 + genRand(1, 9) });
+    // 13 — write a number in words. Kept small: Mark moved this
+    //      question, he did not ask for a wider range.
+    q.push({ t: 'words', n: genRand(0, 30) });
+    // 14 — multiplication
+    q.push({ t: 'times', base: genPick(TABLES), by: genRand(1, 12) });
+    // 15 — how many tens / ones, up to 100. Built from two non-zero
+    //      digits: drawing 10-99 at random allows 20, and "how many
+    //      ones in 20?" is not a question.
+    q.push({ t: 'tensones', n: genRand(1, 9) * 10 + genRand(1, 9),
+             part: genPick(['tens', 'ones']) });
+    // 16 — what day is it in x days, up to a week
+    q.push({ t: 'future', unit: 'day', n: genRand(1, 7) });
+    // 17 — more than, less than or equal to: two products
     q.push({ t: 'compare',
              a: genRand(1, 12), aop: '×', b: genPick(TABLES),
              c: genRand(1, 12), bop: '×', d: genPick(TABLES) });
-    // 14, 15 — times tables
-    q.push({ t: 'times', base: genPick(TABLES), by: genRand(1, 12) });
-    q.push({ t: 'times', base: genPick(TABLES), by: genRand(1, 12) });
-    // 16, 17 — the matching divisions
-    base = genPick(TABLES); q.push({ t: 'divide', base: base, by: genRand(1, 12) });
-    base = genPick(TABLES); q.push({ t: 'divide', base: base, by: genRand(1, 12) });
-    // 18 — subtraction within 100
-    a = genRand(20, 100); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
-    // 19 — bonds to 100
-    a = genRand(0, 100); q.push({ t: 'arith', a: 100 - a, b: genRand(0, a), op: '+' });
-    // 20 — subtraction within 100
-    a = genRand(20, 100); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
+    // 18, 19, 20 — add or take away within 100.
+    //      The operation is chosen first on purpose. Drawing the first
+    //      number and then capping the second at what is left below 100
+    //      starves subtraction: 88 could only ever take away 12 or less,
+    //      so the sheet kept ending on "88 - 1".
+    q.push(genWithin100());
+    q.push(genWithin100());
+    q.push(genWithin100());
 
     return q;
   }
@@ -376,6 +405,10 @@
       return out.join(', ');
     },
     tensones: function (q){ return 'How many ' + esc(q.part) + ' in ' + esc(q.n) + '?'; },
+    partition: function (q){
+      var box = '<span class="gen-blank">?</span>';
+      return 'Partition:<br>' + esc(q.n) + ' = ' + box + ' + ' + box;
+    },
     step: function (q){
       var words = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five' };
       return esc(words[q.by] || q.by) + ' ' + (q.dir === 'less' ? 'less' : 'more') + ' than ' + esc(q.n) + '?';

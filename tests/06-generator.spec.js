@@ -63,9 +63,12 @@ test('Autumn 1 asks what the September sheet asks', async ({ page }) => {
   // The shape of the sheet: same question types in the same slots every time.
   const shape = runs[0].map(q => q.t);
   expect(shape).toEqual([
-    'words', 'seq', 'tensones', 'arith', 'arith', 'future', 'seq', 'placeval',
-    'arith', 'arith', 'step', 'step', 'compare', 'times', 'times',
-    'divide', 'divide', 'arith', 'arith', 'arith'
+    // 1-10: arithmetic only, two of them sequences
+    'arith', 'seq', 'arith', 'arith', 'step', 'seq', 'arith', 'arith', 'step', 'arith',
+    // 11-17: the named slots, in Mark's order
+    'placeval', 'partition', 'words', 'times', 'tensones', 'future', 'compare',
+    // 18-20: add or take away within 100
+    'arith', 'arith', 'arith'
   ]);
   for (const qs of runs) expect(qs.map(q => q.t)).toEqual(shape);
 
@@ -76,12 +79,18 @@ test('Autumn 1 asks what the September sheet asks', async ({ page }) => {
   expect(await page.evaluate(() => window.genUsesClocks('Autumn 1'))).toBe(false);
   expect(await page.evaluate(() => window.genUsesClocks('Spring 2'))).toBe(true);
 
-  // Question 9 adds a multiple of ten. Capping the first ten at fifty makes it
+  // Question 7 adds a multiple of ten. Capping the first ten at fifty makes it
   // easy to leave no room and roll "+ 0", which is not a question.
   for (const qs of runs) {
-    const m = qs[8].b;
-    expect(m % 10, `q9 adds ${m}, which is not a multiple of ten`).toBe(0);
-    expect(m, 'q9 rolled "+ 0" - there was no room left below fifty').toBeGreaterThanOrEqual(10);
+    const m = qs[6].b;
+    expect(m % 10, `q7 adds ${m}, which is not a multiple of ten`).toBe(0);
+    expect(m, 'q7 rolled "+ 0" - there was no room left below fifty').toBeGreaterThanOrEqual(10);
+  }
+
+  // Days of the week reach a full week, not five days.
+  for (const qs of runs) {
+    expect(qs[15].n, 'q16 should ask up to a week ahead').toBeLessThanOrEqual(7);
+    expect(qs[15].n).toBeGreaterThanOrEqual(1);
   }
 });
 
@@ -136,23 +145,22 @@ test('Autumn 1 never asks for maths beyond what has been taught', async ({ page 
   }
 });
 
-/* Every number a child reads or writes in questions 1-10, and every answer
-   they work out, must be under fifty. Returning null for an unrecognised type
-   is deliberate: put a new question type in the first ten and this fails,
-   rather than quietly passing because nothing knew how to read it. */
+/* Questions 1-10 are arithmetic only, and every number a child reads or writes
+   there -- including every answer -- is under fifty. Only the three arithmetic
+   types are readable here; returning null for anything else is what makes this
+   a guard rather than a formality. Put a word problem, a clock or a times table
+   in the first ten and the test fails, instead of quietly passing because
+   nothing knew how to read it. */
 function numbersIn(q) {
   switch (q.t) {
-    case 'words':    return [q.n];
-    case 'seq':      return Array.from({ length: q.len }, (_, i) => q.start + q.step * i);
-    case 'tensones': return [q.n];
-    case 'arith':    return [q.a, q.b, q.op === '+' ? q.a + q.b : q.a - q.b];
-    case 'placeval': return [q.tens * 10 + q.ones];
-    case 'future':   return [];  // a day of the week - no number on the page
-    default:         return null;
+    case 'seq':   return Array.from({ length: q.len }, (_, i) => q.start + q.step * i);
+    case 'arith': return [q.a, q.b, q.op === '+' ? q.a + q.b : q.a - q.b];
+    case 'step':  return [q.n, q.by, q.dir === 'less' ? q.n - q.by : q.n + q.by];
+    default:      return null;
   }
 }
 
-test('the first ten Autumn 1 questions stay under fifty', async ({ page }) => {
+test('the first ten Autumn 1 questions are arithmetic, and stay under fifty', async ({ page }) => {
   await open(page);
   const runs = await sample(page, 'Autumn 1', 120);
 
@@ -160,13 +168,57 @@ test('the first ten Autumn 1 questions stay under fifty', async ({ page }) => {
     qs.slice(0, 10).forEach((q, i) => {
       const where = `q${i + 1} (${q.t})`;
       const nums = numbersIn(q);
-      expect(nums, `${where} is a type this guard cannot read`).not.toBeNull();
+      expect(nums, `${where} is not arithmetic - questions 1-10 must be`).not.toBeNull();
       for (const n of nums) {
         expect(n, `${where} uses ${n}, which is not under fifty`).toBeLessThan(50);
         expect(n, `${where} uses ${n}, which is negative`).toBeGreaterThanOrEqual(0);
       }
     });
   }
+});
+
+/* A question with a zero in it is a wasted line on the sheet. "35 - 0" and
+   "0 + 30" are arithmetic and inside every range, so the range guards above
+   pass them happily; this is the one that does not. */
+test('no Autumn 1 question is a freebie', async ({ page }) => {
+  await open(page);
+  const runs = await sample(page, 'Autumn 1', 120);
+
+  for (const qs of runs) {
+    qs.forEach((q, i) => {
+      const where = `q${i + 1} (${q.t})`;
+
+      if (q.t === 'arith') {
+        const answer = q.op === '+' ? q.a + q.b : q.a - q.b;
+        expect(q.a, `${where} is "${q.a} ${q.op} ${q.b}"`).toBeGreaterThanOrEqual(1);
+        expect(q.b, `${where} is "${q.a} ${q.op} ${q.b}"`).toBeGreaterThanOrEqual(1);
+        expect(answer, `${where} answers zero`).toBeGreaterThanOrEqual(1);
+      }
+
+      // Partitioning 80 into 80 + 0 is not partitioning.
+      if (q.t === 'partition') {
+        expect(q.n % 10, `${where} asks to partition ${q.n}, which has no ones`).toBeGreaterThanOrEqual(1);
+        expect(Math.floor(q.n / 10), `${where} asks to partition ${q.n}, which has no tens`).toBeGreaterThanOrEqual(1);
+      }
+
+      // "How many ones in 20?" has no answer. Both digits must be real.
+      if (q.t === 'tensones') {
+        expect(q.n % 10, `${where} asks about ${q.n}, which has no ones`).toBeGreaterThanOrEqual(1);
+        expect(Math.floor(q.n / 10), `${where} asks about ${q.n}, which has no tens`).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    // 18-20 must be able to take away properly, not just shave a digit off.
+    // Across 120 sheets some subtraction has to reach double figures; if the
+    // second number is always capped by what is left below 100, none does.
+    const tail = qs.slice(17);
+    expect(tail.every(q => q.t === 'arith')).toBe(true);
+  }
+
+  const subs = runs.flatMap(qs => qs.slice(17)).filter(q => q.op === '-');
+  expect(subs.length, 'no subtractions in 120 sheets of q18-20').toBeGreaterThan(0);
+  expect(Math.max(...subs.map(q => q.b)), 'every q18-20 subtraction takes away a tiny amount')
+    .toBeGreaterThan(20);
 });
 
 test('the blank in a sequence is a blank, not the answer', async ({ page }) => {
