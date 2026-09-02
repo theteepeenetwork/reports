@@ -1097,6 +1097,13 @@
     { page: 'instant', label: 'Instant Groups', icon: 'zap' },
     { page: 'groups', label: 'Groups', icon: 'book-open' },
     { section: 'Tools' },
+    /* The Question Generator renders and had no route in: absent from PLAN_NAV
+       and from the hash whitelists below, so the only way to it was typing the
+       hash by hand. Finding 7 of the audit — a redesign stranded live pages.
+       Mental Starters is NOT listed here on purpose: buildPlan() moves its
+       cards into Markbook's "Starter scores" tab (see move() below), leaving
+       #page-mental-starters an empty husk. A link here would open a blank. */
+    { page: 'generator', label: 'Question Generator', icon: 'help-circle' },
     { page: 'reports', label: 'Reports', icon: 'file-text' }
   ];
 
@@ -1775,7 +1782,7 @@
     document.body.dataset.mode = m;
     window.scrollTo(0, 0);
     if (m === 'teach') teachGo(teachScreen || 'home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'generator', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
   }
   window.hubSetMode = setMode;
   window.hubTeachGo = teachGo;
@@ -1827,7 +1834,7 @@
     var mode = Store.get('tp_mode', null) || deviceDefaultMode();
     document.body.dataset.mode = mode;
     if (mode === 'teach') teachGo('home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'generator', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

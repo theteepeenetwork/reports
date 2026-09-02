@@ -14,7 +14,7 @@ than quietly crossing it.
 | **Shell** | App skeleton, routing, surface switching, top bar, boot, hosting | `index.html`, `js/nav.js`, `js/helpers.js`, `js/boot.js`, `css/app.css`, `css/hub.css`, `server.js`, `railway.json` |
 | **Desk** | The sitting-down surface | `js/roster.js`, `js/starters.js`, `js/star.js`, `js/behaviour.js`, `js/assess.js`, `js/class-context.js`, `js/profile.js`, `js/reports.js`, `js/marking.js`, `js/charts.js`, `js/timetable.js`, `js/seating.js`, `js/groups.js` |
 | **Class** | The standing-up surface | `js/hub.js`, `js/picker.js`, `js/generator.js` |
-| **Board** | Glow Getters, the board views, the starter sheet, the whiteboard | `js/glow.js`, `js/board/glow-launch.js`, `js/board/board-control.js`, `glow-getters.html`, `css/glow-core.css`, `css/board.css` |
+| **Board** | Glow Getters, the board views, the starter sheet, the whiteboard | `js/glow.js`, `js/board/glow-launch.js`, `js/board/board-control.js`, `js/generator.js`, `js/wrsteps.js`, `glow-getters.html`, `css/glow-core.css`, `css/board.css` |
 | **Data** | Storage, sync, class routing, migrations — and the CONTRACT | `js/store.js`, `js/classes.js`, `js/classkeys.js`, `js/cloud.js`, `js/app-hooks.js`, `js/backup.js`, `firebase-config.js`, `firebase-rules.json`, `docs/CONTRACT.md` |
 | **QA** | Tests, CI, the teacher walkthrough | `tests/*`, `.github/workflows/*`, `playwright.config.js`, `package.json` |
 | **Lead** (Mark) | Product decisions, the CONTRACT sign-off, anything touching pupil data | — |

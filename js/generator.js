@@ -65,14 +65,19 @@
 
   /* ── State ──────────────────────────────────────────────── */
   function genDefaultState(){
-    return { v: 3, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false,
-             backTables: false, backPick: 'all', backCount: 20, generatedISO: '', days: [] };
+    return { v: 4, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false,
+             backTables: false, backPick: 'all', backCount: 20, generatedISO: '',
+             slots: genEmptySlots(), days: [] };
   }
   function genLoad(){
     var s = Store.get('tp_generator', null);
     if (!s || typeof s !== 'object') s = genDefaultState();
     if (!GEN_CLOCK[s.halfTerm]) s.halfTerm = 'Spring 2';
-    if (s.mode !== 'tables') s.mode = 'worksheet';
+    if (GEN_MODES.indexOf(s.mode) < 0) s.mode = 'worksheet';
+    /* One White Rose step id per question slot, or null to take that slot from
+       the half-term preset. Always exactly GEN_SLOTS long, whatever a saved
+       state or a hand-edited backup contains. */
+    s.slots = genNormaliseSlots(s.slots);
     if (!(s.count > 0)) s.count = 50;
     s.week = !!s.week;
     // times-tables-on-the-back of the mental starter (worksheet mode)
@@ -285,8 +290,47 @@
     return q;
   }
 
-  function genBuild(halfTerm, mode, count){
-    return mode === 'tables' ? genBuildTables(count) : genBuildWorksheet(halfTerm);
+  var GEN_SLOTS = 20;
+  var GEN_MODES = ['worksheet', 'tables', 'steps'];
+
+  function genEmptySlots(){
+    var a = [], i;
+    for (i = 0; i < GEN_SLOTS; i++) a.push(null);
+    return a;
+  }
+  /* Accept anything and return exactly GEN_SLOTS entries, each either a step
+     id that still exists or null. A step removed from the scheme, or a slot
+     saved when the sheet was a different length, becomes null rather than an
+     empty box on a printed sheet. */
+  function genNormaliseSlots(raw){
+    var out = genEmptySlots(), i, id;
+    if (!Array.isArray(raw)) return out;
+    for (i = 0; i < GEN_SLOTS; i++){
+      id = raw[i];
+      out[i] = (typeof id === 'string' && window.wrStep && window.wrStep(id)) ? id : null;
+    }
+    return out;
+  }
+
+  /* Steps mode: each slot is a chosen White Rose step, and any slot left unset
+     -- or set to a step with no written form -- falls back to what the
+     half-term preset would have put there. So switching to steps mode shows a
+     familiar sheet, and every override is visible against it. */
+  function genBuildSteps(halfTerm, slots){
+    var base = genBuildWorksheet(halfTerm);
+    var out = [], i, made;
+    slots = genNormaliseSlots(slots);
+    for (i = 0; i < GEN_SLOTS; i++){
+      made = slots[i] && window.wrBuild ? window.wrBuild(slots[i]) : null;
+      out.push(made || base[i] || { t: 'prompt', s: '' });
+    }
+    return out;
+  }
+
+  function genBuild(halfTerm, mode, count, slots){
+    if (mode === 'tables') return genBuildTables(count);
+    if (mode === 'steps')  return genBuildSteps(halfTerm, slots);
+    return genBuildWorksheet(halfTerm);
   }
 
   // Build one or five days. Each day = { label, questions, [back] }.
@@ -294,9 +338,12 @@
   // times-tables page on the back so it prints back-to-back with the starter.
   function genBuildDays(halfTerm, mode, count, week, opts){
     var labels = week ? GEN_WEEKDAYS : [''];
+    var slots = opts && opts.slots;
     return labels.map(function (label){
-      var day = { label: label, questions: genBuild(halfTerm, mode, count) };
-      if (mode === 'worksheet' && opts && opts.backTables){
+      var day = { label: label, questions: genBuild(halfTerm, mode, count, slots) };
+      // The back page of times tables belongs to any 20-question starter,
+      // whether the questions came from a preset or from chosen steps.
+      if (mode !== 'tables' && opts && opts.backTables){
         day.back = genBuildTables(opts.backCount, genBasesFor(opts.backPick));
       }
       return day;
@@ -372,7 +419,8 @@
     clock: function (q){
       return '<div class="gen-clocks">' + q.items.map(function (it, i){
         return '<div class="gen-clock-wrap"><div class="gen-clock-label">' + 'ABC'.charAt(i) + '</div>' + genClockSVG(it) + '</div>';
-      }).join('') + '</div><div class="gen-qtext">What time is on the clocks?</div>';
+      }).join('') + '</div><div class="gen-qtext">What time is on the clock' +
+        (q.items.length === 1 ? '' : 's') + '?</div>';
     },
     placeval: function (q){
       return '<div class="gen-qtext">What number is this?</div>' + genBlocksSVG(q.tens, q.ones);
@@ -405,6 +453,11 @@
       return out.join(', ');
     },
     tensones: function (q){ return 'How many ' + esc(q.part) + ' in ' + esc(q.n) + '?'; },
+    /* A question composed as a string when it was generated. Deliberately NOT
+       escaped: the markup is ours (from js/wrsteps.js), never a teacher's or a
+       child's input, and it carries <b> and the blank span. Nothing typed by a
+       user ever reaches this type -- if that ever changes, escape it here. */
+    prompt: function (q){ return String(q.s == null ? '' : q.s); },
     partition: function (q){
       var box = '<span class="gen-blank">?</span>';
       return 'Partition:<br>' + esc(q.n) + ' = ' + box + ' + ' + box;
@@ -433,6 +486,58 @@
     '</div>';
   }
 
+  /* One <select> of every White Rose step, grouped by block. Steps with no
+     written form are listed but disabled, with the reason in the label -- a
+     teacher planning from the scheme should see the whole scheme, not a
+     silently filtered version of it. */
+  /* A closed <select> shows only the chosen option's own text, never its
+     optgroup, so the block has to be inside the label or a set slot reads
+     "2. Quarter past and quarter to" with no clue which block that is. */
+  function genBlockCode(b){ return b.term.slice(0, 3) + b.n; }
+
+  function genStepOptions(chosen, setName){
+    var out = ['<option value="">— use the ' + esc(setName) + ' question —</option>'];
+    (window.WR_BLOCKS || []).forEach(function (b){
+      var steps = (window.WR_STEPS || []).filter(function (st){ return st.block === b.id; });
+      if (!steps.length) return;
+      out.push('<optgroup label="' + esc(b.term + ' ' + b.n + ' · ' + b.title) + '">');
+      steps.forEach(function (st){
+        var usable = typeof st.gen === 'function';
+        out.push('<option value="' + esc(st.id) + '"' +
+          (st.id === chosen ? ' selected' : '') +
+          (usable ? '' : ' disabled') + '>' +
+          esc(genBlockCode(b) + ' · ' + st.n + '. ' + st.title + (usable ? '' : '  (needs apparatus)')) + '</option>');
+      });
+      out.push('</optgroup>');
+    });
+    return out.join('');
+  }
+
+  function genStepPicker(s){
+    var rows = [], i;
+    var setName = genSetName(s.halfTerm);
+    for (i = 0; i < GEN_SLOTS; i++){
+      rows.push('<div class="gen-slot" style="display:flex;align-items:center;gap:8px">' +
+        '<span style="width:26px;flex:none;font-weight:800;color:var(--muted);font-size:12px">' + (i + 1) + ')</span>' +
+        '<select class="gen-slot-pick" data-slot="' + i + '" onchange="genSetSlot(' + i + ', this.value)" ' +
+          'style="flex:1;min-width:0;font-size:12px">' + genStepOptions(s.slots[i], setName) + '</select>' +
+      '</div>');
+    }
+    var chosen = s.slots.filter(Boolean).length;
+    return '<div class="card no-print" style="margin-top:.6rem">' +
+      '<div class="row" style="align-items:center">' +
+        '<div><b style="font-size:14px">Question by question</b>' +
+          '<div class="hint small" style="font-weight:400">White Rose Year 2 small steps. ' +
+            'Any slot left alone uses the <b>' + esc(genSetName(s.halfTerm)) + '</b> question for that position.</div></div>' +
+        '<div class="grow"></div>' +
+        '<span class="pill" style="font-size:11px">' + chosen + ' of ' + GEN_SLOTS + ' set</span>' +
+        '<button class="secondary" onclick="genClearSlots()" style="font-size:12px">Clear all</button>' +
+      '</div>' +
+      '<div id="genSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:6px;margin-top:.6rem">' +
+        rows.join('') + '</div>' +
+    '</div>';
+  }
+
   function genRender(){
     var root = document.getElementById('gen-root');
     if (!root) return;
@@ -445,6 +550,7 @@
         '<div class="tabs">' +
           '<button class="tab' + (s.mode === 'worksheet' ? ' active' : '') + '" onclick="genSetMode(\'worksheet\')">📝 Worksheet (20 Qs)</button>' +
           '<button class="tab' + (s.mode === 'tables' ? ' active' : '') + '" onclick="genSetMode(\'tables\')">✖️ Times tables (2, 5, 10)</button>' +
+          '<button class="tab' + (s.mode === 'steps' ? ' active' : '') + '" onclick="genSetMode(\'steps\')">🎯 Choose steps</button>' +
         '</div>' +
         '<div class="row" style="margin-top:.6rem">' +
           '<div><label>Half term</label><select id="genHalfTerm" onchange="genSetHalfTerm(this.value)" style="min-width:140px">' + htOpts + '</select>' +
@@ -460,7 +566,7 @@
           '<button onclick="genGenerate()">🎲 Generate new</button>' +
           '<button class="secondary" onclick="window.print()">🖨️ Print</button>' +
         '</div>' +
-        (s.mode === 'worksheet'
+        (s.mode !== 'tables'
           ? '<div class="row" style="margin-top:.5rem; align-items:flex-end">' +
               '<label style="display:inline-flex; align-items:center; gap:8px; font-weight:600; cursor:pointer">' +
                 '<input type="checkbox"' + (s.backTables ? ' checked' : '') + ' onchange="genSetBackTables(this.checked)" style="width:16px; height:16px"> Times tables on the back' +
@@ -480,8 +586,9 @@
                 : ' &middot; no clock question in this set') + '</p>'
           : '') +
         '<p class="hint small" style="margin-top:.3rem">Each page prints on its own A4 sheet' +
-          (s.mode === 'worksheet' && s.backTables ? ' — print double-sided to get the times tables on the back.' : '.') + '</p>' +
-      '</div>';
+          (s.mode !== 'tables' && s.backTables ? ' — print double-sided to get the times tables on the back.' : '.') + '</p>' +
+      '</div>' +
+      (s.mode === 'steps' ? genStepPicker(s) : '');
 
     var body;
     if (!s.days.length){
@@ -489,7 +596,9 @@
     } else {
       body = s.days.map(function (day){
         var pages = [];
-        var frontTitle = (s.mode === 'tables' ? 'Times tables (2, 5, 10)' : 'Mental Starter — ' + esc(s.halfTerm));
+        var frontTitle = (s.mode === 'tables' ? 'Times tables (2, 5, 10)'
+                        : s.mode === 'steps' ? 'Mental Starter — chosen steps'
+                        : 'Mental Starter — ' + esc(s.halfTerm));
         pages.push(genSheetHTML(day.label, frontTitle, day.questions, s.mode === 'tables', s.generatedISO));
         if (day.back && day.back.length){
           pages.push(genSheetHTML(day.label, 'Times tables — ' + genTablesLabel(s.backPick), day.back, true, s.generatedISO));
@@ -510,14 +619,28 @@
   window.genGenerate = function (){
     var s = genLoad();
     s.days = genBuildDays(s.halfTerm, s.mode, s.count, s.week,
-      { backTables: s.backTables, backPick: s.backPick, backCount: s.backCount });
+      { backTables: s.backTables, backPick: s.backPick, backCount: s.backCount, slots: s.slots });
     s.generatedISO = (typeof todayISO === 'function') ? todayISO() : '';
+    genSave(s); genRender();
+  };
+  /* Set or clear the step in one slot. Slots persist independently of mode, so
+     a teacher can flip back to a preset and return to their chosen steps. */
+  window.genSetSlot = function (i, id){
+    var s = genLoad();
+    i = parseInt(i, 10);
+    if (!(i >= 0 && i < GEN_SLOTS)) return;
+    s.slots[i] = (id && window.wrStep && window.wrStep(id)) ? id : null;
+    genSave(s); genRender();
+  };
+  window.genClearSlots = function (){
+    var s = genLoad();
+    s.slots = genEmptySlots();
     genSave(s); genRender();
   };
   window.genSetMode = function (mode){
     var s = genLoad();
     if (s.mode === mode) return;
-    s.mode = (mode === 'tables') ? 'tables' : 'worksheet';
+    s.mode = (GEN_MODES.indexOf(mode) >= 0) ? mode : 'worksheet';
     s.days = []; // worksheet/tables are different shapes; clear until regenerated
     genSave(s); genRender();
   };
@@ -546,6 +669,9 @@
   window.genMinuteAngle = genMinuteAngle;
   window.genClockMinutes = genClockMinutes;
   window.genSetName = genSetName;
+  window.genBuildSteps = genBuildSteps;
+  window.genNormaliseSlots = genNormaliseSlots;
+  window.GEN_SLOTS = GEN_SLOTS;
   window.genUsesClocks = genUsesClocks;
 
 })();
