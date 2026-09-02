@@ -1201,7 +1201,11 @@
     (spData || []).forEach(function (e) { if (mondayOf(e.date) === monday) c.star++; });
     (bhData || []).forEach(function (e) {
       if (mondayOf(e.date) !== monday) return;
-      var glow = e.note && /Glow Getters|Glow|Quick log/i.test(e.note) && e.type === 'positive';
+      /* 'Battler' must stay in this pattern. Every glow point awarded before the
+         Sep 2026 rename is stored with the note 'Behaviour Battler +1 · …', and
+         those entries are still on teachers' devices and in their accounts.
+         Drop it and a term of glow points silently reclassify as ordinary praise. */
+      var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
       if (e.type === 'positive') { glow ? c.glow++ : c.praise++; }
       else if (e.type === 'concern') c.concern++;
     });
@@ -1363,7 +1367,11 @@
   function pupilTimeline(pid) {
     var items = [];
     (bhData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) {
-      var glow = e.note && /Glow Getters|Glow|Quick log/i.test(e.note) && e.type === 'positive';
+      /* 'Battler' must stay in this pattern. Every glow point awarded before the
+         Sep 2026 rename is stored with the note 'Behaviour Battler +1 · …', and
+         those entries are still on teachers' devices and in their accounts.
+         Drop it and a term of glow points silently reclassify as ordinary praise. */
+      var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
       var type = glow ? 'glow' : (e.type === 'positive' ? 'praise' : (e.type === 'concern' ? 'concern' : 'note'));
       items.push({ id: e.id, store: 'bh', type: type, date: e.date, text: e.note || '', pinned: !!e.pinned });
     });
