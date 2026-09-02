@@ -7,6 +7,28 @@
    DESCRIPTORS (params only, persisted). Deterministic
    renderers turn descriptors into HTML/SVG, so a worksheet
    survives reload and reprints identically.
+
+   QUESTION SETS
+   Each half-term maps to a named question set (GEN_SET_FOR).
+   A set is a recipe function returning 20 descriptors, listed
+   in GEN_SETS. Two exist today:
+
+     'Autumn 1' — start of Year 2. Numbers to 100, tens and
+                  ones, counting on in 1s and back in 2s,
+                  bonds to 100, 2/5/10 tables and division.
+                  No clocks. From Mark's September sheet.
+     'Spring 2' — the original recipe: clocks, halving,
+                  shapes, three-number addition. Everything
+                  taught by the back half of the year.
+
+   Half-terms with no entry in GEN_SET_FOR fall back to
+   'Spring 2', so adding 'Autumn 2' later means writing one
+   recipe and adding one line to each map — nothing else.
+
+   ADDING A QUESTION TYPE: push a descriptor {t:'yourtype',...}
+   from a recipe and add a matching renderer to GEN_RENDERERS.
+   Descriptors are persisted, so never repurpose a field name
+   on an existing type — old saved worksheets still carry it.
    ============================================================ */
 
 (function () {
@@ -27,6 +49,19 @@
   function genClockMinutes(halfTerm){ return GEN_CLOCK[halfTerm] || GEN_CLOCK['Spring 2']; }
 
   var GEN_WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  /* ── Question sets ──────────────────────────────────────── */
+  // Which named set each half-term uses. Anything absent -> GEN_SET_DEFAULT.
+  var GEN_SET_DEFAULT = 'Spring 2';
+  var GEN_SET_FOR = {
+    'Autumn 1': 'Autumn 1'
+  };
+  function genSetName(halfTerm){ return GEN_SET_FOR[halfTerm] || GEN_SET_DEFAULT; }
+  // Sets that draw analogue clocks — the clock-difficulty control only
+  // means anything for these, so the UI hides the hint for the others.
+  var GEN_SET_USES_CLOCKS = { 'Spring 2': true };
+  function genUsesClocks(halfTerm){ return !!GEN_SET_USES_CLOCKS[genSetName(halfTerm)]; }
+
 
   /* ── State ──────────────────────────────────────────────── */
   function genDefaultState(){
@@ -59,7 +94,11 @@
     return { op: op, a: a, b: b };
   }
 
-  function genBuildWorksheet(halfTerm){
+  /* ── Set: 'Spring 2' ─────────────────────────────────────
+     The original recipe, unchanged. Reflects what has been
+     taught by the back half of Year 2: clocks, halving,
+     2-D shape properties, three-number addition. */
+  function genSetSpring2(halfTerm){
     var clk = genClockMinutes(halfTerm);
     var shapes = ['triangle', 'square', 'rectangle', 'pentagon', 'hexagon', 'octagon'];
     var a, b, c, n, s;
@@ -116,6 +155,77 @@
     a = genRand(50, 100); s = genSigned(a, genRand(10, a)); q.push({ t: 'arith', a: s.a, b: s.b, op: s.op });
 
     return q;
+  }
+
+  /* ── Set: 'Autumn 1' ─────────────────────────────────────
+     From Mark's "Mental starter Autumn September" sheet.
+     Question order matches that sheet 1:1. Three deliberate
+     departures, all noted inline below. */
+  function genSetAutumn1(){
+    var TABLES = [2, 5, 10];        // the tables taught in Year 2
+    var STEPS  = [2, 3, 4, 5];      // "two/three/four/five more than"
+    var a, b, m, base;
+    var q = [];
+
+    // 1 — write a number in words (small numbers in September)
+    q.push({ t: 'words', n: genRand(0, 30) });
+    // 2 — count on in ones, third term blank:  n, n+1, ___, n+3
+    q.push({ t: 'seq', start: genRand(1, 20), step: 1, len: 4, blank: 2 });
+    // 3 — how many tens / ones.
+    //     Sheet says 0-100; using 10-99 so both tens and ones are
+    //     non-zero and the question always has something to find.
+    q.push({ t: 'tensones', n: genRand(10, 99), part: genPick(['tens', 'ones']) });
+    // 4 — subtraction within 20
+    a = genRand(10, 20); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
+    // 5 — addition, teens plus up to 20
+    q.push({ t: 'arith', a: genRand(10, 20), b: genRand(0, 20), op: '+' });
+    // 6 — days of the week
+    q.push({ t: 'future', unit: 'day', n: genRand(1, 5) });
+    // 7 — count back in twos, third term blank:  n, n-2, ___, n-6
+    q.push({ t: 'seq', start: genRand(20, 100), step: -2, len: 4, blank: 2 });
+    // 8 — place value. Sheet draws this with [ and ] characters;
+    //     reusing the app's base-10 blocks, which print far better.
+    q.push({ t: 'placeval', tens: genRand(1, 9), ones: genRand(1, 9) });
+    // 9 — add a multiple of ten, staying inside 100.
+    //     The sheet's ROUNDUP can push the total past 100 (its own note
+    //     says it never should); this picks m so b + m <= 100 always.
+    a = genRand(0, 100); b = 100 - a;
+    m = genRand(0, Math.floor(a / 10)) * 10;
+    q.push({ t: 'arith', a: b, b: m, op: '+' });
+    // 10 — subtract ten
+    q.push({ t: 'arith', a: genRand(10, 100), b: 10, op: '-' });
+    // 11 — two/three/four/five more than
+    q.push({ t: 'step', n: genRand(10, 80), by: genPick(STEPS), dir: 'more' });
+    // 12 — two/three/four/five less than
+    q.push({ t: 'step', n: genRand(10, 80), by: genPick(STEPS), dir: 'less' });
+    // 13 — compare two products
+    q.push({ t: 'compare',
+             a: genRand(1, 12), aop: '×', b: genPick(TABLES),
+             c: genRand(1, 12), bop: '×', d: genPick(TABLES) });
+    // 14, 15 — times tables
+    q.push({ t: 'times', base: genPick(TABLES), by: genRand(1, 12) });
+    q.push({ t: 'times', base: genPick(TABLES), by: genRand(1, 12) });
+    // 16, 17 — the matching divisions
+    base = genPick(TABLES); q.push({ t: 'divide', base: base, by: genRand(1, 12) });
+    base = genPick(TABLES); q.push({ t: 'divide', base: base, by: genRand(1, 12) });
+    // 18 — subtraction within 100
+    a = genRand(20, 100); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
+    // 19 — bonds to 100
+    a = genRand(0, 100); q.push({ t: 'arith', a: 100 - a, b: genRand(0, a), op: '+' });
+    // 20 — subtraction within 100
+    a = genRand(20, 100); q.push({ t: 'arith', a: a, b: genRand(0, a), op: '-' });
+
+    return q;
+  }
+
+  /* ── The registry the rest of the file talks to ──────────── */
+  var GEN_SETS = {
+    'Autumn 1': genSetAutumn1,
+    'Spring 2': genSetSpring2
+  };
+  function genBuildWorksheet(halfTerm){
+    var fn = GEN_SETS[genSetName(halfTerm)] || GEN_SETS[GEN_SET_DEFAULT];
+    return fn(halfTerm);
   }
 
   // which times-table bases a "pick" maps to
@@ -243,7 +353,24 @@
       return 'What ' + esc(q.unit) + ' is it in ' + esc(q.n) + ' ' + esc(u) + '?';
     },
     compare: function (q){
-      return '&lt;, &gt; or =?<br>' + esc(q.a + ' ' + q.aop + ' ' + q.b) + ' &nbsp;<span class="gen-blank">?</span>&nbsp; ' + esc(q.c + ' + ' + q.d);
+      // bop is newer than this type; worksheets saved before it existed
+      // have no bop and were always '+', so that is the fallback.
+      var bop = q.bop || '+';
+      return '&lt;, &gt; or =?<br>' + esc(q.a + ' ' + q.aop + ' ' + q.b) + ' &nbsp;<span class="gen-blank">?</span>&nbsp; ' + esc(q.c + ' ' + bop + ' ' + q.d);
+    },
+    divide: function (q){ return esc((q.base * q.by) + ' ÷ ' + q.base + ' ='); },
+    // n, n+step, ___, n+3step  — one term replaced by a blank
+    seq: function (q){
+      var len = q.len || 4, out = [], i;
+      for (i = 0; i < len; i++){
+        out.push(i === q.blank ? '<span class="gen-blank">?</span>' : esc(q.start + q.step * i));
+      }
+      return out.join(', ');
+    },
+    tensones: function (q){ return 'How many ' + esc(q.part) + ' in ' + esc(q.n) + '?'; },
+    step: function (q){
+      var words = { 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five' };
+      return esc(words[q.by] || q.by) + ' ' + (q.dir === 'less' ? 'less' : 'more') + ' than ' + esc(q.n) + '?';
     }
   };
   function genRenderQuestion(q){
@@ -280,7 +407,7 @@
         '</div>' +
         '<div class="row" style="margin-top:.6rem">' +
           '<div><label>Half term</label><select id="genHalfTerm" onchange="genSetHalfTerm(this.value)" style="min-width:140px">' + htOpts + '</select>' +
-            '<div class="hint small" style="font-weight:400">Sets the clock difficulty</div></div>' +
+            '<div class="hint small" style="font-weight:400">Chooses the questions' + (genUsesClocks(s.halfTerm) ? ' and clock difficulty' : '') + '</div></div>' +
           (s.mode === 'tables'
             ? '<div><label>How many</label><input id="genCount" type="number" min="1" max="100" value="' + s.count + '" onchange="genSetCount(this.value)" style="width:90px" /></div>'
             : '') +
@@ -305,7 +432,12 @@
                 : '') +
             '</div>'
           : '') +
-        (s.mode === 'worksheet' ? '<p class="hint small" style="margin-top:.5rem">Clock difficulty for <b>' + esc(s.halfTerm) + '</b>: ' + genClockLabel(s.halfTerm) + '</p>' : '') +
+        (s.mode === 'worksheet'
+          ? '<p class="hint small" style="margin-top:.5rem">Question set for <b>' + esc(s.halfTerm) + '</b>: <b>' + esc(genSetName(s.halfTerm)) + '</b>' +
+              (genUsesClocks(s.halfTerm)
+                ? ' &middot; clocks: ' + genClockLabel(s.halfTerm)
+                : ' &middot; no clock question in this set') + '</p>'
+          : '') +
         '<p class="hint small" style="margin-top:.3rem">Each page prints on its own A4 sheet' +
           (s.mode === 'worksheet' && s.backTables ? ' — print double-sided to get the times tables on the back.' : '.') + '</p>' +
       '</div>';
@@ -372,5 +504,7 @@
   window.genHourAngle = genHourAngle;
   window.genMinuteAngle = genMinuteAngle;
   window.genClockMinutes = genClockMinutes;
+  window.genSetName = genSetName;
+  window.genUsesClocks = genUsesClocks;
 
 })();

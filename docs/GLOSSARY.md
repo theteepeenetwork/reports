@@ -43,6 +43,7 @@ the `#battler` → `#glow` hash redirect in `showPage()`, and `battler` in the t
 |---|---|
 | **w/b** | Week beginning. Weeks are keyed by the Monday, as a local `YYYY-MM-DD` — never `toISOString()`, which rolls a BST midnight back a day. |
 | **Half-term** | A UK school term is split in two by a week's holiday. Six per year. Mental-starter scores and assessments are stored per half-term. |
+| **Question set** | A named recipe of 20 mental-starter questions, chosen by half-term (`GEN_SETS` in `js/generator.js`). Two exist: **Autumn 1** (start of Year 2 — numbers to 100, tens and ones, counting on in 1s and back in 2s, bonds to 100, 2/5/10 tables and division; no clocks) and **Spring 2** (the original recipe, and the fallback for every half-term without its own set). A half-term is not the same thing as a question set: `Summer 1` currently *uses* the `Spring 2` set. |
 | **SEND** | Special Educational Needs and Disabilities. `SEN Support` and `EHCP` are the two levels the roster records. |
 | **EHCP** | Education, Health and Care Plan — a statutory plan; the higher level of SEND support. |
 | **PP** | Pupil Premium — additional funding for eligible pupils. |
