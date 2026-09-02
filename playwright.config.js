@@ -26,6 +26,11 @@ module.exports = defineConfig({
     command: 'python3 -m http.server 4173',
     url: 'http://127.0.0.1:4173/index.html',
     reuseExistingServer: !process.env.CI,
-    timeout: 30000
+    timeout: 30000,
+    // python's http.server logs every single request, which buries the test
+    // results in a few hundred lines of 200s. Keep stderr so a real failure
+    // to start still surfaces.
+    stdout: 'ignore',
+    stderr: 'pipe'
   }
 });
