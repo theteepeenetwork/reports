@@ -39,3 +39,15 @@ Readers MUST accept both `{v,t}` (legacy) and `{v,t,ver}`. Only ever ADD `ver`.
 ## Reset semantics (the deletion-push hazard)
 `resetSession` clears via an unhooked raw remove (`LS.removeItem` / a `CLOUD.resetting` flag that
 short-circuits the `Storage.prototype.setItem` hook) so a sign-out NEVER wipes the cloud account.
+
+## Naming: Glow Getters vs `tp_battler` (Sep 2026)
+Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes
+and routes (`js/glow.js`, `gg*`, `.gg-*`, `#glow`) — it does NOT cover storage. The key stays
+**`tp_battler`** in `DATA_KEYS`, in the cloud envelope, and on every device already in the field.
+Renaming it would orphan every synced account. If it ever moves, it moves behind a migration that
+reads both, writes one, and is covered by a test — never as part of a tidy-up.
+
+Back-compat shims (delete no earlier than the end of the 2026/27 school year):
+- foot of `js/glow.js` — aliases every `gg*` export back to its `bt*` name
+- `index.html` — `window.openBattler`, and `showPage()` maps the legacy `#battler` hash to `#glow`
+- `js/hub.js` — both mode whitelists still accept `battler`

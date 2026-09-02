@@ -105,20 +105,20 @@
     CLOUD.applying = true;
     var oldRaw = window.localStorage.getItem(k);
     if (keyBase(k) === 'tp_battler' && raw != null) {
-      if (k === activePhysKey('tp_battler') && typeof btReplayRemote === 'function') {
+      if (k === activePhysKey('tp_battler') && typeof ggReplayRemote === 'function') {
         // active class: animate the point change on this device, then converge to exact state
-        var animated = btReplayRemote(oldRaw, raw);   // award() reactions run while points are still old
+        var animated = ggReplayRemote(oldRaw, raw);   // award() reactions run while points are still old
         rawSet(k, raw);                                // exact remote state (badges/tables/config) — no push (applying)
         CLOUD.lastSeen[k] = raw;
-        if (!animated && typeof btRender === 'function') btRender();   // bulk/structural → render exact
-        if (typeof renderBattlerLaunch === 'function') {               // planner launcher: refresh the points stat
+        if (!animated && typeof ggRender === 'function') ggRender();   // bulk/structural → render exact
+        if (typeof renderGlowLaunch === 'function') {               // planner launcher: refresh the points stat
           var act = document.querySelector('.page.active');
-          if (act && act.id === 'page-battler') renderBattlerLaunch();
+          if (act && act.id === 'page-glow') renderGlowLaunch();
         }
         CLOUD.applying = false;
         return;
       }
-      // a non-active class's battler changed — store it, but never animate/render here
+      // a non-active class's glow changed — store it, but never animate/render here
       rawSet(k, raw); CLOUD.lastSeen[k] = raw; CLOUD.applying = false; return;
     }
     if (raw == null) LS.removeItem(k); else rawSet(k, raw);

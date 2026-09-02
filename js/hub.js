@@ -5,8 +5,8 @@
    vanilla-JS app: reuses Store, the shared `roster`, the per-feature
    modules (generator/picker/timetable/seating/groups/charts),
    and the existing data stores (tp_starters, tp_star, tp_behaviour,
-   tp_assess, tp_battler …). Glow Getters (battler) is untouched —
-   Quick log awards points via the public window.btAward path.
+   tp_assess, tp_battler …). Glow Getters (glow) is untouched —
+   Quick log awards points via the public window.ggAward path.
 
    Store keys added here:
      tp_mode          'teach' | 'plan'  (per device)
@@ -261,7 +261,7 @@
         var s = { id: uid(), date: date, pupilId: pid, reason: '' };
         spData.push(s); written.push({ store: 'sp', id: s.id });
       } else if (act.key === 'glow') {
-        if (typeof window.btAward === 'function') { window.btAward(pid, 1, { silent: true, label: 'Quick log' }); written.push({ store: 'glow', id: pid }); }
+        if (typeof window.ggAward === 'function') { window.ggAward(pid, 1, { silent: true, label: 'Quick log' }); written.push({ store: 'glow', id: pid }); }
       }
     });
     if (typeof bhSave === 'function') bhSave();
@@ -277,7 +277,7 @@
     written.forEach(function (w) {
       if (w.store === 'bh') bhData = bhData.filter(function (e) { return e.id !== w.id; });
       else if (w.store === 'sp') spData = spData.filter(function (e) { return e.id !== w.id; });
-      else if (w.store === 'glow' && typeof window.btAward === 'function') window.btAward(w.id, -1, { silent: true });
+      else if (w.store === 'glow' && typeof window.ggAward === 'function') window.ggAward(w.id, -1, { silent: true });
     });
     try { window.bhData = bhData; window.spData = spData; } catch (e) {}
     if (typeof bhSave === 'function') bhSave();
@@ -436,6 +436,9 @@
       '<span class="spacer"></span>' +
       classPill +
       '<span class="pill pill-saved"><span>✓</span> saved</span>' +
+      '<button type="button" class="pill bd-btn" id="showOnBoardTeach" data-board-open '+
+        'title="Put Glow Getters or the starter sheet on the smartboard">'+
+        '<span class="bolt">⚡</span> Show on board</button>' +
       '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';
   }
 
@@ -462,10 +465,9 @@
     var tiles =
       tile('starter', 'calculator', 'Starter', starterStatus, set ? 'ok' : '') +
       tile('pick', 'target', 'Pick a name', pickStatus, '') +
-      tile('points', 'zap', 'Points', 'award glow getters fast', '') +
+      tile('points', 'zap', 'Award points', 'without putting the board up', '') +
       tile('seats', 'layout-grid', 'Who sits where', 'seating · groups', '') +
-      tile('groups', 'book-open', 'Groups', grpCountLabel(), '') +
-      tile('glow', 'zap', 'Glow Getters', 'opens full-screen', '', true);
+      tile('groups', 'book-open', 'Groups', grpCountLabel(), '');
 
     v.innerHTML = topRow() + glance +
       '<div class="tile-grid">' + tiles + '</div>' +
@@ -478,7 +480,7 @@
     v.querySelectorAll('[data-tile]').forEach(function (b) {
       b.onclick = function () {
         var k = b.dataset.tile;
-        if (k === 'glow') { openBattler(); return; }
+        if (k === 'glow') { openGlowGetters(); return; }
         teachGo(k);
       };
     });
@@ -886,11 +888,11 @@
     var counter = (st.picked ? st.picked.length : 0) + ' of ' + roster.length + ' had a turn';
 
     /* Glow Getters award row — only when someone is currently picked and the
-       battler award path is available (it is loaded alongside this hub). */
+       glow award path is available (it is loaded alongside this hub). */
     var glowRow = '';
-    if (st.currentId && typeof window.btAward === 'function') {
-      var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
-      var pts = (typeof window.btGetPoints === 'function') ? window.btGetPoints(st.currentId) : 0;
+    if (st.currentId && typeof window.ggAward === 'function') {
+      var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
+      var pts = (typeof window.ggGetPoints === 'function') ? window.ggGetPoints(st.currentId) : 0;
       glowRow =
         '<div class="glow-row">' +
           '<button class="glow-minus" id="pickGlowMinus" title="Take a glow getters point">−</button>' +
@@ -931,11 +933,11 @@
     var glowPlus = document.getElementById('pickGlowPlus');
     function pickGlow(sign) {
       var cur = Store.get('tp_picker', {}).currentId;
-      if (!cur || typeof window.btAward !== 'function') return;
-      var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
-      window.btAward(cur, sign * step, { silent: true, label: 'Pick a name' });
+      if (!cur || typeof window.ggAward !== 'function') return;
+      var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
+      window.ggAward(cur, sign * step, { silent: true, label: 'Pick a name' });
       var n = document.getElementById('pickGlowN');
-      if (n && typeof window.btGetPoints === 'function') n.textContent = window.btGetPoints(cur);
+      if (n && typeof window.ggGetPoints === 'function') n.textContent = window.ggGetPoints(cur);
       flashSaved();
       toast(pupilName(cur) + ' ' + (sign > 0 ? '+' : '−') + step + ' ⚡');
     }
@@ -947,7 +949,7 @@
   function renderPoints() {
     var v = document.getElementById('tv-points');
     var list = sortedRoster();
-    var step = (typeof window.btGetStep === 'function') ? window.btGetStep() : 1;
+    var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
 
     if (!list.length) {
       v.innerHTML = teachHead('home', 'Home', '') +
@@ -957,7 +959,7 @@
     }
 
     var cards = list.map(function (p) {
-      var pts = (typeof window.btGetPoints === 'function') ? window.btGetPoints(p.id) : 0;
+      var pts = (typeof window.ggGetPoints === 'function') ? window.ggGetPoints(p.id) : 0;
       return '<div class="pts-card">' +
         '<span class="pts-name">' + esc(p.name) + '</span>' +
         '<div class="pts-row">' +
@@ -977,15 +979,15 @@
 
     wireBack(v);
     var openBoard = document.getElementById('ptsOpenBoard');
-    if (openBoard && typeof openBattler === 'function') openBoard.onclick = function () { openBattler(); };
+    if (openBoard && typeof openGlowGetters === 'function') openBoard.onclick = function () { openGlowGetters(); };
 
     v.querySelectorAll('.pts-minus, .pts-plus').forEach(function (b) {
       b.onclick = function () {
         var pid = b.dataset.pid, sign = +b.dataset.sign;
-        if (typeof window.btAward !== 'function') return;
-        window.btAward(pid, sign * step, { silent: true, label: 'Points picker' });
+        if (typeof window.ggAward !== 'function') return;
+        window.ggAward(pid, sign * step, { silent: true, label: 'Points picker' });
         var n = document.getElementById('ptsn-' + pid);
-        if (n && typeof window.btGetPoints === 'function') n.textContent = window.btGetPoints(pid);
+        if (n && typeof window.ggGetPoints === 'function') n.textContent = window.ggGetPoints(pid);
         flashSaved();
       };
     });
@@ -1087,6 +1089,7 @@
   var PLAN_NAV = [
     { page: 'today', label: 'Today', icon: 'home' },
     { page: 'pupils', label: 'Pupils', icon: 'users' },
+    { page: 'class-context', label: 'Class Context', icon: 'clipboard-list' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -1198,6 +1201,10 @@
     (spData || []).forEach(function (e) { if (mondayOf(e.date) === monday) c.star++; });
     (bhData || []).forEach(function (e) {
       if (mondayOf(e.date) !== monday) return;
+      /* 'Battler' must stay in this pattern. Every glow point awarded before the
+         Sep 2026 rename is stored with the note 'Behaviour Battler +1 · …', and
+         those entries are still on teachers' devices and in their accounts.
+         Drop it and a term of glow points silently reclassify as ordinary praise. */
       var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
       if (e.type === 'positive') { glow ? c.glow++ : c.praise++; }
       else if (e.type === 'concern') c.concern++;
@@ -1316,7 +1323,7 @@
      One screen: gender, behaviour log with a real note field, allergies,
      medical, key notes, group memberships and the OneDrive SEND/EHCP link.
      Behaviour log = bhData (positive|concern|note) + spData (star) + Glow
-     (btAward), each entry carrying an editable note, a `pinned` flag and an
+     (ggAward), each entry carrying an editable note, a `pinned` flag and an
      id so it can be edited / deleted / pinned in place.
      =================================================================== */
   var openPid = null;
@@ -1360,6 +1367,10 @@
   function pupilTimeline(pid) {
     var items = [];
     (bhData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) {
+      /* 'Battler' must stay in this pattern. Every glow point awarded before the
+         Sep 2026 rename is stored with the note 'Behaviour Battler +1 · …', and
+         those entries are still on teachers' devices and in their accounts.
+         Drop it and a term of glow points silently reclassify as ordinary praise. */
       var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
       var type = glow ? 'glow' : (e.type === 'positive' ? 'praise' : (e.type === 'concern' ? 'concern' : 'note'));
       items.push({ id: e.id, store: 'bh', type: type, date: e.date, text: e.note || '', pinned: !!e.pinned });
@@ -1439,7 +1450,7 @@
       spData.push({ id: editId || uid(), date: date, pupilId: openPid, reason: text, pinned: !!pinned });
     } else if (type === 'glow') {
       if (editId) bhData.push({ id: editId, date: date, pupilId: openPid, type: 'positive', note: text || 'Glow Getter point', pinned: !!pinned });
-      else if (typeof window.btAward === 'function') window.btAward(openPid, 1, { silent: true, label: 'Quick log' });
+      else if (typeof window.ggAward === 'function') window.ggAward(openPid, 1, { silent: true, label: 'Quick log' });
     } else {
       var bt = type === 'praise' ? 'positive' : (type === 'concern' ? 'concern' : 'note');
       bhData.push({ id: editId || uid(), date: date, pupilId: openPid, type: bt, note: text, pinned: !!pinned });
@@ -1764,9 +1775,10 @@
     document.body.dataset.mode = m;
     window.scrollTo(0, 0);
     if (m === 'teach') teachGo(teachScreen || 'home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
   }
   window.hubSetMode = setMode;
+  window.hubTeachGo = teachGo;
 
   /* ===================================================================
      BOOT
@@ -1815,7 +1827,7 @@
     var mode = Store.get('tp_mode', null) || deviceDefaultMode();
     document.body.dataset.mode = mode;
     if (mode === 'teach') teachGo('home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
+    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

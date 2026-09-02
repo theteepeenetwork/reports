@@ -8,11 +8,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="css/battler-core.css?v=9" />
+<link rel="stylesheet" href="css/glow-core.css?v=10" />
 <style>
   /* ============================================================
-     THE BATTLER — Arcade / Neon smartboard theme
-     Re-skins the shared battler-core via tokens + targeted glow.
+     GLOW GETTERS — Arcade / Neon smartboard theme
+     Re-skins the shared glow-core via tokens + targeted glow.
      ============================================================ */
   :root {
     --bg: #07070f; --page: #0a0b16; --card: #11131f; --card-2: #161827;
@@ -77,18 +77,18 @@
   .sb-btn.ghosted { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--line); box-shadow: none; }
   .sb-btn.ghosted:hover { background: rgba(255,255,255,.1); color: var(--ink); }
 
-  #page-battler { position: relative; z-index: 2; padding: 22px 30px 60px; max-width: 1700px; margin: 0 auto; }
-  #page-battler .page-header { display: none; }
-  #page-battler h1, #page-battler h2, #page-battler h3, #page-battler h4 { color: var(--ink); }
-  .empty, #page-battler .empty { color: var(--muted); border-color: var(--line); }
+  #page-glow { position: relative; z-index: 2; padding: 22px 30px 60px; max-width: 1700px; margin: 0 auto; }
+  #page-glow .page-header { display: none; }
+  #page-glow h1, #page-glow h2, #page-glow h3, #page-glow h4 { color: var(--ink); }
+  .empty, #page-glow .empty { color: var(--muted); border-color: var(--line); }
   .hint, .small { color: var(--muted); }
 
-  #page-battler .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
-  #page-battler label { display: block; font-weight: 700; font-size: 12px; color: var(--faint); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .06em; }
-  #page-battler input, #page-battler select { font: inherit; font-size: 15px; color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; outline: none; width: 100%; }
-  #page-battler input:focus, #page-battler select:focus { border-color: var(--teal-500); box-shadow: 0 0 0 3px var(--teal-50); }
-  #page-battler select option { background: #11131f; color: #fff; }
-  #page-battler button {
+  #page-glow .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+  #page-glow label { display: block; font-weight: 700; font-size: 12px; color: var(--faint); margin: 0 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+  #page-glow input, #page-glow select { font: inherit; font-size: 15px; color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; outline: none; width: 100%; }
+  #page-glow input:focus, #page-glow select:focus { border-color: var(--teal-500); box-shadow: 0 0 0 3px var(--teal-50); }
+  #page-glow select option { background: #11131f; color: #fff; }
+  #page-glow button {
     font: inherit; font-weight: 700; cursor: pointer; border: 0; border-radius: 11px;
     padding: 12px 18px; font-size: 15px; color: #04121a;
     background: linear-gradient(180deg, #67e8f9, #22d3ee);
@@ -96,117 +96,117 @@
     box-shadow: 0 0 16px rgba(34,211,238,.45), inset 0 -3px 0 rgba(0,0,0,.18);
     transition: transform .1s, filter .12s;
   }
-  #page-battler button:hover { transform: translateY(-1px); filter: brightness(1.08); }
-  #page-battler button:active { transform: none; }
-  #page-battler button.secondary { background: rgba(255,255,255,.05); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
-  #page-battler button.secondary:hover { background: rgba(255,255,255,.1); }
-  #page-battler button.danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); box-shadow: none; }
-  #page-battler button.danger:hover { background: rgba(244,63,94,.24); }
-  #page-battler button.ghost { background: rgba(255,255,255,.06); color: var(--ink); box-shadow: none; }
-  #page-battler button.small { padding: 7px 12px; font-size: 13px; }
-  #page-battler .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-  #page-battler .grow { flex: 1 1 auto; }
-  #page-battler .seg { display: inline-flex; gap: 6px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 13px; padding: 5px; }
-  #page-battler .seg button { background: none; color: var(--muted); padding: 12px 20px; border-radius: 9px; font-size: 15px; box-shadow: none; }
-  #page-battler .seg button:hover { background: rgba(255,255,255,.06); color: var(--ink); transform: none; }
-  #page-battler .seg button.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 18px rgba(34,211,238,.55); }
+  #page-glow button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  #page-glow button:active { transform: none; }
+  #page-glow button.secondary { background: rgba(255,255,255,.05); color: var(--ink); border: 1px solid var(--line); box-shadow: none; }
+  #page-glow button.secondary:hover { background: rgba(255,255,255,.1); }
+  #page-glow button.danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); box-shadow: none; }
+  #page-glow button.danger:hover { background: rgba(244,63,94,.24); }
+  #page-glow button.ghost { background: rgba(255,255,255,.06); color: var(--ink); box-shadow: none; }
+  #page-glow button.small { padding: 7px 12px; font-size: 13px; }
+  #page-glow .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  #page-glow .grow { flex: 1 1 auto; }
+  #page-glow .seg { display: inline-flex; gap: 6px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 13px; padding: 5px; }
+  #page-glow .seg button { background: none; color: var(--muted); padding: 12px 20px; border-radius: 9px; font-size: 15px; box-shadow: none; }
+  #page-glow .seg button:hover { background: rgba(255,255,255,.06); color: var(--ink); transform: none; }
+  #page-glow .seg button.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 18px rgba(34,211,238,.55); }
 
-  #page-battler .tabs { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 14px; padding: 5px; margin: 18px 0 20px; display:inline-flex; flex-wrap:wrap; gap:4px; }
-  #page-battler .tab { color: var(--muted); padding: 12px 24px; font-size: 16px; font-weight: 700; background:none; border:0; border-radius:9px; cursor:pointer; }
-  #page-battler .tab:hover { color: var(--ink); background: rgba(255,255,255,.05); }
-  #page-battler .tab.active { background: linear-gradient(180deg, #2a2d45, #1a1c2e); color: #fff; box-shadow: inset 0 0 0 1px var(--teal-100), 0 0 16px rgba(34,211,238,.25); }
+  #page-glow .tabs { background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 14px; padding: 5px; margin: 18px 0 20px; display:inline-flex; flex-wrap:wrap; gap:4px; }
+  #page-glow .tab { color: var(--muted); padding: 12px 24px; font-size: 16px; font-weight: 700; background:none; border:0; border-radius:9px; cursor:pointer; }
+  #page-glow .tab:hover { color: var(--ink); background: rgba(255,255,255,.05); }
+  #page-glow .tab.active { background: linear-gradient(180deg, #2a2d45, #1a1c2e); color: #fff; box-shadow: inset 0 0 0 1px var(--teal-100), 0 0 16px rgba(34,211,238,.25); }
 
-  .bt-board { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; border: 1px solid var(--line) !important; border-radius: 18px; box-shadow: var(--shadow); }
-  .bt-board::after { background: radial-gradient(120% 140% at 12% 0%, rgba(34,211,238,.14), transparent 55%) !important; }
-  .bt-bubble { background: #1a1c2e !important; box-shadow: 0 0 0 1px var(--teal-100), 0 8px 24px rgba(0,0,0,.5); }
-  .bt-bubble::before { border-right-color: #1a1c2e !important; }
-  .bt-classtotal .n { color: #fff !important; font-family: 'Space Mono', monospace; font-size: 40px; text-shadow: 0 0 14px #22d3ee, 0 0 34px rgba(34,211,238,.6); }
-  .bt-classtotal .l { color: var(--faint) !important; }
+  .gg-board { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; border: 1px solid var(--line) !important; border-radius: 18px; box-shadow: var(--shadow); }
+  .gg-board::after { background: radial-gradient(120% 140% at 12% 0%, rgba(34,211,238,.14), transparent 55%) !important; }
+  .gg-board-bubble { background: #1a1c2e !important; box-shadow: 0 0 0 1px var(--teal-100), 0 8px 24px rgba(0,0,0,.5); }
+  .gg-board-bubble::before { border-right-color: #1a1c2e !important; }
+  .gg-classtotal .n { color: #fff !important; font-family: 'Space Mono', monospace; font-size: 40px; text-shadow: 0 0 14px #22d3ee, 0 0 34px rgba(34,211,238,.6); }
+  .gg-classtotal .l { color: var(--faint) !important; }
 
-  #page-battler .ctrls, #page-battler .cfg-row, #page-battler .g-create, #page-battler .bt-minrow { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow); }
-  #page-battler .ctrl-lab, #page-battler .cfg-note { color: var(--muted) !important; }
-  #page-battler .step { background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--ink); font-size: 15px; padding: 9px 15px; }
-  #page-battler .step.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); border-color: transparent; color: #04121a; box-shadow: 0 0 14px rgba(34,211,238,.5); }
-  #page-battler .toggle { color: var(--ink); }
-  #page-battler .toggle .sw { background: rgba(255,255,255,.16); }
-  #page-battler .toggle.on .sw { background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,.7); }
+  #page-glow .ctrls, #page-glow .cfg-row, #page-glow .g-create, #page-glow .gg-minrow { background: var(--card) !important; border: 1px solid var(--line) !important; box-shadow: var(--shadow); }
+  #page-glow .ctrl-lab, #page-glow .cfg-note { color: var(--muted) !important; }
+  #page-glow .step { background: rgba(255,255,255,.05); border: 1px solid var(--line); color: var(--ink); font-size: 15px; padding: 9px 15px; }
+  #page-glow .step.on { background: linear-gradient(180deg, #67e8f9, #22d3ee); border-color: transparent; color: #04121a; box-shadow: 0 0 14px rgba(34,211,238,.5); }
+  #page-glow .toggle { color: var(--ink); }
+  #page-glow .toggle .sw { background: rgba(255,255,255,.16); }
+  #page-glow .toggle.on .sw { background: #22d3ee; box-shadow: 0 0 12px rgba(34,211,238,.7); }
 
-  #page-battler .grid { grid-template-columns: repeat(auto-fit, minmax(286px, 1fr)); gap: 18px; }
-  #page-battler .pupil { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
-  #page-battler .pupil:hover { border-color: var(--rk); box-shadow: 0 0 0 1px var(--rk), 0 0 34px color-mix(in srgb, var(--rk) 40%, transparent); }
-  #page-battler .p-ribbon { background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 24%, transparent), transparent) !important; border-bottom: 1px solid var(--line); }
-  #page-battler .p-rank { letter-spacing: .12em; text-shadow: 0 0 10px color-mix(in srgb, var(--rk) 60%, transparent); }
-  #page-battler .ring-track { stroke: rgba(255,255,255,.1); }
-  #page-battler .p-init { box-shadow: inset 0 -3px 8px rgba(0,0,0,.35), 0 0 14px color-mix(in srgb, var(--rk) 45%, transparent); }
-  #page-battler .p-lvl { background: #0a0f1e !important; color: #fff; border: 1px solid var(--rk); box-shadow: 0 0 10px color-mix(in srgb, var(--rk) 50%, transparent); }
-  #page-battler .p-name { font-size: 20px; }
-  #page-battler .p-pts { font-family: 'Space Mono', monospace; font-size: 50px; text-shadow: 0 0 16px color-mix(in srgb, var(--rk) 75%, transparent); }
-  #page-battler .p-u, #page-battler .p-next { color: var(--faint); }
-  #page-battler .badge { background: var(--gold-50); border: 1px solid var(--gold-100); }
-  #page-battler .badge.locked { background: rgba(255,255,255,.04); border-color: var(--line); }
-  #page-battler .p-btns { gap: 10px; }
-  #page-battler .pbtn { min-height: 52px; font-size: 18px; border-radius: 12px; }
-  #page-battler .pbtn.plus { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 16px rgba(34,211,238,.5); }
-  #page-battler .pbtn.minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+  #page-glow .grid { grid-template-columns: repeat(auto-fit, minmax(286px, 1fr)); gap: 18px; }
+  #page-glow .pupil { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
+  #page-glow .pupil:hover { border-color: var(--rk); box-shadow: 0 0 0 1px var(--rk), 0 0 34px color-mix(in srgb, var(--rk) 40%, transparent); }
+  #page-glow .p-ribbon { background: linear-gradient(180deg, color-mix(in srgb, var(--rk) 24%, transparent), transparent) !important; border-bottom: 1px solid var(--line); }
+  #page-glow .p-rank { letter-spacing: .12em; text-shadow: 0 0 10px color-mix(in srgb, var(--rk) 60%, transparent); }
+  #page-glow .ring-track { stroke: rgba(255,255,255,.1); }
+  #page-glow .p-init { box-shadow: inset 0 -3px 8px rgba(0,0,0,.35), 0 0 14px color-mix(in srgb, var(--rk) 45%, transparent); }
+  #page-glow .p-lvl { background: #0a0f1e !important; color: #fff; border: 1px solid var(--rk); box-shadow: 0 0 10px color-mix(in srgb, var(--rk) 50%, transparent); }
+  #page-glow .p-name { font-size: 20px; }
+  #page-glow .p-pts { font-family: 'Space Mono', monospace; font-size: 50px; text-shadow: 0 0 16px color-mix(in srgb, var(--rk) 75%, transparent); }
+  #page-glow .p-u, #page-glow .p-next { color: var(--faint); }
+  #page-glow .badge { background: var(--gold-50); border: 1px solid var(--gold-100); }
+  #page-glow .badge.locked { background: rgba(255,255,255,.04); border-color: var(--line); }
+  #page-glow .p-btns { gap: 10px; }
+  #page-glow .pbtn { min-height: 52px; font-size: 18px; border-radius: 12px; }
+  #page-glow .pbtn.plus { background: linear-gradient(180deg, #67e8f9, #22d3ee); color: #04121a; box-shadow: 0 0 16px rgba(34,211,238,.5); }
+  #page-glow .pbtn.minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
 
-  #page-battler .group { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
-  #page-battler .g-name { color: var(--ink) !important; }
-  #page-battler .g-chip { background: rgba(255,255,255,.05) !important; border: 1px solid var(--line) !important; color: var(--ink); }
-  #page-battler .g-total { box-shadow: inset 0 -3px 8px rgba(0,0,0,.3), 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
-  #page-battler .g-del { background: rgba(255,255,255,.05); color: var(--muted); }
-  #page-battler .g-minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
-  #page-battler .g-plus { box-shadow: 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
+  #page-glow .group { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.012)); border: 1px solid var(--line); box-shadow: 0 12px 34px rgba(0,0,0,.45); }
+  #page-glow .g-name { color: var(--ink) !important; }
+  #page-glow .g-chip { background: rgba(255,255,255,.05) !important; border: 1px solid var(--line) !important; color: var(--ink); }
+  #page-glow .g-total { box-shadow: inset 0 -3px 8px rgba(0,0,0,.3), 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
+  #page-glow .g-del { background: rgba(255,255,255,.05); color: var(--muted); }
+  #page-glow .g-minus { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+  #page-glow .g-plus { box-shadow: 0 0 16px color-mix(in srgb, var(--gc) 55%, transparent); }
 
-  #page-battler .lb-panel { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
-  #page-battler .pod-block { background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--line), 0 0 24px color-mix(in srgb, var(--mc) 30%, transparent); }
-  #page-battler .pod-pts { font-family: 'Space Mono', monospace; text-shadow: 0 0 14px color-mix(in srgb, var(--mc) 60%, transparent); }
-  #page-battler .pod-crown { filter: drop-shadow(0 0 10px #fde047); }
-  #page-battler .lb-pts { font-family: 'Space Mono', monospace; }
-  #page-battler .lb-gbar, #page-battler .bt-bar { background: rgba(255,255,255,.08); }
+  #page-glow .lb-panel { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  #page-glow .pod-block { background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--line), 0 0 24px color-mix(in srgb, var(--mc) 30%, transparent); }
+  #page-glow .pod-pts { font-family: 'Space Mono', monospace; text-shadow: 0 0 14px color-mix(in srgb, var(--mc) 60%, transparent); }
+  #page-glow .pod-crown { filter: drop-shadow(0 0 10px #fde047); }
+  #page-glow .lb-pts { font-family: 'Space Mono', monospace; }
+  #page-glow .lb-gbar, #page-glow .gg-bar { background: rgba(255,255,255,.08); }
 
-  #page-battler .set-card { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
-  #page-battler .set-hint, #page-battler .set-note, #page-battler .leg-req { color: var(--muted); }
-  #page-battler .toggle.big { background: rgba(255,255,255,.06); }
-  #page-battler .toggle.big.on { background: var(--teal-50); color: var(--teal-700); box-shadow: 0 0 14px rgba(34,211,238,.35); }
-  #page-battler .btn-danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
+  #page-glow .set-card { background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  #page-glow .set-hint, #page-glow .set-note, #page-glow .leg-req { color: var(--muted); }
+  #page-glow .toggle.big { background: rgba(255,255,255,.06); }
+  #page-glow .toggle.big.on { background: var(--teal-50); color: var(--teal-700); box-shadow: 0 0 14px rgba(34,211,238,.35); }
+  #page-glow .btn-danger { background: rgba(244,63,94,.14); color: #fb7185; border: 1px solid rgba(244,63,94,.4); }
 
-  #page-battler .bt-arena { background: radial-gradient(120% 100% at 50% 0%, #141034 0%, #0a0b16 60%) !important; border: 1px solid var(--line) !important; box-shadow: inset 0 0 80px rgba(34,211,238,.06), var(--shadow); height: 74vh; }
-  #page-battler .bt-remain { background: var(--card); border: 1px solid var(--line); color: var(--ink); font-size: 16px; }
-  #page-battler .bt-tag { color: #eaf2ff !important; text-shadow: 0 0 6px #000, 0 1px 2px #000 !important; }
-  #page-battler .bt-ball { box-shadow: 0 0 14px rgba(0,0,0,.4), 0 0 20px currentColor; }
-  #page-battler .bt-winner { background: var(--gold-50); border: 1px solid var(--gold-100); color: var(--ink); box-shadow: 0 0 30px rgba(253,224,71,.25); }
-  #page-battler .bt-winner.lose { background: var(--coral-50); border-color: var(--coral-100); }
+  #page-glow .gg-arena { background: radial-gradient(120% 100% at 50% 0%, #141034 0%, #0a0b16 60%) !important; border: 1px solid var(--line) !important; box-shadow: inset 0 0 80px rgba(34,211,238,.06), var(--shadow); height: 74vh; }
+  #page-glow .gg-remain { background: var(--card); border: 1px solid var(--line); color: var(--ink); font-size: 16px; }
+  #page-glow .gg-tag { color: #eaf2ff !important; text-shadow: 0 0 6px #000, 0 1px 2px #000 !important; }
+  #page-glow .gg-ball { box-shadow: 0 0 14px rgba(0,0,0,.4), 0 0 20px currentColor; }
+  #page-glow .gg-winner { background: var(--gold-50); border: 1px solid var(--gold-100); color: var(--ink); box-shadow: 0 0 30px rgba(253,224,71,.25); }
+  #page-glow .gg-winner.lose { background: var(--coral-50); border-color: var(--coral-100); }
 
-  #bt-celebrate { background: rgba(4,6,14,.7) !important; }
-  #bt-celebrate .cele-card { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; box-shadow: 0 0 60px rgba(34,211,238,.3), 0 30px 80px rgba(0,0,0,.6); border: 1px solid var(--line); }
-  #bt-celebrate .cele-name { color: #fff; }
-  #bt-celebrate .cele-sub { color: var(--muted); }
+  #gg-celebrate { background: rgba(4,6,14,.7) !important; }
+  #gg-celebrate .cele-card { background: linear-gradient(180deg, var(--card-2), var(--card)) !important; box-shadow: 0 0 60px rgba(34,211,238,.3), 0 30px 80px rgba(0,0,0,.6); border: 1px solid var(--line); }
+  #gg-celebrate .cele-name { color: #fff; }
+  #gg-celebrate .cele-sub { color: var(--muted); }
 
   @media (max-width: 640px) {
     .sb-brand b { font-size: 16px; }
-    #page-battler { padding: 16px 14px 50px; }
+    #page-glow { padding: 16px 14px 50px; }
   }
 
   /* ---- COMPACT player cards (~50%) so the whole class fits on the board ---- */
-  #page-battler .grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
-  #page-battler .pupil { border-radius: 12px; }
-  #page-battler .p-ribbon { padding: 4px 9px; }
-  #page-battler .p-rank { font-size: 8.5px; letter-spacing: .06em; }
-  #page-battler .p-emblem { width: 10px; height: 10px; }
-  #page-battler .p-main { gap: 9px; padding: 9px 9px 4px; }
-  #page-battler .p-av { width: 46px; height: 46px; }
-  #page-battler .p-ring { width: 46px; height: 46px; }
-  #page-battler .p-init { inset: 6px; font-size: 13px; }
-  #page-battler .p-lvl { bottom: -2px; font-size: 8px; padding: 1px 5px; }
-  #page-battler .p-name { font-size: 13px; }
-  #page-battler .p-pts { font-size: 26px; }
-  #page-battler .p-u { font-size: 9px; }
-  #page-battler .p-next { font-size: 9.5px; margin-top: 1px; }
-  #page-battler .p-badges { gap: 4px; padding: 2px 9px 0; min-height: 16px; }
-  #page-battler .badge { width: 16px; height: 16px; font-size: 9px; }
-  #page-battler .p-btns { gap: 6px; padding: 7px 9px 9px; }
-  #page-battler .pbtn { min-height: 30px; font-size: 13px; border-radius: 8px; padding: 6px 0; }
-  #page-battler .pbtn.minus { flex: 0 0 34px; }
+  #page-glow .grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }
+  #page-glow .pupil { border-radius: 12px; }
+  #page-glow .p-ribbon { padding: 4px 9px; }
+  #page-glow .p-rank { font-size: 8.5px; letter-spacing: .06em; }
+  #page-glow .p-emblem { width: 10px; height: 10px; }
+  #page-glow .p-main { gap: 9px; padding: 9px 9px 4px; }
+  #page-glow .p-av { width: 46px; height: 46px; }
+  #page-glow .p-ring { width: 46px; height: 46px; }
+  #page-glow .p-init { inset: 6px; font-size: 13px; }
+  #page-glow .p-lvl { bottom: -2px; font-size: 8px; padding: 1px 5px; }
+  #page-glow .p-name { font-size: 13px; }
+  #page-glow .p-pts { font-size: 26px; }
+  #page-glow .p-u { font-size: 9px; }
+  #page-glow .p-next { font-size: 9.5px; margin-top: 1px; }
+  #page-glow .p-badges { gap: 4px; padding: 2px 9px 0; min-height: 16px; }
+  #page-glow .badge { width: 16px; height: 16px; font-size: 9px; }
+  #page-glow .p-btns { gap: 6px; padding: 7px 9px 9px; }
+  #page-glow .pbtn { min-height: 30px; font-size: 13px; border-radius: 8px; padding: 6px 0; }
+  #page-glow .pbtn.minus { flex: 0 0 34px; }
 </style>
 </head>
 <body>
@@ -222,31 +222,31 @@
   </div>
 </header>
 
-<!-- battler.js renders into this scaffold; id + .active required by the arena loop -->
-<div id="page-battler" class="active bt-arc">
+<!-- glow.js renders into this scaffold; id + .active required by the arena loop -->
+<div id="page-glow" class="active gg-arc">
   <div class="page-header"><h1>Glow Getters</h1></div>
-  <div class="bt-board" id="bt-board">
-    <div class="bt-mascot" id="bt-mascot">
+  <div class="gg-board" id="gg-board">
+    <div class="gg-board-mascot" id="gg-board-mascot">
       <div class="m-spark">✨</div>
       <div class="m-body"></div>
       <div class="m-cheek l"></div><div class="m-cheek r"></div>
       <div class="m-eye l"></div><div class="m-eye r"></div>
       <div class="m-mouth"></div>
     </div>
-    <div class="bt-bubble" id="bt-bubble">Let's earn some points!</div>
-    <div class="bt-board-spacer"></div>
-    <div class="bt-bossbadge" id="bt-bossbadge" style="display:none">⚔️ Boss ready!</div>
-    <div class="bt-classtotal"><div class="n" id="bt-classtotal">0</div><div class="l">Class points</div></div>
+    <div class="gg-board-bubble" id="gg-board-bubble">Let's earn some points!</div>
+    <div class="gg-board-spacer"></div>
+    <div class="gg-bossbadge" id="gg-bossbadge" style="display:none">⚔️ Boss ready!</div>
+    <div class="gg-classtotal"><div class="n" id="gg-classtotal">0</div><div class="l">Class points</div></div>
   </div>
-  <div class="tabs" id="bt-tabs"></div>
-  <div id="bt-view"></div>
-  <div id="bt-fx"></div>
-  <div id="bt-toast"></div>
-  <div id="bt-celebrate"><div class="cele-card" id="bt-celeCard"></div></div>
+  <div class="tabs" id="gg-tabs"></div>
+  <div id="gg-view"></div>
+  <div id="gg-fx"></div>
+  <div id="gg-toast"></div>
+  <div id="gg-celebrate"><div class="cele-card" id="gg-celeCard"></div></div>
 </div>
 
 <!-- ============================================================
-     SHARED GLOBALS — mirror the host planner so js/battler.js runs
+     SHARED GLOBALS — mirror the host planner so js/glow.js runs
      against the same localStorage (tp_roster, tp_battler, tp_behaviour).
      ============================================================ -->
 <script>
@@ -271,7 +271,7 @@
   function bhSave(){ Store.set('tp_behaviour', bhData); }
   function bhRender(){ /* no behaviour page in this window */ }
 
-  /* icons used by battler.js (zap / play / pause) */
+  /* icons used by glow.js (zap / play / pause) */
   const ICONS = {
     zap:'<path d="M13 2L4 14h7l-2 8 9-12h-7z"/>',
     play:'<path d="M7 4l13 8-13 8z"/>',
@@ -300,28 +300,28 @@
 </script>
 
 <!-- the actual game logic, reused verbatim from the planner -->
-<script src="js/battler.js?v=15"></script>
+<script src="js/glow.js?v=17"></script>
 
 <script>
   /* first paint — always open the smartboard on the Points tab */
   try { var _s = Store.get('tp_battler', null); if (_s && typeof _s === 'object' && _s.tab !== 'points'){ _s.tab = 'points'; Store.set('tp_battler', _s); } } catch (e) {}
-  if (typeof btRender === 'function') btRender();
+  if (typeof ggRender === 'function') ggRender();
 
   /* keep in sync with the planner: any change (another tab via the storage event,
      or cloud) fires 'tp:sync' from cloud.js after refreshing the roster mirror. */
-  window.addEventListener('tp:sync', () => { if (typeof btRender === 'function') btRender(); });
+  window.addEventListener('tp:sync', () => { if (typeof ggRender === 'function') ggRender(); });
   /* safety net for any event missed while the window was backgrounded */
   window.addEventListener('focus', () => {
     roster = Store.get('tp_roster', []);
-    if (typeof btRender === 'function') btRender();
+    if (typeof ggRender === 'function') ggRender();
   });
   /* sign-out / account-switch: cloud.js clears DATA_KEYS then dispatches tp:reset.
      Re-read both mirrors from (now empty) storage so the board blanks to the
-     neutral empty state that battler.js already renders when roster.length === 0. */
+     neutral empty state that glow.js already renders when roster.length === 0. */
   window.addEventListener('tp:reset', () => {
     roster = Store.get('tp_roster', []);
     bhData = Store.get('tp_behaviour', []);
-    if (typeof btRender === 'function') btRender();
+    if (typeof ggRender === 'function') ggRender();
   });
 
   /* CONTRACT: cloud.js calls window.appResetState() before dispatching tp:reset.
@@ -329,7 +329,7 @@
   window.appResetState = function() {
     roster = [];
     bhData = [];
-    if (typeof btRender === 'function') btRender();   // blank the board immediately, not only via tp:reset
+    if (typeof ggRender === 'function') ggRender();   // blank the board immediately, not only via tp:reset
   };
 </script>
 
