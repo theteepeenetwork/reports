@@ -48,6 +48,17 @@ Five smoke tests, run on every push and pull request. They stub Firebase and blo
 network layer, so **the suite never touches the live project**. The first test is the one that
 matters most: signing out must never push deletions to the cloud. See [tests/](tests/).
 
+## Hosting
+
+The app is static, so `server.js` exists only to give Railway a process to run: a
+zero-dependency Node file server, no build step, no runtime packages. `railway.json`
+sets the start command and a `/healthz` check. Railway deploys `main` on push.
+
+**Every new hostname has to be added to Firebase**, or sign-in fails there with
+`auth/unauthorized-domain` while the rest of the app carries on working offline —
+which makes it look like a sync bug rather than a config one. Firebase Console →
+Authentication → Settings → Authorized domains. See [SETUP.md](SETUP.md) step 5.
+
 ## Working on it
 
 Read these before changing anything:
