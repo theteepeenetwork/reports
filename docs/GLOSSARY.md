@@ -13,6 +13,13 @@ Shared vocabulary. Add a term when you find yourself explaining one twice.
 envelope at `users/{uid}/keys/tp_battler`, and in the localStorage of every device already using the
 app. Renaming it orphans every synced account. [CONTRACT.md](CONTRACT.md) governs it.
 
+**The old name is also inside the data, not just on the key.** Every glow point awarded
+before the rename is stored in `tp_behaviour` with the note `Behaviour Battler +1`. Points
+tapped straight on the board carry no label, so that is the entire note. Anything that reads
+those notes — the week summary in `Plan › Today`, the pupil timeline — must keep matching
+`Battler`, or a term of glow points silently reclassify as ordinary praise. Guarded by
+"glow points awarded before the rename still count" in `tests/04-points.spec.js`.
+
 Back-compat shims exist for the rename and can be removed no earlier than the end of the 2026/27
 school year: the `bt*` aliases at the foot of `js/glow.js`, `window.openBattler` in `index.html`,
 the `#battler` → `#glow` hash redirect in `showPage()`, and `battler` in the two mode whitelists in

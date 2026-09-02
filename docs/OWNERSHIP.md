@@ -11,7 +11,7 @@ than quietly crossing it.
 
 | Owner | Responsibility | Files |
 |---|---|---|
-| **Shell** | App skeleton, routing, surface switching, top bar, boot | `index.html`, `js/nav.js`, `js/helpers.js`, `js/boot.js`, `css/app.css`, `css/hub.css` |
+| **Shell** | App skeleton, routing, surface switching, top bar, boot, hosting | `index.html`, `js/nav.js`, `js/helpers.js`, `js/boot.js`, `css/app.css`, `css/hub.css`, `server.js`, `railway.json` |
 | **Desk** | The sitting-down surface | `js/roster.js`, `js/starters.js`, `js/star.js`, `js/behaviour.js`, `js/assess.js`, `js/class-context.js`, `js/profile.js`, `js/reports.js`, `js/marking.js`, `js/charts.js`, `js/timetable.js`, `js/seating.js`, `js/groups.js` |
 | **Class** | The standing-up surface | `js/hub.js`, `js/picker.js`, `js/generator.js` |
 | **Board** | Glow Getters, the board views, the starter sheet, the whiteboard | `js/glow.js`, `js/board/glow-launch.js`, `js/board/board-control.js`, `glow-getters.html`, `css/glow-core.css`, `css/board.css` |
