@@ -80,3 +80,34 @@ test('all seven board views render without throwing', async ({ page }) => {
   }
   expect(thrown).toEqual([]);
 });
+
+test('glow points awarded before the rename still count', async ({ page }) => {
+  // Every point awarded before the Sep 2026 rename is stored with the note
+  // "Behaviour Battler +1". Points tapped straight on the board carry no label,
+  // so that is the whole note — there is no "Quick log" suffix to fall back on.
+  // If the reader stops recognising the old word, a term of glow points quietly
+  // reclassify themselves as ordinary praise in the week summary and the pupil
+  // timeline. The rename froze the storage key; it must also respect the old
+  // name baked into the data's contents.
+  await blockExternal(page);
+  const monday = (() => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
+  await seedDevice(page, { extra: { tp_behaviour: [
+    { id: 'legacy-board', date: monday, pupilId: 'p1', type: 'positive', note: 'Behaviour Battler +1' },
+    { id: 'modern-board', date: monday, pupilId: 'p2', type: 'positive', note: 'Glow Getters +1' },
+    { id: 'plain-praise', date: monday, pupilId: 'p3', type: 'positive', note: 'Lovely handwriting today' }
+  ] } });
+  await page.goto('/index.html');
+  await ready(page);
+  await page.evaluate(() => window.hubSetMode('plan'));
+  await page.waitForTimeout(400);
+
+  const summary = await page.evaluate(() => {
+    const el = document.querySelector('#today-root');
+    return el ? el.innerText.replace(/\s+/g, ' ') : '';
+  });
+  expect(summary, 'the legacy board award was not counted as a glow point:\n' + summary)
+    .toMatch(/2 ⚡ Glow/);
+  expect(summary, 'the legacy glow point was miscounted as praise:\n' + summary)
+    .toMatch(/1 👍 praise/);
+});
