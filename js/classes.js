@@ -15,6 +15,63 @@ function activeClassId(){ const id = Store.get('tp_active_class', 'default'); re
 function setActiveClass(id){ Store.set('tp_active_class', id || 'default'); }
 function activeClass(){ const id = activeClassId(); return getClasses().filter(c => c && c.id === id)[0] || null; }
 
+/* Is a class genuinely chosen on this device? activeClassId() answers
+   'default' when the pointer is absent, which is the right thing for routing
+   keys and the wrong thing for telling the teacher where they are. */
+function activeClassIsSet(){ return typeof Store.get('tp_active_class', null) === 'string'; }
+
+/* Class ids that own per-class data but have no row in the registry.
+   Normally empty: deleting a class drops its keys and its row together. It
+   fills when the two fall out of step -- a stale registry arriving from the
+   cloud, or a backup restoring data without the class it belonged to. */
+function orphanedClassIds(){
+  const known = getClasses().map(c => c && c.id);
+  const out = [];
+  for (let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i); if (!k) continue;
+    const at = k.indexOf('::'); if (at < 0) continue;
+    const base = k.slice(0, at), id = k.slice(at + 2);
+    if (!id || known.indexOf(id) >= 0 || out.indexOf(id) >= 0) continue;
+    if (TP_PER_CLASS.indexOf(base) >= 0) out.push(id);
+  }
+  return out;
+}
+
+function classHasPupils(id){
+  try {
+    const raw = localStorage.getItem(classPhysKey('tp_roster', id));
+    const r = raw ? JSON.parse(raw) : null;
+    return Array.isArray(r) && r.length > 0;
+  } catch (e) { return false; }
+}
+
+/* Put orphaned classes back in the registry so the switcher can reach them,
+   and move to one only when the teacher is sitting in a class holding nothing.
+
+   Registering is what makes the data reachable at all; switching is what stops
+   a teacher staring at an empty app and reaching for a backup. We only switch
+   when there is exactly one candidate, so the app never guesses between two.
+
+   Tradeoff, deliberate: if another device deletes a class and its key removals
+   arrive after the registry change, this can briefly re-register that class.
+   Showing a class the teacher can delete again beats silently hiding 36KB of
+   their work, which is the failure this exists to prevent. */
+function recoverOrphanedClasses(){
+  const orphans = orphanedClassIds();
+  if (!orphans.length) return [];
+  const cs = getClasses();
+  orphans.forEach((id, i) => {
+    cs.push({ id, name:'Recovered class' + (orphans.length > 1 ? ' ' + (i + 1) : ''),
+              year:'', room:'', createdAt:Date.now(), recovered:true });
+  });
+  saveClasses(cs);
+  if (!classHasPupils(activeClassId())){
+    const withPupils = orphans.filter(classHasPupils);
+    if (withPupils.length === 1) setActiveClass(withPupils[0]);
+  }
+  return orphans;
+}
+
 /* Seed the registry from the legacy single class on first run. Idempotent. */
 function ensureClasses(){
   let cs = getClasses();
@@ -23,6 +80,7 @@ function ensureClasses(){
     saveClasses(cs);
   }
   if (!cs.some(c => c && c.id === activeClassId())) setActiveClass('default');   // recover dangling pointer
+  recoverOrphanedClasses();
 }
 
 function classPhysKey(base, id){ return (!id || id === 'default') ? base : base + '::' + id; }
@@ -72,9 +130,18 @@ function removeClassKeys(id){
 function deleteClass(id){
   if (id === 'default') return false;
   const cs = getClasses(); if (cs.length <= 1) return false;
-  saveClasses(cs.filter(c => c.id !== id));
+  const left = cs.filter(c => c.id !== id);
+  saveClasses(left);
   removeClassKeys(id);
-  if (activeClassId() === id) setActiveClass('default');
+  /* Fall back to a class that still exists, preferring one with pupils in it.
+     This used to be a hard-coded 'default', which strands the teacher whenever
+     'default' is an empty shell -- exactly what happened on 2 Sep 2026. Taking
+     the first survivor is not enough either: 'default' sorts first, so an empty
+     'default' would still win over the class they actually teach. */
+  if (activeClassId() === id){
+    const occupied = left.filter(c => c && classHasPupils(c.id));
+    setActiveClass((occupied[0] || left[0]).id);
+  }
   return true;
 }
 
@@ -92,7 +159,29 @@ function applyClass(){
   setText('brandSub', [c.name, c.room].filter(Boolean).join(' · ') || 'Classroom Hub');
   const brand = document.querySelector('#planApp .brand');
   if (brand && !brand._classWired){ brand.style.cursor = 'pointer'; brand.title = 'Switch class'; brand.onclick = openClassSwitcher; brand._classWired = true; }
+  ensureClassOpener();
   if (typeof setText === 'function') setText('teachClassName', c.name || '');
+}
+
+/* A labelled control for the switcher. The brand block opens it too, but a
+   logo with a title attribute is not a discoverable way to reach the one
+   screen that gets a teacher back to their class. */
+function ensureClassOpener(){
+  const brand = document.querySelector('#planApp .brand');
+  if (!brand || document.getElementById('tpClassOpen')) return;
+  // .brand is a flex row, so this goes inside the text block beneath the
+  // subtitle -- appending to .brand itself makes it a flex item and squashes
+  // the title into two lines.
+  const host = brand.querySelector('div') || brand;
+  const b = document.createElement('button');
+  b.id = 'tpClassOpen';
+  b.type = 'button';
+  b.textContent = 'Switch class ▾';
+  b.style.cssText = 'display:inline-block;margin-top:6px;font-size:11px;font-weight:700;' +
+    'line-height:1.2;white-space:nowrap;color:var(--muted);background:none;' +
+    'border:1px solid var(--line);border-radius:999px;padding:3px 9px;cursor:pointer';
+  b.onclick = function (e){ e.stopPropagation(); openClassSwitcher(); };
+  host.appendChild(b);
 }
 
 /* ── Class switcher / manager (self-contained overlay) ── */
@@ -101,7 +190,9 @@ function openClassSwitcher(){
   const ov = document.createElement('div'); ov.id = 'tpClassSwitch';
   ov.style.cssText = 'position:fixed;inset:0;z-index:3000;background:rgba(20,24,29,.45);display:flex;align-items:center;justify-content:center;padding:20px';
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
-  const active = activeClassId();
+  // Not activeClassId(): with no pointer that answers 'default', and the
+  // 'default' row would wear an "Active" pill and offer no way out.
+  const active = activeClassIsSet() ? activeClassId() : null;
   const rows = getClasses().map(c => {
     const isActive = c.id === active;
     return `<div class="tpcs-row" data-id="${esc(c.id)}" style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid ${isActive ? 'var(--teal-600)' : 'var(--line)'};border-radius:12px;margin-bottom:8px;background:${isActive ? 'var(--teal-50)' : 'var(--card)'}">
@@ -114,7 +205,7 @@ function openClassSwitcher(){
       </div>
       ${isActive
         ? '<span class="pill" style="background:var(--teal-50);color:var(--teal-700);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px">Active</span>'
-        : '<button class="tpcs-use" style="font-size:12px;font-weight:700;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer">Use ▸</button>'}
+        : '<button class="tpcs-use" style="font-size:12px;font-weight:700;color:var(--ink);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer">Use ▸</button>'}
       ${(c.id !== 'default' && getClasses().length > 1)
         ? '<button class="tpcs-del" title="Delete class" style="width:28px;height:28px;border:none;background:none;color:#c4cad2;font-size:14px;cursor:pointer;border-radius:8px">✕</button>'
         : ''}
@@ -144,6 +235,9 @@ function openClassSwitcher(){
   });
 }
 window.openClassSwitcher = openClassSwitcher;
+window.orphanedClassIds = orphanedClassIds;
+window.recoverOrphanedClasses = recoverOrphanedClasses;
+window.activeClassIsSet = activeClassIsSet;
 /* Year group & room now live on each class (Switch class ▾), not the teacher profile. */
 const PROFILE_FIELDS = [
   { k:'name',      label:'Name',               ph:'e.g. Miss Hart' },
