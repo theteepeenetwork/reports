@@ -71,3 +71,30 @@ test('a bookmarked #battler still resolves after the rename', async ({ page }) =
   await page.waitForTimeout(250);
   expect(await page.evaluate(() => (document.querySelector('.page.active') || {}).id)).toBe('page-glow');
 });
+
+/* Cache-busting.
+
+   server.js serves everything but HTML with `public, max-age=31536000`, so a
+   script tag without a ?v= is cached for a year. That is not theoretical: on
+   4 Sep 2026 a change to js/hub.js deployed correctly and did not reach the
+   browser, because js/hub.js had no version and the year-old copy won. The
+   file was right on the server and wrong in every returning teacher's browser.
+
+   Anything served from this origin and cached that hard has to carry a
+   version, or editing it does nothing for the people already using the app. */
+test('every local script and stylesheet is cache-busted', async ({ page }) => {
+  await blockExternal(page);
+  await page.goto('/index.html');
+
+  const unversioned = await page.evaluate(() => {
+    const out = [];
+    document.querySelectorAll('script[src], link[rel="stylesheet"][href]').forEach(el => {
+      const url = el.getAttribute('src') || el.getAttribute('href');
+      if (!url || /^https?:/i.test(url)) return;   // CDNs are versioned in the path
+      if (!/\?v=/.test(url)) out.push(url);
+    });
+    return out;
+  });
+
+  expect(unversioned, 'these would be served from a stale cache after an edit').toEqual([]);
+});
