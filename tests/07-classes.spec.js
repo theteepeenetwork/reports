@@ -193,7 +193,6 @@ test('every control in the switcher is actually readable', async ({ page }) => {
 test('the switcher can be reached without knowing the logo is a button', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, twoClasses());
-  await page.evaluate(() => window.hubSetMode('plan'));
   await page.waitForTimeout(300);
 
   const opener = page.locator('#tpClassOpen');

@@ -56,6 +56,13 @@
       grid-template-columns: 240px 1fr;
       min-height: 100vh;
     }
+    /* A grid item's min-width is `auto`, not 0, so a `1fr` track refuses to
+       shrink below its contents' min-content width. Without this the column
+       simply grows past the viewport and the whole page scrolls sideways —
+       which is how the week strip's "next week" button ended up off screen at
+       900px, and why the timetable did the same. Anything that genuinely
+       needs to be wider scrolls inside its own box instead. */
+    .app > * { min-width: 0; }
 
     .sidebar {
       background: var(--card);
@@ -293,11 +300,23 @@
       .app { grid-template-columns: 1fr; }
       .sidebar { position: fixed; left: -260px; width: 248px; transition: left .2s; z-index: 50; }
       .sidebar.open { left: 0; box-shadow: var(--shadow); }
-      .topbar { display: none; }
+      /* The top bar used to be hidden outright here. That was safe only while
+         a tablet booted into Teach, which carried its own copy of what lives
+         in it. Teach is gone, so hiding it would strand three things on the
+         device the app is actually used on: the active-account chip
+         (js/cloud.js — whose class is loaded, and Switch teacher; see
+         SETUP.md), Show on board, and Print. Only the search box is dropped,
+         because that is the part that does not fit. */
+      .topbar { padding: 0 14px; gap: 8px; height: 54px; overflow-x: auto; }
+      .topbar .search { display: none; }
+      /* Of the two bars it is the CONTROLS that should stay pinned, not the
+         branding — so the mobile bar scrolls away and .topbar keeps its
+         sticky. Both sticky at top:0 stacked them on top of each other, with
+         the mobile bar painting over the account chip and Show on board. */
       .topbar-mobile {
         display: flex; align-items: center; gap: .6rem; padding: .7rem 1rem;
         background: var(--card); color: var(--ink); border-bottom: 1px solid var(--line);
-        position: sticky; top: 0; z-index: 40;
+        position: static;
       }
       .topbar-mobile button { background: transparent; color: var(--ink); padding: .3rem; }
       .topbar-mobile strong { display: flex; align-items: center; gap: 8px; }

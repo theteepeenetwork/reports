@@ -1,7 +1,14 @@
 /* ============================================================
-   generator.js — Mental Starter Question Generator
-   Global render: genRender()  ·  Store key: 'tp_generator'
+   generator.js — Mental Starter question builders
    All identifiers prefixed "gen". No external libraries.
+
+   This was a page of its own (#generator, genRender, the store
+   'tp_generator') whose output never reached a week — it printed
+   worksheets nobody's Mental Starters week ever saw. The Sep 2026
+   redesign made it the DESIGN step of Mental Starters instead, so
+   what is left here is the part that was always the point: builders
+   that turn choices into question descriptors, and the step picker's
+   markup. hub.js owns the screen and the config now.
 
    Design: genBuild() produces an array of plain question
    DESCRIPTORS (params only, persisted). Deterministic
@@ -63,33 +70,9 @@
   function genUsesClocks(halfTerm){ return !!GEN_SET_USES_CLOCKS[genSetName(halfTerm)]; }
 
 
-  /* ── State ──────────────────────────────────────────────── */
-  function genDefaultState(){
-    return { v: 4, halfTerm: 'Spring 2', mode: 'worksheet', count: 50, week: false,
-             backTables: false, backPick: 'all', backCount: 20, generatedISO: '',
-             slots: genEmptySlots(), days: [] };
-  }
-  function genLoad(){
-    var s = Store.get('tp_generator', null);
-    if (!s || typeof s !== 'object') s = genDefaultState();
-    if (!GEN_CLOCK[s.halfTerm]) s.halfTerm = 'Spring 2';
-    if (GEN_MODES.indexOf(s.mode) < 0) s.mode = 'worksheet';
-    /* One White Rose step id per question slot, or null to take that slot from
-       the half-term preset. Always exactly GEN_SLOTS long, whatever a saved
-       state or a hand-edited backup contains. */
-    s.slots = genNormaliseSlots(s.slots);
-    if (!(s.count > 0)) s.count = 50;
-    s.week = !!s.week;
-    // times-tables-on-the-back of the mental starter (worksheet mode)
-    s.backTables = !!s.backTables;
-    if (['2', '5', '10', 'all'].indexOf(s.backPick) < 0) s.backPick = 'all';
-    if (!(s.backCount > 0)) s.backCount = 20;
-    // migrate v1 (single { questions: [] }) -> v2 ({ days: [{label, questions}] })
-    if (!Array.isArray(s.days)) s.days = Array.isArray(s.questions) && s.questions.length ? [{ label: '', questions: s.questions }] : [];
-    delete s.questions;
-    return s;
-  }
-  function genSave(s){ Store.set('tp_generator', s); }
+  /* State lives in tp_starter_cfg now (hub.js): mode, slots, qCount,
+     xtb/xtPick/xtCount. There is no generator store — a set of questions
+     is only ever saved as part of a week in tp_starter_weeks. */
 
   /* ── Build: produce question descriptors ────────────────── */
   // a +/- b with a no-negative guard. Returns {op, a, b}.
@@ -291,7 +274,6 @@
   }
 
   var GEN_SLOTS = 20;
-  var GEN_MODES = ['worksheet', 'tables', 'steps'];
 
   function genEmptySlots(){
     var a = [], i;
@@ -472,24 +454,7 @@
     return fn ? fn(q) : esc(JSON.stringify(q));
   }
 
-  /* ── Main render ────────────────────────────────────────── */
-  // one printable A4 page (front or back). Each .gen-day breaks to a new page.
-  function genSheetHTML(label, title, questions, isTables, generatedISO){
-    var heading = (label ? '<span class="gen-day-name">' + esc(label) + '</span> · ' : '') + title +
-                  (generatedISO ? ' &middot; ' + esc(generatedISO) : '');
-    var cells = questions.map(function (q, i){
-      return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + genRenderQuestion(q) + '</div></div>';
-    }).join('');
-    return '<div class="card gen-sheet gen-day">' +
-      '<h2 class="gen-heading">' + heading + '</h2>' +
-      '<div class="gen-grid' + (isTables ? ' gen-grid-tables' : '') + '">' + cells + '</div>' +
-    '</div>';
-  }
-
-  /* One <select> of every White Rose step, grouped by block. Steps with no
-     written form are listed but disabled, with the reason in the label -- a
-     teacher planning from the scheme should see the whole scheme, not a
-     silently filtered version of it. */
+  /* ── Step picker ────────────────────────────────────────── */
   /* A closed <select> shows only the chosen option's own text, never its
      optgroup, so the block has to be inside the label or a set slot reads
      "2. Quarter past and quarter to" with no clue which block that is. */
@@ -513,157 +478,38 @@
     return out.join('');
   }
 
-  function genStepPicker(s){
+  /* The step picker, re-hosted. It used to sit on the generator page and call
+     genSetSlot/genClearSlots directly; it is now rendered inside Mental
+     Starters' design step, so it emits hooks (data-slot, data-gen-clear) and
+     the screen that shows it does the wiring. Markup only — no state. */
+  function genStepPicker(slots, halfTerm){
+    var setName = genSetName(halfTerm);
+    slots = genNormaliseSlots(slots);
     var rows = [], i;
-    var setName = genSetName(s.halfTerm);
     for (i = 0; i < GEN_SLOTS; i++){
-      rows.push('<div class="gen-slot" style="display:flex;align-items:center;gap:8px">' +
-        '<span style="width:26px;flex:none;font-weight:800;color:var(--muted);font-size:12px">' + (i + 1) + ')</span>' +
-        '<select class="gen-slot-pick" data-slot="' + i + '" onchange="genSetSlot(' + i + ', this.value)" ' +
-          'style="flex:1;min-width:0;font-size:12px">' + genStepOptions(s.slots[i], setName) + '</select>' +
+      rows.push('<div class="gen-slot"><span class="gen-slot-n">' + (i + 1) + ')</span>' +
+        '<select class="gen-slot-pick" data-slot="' + i + '">' + genStepOptions(slots[i], setName) + '</select>' +
       '</div>');
     }
-    var chosen = s.slots.filter(Boolean).length;
-    return '<div class="card no-print" style="margin-top:.6rem">' +
-      '<div class="row" style="align-items:center">' +
-        '<div><b style="font-size:14px">Question by question</b>' +
-          '<div class="hint small" style="font-weight:400">White Rose Year 2 small steps. ' +
-            'Any slot left alone uses the <b>' + esc(genSetName(s.halfTerm)) + '</b> question for that position.</div></div>' +
-        '<div class="grow"></div>' +
-        '<span class="pill" style="font-size:11px">' + chosen + ' of ' + GEN_SLOTS + ' set</span>' +
-        '<button class="secondary" onclick="genClearSlots()" style="font-size:12px">Clear all</button>' +
-      '</div>' +
-      '<div id="genSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:6px;margin-top:.6rem">' +
-        rows.join('') + '</div>' +
+    var chosen = slots.filter(Boolean).length;
+    return '<div class="ms-steps">' +
+      '<div class="ms-steps-head"><b>Question by question</b><span class="grow"></span>' +
+        '<span class="ms-count">' + chosen + ' of ' + GEN_SLOTS + ' set</span>' +
+        '<button type="button" class="ms-link" data-gen-clear>Clear all</button></div>' +
+      '<div class="gen-slots">' + rows.join('') + '</div>' +
+      '<p class="ms-hint">White Rose Year 2 small steps. Any slot left alone uses the <b>' +
+        esc(setName) + '</b> question for that position. Choices are kept for the next week you design.</p>' +
     '</div>';
   }
 
-  function genRender(){
-    var root = document.getElementById('gen-root');
-    if (!root) return;
-    var s = genLoad();
-    genSave(s); // persist any normalisation / migration
-
-    var htOpts = HALF_TERMS.map(function (h){ return opt(h, h, s.halfTerm); }).join('');
-    var controls =
-      '<div class="card no-print">' +
-        '<div class="tabs">' +
-          '<button class="tab' + (s.mode === 'worksheet' ? ' active' : '') + '" onclick="genSetMode(\'worksheet\')">📝 Worksheet (20 Qs)</button>' +
-          '<button class="tab' + (s.mode === 'tables' ? ' active' : '') + '" onclick="genSetMode(\'tables\')">✖️ Times tables (2, 5, 10)</button>' +
-          '<button class="tab' + (s.mode === 'steps' ? ' active' : '') + '" onclick="genSetMode(\'steps\')">🎯 Choose steps</button>' +
-        '</div>' +
-        '<div class="row" style="margin-top:.6rem">' +
-          '<div><label>Half term</label><select id="genHalfTerm" onchange="genSetHalfTerm(this.value)" style="min-width:140px">' + htOpts + '</select>' +
-            '<div class="hint small" style="font-weight:400">Chooses the questions' + (genUsesClocks(s.halfTerm) ? ' and clock difficulty' : '') + '</div></div>' +
-          (s.mode === 'tables'
-            ? '<div><label>How many</label><input id="genCount" type="number" min="1" max="100" value="' + s.count + '" onchange="genSetCount(this.value)" style="width:90px" /></div>'
-            : '') +
-          '<div><label>How many days</label>' +
-            '<select id="genWeek" onchange="genSetWeek(this.value)" style="min-width:150px">' +
-              opt('0', '1 day', s.week ? '1' : '0') + opt('1', 'Whole week (Mon–Fri)', s.week ? '1' : '0') +
-            '</select></div>' +
-          '<div class="grow"></div>' +
-          '<button onclick="genGenerate()">🎲 Generate new</button>' +
-          '<button class="secondary" onclick="window.print()">🖨️ Print</button>' +
-        '</div>' +
-        (s.mode !== 'tables'
-          ? '<div class="row" style="margin-top:.5rem; align-items:flex-end">' +
-              '<label style="display:inline-flex; align-items:center; gap:8px; font-weight:600; cursor:pointer">' +
-                '<input type="checkbox"' + (s.backTables ? ' checked' : '') + ' onchange="genSetBackTables(this.checked)" style="width:16px; height:16px"> Times tables on the back' +
-              '</label>' +
-              (s.backTables
-                ? '<div><label>Tables</label><select onchange="genSetBackPick(this.value)" style="min-width:150px">' +
-                    opt('2', '2×', s.backPick) + opt('5', '5×', s.backPick) + opt('10', '10×', s.backPick) + opt('all', 'All three (2, 5, 10)', s.backPick) +
-                  '</select></div>' +
-                  '<div><label>How many questions</label><input type="number" min="1" max="100" value="' + s.backCount + '" onchange="genSetBackCount(this.value)" style="width:90px" /></div>'
-                : '') +
-            '</div>'
-          : '') +
-        (s.mode === 'worksheet'
-          ? '<p class="hint small" style="margin-top:.5rem">Question set for <b>' + esc(s.halfTerm) + '</b>: <b>' + esc(genSetName(s.halfTerm)) + '</b>' +
-              (genUsesClocks(s.halfTerm)
-                ? ' &middot; clocks: ' + genClockLabel(s.halfTerm)
-                : ' &middot; no clock question in this set') + '</p>'
-          : '') +
-        '<p class="hint small" style="margin-top:.3rem">Each page prints on its own A4 sheet' +
-          (s.mode !== 'tables' && s.backTables ? ' — print double-sided to get the times tables on the back.' : '.') + '</p>' +
-      '</div>' +
-      (s.mode === 'steps' ? genStepPicker(s) : '');
-
-    var body;
-    if (!s.days.length){
-      body = '<div class="card"><p class="empty">Tap <b>🎲 Generate new</b> to create ' + (s.week ? 'a week of worksheets' : 'a worksheet') + '.</p></div>';
-    } else {
-      body = s.days.map(function (day){
-        var pages = [];
-        var frontTitle = (s.mode === 'tables' ? 'Times tables (2, 5, 10)'
-                        : s.mode === 'steps' ? 'Mental Starter — chosen steps'
-                        : 'Mental Starter — ' + esc(s.halfTerm));
-        pages.push(genSheetHTML(day.label, frontTitle, day.questions, s.mode === 'tables', s.generatedISO));
-        if (day.back && day.back.length){
-          pages.push(genSheetHTML(day.label, 'Times tables — ' + genTablesLabel(s.backPick), day.back, true, s.generatedISO));
-        }
-        return pages.join('');
-      }).join('');
-    }
-    root.innerHTML = controls + body;
-  }
-
-  function genClockLabel(ht){
-    var names = { 0: "o'clock", 5: '5 past', 10: '10 past', 15: 'quarter past', 20: '20 past', 25: '25 past',
-                  30: 'half past', 35: '25 to', 40: '20 to', 45: 'quarter to', 50: '10 to', 55: '5 to' };
-    return genClockMinutes(ht).map(function (m){ return names[m]; }).join(', ');
-  }
-
-  /* ── Handlers (on window for inline onclick) ────────────── */
-  window.genGenerate = function (){
-    var s = genLoad();
-    s.days = genBuildDays(s.halfTerm, s.mode, s.count, s.week,
-      { backTables: s.backTables, backPick: s.backPick, backCount: s.backCount, slots: s.slots });
-    s.generatedISO = (typeof todayISO === 'function') ? todayISO() : '';
-    genSave(s); genRender();
-  };
-  /* Set or clear the step in one slot. Slots persist independently of mode, so
-     a teacher can flip back to a preset and return to their chosen steps. */
-  window.genSetSlot = function (i, id){
-    var s = genLoad();
-    i = parseInt(i, 10);
-    if (!(i >= 0 && i < GEN_SLOTS)) return;
-    s.slots[i] = (id && window.wrStep && window.wrStep(id)) ? id : null;
-    genSave(s); genRender();
-  };
-  window.genClearSlots = function (){
-    var s = genLoad();
-    s.slots = genEmptySlots();
-    genSave(s); genRender();
-  };
-  window.genSetMode = function (mode){
-    var s = genLoad();
-    if (s.mode === mode) return;
-    s.mode = (GEN_MODES.indexOf(mode) >= 0) ? mode : 'worksheet';
-    s.days = []; // worksheet/tables are different shapes; clear until regenerated
-    genSave(s); genRender();
-  };
-  window.genSetHalfTerm = function (v){ var s = genLoad(); s.halfTerm = GEN_CLOCK[v] ? v : s.halfTerm; genSave(s); genRender(); };
-  window.genSetCount = function (v){ var s = genLoad(); var n = parseInt(v, 10); s.count = (n > 0 && n <= 100) ? n : 50; genSave(s); };
-  window.genSetWeek = function (v){ var s = genLoad(); s.week = (v === '1' || v === 1 || v === true); genSave(s); genRender(); };
-
-  // rebuild the back times-tables page of already-generated days so toggles apply at once
-  function genRefreshBacks(s){
-    if (s.mode !== 'worksheet' || !s.days.length) return;
-    s.days.forEach(function (day){
-      if (s.backTables) day.back = genBuildTables(s.backCount, genBasesFor(s.backPick));
-      else delete day.back;
-    });
-  }
-  window.genSetBackTables = function (on){ var s = genLoad(); s.backTables = !!on; genRefreshBacks(s); genSave(s); genRender(); };
-  window.genSetBackPick = function (v){ var s = genLoad(); s.backPick = (['2','5','10','all'].indexOf(v) >= 0) ? v : 'all'; genRefreshBacks(s); genSave(s); genRender(); };
-  window.genSetBackCount = function (v){ var s = genLoad(); var n = parseInt(v, 10); s.backCount = (n > 0 && n <= 100) ? n : 20; genRefreshBacks(s); genSave(s); genRender(); };
-
-  /* expose render + testable helpers */
-  window.genRender = genRender;
+  /* expose the builders + testable helpers. No render: the screen is
+     Mental Starters' design step, in js/hub.js. */
   window.genBuild = genBuild;
   window.genBuildDays = genBuildDays;
+  window.genBuildTables = genBuildTables;
+  window.genBasesFor = genBasesFor;
+  window.genTablesLabel = genTablesLabel;
+  window.genStepPicker = genStepPicker;
   window.genRenderQuestion = genRenderQuestion;
   window.genHourAngle = genHourAngle;
   window.genMinuteAngle = genMinuteAngle;

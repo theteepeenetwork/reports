@@ -22,8 +22,13 @@ those notes — the week summary in `Plan › Today`, the pupil timeline — mus
 
 Back-compat shims exist for the rename and can be removed no earlier than the end of the 2026/27
 school year: the `bt*` aliases at the foot of `js/glow.js`, `window.openBattler` in `index.html`,
-the `#battler` → `#glow` hash redirect in `showPage()`, and `battler` in the two mode whitelists in
-`js/hub.js`.
+the `#battler` → `#glow` hash redirect in `showPage()`, and `battler` in `PLAN_HASHES` in
+`js/hub.js` (one whitelist since the Sep 2026 navigation redesign; it was two while Teach existed).
+
+The same redesign retired the **Question Generator** page. `#generator` redirects to
+`#mental-starters` in `showPage()` alongside `battler`, and its controls are that page's *design*
+step. `js/generator.js` keeps the builders (`genBuild`, `genRenderQuestion`, `genStepPicker`); the
+page, `genRender` and the `tp_generator` store are gone.
 
 ## Product
 

@@ -47,7 +47,19 @@ and routes (`js/glow.js`, `gg*`, `.gg-*`, `#glow`) — it does NOT cover storage
 Renaming it would orphan every synced account. If it ever moves, it moves behind a migration that
 reads both, writes one, and is covered by a test — never as part of a tidy-up.
 
+## Retired page, live key: `tp_generator` (Sep 2026)
+The Question Generator became Mental Starters' *design* step. No code reads or writes
+`tp_generator` any more, but it stays in `DATA_KEYS`: every synced account still holds a copy, and
+dropping it from the list would stop that copy syncing and quietly leave it out of backups. It is
+inert, not renamed — the questions a teacher designs now live in `tp_starter_cfg`
+(`mode`, `slots`, `xtPick` were added, additively) and reach `tp_starter_weeks`. Retire the key
+with the shims below.
+
 Back-compat shims (delete no earlier than the end of the 2026/27 school year):
 - foot of `js/glow.js` — aliases every `gg*` export back to its `bt*` name
 - `index.html` — `window.openBattler`, and `showPage()` maps the legacy `#battler` hash to `#glow`
-- `js/hub.js` — both mode whitelists still accept `battler`
+- `js/nav.js` — `showPage()` maps `#generator` onto `#mental-starters`
+- `js/hub.js` — `PLAN_HASHES` still accepts `battler` and `generator`. This read "both mode whitelists" until the
+  Sep 2026 navigation redesign removed Teach mode; there is one whitelist now, and the shim is
+  unchanged. `tp_mode` went with Teach — it was per-device and never in `DATA_KEYS`, so nothing
+  synced and no migration is owed.

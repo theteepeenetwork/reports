@@ -7,7 +7,7 @@ const { test, expect } = require('@playwright/test');
 const { blockExternal, fakeFirebase, seedDevice } = require('./fixtures');
 
 async function ready(page) {
-  await page.waitForFunction(() => document.body.dataset.mode && typeof ggAward === 'function', null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector('#planApp .nav-link') && typeof ggAward === 'function', null, { timeout: 10000 });
 }
 
 const envelope = v => ({ v: JSON.stringify(v), t: Date.now(), ver: 1 });

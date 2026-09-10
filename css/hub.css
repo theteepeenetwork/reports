@@ -4,34 +4,118 @@
    Glow Getters (glow) styling is untouched and lives elsewhere.
    =================================================================== */
 
-/* ---------- Mode shell ---------- */
-body[data-mode="teach"] #planApp { display: none; }
-body[data-mode="plan"]  #teach   { display: none; }
-#teach { display: flex; }
-
 /* ===================================================================
-   TEACH MODE — phones get a single 540px column; tablets/iPads fill
-   the whole page. 100dvh (not vh) so nothing hides behind the Safari
-   toolbar on iPad.
+   MENTAL STARTERS — the week / day / scores flow.
+   Was the Teach surface, which had its own 540px shell; it now sits
+   inside #page-mental-starters and takes the page's width. The .teach-*
+   rules below are still the flow's own styling — the surface went, the
+   sheet, the day rows and the whiteboard did not.
    =================================================================== */
-.teach {
-  flex-direction: column;
-  min-height: 100vh;      /* fallback for older browsers */
-  min-height: 100dvh;
-  max-width: 540px;
-  margin: 0 auto;
-  padding: 16px;
-  gap: 14px;
-}
-.teach-view { display: none; flex-direction: column; gap: 14px; flex: 1; }
-.teach-view.active { display: flex; }
+.ms-flow { display: flex; flex-direction: column; gap: 14px; }
+.ms-panel { display: none; flex-direction: column; gap: 14px; }
+.ms-panel.active { display: flex; }
 
-/* iPad / tablet: use the full page instead of a phone-width column */
-@media (min-width: 768px) {
-  .teach { max-width: none; padding: 20px 32px; }
+/* ---- Week strip: ‹ chips › ⊕ new week ---- */
+.wk-nav { display: flex; align-items: center; gap: 8px; }
+.wk-chips {
+  display: flex; gap: 8px; overflow-x: auto; flex: 1; min-width: 0;
+  padding-bottom: 2px;
 }
+.wk-step {
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  font-size: 16px; font-weight: 700; line-height: 1; cursor: pointer; font-family: inherit;
+}
+.wk-step:hover:not(:disabled) { background: var(--line-2); color: var(--ink); }
+.wk-step:disabled { opacity: .35; cursor: default; }
+.wk-new {
+  flex: 0 0 auto; border: 1px dashed var(--faint); background: var(--card);
+  color: var(--muted); border-radius: 999px; padding: 7px 14px;
+  font-size: 12.5px; white-space: nowrap; cursor: pointer; font-family: inherit;
+}
+.wk-new:hover { border-color: var(--teal-600); color: var(--teal-700); }
 
-/* Teach top row */
+/* ---- Design the questions (step 2, was the Question Generator) ---- */
+.ms-title { font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+.ms-sub { color: var(--muted); margin-top: 4px; font-size: 13px; line-height: 1.5; }
+.ms-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--teal-600);
+}
+.ms-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 14px;
+}
+.ms-field { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ms-field + .ms-field, .ms-steps + .ms-field {
+  border-top: 1px solid var(--line-2); padding-top: 12px;
+}
+.ms-field.col { align-items: stretch; flex-direction: column; gap: 8px; }
+.ms-flabel {
+  font-size: 11px; font-weight: 700; color: var(--faint);
+  text-transform: uppercase; letter-spacing: .06em; flex: 0 0 auto;
+}
+.ms-field:not(.col) > .ms-flabel { width: 90px; }
+.ms-row2 { display: flex; gap: 6px; }
+.ms-chip {
+  padding: 8px 15px; border-radius: 9px; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  font-weight: 600; font-size: 13px;
+}
+.ms-row2 .ms-chip { flex: 1; text-align: center; padding: 9px; }
+.ms-chip.on {
+  border: 2px solid var(--teal-600); background: var(--teal-50);
+  color: var(--teal-700); font-weight: 700;
+}
+.ms-toggle {
+  display: inline-flex; align-items: center; gap: 8px; flex: 1;
+  padding: 8px 12px; border-radius: 9px; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted); font-weight: 600;
+}
+.ms-toggle.on {
+  border: 1.5px solid var(--teal-600); background: var(--teal-50);
+  color: var(--teal-700); font-weight: 700;
+}
+.ms-sel { width: auto; min-width: 92px; font-size: 12.5px; }
+.ms-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0; }
+.ms-link {
+  background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit;
+  color: var(--teal-600); font-weight: 700; font-size: 12.5px;
+}
+.ms-steps { display: flex; flex-direction: column; gap: 8px; }
+.ms-steps-head { display: flex; align-items: center; gap: 8px; }
+.ms-steps-head .grow, .ms-actions .grow { flex: 1; }
+.ms-count {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--line-2); border-radius: 999px; padding: 2px 8px;
+}
+.gen-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px; }
+.gen-slot { display: flex; align-items: center; gap: 6px; }
+.gen-slot-n { width: 24px; flex: none; font-weight: 800; color: var(--muted); font-size: 11px; }
+.gen-slot-pick { flex: 1; min-width: 0; font-size: 12px; }
+.ms-sample { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; font-size: 12.5px; }
+.ms-sample-q b { color: var(--faint); margin-right: 4px; }
+.ms-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ms-actions .dock, .ms-actions .secondary { width: auto; margin: 0; }
+.ms-save { box-shadow: 0 6px 18px rgba(47, 85, 224, .32); }
+
+/* Print ▾ on the day sheet — This day · All 5 days · ×tables only */
+.ms-menu-wrap { position: relative; display: inline-flex; }
+.ms-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 5px; display: flex; flex-direction: column; min-width: 168px;
+}
+/* a class that sets display beats the [hidden] default, so say it here */
+.ms-menu[hidden] { display: none; }
+.ms-menu button {
+  background: none; border: 0; text-align: left; padding: 8px 10px; border-radius: 7px;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer;
+}
+.ms-menu button:hover:not(:disabled) { background: var(--line-2); }
+.ms-menu button:disabled { color: var(--faint); cursor: default; }
+
+/* Starter flow top row */
 .teach-top { display: flex; align-items: center; gap: 10px; }
 .teach-date { font-size: 13.5px; font-weight: 600; color: var(--muted); }
 .teach-top .spacer { flex: 1; }
@@ -269,15 +353,22 @@ body[data-mode="plan"]  #teach   { display: none; }
 /* ===================================================================
    PLAN MODE additions
    =================================================================== */
-/* "Open Teach" button + Settings gear in the existing sidebar */
-.open-teach {
+/* Quick log button + Settings gear in the sidebar. This slot held "Open
+   Teach" until Teach was removed; Quick log is what teachers opened Teach
+   to do, so it keeps the position and the emphasis. */
+.quick-log {
   width: 100%; margin: 4px 0 12px; padding: 11px 14px;
   background: var(--teal-600); color: #fff; border: 0; border-radius: 11px;
   font-size: 14px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 6px 18px rgba(47, 85, 224, .32);
 }
-.open-teach:hover { background: var(--teal-700); }
-/* sidebar section labels (Organise / Tools) for the split nav */
+.quick-log:hover { background: var(--teal-700); }
+/* rows that leave the app (Glow Getters opens its own window) */
+.nav-link .ext { margin-left: auto; display: flex; color: var(--faint); }
+.nav-link .ext svg { width: 14px; height: 14px; }
+.nav-link .count + .ext { margin-left: 0; }
+/* sidebar section labels (Board / Pupils / Assess / Organise) */
 .navwrap .nav-section {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em;
   color: var(--faint); font-weight: 700; padding: 14px 10px 4px 8px;
@@ -682,6 +773,6 @@ body[data-mode="plan"]  #teach   { display: none; }
 /* Print: show only the dedicated starter print container */
 #starterPrint { display: none; }
 @media print {
-  body[data-mode] #teach, #planApp, .ql-backdrop, .ql-toastwrap, #whiteboard { display: none !important; }
+  #planApp, .ql-backdrop, .ql-toastwrap, #whiteboard { display: none !important; }
   #starterPrint { display: block !important; }
 }

@@ -7,6 +7,12 @@
 /* ===================================================================
    DATA EXPORT / IMPORT
    =================================================================== */
+/* tp_generator is dead weight from Sep 2026: the Question Generator became
+   Mental Starters' design step and nothing reads or writes this key any more.
+   It stays listed on purpose — removing it stops the copies already on
+   teachers' devices from syncing or riding along in a backup, and a frozen
+   key is the Data owner's call, not a tidy-up. Drop it no earlier than the
+   end of the 2026/27 school year, with the other rename shims. */
 const DATA_KEYS = ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_marking','tp_timetable','tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren','tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
 /* Every physical localStorage key (across ALL classes) whose base is a synced
    data key — backups are whole-account, not just the active class. */

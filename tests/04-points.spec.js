@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
 const { blockExternal, seedDevice } = require('./fixtures');
 
 async function ready(page) {
-  await page.waitForFunction(() => document.body.dataset.mode && typeof ggAward === 'function', null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector('#planApp .nav-link') && typeof ggAward === 'function', null, { timeout: 10000 });
 }
 
 test('an award lands in the Glow Getters store under the frozen key', async ({ page }) => {
@@ -99,7 +99,6 @@ test('glow points awarded before the rename still count', async ({ page }) => {
   ] } });
   await page.goto('/index.html');
   await ready(page);
-  await page.evaluate(() => window.hubSetMode('plan'));
   await page.waitForTimeout(400);
 
   const summary = await page.evaluate(() => {

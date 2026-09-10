@@ -241,23 +241,23 @@ test('worksheets saved before question sets existed still print', async ({ page 
   expect(legacy, 'a legacy compare must still read as addition on the right').toContain('12 + 9');
 });
 
-test('picking a half-term changes the questions on the page', async ({ page }) => {
-  await open(page);
+test('the half-term decides the question set, and only Spring 2 draws clocks', async ({ page }) => {
+  /* This used to drive the Question Generator page, which let a teacher pick
+     any half-term. That page is gone: the half-term now follows the calendar
+     (currentHalfTerm) and feeds the week Mental Starters builds, so the thing
+     worth asserting is the mapping itself and what it renders. */
   const errors = collectErrors(page);
-  await page.evaluate(() => window.hubSetMode('plan'));
-  await page.evaluate(() => { window.location.hash = '#generator'; });
-  await page.waitForTimeout(400);
+  await open(page);
 
-  await page.evaluate(() => { window.genSetHalfTerm('Autumn 1'); window.genGenerate(); });
-  await page.waitForTimeout(300);
-  await expect(page.locator('#gen-root')).toContainText('Autumn 1');
-  await expect(page.locator('#gen-root'), 'the clock hint should be gone for Autumn 1')
-    .toContainText('no clock question in this set');
-  expect(await page.locator('#gen-root .gen-clock').count(), 'Autumn 1 drew a clock').toBe(0);
+  const autumn = await page.evaluate(() =>
+    window.genBuild('Autumn 1', 'worksheet', 20).map(q => window.genRenderQuestion(q)).join(''));
+  expect(autumn, 'Autumn 1 drew a clock').not.toContain('gen-clock');
 
-  await page.evaluate(() => { window.genSetHalfTerm('Spring 2'); window.genGenerate(); });
-  await page.waitForTimeout(300);
-  expect(await page.locator('#gen-root .gen-clock').count(), 'Spring 2 lost its clocks').toBeGreaterThan(0);
+  const spring = await page.evaluate(() =>
+    window.genBuild('Spring 2', 'worksheet', 20).map(q => window.genRenderQuestion(q)).join(''));
+  expect(spring, 'Spring 2 lost its clocks').toContain('gen-clock');
 
+  expect(await page.evaluate(() => window.genUsesClocks('Autumn 1'))).toBe(false);
+  expect(await page.evaluate(() => window.genUsesClocks('Spring 2'))).toBe(true);
   expect(errors).toEqual([]);
 });

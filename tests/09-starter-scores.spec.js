@@ -25,11 +25,10 @@ async function open(page, extra) {
   await seedDevice(page, { roster: PUPILS, extra: extra });
   await page.goto('/index.html');
   await page.waitForFunction(() => typeof window.msRecent === 'function', null, { timeout: 10000 });
-  /* buildPlan() moves the starter cards into Markbook's "Starter scores" tab,
-     so that is where a teacher actually enters scores -- #page-mental-starters
-     is left as an empty heading. Driving the real route here means these tests
-     fail if that re-homing ever changes. */
-  await page.evaluate(() => window.hubSetMode('plan'));
+  /* buildPlan() moves the starter score table into Markbook's "Starter scores"
+     tab, so that is where a teacher reads and edits recorded scores.
+     #page-mental-starters keeps the board-facing flow instead. Driving the
+     real route here means these tests fail if that re-homing ever changes. */
   await page.waitForTimeout(300);
   await page.locator('.nav-link[data-page="markbook"]').click();
   await page.waitForTimeout(300);

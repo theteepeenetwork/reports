@@ -18,9 +18,8 @@
    ("show on board") rather than the feature — which is what makes it
    findable by a teacher who has never been told where to look.
 
-   Contract with hub.js (js/hub.js owns both):
-     window.hubSetMode(mode)   'teach' | 'plan'
-     window.hubTeachGo(screen) navigate a teach screen
+   Contract with hub.js (js/hub.js owns it):
+     window.hubOpenStarter()   open today's starter sheet, ready to display
    Contract with index.html:
      window.openGlowGetters(sameTab)
    All three are probed defensively — if hub.js has not booted yet, the
@@ -29,7 +28,7 @@
 (function () {
   'use strict';
 
-  var BTN_ID = 'showOnBoardPlan';   // Teach renders its own, id showOnBoardTeach
+  var BTN_ID = 'showOnBoardPlan';
   var HOOK = '[data-board-open]';
   var SHEET_ID = 'bdSheet';
 
@@ -45,12 +44,12 @@
       bolt: true,
       go: function () { if (has('openGlowGetters')) window.openGlowGetters(); }
     });
-    if (has('hubSetMode') && has('hubTeachGo')) {
+    if (has('hubOpenStarter')) {
       out.push({
         key: 'starter',
         title: 'Starter sheet',
         sub: "Today's mental maths questions, sized for the board",
-        go: function () { window.hubSetMode('teach'); window.hubTeachGo('day'); }
+        go: function () { window.hubOpenStarter(); }
       });
     }
     return out;

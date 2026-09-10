@@ -17,7 +17,7 @@ const { test, expect } = require('@playwright/test');
 const { DATA_KEYS, blockExternal, fakeFirebase, seedDevice } = require('./fixtures');
 
 async function ready(page) {
-  await page.waitForFunction(() => document.body.dataset.mode && typeof ggAward === 'function', null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector('#planApp .nav-link') && typeof ggAward === 'function', null, { timeout: 10000 });
 }
 
 test.describe('sign-out must never write to the cloud', () => {

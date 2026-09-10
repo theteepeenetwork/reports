@@ -185,15 +185,24 @@ test('slots survive a save and reload, and a bad saved value is discarded', asyn
   expect(out.kept).toBe('b2.9');
 });
 
+/* Open Mental Starters' design step with "Choose steps" selected — where the
+   step picker lives since the Question Generator became this screen. */
+async function openStepPicker(page) {
+  await page.evaluate(() => {
+    localStorage.setItem('tp_starter_cfg', JSON.stringify({ qCount: 20, mode: 'steps', xtb: true }));
+    window.location.hash = '#mental-starters';
+  });
+  await page.waitForTimeout(400);
+  await page.click("#tv-starter #designWeek");
+  await page.waitForTimeout(400);
+}
+
 test('the picker offers every step, and greys the ones needing apparatus', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page);
-  await page.evaluate(() => { window.hubSetMode('plan'); window.location.hash = '#generator'; });
-  await page.waitForTimeout(400);
-  await page.evaluate(() => window.genSetMode('steps'));
-  await page.waitForTimeout(400);
+  await openStepPicker(page);
 
-  const picker = page.locator('#genSlots');
+  const picker = page.locator('#tv-design .gen-slots');
   await expect(picker).toBeVisible();
   expect(await picker.locator('select').count(), 'one selector per question').toBe(20);
 
@@ -208,52 +217,92 @@ test('the picker offers every step, and greys the ones needing apparatus', async
   expect(errors).toEqual([]);
 });
 
-test('the Question Generator is reachable from the sidebar, not just by typing a hash', async ({ page }) => {
-  /* Audit finding 7: the redesign stranded live pages. #page-generator renders
-     fully and was in neither PLAN_NAV nor the hash whitelist, so a feature
-     shipped onto it was invisible. Asserting the CONTROLS are visible, not the
-     section: #page-mental-starters proves a section can be "visible" while
-     holding nothing but a leftover heading. */
+test('a bookmarked #generator lands on the design step that replaced it', async ({ page }) => {
+  /* Audit finding 7 was that a redesign stranded live pages: #page-generator
+     rendered fully but was in neither PLAN_NAV nor the hash whitelist, so a
+     feature shipped onto it was invisible. It is not a page at all now — its
+     controls are Mental Starters' design step — so what has to hold is that
+     the hash a teacher bookmarked still arrives somewhere real, and that the
+     CONTROLS are there. A section can be "visible" holding only a heading. */
   await open(page);
-  await page.evaluate(() => window.hubSetMode('plan'));
   await page.waitForTimeout(300);
 
-  const link = page.locator('.nav-link[data-page="generator"]');
-  await expect(link, 'the Question Generator has no link in the sidebar').toHaveCount(1);
+  expect(await page.locator('.nav-link[data-page="generator"]').count(),
+    'the retired page is back in the sidebar').toBe(0);
+
+  await page.evaluate(() => { window.location.hash = '#generator'; });
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => (document.querySelector('.page.active') || {}).id))
+    .toBe('page-mental-starters');
+
+  await page.click('#tv-starter #designWeek');
+  await page.waitForTimeout(400);
+  await expect(page.locator('#tv-design [data-mode="steps"]'),
+    'the design step opened but its controls are not there').toBeVisible();
+  await expect(page.locator('#tv-design [data-count="20"]')).toBeVisible();
+});
+
+test('Mental Starters is linked, and its page carries the starter flow', async ({ page }) => {
+  /* This test used to assert the opposite. buildPlan() still moves the score
+     TABLE into Markbook › Starter scores, so for a while #page-mental-starters
+     was an empty husk and linking to it would have opened a blank page.
+
+     The Sep 2026 redesign gave the page the flow Teach used to own — pick a
+     week, open a day, show it on the board — so the link is correct now. The
+     assertion that matters is unchanged in spirit: a linked page must have
+     something on it. Checking the week CHIPS, not the section, because a
+     section can be "visible" while holding nothing but a leftover heading. */
+  await open(page);
+  await page.waitForTimeout(300);
+
+  const link = page.locator('.nav-link[data-page="mental-starters"]');
+  await expect(link, 'Mental Starters has no link in the sidebar').toHaveCount(1);
   await link.click();
   await page.waitForTimeout(400);
-  await expect(page.locator('#gen-root .tabs'), 'the page opened but its controls are not there').toBeVisible();
+
+  await expect(page.locator('#tv-starter .wk-chip').first(),
+    'the page opened but the starter flow is not on it').toBeVisible();
+
+  /* the score table is still Markbook's, not this page's */
+  expect(await page.evaluate(() => document.querySelectorAll('#page-mental-starters #msTable').length),
+    'the score table came back to this page — it belongs in Markbook').toBe(0);
 });
 
-test('Mental Starters is not linked, because its page is an empty husk', async ({ page }) => {
-  /* buildPlan() moves the starter cards into Markbook's "Starter scores" tab,
-     leaving #page-mental-starters with only its heading. Linking to it in the
-     sidebar would open a blank page — this is the guard against putting that
-     link back without moving the content too. */
-  await open(page);
-  await page.evaluate(() => window.hubSetMode('plan'));
-  await page.waitForTimeout(300);
-
-  expect(await page.locator('.nav-link[data-page="mental-starters"]').count()).toBe(0);
-  const leftBehind = await page.evaluate(() =>
-    document.querySelectorAll('#page-mental-starters .card').length);
-  expect(leftBehind, 'the husk has content again — it could now carry a link').toBe(0);
-});
-
-test('choosing a step in the picker changes that question on the sheet', async ({ page }) => {
+test('a chosen step reaches the saved week, not just a preview', async ({ page }) => {
+  /* The point of folding the generator in. It used to write to tp_generator
+     and print from there, so a teacher could choose steps all day and the
+     week Mental Starters actually served was still the half-term preset.
+     Generate & save has to put the chosen step on the day sheet. */
   const errors = collectErrors(page);
   await open(page);
-  await page.evaluate(() => { window.hubSetMode('plan'); window.location.hash = '#generator'; });
-  await page.waitForTimeout(400);
   await page.evaluate(() => {
-    window.genSetMode('steps');
-    window.genSetSlot(0, 'b2.13');   // The 10 times-table
-    window.genGenerate();
+    localStorage.setItem('tp_starter_cfg', JSON.stringify({
+      qCount: 20, mode: 'steps', xtb: false,
+      slots: ['b2.13'].concat(new Array(19).fill(null))   // The 10 times-table
+    }));
+    window.location.hash = '#mental-starters';
   });
   await page.waitForTimeout(400);
 
-  const first = page.locator('#gen-root .gen-q').first();
-  await expect(first).toContainText('10 ×');
-  await expect(page.locator('#gen-root')).toContainText('chosen steps');
+  await page.click('#tv-starter #designWeek');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#tv-design .ms-count'), 'the chosen slot was not carried in')
+    .toContainText('1 of 20 set');
+
+  await page.click('#tv-design #msSave');
+  await page.waitForTimeout(500);
+
+  const saved = await page.evaluate(() => {
+    const w = JSON.parse(localStorage.getItem('tp_starter_weeks') || '{}');
+    const days = w[Object.keys(w).sort().pop()] || [];
+    return days.map(d => window.genRenderQuestion(d[0]));
+  });
+  expect(saved.length, 'a week is five days').toBe(5);
+  saved.forEach(q => expect(q, 'a day was built without the chosen step').toContain('10 ×'));
+
+  await page.click('#tv-starter [data-day="0"]');
+  await page.waitForTimeout(400);
+  await expect(page.locator('#tv-day .ds-q').first(),
+    'the sheet a teacher prints does not show the chosen step').toContainText('10 ×');
   expect(errors).toEqual([]);
 });

@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
 const { blockExternal, seedDevice, ROSTER } = require('./fixtures');
 
 async function ready(page) {
-  await page.waitForFunction(() => document.body.dataset.mode && typeof ggAward === 'function', null, { timeout: 10000 });
+  await page.waitForFunction(() => document.querySelector('#planApp .nav-link') && typeof ggAward === 'function', null, { timeout: 10000 });
 }
 
 test('a seeded class reaches the roster, the board and the seating plan', async ({ page }) => {

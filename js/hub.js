@@ -1,15 +1,26 @@
 /* ===================================================================
-   hub.js — Classroom Hub "Teach / Plan" redesign shell
+   hub.js — Classroom Hub shell: sidebar, Today, Quick log, starters
    ------------------------------------------------------------------
-   Recreates the design-handoff prototype on top of the existing
-   vanilla-JS app: reuses Store, the shared `roster`, the per-feature
-   modules (generator/picker/timetable/seating/groups/charts),
-   and the existing data stores (tp_starters, tp_star, tp_behaviour,
-   tp_assess, tp_battler …). Glow Getters (glow) is untouched —
-   Quick log awards points via the public window.ggAward path.
+   Builds the app on top of the existing vanilla-JS pages: reuses Store,
+   the shared `roster`, the per-feature modules (generator/picker/
+   timetable/seating/groups/charts), and the existing data stores
+   (tp_starters, tp_star, tp_behaviour, tp_assess, tp_battler …).
+   Glow Getters (glow) is untouched — Quick log awards points via the
+   public window.ggAward path.
+
+   Teach mode was removed in the Sep 2026 navigation redesign. There is
+   one surface now, reached from the sidebar; Glow Getters is the thing
+   you put on the board, in its own window. What Teach used to hold:
+     Starter        → Mental Starters (msGo, this file)
+     Pick a name    → Name Picker    (#name-picker, js/picker.js)
+     Award points   → Glow Getters   (glow-getters.html)
+     Who sits where → Seating        (#seating)
+     Groups         → Groups         (#groups)
+     Quick log      → the sidebar button, unchanged
+   `tp_mode` went with it — it was per-device and never in DATA_KEYS,
+   so nothing synced and no migration is owed.
 
    Store keys added here:
-     tp_mode          'teach' | 'plan'  (per device)
      tp_starter_sets  { 'YYYY-MM-DD'(Monday): {days,generatedISO,max} }
      tp_board_ink     { 'YYYY-MM-DD': [strokes] }  (today only is read)
    =================================================================== */
@@ -24,7 +35,11 @@
       chevron: '<path d="M9 6l6 6-6 6"/>',
       back: '<path d="M15 6l-6 6 6 6"/>',
       gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-      play: '<path d="M7 4l13 8-13 8z"/>'
+      play: '<path d="M7 4l13 8-13 8z"/>',
+      external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
+      /* Instant Groups is the random one — zap now belongs to Glow Getters */
+      shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
+      ruler: '<path d="M3 15l6-6 3 3 3-3 3 3 3-3"/><path d="M3 15v4h18v-4"/><path d="M7 15v-2M11 15v-2M15 15v-2"/>'
     };
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (P[name] || '') + '</svg>';
   }
@@ -322,24 +337,52 @@
      STARTER WEEKS — 5 sets (Mon–Fri) per week beginning; ONE renderer
      tp_starter_weeks : { [mondayISO]: Question[][] }   // exactly 5 day arrays
      tp_starter_ann   : { [dayISO+':'+view]: Stroke[] } // normalised 0..1, persists
-     tp_starter_cfg   : { qCount:10|15|20, xtb:boolean }
+     tp_starter_cfg   : { qCount:10|15|20, xtb:boolean, xtCount:number,
+                          mode:'preset'|'steps', slots:(stepId|null)[20],
+                          xtPick:'2'|'5'|'10'|'all' }
      Scores reuse the Mental Starters store (msData), keyed by the day's date.
+
+     mode/slots/xtPick arrived with the Sep 2026 redesign, when the Question
+     Generator became this page's design step. They are additive: a cfg saved
+     before it reads back as preset · all tables, which is what those weeks
+     were built with.
      =================================================================== */
   var stCurWeek = mondayOf(), stCurDay = 0;
-  function stCfg() { var c = Store.get('tp_starter_cfg', null) || {}; return { qCount: [10, 15, 20].indexOf(c.qCount) >= 0 ? c.qCount : 20, xtb: c.xtb !== false, xtCount: (c.xtCount > 0 ? c.xtCount : 50) }; }
+  /* Has the teacher steered to a particular week/day in this session? The
+     board control follows them when they have, and defaults to today when
+     they have not. */
+  var stPicked = false;
+  function stCfg() {
+    var c = Store.get('tp_starter_cfg', null) || {};
+    return {
+      qCount: [10, 15, 20].indexOf(c.qCount) >= 0 ? c.qCount : 20,
+      xtb: c.xtb !== false,
+      xtCount: (c.xtCount > 0 ? c.xtCount : 50),
+      mode: c.mode === 'steps' ? 'steps' : 'preset',
+      /* normalised against the live scheme, so a step that leaves White Rose
+         degrades to "use the preset question" rather than printing a blank */
+      slots: (typeof window.genNormaliseSlots === 'function') ? window.genNormaliseSlots(c.slots) : [],
+      xtPick: ['2', '5', '10', 'all'].indexOf(c.xtPick) >= 0 ? c.xtPick : 'all'
+    };
+  }
   function stSaveCfg(c) { Store.set('tp_starter_cfg', c); }
   function stWeeks() { return Store.get('tp_starter_weeks', {}); }
   function stSaveWeeks(w) { Store.set('tp_starter_weeks', w); }
   function stWeek(monday) { return stWeeks()[monday] || null; }
   function stDayISO(monday, i) { return addDaysISO(monday, i); }
-  function stBuildDay(qCount) {
+  /* 'preset' in the UI is genBuild's 'worksheet' — the half-term's own set.
+     Always builds the full 20 and slices, so the chosen steps keep the slot
+     positions a teacher set them in whatever the day length is. */
+  function stBuildDay(qCount, cfg) {
+    cfg = cfg || stCfg();
     var ht = currentHalfTerm();
-    var qs = (typeof window.genBuild === 'function') ? window.genBuild(ht, 'worksheet', 20) : [];
-    return qs.slice(0, qCount);                          // 10 / 15 / 20, sliced from the real generator
+    var mode = cfg.mode === 'steps' ? 'steps' : 'worksheet';
+    var qs = (typeof window.genBuild === 'function') ? window.genBuild(ht, mode, 20, cfg.slots) : [];
+    return qs.slice(0, qCount);
   }
   function stGenerateWeek(monday, qCount) {
-    var w = stWeeks(), days = [];
-    for (var i = 0; i < 5; i++) days.push(stBuildDay(qCount));   // five DIFFERENT sheets
+    var cfg = stCfg(), w = stWeeks(), days = [];
+    for (var i = 0; i < 5; i++) days.push(stBuildDay(qCount, cfg));   // five DIFFERENT sheets
     w[monday] = days; stSaveWeeks(w); stUnclear(monday); flashSaved(); return days;
   }
   function stFreshDay(monday, i, qCount) {
@@ -367,12 +410,19 @@
   function stMarkCleared(m) { var c = stCleared(); if (c.indexOf(m) < 0) { c.push(m); Store.set('tp_starter_cleared', c); } }
   function stUnclear(m) { var c = stCleared(), i = c.indexOf(m); if (i >= 0) { c.splice(i, 1); Store.set('tp_starter_cleared', c); } }
   function stClearWeek(monday) { var w = stWeeks(); delete w[monday]; stSaveWeeks(w); stClearWeekAnn(monday); stMarkCleared(monday); }
+  /* Fill in this week if it has never been made, and otherwise leave it alone.
+
+     This used to also regenerate an "untouched" current week whenever its
+     length no longer matched tp_starter_cfg.qCount, to migrate old 10-question
+     weeks up to 20. That became destructive once qCount moved onto the design
+     screen: changing Per day while designing NEXT week silently rebuilt THIS
+     week's five saved sets, so a teacher opened the board and found questions
+     they had never seen. A saved week now only ever changes through Generate
+     & save, which is the promise the design screen makes. */
   function stEnsureCurrent() {
-    var m = mondayOf(), w = stWeek(m), qc = stCfg().qCount;
-    if (!w) { if (stCleared().indexOf(m) < 0) stGenerateWeek(m, qc); return; }   // respect an explicit Clear
-    // bring an untouched current week up to the configured length (e.g. old 10-default → 20)
-    var touched = w.some(function (_, i) { var d = stDayISO(m, i); return stDayHasAnn(d) || stDayHasScores(d); });
-    if (!touched && (w[0] || []).length !== qc) stGenerateWeek(m, qc);
+    var m = mondayOf();
+    if (stWeek(m)) return;
+    if (stCleared().indexOf(m) < 0) stGenerateWeek(m, stCfg().qCount);   // respect an explicit Clear
   }
   /* annotation layers (per day AND per view) */
   function stAnn() { return Store.get('tp_starter_ann', {}); }
@@ -389,114 +439,99 @@
   }
   /* deterministic ×tables back page (16 items seeded from the day's date) */
   function stSeed(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h += 0x6D2B79F5; var t = Math.imul(h ^ (h >>> 15), 1 | h); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  function stTablesFor(dayISO, count) {
+  /* Seeded on the day, so reprinting a sheet gives the same back page. `pick`
+     is the cfg's xtPick — the tables the class is actually on. It used to be
+     hard-coded to 2,3,4,5,6,10, which put 3s, 4s and 6s in front of a Year 2
+     class in September. */
+  function stTablesFor(dayISO, count, pick) {
     count = count > 0 ? count : 50;
-    var rnd = stSeed(dayISO + ':xt'), bases = [2, 3, 4, 5, 6, 10], out = [];
+    var bases = (typeof window.genBasesFor === 'function') ? window.genBasesFor(pick) : [2, 5, 10];
+    if (!bases.length) bases = [2, 5, 10];
+    var rnd = stSeed(dayISO + ':xt:' + (pick || 'all')), out = [];
     for (var i = 0; i < count; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 12) });
     return out;
   }
 
   /* ===================================================================
-     TEACH MODE
+     MENTAL STARTERS — the board-facing starter flow
+     ------------------------------------------------------------------
+     This was Teach's Starter screen. Teach is gone — one surface now —
+     so the three views it owned (week, day sheet, score entry) are
+     hosted inside #page-mental-starters and switched by msGo().
+
+     The split with Markbook is deliberate: Markbook › Starter scores
+     keeps the half-term score TABLE, because that is a marks view. This
+     page is the part a teacher stands up and uses — set the week, open
+     a day, put it on the board.
      =================================================================== */
-  var teachScreen = 'home';
-  function buildTeachShell() {
-    var t = document.getElementById('teach');
-    t.innerHTML =
-      '<div class="teach-view active" id="tv-home"></div>' +
-      '<div class="teach-view" id="tv-starter"></div>' +
-      '<div class="teach-view" id="tv-day"></div>' +
-      '<div class="teach-view" id="tv-scores"></div>' +
-      '<div class="teach-view" id="tv-pick"></div>' +
-      '<div class="teach-view" id="tv-points"></div>' +
-      '<div class="teach-view" id="tv-seats"></div>' +
-      '<div class="teach-view" id="tv-groups"></div>';
+  var msView = 'starter';
+
+  function msFlowHTML() {
+    return '<div class="ms-flow">' +
+      '<div class="ms-panel active" id="tv-starter"></div>' +
+      '<div class="ms-panel" id="tv-design"></div>' +
+      '<div class="ms-panel" id="tv-day"></div>' +
+      '<div class="ms-panel" id="tv-scores"></div>' +
+      '</div>';
   }
-  function teachGo(screen) {
-    teachScreen = screen;
-    document.querySelectorAll('.teach-view').forEach(function (v) { v.classList.remove('active'); });
-    var el = document.getElementById('tv-' + screen); if (el) el.classList.add('active');
+
+  /* Switching view while the page is off screen would render into a hidden
+     panel, so route through the hash and let renderPage re-enter with
+     msView already set. */
+  function msGo(view) {
+    msView = view;
+    var host = document.getElementById('page-mental-starters');
+    if (!host) return;
+    if (!host.classList.contains('active')) { go('mental-starters'); return; }
+    host.querySelectorAll('.ms-panel').forEach(function (v) { v.classList.remove('active'); });
+    var el = document.getElementById('tv-' + view); if (el) el.classList.add('active');
     window.scrollTo(0, 0);
-    if (screen === 'home') renderTeachHome();
-    if (screen === 'starter') renderStarterWeek();
-    if (screen === 'day') renderDayView();
-    if (screen === 'scores') renderScores();
-    if (screen === 'pick') renderPick();
-    if (screen === 'points') renderPoints();
-    if (screen === 'seats') renderSeats();
-    if (screen === 'groups') renderGroupsTeach();
+    if (view === 'starter') renderStarterWeek();
+    if (view === 'design') renderDesign();
+    if (view === 'day') renderDayView();
+    if (view === 'scores') renderScores();
   }
 
-  function topRow() {
-    var cls = '';
-    try { cls = (typeof tpActiveClassMeta === 'function') ? (tpActiveClassMeta().name || '') : ''; } catch (e) {}
-    var classPill = cls ? '<button class="pill pill-ghost" id="teachClassPill" title="Switch class">' + esc(cls) + ' ▾</button>' : '';
-    return '<div class="teach-top">' +
-      '<span class="teach-date">' + esc(todayLabel()) + '</span>' +
-      '<span class="spacer"></span>' +
-      classPill +
-      '<span class="pill pill-saved"><span>✓</span> saved</span>' +
-      '<button type="button" class="pill bd-btn" id="showOnBoardTeach" data-board-open '+
-        'title="Put Glow Getters or the starter sheet on the smartboard">'+
-        '<span class="bolt">⚡</span> Show on board</button>' +
-      '<button class="pill pill-ghost" id="goPlan">Plan ↗</button></div>';
+  /* The design step is reached three ways and needs to know which, because
+     what it writes differs: a whole week, or one day.
+       { day: null }  → Generate & save replaces all five sets
+       { day: 0..4 }  → replaces that day only (the ⟳ fresh set route)
+     `back` is where Cancel and the back link return to. */
+  var msDesign = { day: null, back: 'starter' };
+  function msOpenDesign(day, back) {
+    msDesign = { day: (day == null ? null : +day), back: back || 'starter' };
+    msGo('design');
   }
 
-  function renderTeachHome() {
-    var v = document.getElementById('tv-home');
-    var nn = nowNext();
-    var glance = nn
-      ? '<div class="glance">' +
-          '<div class="glance-now"><span class="eyebrow">Now</span>' +
-            '<span class="glance-subject">' + esc(nn.now.subject || '—') + '</span>' +
-            (nn.untilTime ? '<span class="glance-until">until ' + esc(nn.untilTime) + '</span>' : '') + '</div>' +
-          '<div class="glance-next"><span class="eyebrow">Next</span>' +
-            '<span class="nxt">' + esc(nn.next ? nn.next.subject : 'End of day') + '</span></div>' +
-        '</div>'
-      : '<div class="glance"><div class="glance-now"><span class="eyebrow">Today</span>' +
-          '<span class="glance-subject">No timetable yet</span></div>' +
-          '<div class="glance-next"><span class="nxt">Set it up in Plan › Organise › Timetable</span></div></div>';
+  /* Board control's "Show on board › Starter sheet".
 
-    var set = stWeek(mondayOf());
-    var starterStatus = set ? "this week's 5 sets saved ✓" : 'tap to set this week';
-    var picker = Store.get('tp_picker', { picked: [] });
-    var pickStatus = (picker.picked ? picker.picked.length : 0) + ' of ' + roster.length + ' had a turn';
-
-    var tiles =
-      tile('starter', 'calculator', 'Starter', starterStatus, set ? 'ok' : '') +
-      tile('pick', 'target', 'Pick a name', pickStatus, '') +
-      tile('points', 'zap', 'Award points', 'without putting the board up', '') +
-      tile('seats', 'layout-grid', 'Who sits where', 'seating · groups', '') +
-      tile('groups', 'book-open', 'Groups', grpCountLabel(), '');
-
-    v.innerHTML = topRow() + glance +
-      '<div class="tile-grid">' + tiles + '</div>' +
-      '<button class="dock" id="teachDock">' + svg('plus', 22) + ' Quick log</button>';
-
-    document.getElementById('goPlan').onclick = function () { setMode('plan'); };
-    var clsPill = document.getElementById('teachClassPill');
-    if (clsPill && typeof window.openClassSwitcher === 'function') clsPill.onclick = function () { window.openClassSwitcher(); };
-    document.getElementById('teachDock').onclick = function () { openQuickLog(); };
-    v.querySelectorAll('[data-tile]').forEach(function (b) {
-      b.onclick = function () {
-        var k = b.dataset.tile;
-        if (k === 'glow') { openGlowGetters(); return; }
-        teachGo(k);
-      };
-    });
+     It used to force stCurWeek back to this Monday every time, which meant a
+     teacher who had just designed next week put last week on the board — and
+     on a Sunday it landed on the previous Friday. So: follow the week they
+     are working in if they have chosen one, and otherwise open today's, or
+     Monday's when today is the weekend. */
+  function msOpenStarterOnBoard() {
+    var dow = (new Date().getDay() + 6) % 7;          // 0 = Monday … 6 = Sunday
+    if (!stPicked || !stWeek(stCurWeek)) {
+      var m = mondayOf();
+      var next = addDaysISO(m, 7);
+      if (dow > 4 && stWeek(next)) { m = next; dow = 0; }   // weekend → Monday's sheet
+      stCurWeek = m;
+      stCurDay = Math.min(dow, 4);
+    }
+    stEnsureCurrent();
+    msGo('day');
   }
-  function tile(key, icon, label, status, statusCls, violet) {
-    return '<button class="tile' + (violet ? ' violet' : '') + '" data-tile="' + key + '">' +
-      '<span class="tile-icon">' + svg(icon, 22) + '</span>' +
-      '<span class="tile-foot"><span class="tile-label">' + esc(label) + '</span>' +
-      '<span class="tile-status ' + (statusCls || '') + '">' + esc(status) + '</span></span></button>';
-  }
+  window.hubOpenStarter = msOpenStarterOnBoard;
 
-  function teachHead(backTo, backLabel, rightHTML) {
-    return '<div class="teach-head"><button class="back-link" data-back="' + backTo + '">' + svg('back', 16) + esc(backLabel) + '</button>' +
+  /* backTo empty = this view is the top of the flow (the week list is the
+     page itself now, so it has nothing to go back to). */
+  function msHead(backTo, backLabel, rightHTML) {
+    return '<div class="teach-head">' +
+      (backTo ? '<button class="back-link" data-back="' + backTo + '">' + svg('back', 16) + esc(backLabel) + '</button>' : '') +
       '<span class="spacer" style="flex:1"></span>' + (rightHTML || '') + '</div>';
   }
-  function wireBack(v) { v.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = function () { teachGo(b.dataset.back); }; }); }
+  function msWireBack(v) { v.querySelectorAll('[data-back]').forEach(function (b) { b.onclick = function () { msGo(b.dataset.back); }; }); }
 
   function GRQ(q){ return (typeof window.genRenderQuestion === 'function') ? window.genRenderQuestion(q) : esc(JSON.stringify(q)); }
   function chunk(arr, n){ var out = []; for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
@@ -523,7 +558,11 @@
                       : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600;padding:7px 14px';
       return '<button class="wk-chip" data-wk="' + k + '" style="border-radius:999px;font-size:12.5px;white-space:nowrap;cursor:pointer;' + style + '">' + fmtWBShort(k) + suffix + '</button>';
     }).join('');
-    chips += '<button class="wk-chip" id="newWeek" style="border:1px dashed var(--faint);background:var(--card);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12.5px;white-space:nowrap;cursor:pointer">⊕ new week</button>';
+    /* ⊕ new week sits OUTSIDE the scroller. It used to be the last chip, which
+       meant that on a device holding a term of weeks it scrolled off the end
+       with everything else and could not be reached at all. */
+    var newWeekBtn = '<button class="wk-chip wk-new" id="newWeek">⊕ new week</button>';
+    var idx = keys.indexOf(stCurWeek);
 
     var days = weeks[stCurWeek] || [];
     var rows = [0,1,2,3,4].map(function (i){
@@ -542,44 +581,76 @@
     }).join('');
 
     var hasWeek = !!weeks[stCurWeek];
-    var xtbBtn = '<button id="xtbToggle" style="border-radius:12px;padding:11px 14px;font-size:13px;text-align:left;cursor:pointer;' + (cfg.xtb ? 'border:1.5px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700' : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600') + '">' + (cfg.xtb ? '☑' : '☐') + ' ×tables on the back of every sheet</button>' +
-      (cfg.xtb ? '<div style="display:flex;align-items:center;gap:10px;padding:0 4px"><label style="margin:0;flex:1">How many ×tables questions</label>' +
-        '<select id="xtCount" style="width:110px">' + [10, 20, 30, 40, 50, 60, 80, 100].map(function (n){ return '<option value="' + n + '"' + (cfg.xtCount === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' : '');
+    /* One line saying what this week was actually built from. The settings
+       themselves moved to the design step — the ⟳ Replace all 5 sets button
+       and the ×tables toggle that used to sit here are both that screen now. */
+    var setName = (typeof window.genSetName === 'function') ? window.genSetName(currentHalfTerm()) : currentHalfTerm();
+    var summary = 'Currently: ' + (cfg.mode === 'steps' ? 'chosen steps' : esc(setName) + ' preset') +
+      ' · ' + cfg.qCount + ' per day · ' +
+      (cfg.xtb ? '×tables on the back (' +
+        ((typeof window.genTablesLabel === 'function') ? esc(window.genTablesLabel(cfg.xtPick)) : cfg.xtPick) +
+        ', ' + cfg.xtCount + ')' : 'no ×tables page');
+    var designBtn = '<button id="designWeek" class="dock ms-save">' + svg('ruler', 16) + " Design this week's questions</button>" +
+      '<p class="ms-hint" style="text-align:center;margin:0">' + summary + '</p>';
     var body = hasWeek
       ? '<div style="display:flex;flex-direction:column;gap:10px">' + rows + '</div>' +
-        '<button id="replaceWeek" class="secondary" style="width:100%;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">⟳ Replace all 5 sets</button>' +
-        xtbBtn +
-        '<button id="printWeek" style="background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:14px;font-size:14px;font-weight:700">🖨 Print all 5 days</button>' +
-        '<button id="clearWeek" class="danger" style="width:100%;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🧹 Clear week</button>'
-      : '<div class="empty">No sets saved for ' + esc(fmtWB(stCurWeek)) + ' yet. Tap “⊕ new week” above to choose questions per day — or generate now (scores you already entered are kept).</div>' +
-        '<button id="genThisWeek" class="dock">⊕ Generate ' + (stCurWeek === thisMon ? 'this week' : esc(fmtWBShort(stCurWeek))) + '</button>';
+        designBtn +
+        '<div style="display:flex;gap:8px">' +
+          '<button id="printWeek" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🖨 Print all 5 days</button>' +
+          '<button id="clearWeek" class="danger" style="flex:1;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🧹 Clear week</button>' +
+        '</div>'
+      : '<div class="empty">No sets saved for ' + esc(fmtWB(stCurWeek)) + ' yet. Design the questions and they are saved to this week — scores you already entered are kept.</div>' +
+        designBtn;
 
-    v.innerHTML = teachHead('home', 'Home', '<span class="pill pill-saved"><span>✓</span> saved</span>') +
-      '<div><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
-      '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Starter</div>' +
-      '<div style="font-size:12.5px;color:var(--faint)">Pick a week, then a day — sheet, whiteboard or scores.</div></div>' +
-      '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">' + chips + '</div>' +
+    /* No title here — the page header carries it now. On the Teach surface
+       this view was the whole screen and needed its own. */
+    v.innerHTML = msHead('', '', '<span class="pill pill-saved"><span>✓</span> saved</span>') +
+      '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
+      '<div class="wk-nav">' +
+        '<button class="wk-step" id="wkPrev" title="Previous week"' + (idx <= 0 ? ' disabled' : '') + '>‹</button>' +
+        '<div class="wk-chips" id="wkChips">' + chips + '</div>' +
+        '<button class="wk-step" id="wkNext" title="Next week"' + (idx < 0 || idx >= keys.length - 1 ? ' disabled' : '') + '>›</button>' +
+        newWeekBtn +
+      '</div>' +
       body;
-    wireBack(v);
-    v.querySelectorAll('[data-wk]').forEach(function (b){ b.onclick = function (){ stCurWeek = b.dataset.wk; stCurDay = (stCurWeek === thisMon) ? Math.min((new Date().getDay() + 6) % 7, 4) : 0; renderStarterWeek(); }; });
+    msWireBack(v);
+
+    function pickWeek(k){
+      stPicked = true;
+      stCurWeek = k;
+      stCurDay = (stCurWeek === thisMon) ? Math.min((new Date().getDay() + 6) % 7, 4) : 0;
+      renderStarterWeek();
+    }
+    v.querySelectorAll('[data-wk]').forEach(function (b){ b.onclick = function (){ pickWeek(b.dataset.wk); }; });
+    var prev = document.getElementById('wkPrev'), next = document.getElementById('wkNext');
+    if (prev) prev.onclick = function (){ if (idx > 0) pickWeek(keys[idx - 1]); };
+    if (next) next.onclick = function (){ if (idx >= 0 && idx < keys.length - 1) pickWeek(keys[idx + 1]); };
+
+    /* Bring the selected week into view. Without this the row opens at
+       scrollLeft 0 — the oldest week — so on a device with a term of saved
+       weeks the one you are actually on, and the next one you just designed,
+       are both off the right-hand edge with nothing to say so. Scroll the row
+       itself, never scrollIntoView, which would drag the whole page. */
+    var strip = document.getElementById('wkChips');
+    var selChip = strip && strip.querySelector('[data-wk="' + stCurWeek + '"]');
+    if (strip && selChip) {
+      /* Measure against the strip's own box. offsetLeft is relative to the
+         nearest POSITIONED ancestor, which is not the strip, so it silently
+         returns a number from somewhere up the tree and the row never moves. */
+      var cr = selChip.getBoundingClientRect(), sr2 = strip.getBoundingClientRect();
+      strip.scrollLeft += (cr.left - sr2.left) - (strip.clientWidth - cr.width) / 2;
+    }
+
     document.getElementById('newWeek').onclick = openNewWeek;
+    document.getElementById('designWeek').onclick = function (){ msOpenDesign(null, 'starter'); };
     if (hasWeek) {
-      v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stCurDay = +b.dataset.day; teachGo('day'); }; });
-      document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderStarterWeek(); };
-      var xc = document.getElementById('xtCount'); if (xc) xc.onchange = function (){ var c = stCfg(); c.xtCount = +xc.value; stSaveCfg(c); renderStarterWeek(); };
-      document.getElementById('replaceWeek').onclick = function (){
-        if (!confirm('Replace all five sets for ' + fmtWB(stCurWeek) + ' with fresh questions?' + (stWeekTouched(stCurWeek) ? ' This week has whiteboard annotations — they will be cleared too.' : '') + ' This cannot be undone.')) return;
-        stClearWeekAnn(stCurWeek); stGenerateWeek(stCurWeek, stCfg().qCount); renderStarterWeek();
-        toast('✓ 5 fresh sets saved to ' + fmtWB(stCurWeek));
-      };
+      v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stPicked = true; stCurDay = +b.dataset.day; msGo('day'); }; });
       document.getElementById('printWeek').onclick = function (){ stPrintWeek(stCurWeek); };
       document.getElementById('clearWeek').onclick = function (){
-        if (!confirm('Clear the sets for ' + fmtWB(stCurWeek) + '? This removes the questions and whiteboard annotations so you can generate a new week for that date. Scores you have already entered are kept.')) return;
+        if (!confirm('Clear the sets for ' + fmtWB(stCurWeek) + '? This removes the questions and whiteboard annotations so you can design a new week for that date. Scores you have already entered are kept.')) return;
         stClearWeek(stCurWeek); renderStarterWeek();
-        toast('✓ Cleared ' + fmtWB(stCurWeek) + ' — use ⊕ new week to generate fresh sets');
+        toast('✓ Cleared ' + fmtWB(stCurWeek) + ' — design the questions to fill it again');
       };
-    } else {
-      document.getElementById('genThisWeek').onclick = function (){ stGenerateWeek(stCurWeek, stCfg().qCount); renderStarterWeek(); toast('✓ 5 fresh sets saved to ' + fmtWB(stCurWeek)); };
     }
   }
 
@@ -595,30 +666,160 @@
     for (var i = 0; i <= 4 && opts.length < 4; i++){ var k = addDaysISO(thisMon, 7 * i); if (!weeks[k]) opts.push(k); }   // current (if cleared) + upcoming
     var rows = opts.map(function (k){
       var tag = k === thisMon ? ' — this week' : (k === addDaysISO(thisMon, 7) ? ' — next week' : '');
-      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line-2)"><span style="font-size:13.5px;font-weight:600">' + fmtWB(k) + tag + '</span><button class="nw-gen" data-k="' + k + '" style="background:none;border:0;color:var(--teal-600);font-weight:700;font-size:13px;cursor:pointer">generate &amp; save ›</button></div>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line-2)"><span style="font-size:13.5px;font-weight:600">' + fmtWB(k) + tag + '</span><button class="nw-gen" data-k="' + k + '" style="background:none;border:0;color:var(--teal-600);font-weight:700;font-size:13px;cursor:pointer">design ›</button></div>';
     }).join('') || '<p class="hint small">All weeks already have sets.</p>';
     document.getElementById('stSheet').innerHTML =
       '<div class="ql-grab"></div>' +
       '<div class="ql-head"><span class="ql-title">New week of starters</span><span class="spacer"></span><button class="ql-x" id="nwClose">✕</button></div>' +
-      '<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Five fresh sets — one each for Monday to Friday — saved to the week beginning you pick.</p>' +
+      '<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Pick the week beginning, then choose its questions. Five different sets, one each for Monday to Friday.</p>' +
       '<label style="margin:0 0 6px">Questions per day</label><div style="display:flex;gap:8px;margin-bottom:6px">' + counts + '</div>' +
       rows +
       '<p class="hint small" style="margin-top:12px">A saved set never changes unless you explicitly regenerate it.</p>';
     document.getElementById('nwClose').onclick = closeNewWeek;
     document.querySelectorAll('.nw-count').forEach(function (b){ b.onclick = function (){ var c = stCfg(); c.qCount = +b.dataset.n; stSaveCfg(c); renderNewWeek(); }; });
-    document.querySelectorAll('.nw-gen').forEach(function (b){ b.onclick = function (){ var k = b.dataset.k; stGenerateWeek(k, stCfg().qCount); stCurWeek = k; stCurDay = 0; closeNewWeek(); renderStarterWeek(); toast('✓ 5 fresh sets saved to ' + fmtWB(k)); }; });
+    /* Pick the week here, then design it — the sheet used to generate on the
+       spot with whatever the last settings were, which is how a teacher ended
+       up with a week they never chose the questions for. */
+    document.querySelectorAll('.nw-gen').forEach(function (b){ b.onclick = function (){ stPicked = true; stCurWeek = b.dataset.k; stCurDay = 0; closeNewWeek(); msOpenDesign(null, 'starter'); }; });
   }
 
-  /* ── Day view — the printable sheet (teach screen 'day') ── */
+  /* ── Design the questions (step 2) — was the Question Generator ──
+     The generator was a page whose output never reached a week: it wrote to
+     its own store and printed from there, while Mental Starters quietly built
+     every week with the half-term preset. Same controls, wired to the week
+     instead. Choices live in tp_starter_cfg, so the next week you design
+     starts from the last one. */
+  function renderDesign(){
+    var v = document.getElementById('tv-design');
+    var cfg = stCfg(), ht = currentHalfTerm();
+    var setName = (typeof window.genSetName === 'function') ? window.genSetName(ht) : ht;
+    var oneDay = msDesign.day != null;
+    var steps = cfg.mode === 'steps';
+
+    function chip(on, label, attr){
+      return '<button type="button" ' + attr + ' class="ms-chip' + (on ? ' on' : '') + '">' + esc(label) + '</button>';
+    }
+    var modeRow =
+      '<div class="ms-row2">' +
+        chip(!steps, setName + ' preset', 'data-mode="preset"') +
+        chip(steps, 'Choose steps', 'data-mode="steps"') +
+      '</div>' +
+      '<p class="ms-hint">' + (steps
+        ? 'Each slot below is a White Rose small step. Anything you leave alone falls back to the ' + esc(setName) + ' question for that position.'
+        : 'The ' + esc(setName) + ' question set, as taught this half term. <b>Choose steps</b> swaps any slot for a White Rose small step.') + '</p>';
+
+    var picker = steps && typeof window.genStepPicker === 'function' ? window.genStepPicker(cfg.slots, ht) : '';
+
+    var counts = [10, 15, 20].map(function (n){
+      return chip(cfg.qCount === n, String(n), 'data-count="' + n + '"');
+    }).join('');
+
+    function sel(id, options, val){
+      return '<select class="ms-sel" id="' + id + '">' + options.map(function (o){
+        return '<option value="' + o[0] + '"' + (String(o[0]) === String(val) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+      }).join('') + '</select>';
+    }
+    var backRow =
+      '<div class="ms-field"><span class="ms-flabel">Back page</span>' +
+        '<button type="button" id="xtbToggle" class="ms-toggle' + (cfg.xtb ? ' on' : '') + '">' +
+          (cfg.xtb ? '☑' : '☐') + ' ×tables</button>' +
+        (cfg.xtb
+          ? sel('xtPick', [['2', '2×'], ['5', '5×'], ['10', '10×'], ['all', '2, 5, 10']], cfg.xtPick) +
+            sel('xtCount', [[20, '20'], [30, '30'], [40, '40'], [50, '50'], [60, '60'], [80, '80'], [100, '100']], cfg.xtCount)
+          : '') +
+      '</div>';
+
+    /* Same builder and same renderer as the printed sheet, so what a teacher
+       reads here is what comes out of the printer. The whole day, not a
+       taster: the point of the screen is deciding whether these are the right
+       questions, and you cannot tell that from the first eight. */
+    var sample = stBuildDay(cfg.qCount, cfg);
+    var sampleGrid = sample.map(function (q, i){
+      return '<span class="ms-sample-q"><b>' + (i + 1) + '</b> ' + GRQ(q) + '</span>';
+    }).join('');
+
+    var scopeLabel = oneDay ? stDayShort(stCurWeek, msDesign.day) : fmtWB(stCurWeek);
+    var warn = oneDay
+      ? 'Replaces the set for ' + esc(stDayShort(stCurWeek, msDesign.day)) + '. Whiteboard ink on that day is cleared; scores are kept.'
+      : 'Replaces the 5 sets for ' + esc(fmtWB(stCurWeek)) + '. Whiteboard ink on this week is cleared; scores are kept.';
+
+    v.innerHTML = msHead(msDesign.back, oneDay ? stDayShort(stCurWeek, msDesign.day) : fmtWB(stCurWeek),
+        '<span class="ms-eyebrow">' + esc(ht) + '</span>') +
+      '<div><div class="ms-title">Design the questions</div>' +
+        '<div class="ms-sub">' + (oneDay
+          ? 'One fresh set for ' + esc(stDayFull(stCurWeek, msDesign.day)) + ', built from these choices.'
+          : 'Five different sets, one per day, built from these choices.') +
+        ' Saved to the week when you press Generate &amp; save.</div></div>' +
+      '<div class="ms-card">' +
+        '<div class="ms-field col"><span class="ms-flabel">Questions</span>' + modeRow + '</div>' +
+        picker +
+        '<div class="ms-field"><span class="ms-flabel">Per day</span>' + counts + '</div>' +
+        backRow +
+      '</div>' +
+      '<div class="ms-card">' +
+        '<div class="ms-steps-head"><span class="ms-flabel">Sample · ' +
+          esc(oneDay ? stDayShort(stCurWeek, msDesign.day) : 'Monday') + '</span><span class="grow"></span>' +
+          '<button type="button" class="ms-link" id="msResample">⟳ another sample</button></div>' +
+        '<div class="ms-sample">' + sampleGrid + '</div>' +
+        '<p class="ms-hint">All ' + cfg.qCount + ' questions, drawn by the same renderer as the printed sheet.</p>' +
+      '</div>' +
+      '<div class="ms-actions"><span class="ms-hint grow">' + warn + '</span>' +
+        '<button type="button" class="secondary" id="msCancel">Cancel</button>' +
+        '<button type="button" class="dock ms-save" id="msSave">Generate &amp; save' +
+          (oneDay ? ' ' + esc(stDayShort(stCurWeek, msDesign.day)) : '') + '</button></div>';
+
+    msWireBack(v);
+
+    v.querySelectorAll('[data-mode]').forEach(function (b){
+      b.onclick = function (){ var c = stCfg(); c.mode = b.dataset.mode; stSaveCfg(c); renderDesign(); };
+    });
+    v.querySelectorAll('[data-count]').forEach(function (b){
+      b.onclick = function (){ var c = stCfg(); c.qCount = +b.dataset.count; stSaveCfg(c); renderDesign(); };
+    });
+    v.querySelectorAll('[data-slot]').forEach(function (sl){
+      sl.onchange = function (){
+        var c = stCfg(), i = +sl.dataset.slot;
+        c.slots[i] = (sl.value && window.wrStep && window.wrStep(sl.value)) ? sl.value : null;
+        stSaveCfg(c); renderDesign();
+      };
+    });
+    var clr = v.querySelector('[data-gen-clear]');
+    if (clr) clr.onclick = function (){ var c = stCfg(); c.slots = c.slots.map(function (){ return null; }); stSaveCfg(c); renderDesign(); };
+    document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderDesign(); };
+    var xp = document.getElementById('xtPick'); if (xp) xp.onchange = function (){ var c = stCfg(); c.xtPick = xp.value; stSaveCfg(c); renderDesign(); };
+    var xc = document.getElementById('xtCount'); if (xc) xc.onchange = function (){ var c = stCfg(); c.xtCount = +xc.value; stSaveCfg(c); renderDesign(); };
+    document.getElementById('msResample').onclick = function (){ renderDesign(); };
+    document.getElementById('msCancel').onclick = function (){ msGo(msDesign.back); };
+
+    document.getElementById('msSave').onclick = function (){
+      var c = stCfg();
+      if (oneDay){
+        var dayISO = stDayISO(stCurWeek, msDesign.day);
+        if (stDayHasAnn(dayISO) && !confirm('This day has whiteboard annotations. Generate a fresh set anyway? They will be cleared and the old questions gone.')) return;
+        stClearDay(dayISO);
+        stFreshDay(stCurWeek, msDesign.day, c.qCount);
+        toast('✓ Fresh questions for ' + stDayShort(stCurWeek, msDesign.day));
+        msGo('day');
+        return;
+      }
+      if (stWeekTouched(stCurWeek) && !confirm('This week has whiteboard annotations. Replace all five sets anyway? The annotations will be cleared. Scores are kept.')) return;
+      stClearWeekAnn(stCurWeek);
+      stGenerateWeek(stCurWeek, c.qCount);
+      toast('✓ 5 fresh sets saved to ' + fmtWB(stCurWeek));
+      msGo('starter');
+    };
+  }
+
+  /* ── Day view — the printable sheet (step 3) ── */
   function renderDayView(){
     var v = document.getElementById('tv-day');
     var days = stWeek(stCurWeek);
     if (!days) {   // week was cleared — don't silently regenerate; offer to generate
-      v.innerHTML = teachHead('starter', fmtWB(stCurWeek), '') +
+      v.innerHTML = msHead('starter', fmtWB(stCurWeek), '') +
         '<div class="empty">No set saved for ' + esc(fmtWB(stCurWeek)) + '.</div>' +
-        '<button class="dock" id="genFromDay">⊕ Generate this week</button>';
-      wireBack(v);
-      document.getElementById('genFromDay').onclick = function (){ stGenerateWeek(stCurWeek, stCfg().qCount); renderDayView(); toast('✓ 5 fresh sets saved to ' + fmtWB(stCurWeek)); };
+        '<button class="dock ms-save" id="genFromDay">' + svg('ruler', 16) + " Design this week's questions</button>";
+      msWireBack(v);
+      document.getElementById('genFromDay').onclick = function (){ msOpenDesign(null, 'starter'); };
       return;
     }
     var qs = days[stCurDay] || [], dayISO = stDayISO(stCurWeek, stCurDay);
@@ -627,13 +828,19 @@
               : (hasAnn ? '<span style="font-size:11px;font-weight:700;background:var(--success-50);color:var(--success);border-radius:999px;padding:3px 10px">✏ annotated</span>' : '');
     var cells = qs.map(function (q, i){ return '<div class="ds-q"><span class="ds-num">' + (i + 1) + '</span><div class="ds-text">' + GRQ(q) + '</div></div>'; }).join('');
     var xt = '';
-    if (cfg.xtb){ var xts = stTablesFor(dayISO, cfg.xtCount);
+    if (cfg.xtb){ var xts = stTablesFor(dayISO, cfg.xtCount, cfg.xtPick);
       xt = '<div class="ds-divider">back of sheet · ×tables</div><div class="ds-xtgrid">' +
         xts.map(function (q, i){ return '<div class="ds-xt"><span class="ds-xtn">' + (i + 1) + '</span>' + GRQ(q) + '</div>'; }).join('') + '</div>';
     }
     var note = 'this is exactly the A4 sheet that prints — same questions, same layout' + (cfg.xtb ? ' · ×tables on the back' : '');
-    v.innerHTML = teachHead('starter', fmtWB(stCurWeek),
-        '<button class="back-link" id="freshDay" style="color:var(--muted)">⟳ fresh set</button><button class="pill pill-ghost" id="printDay" style="margin-left:6px">🖨 Print</button>') +
+    v.innerHTML = msHead('starter', fmtWB(stCurWeek),
+        '<button class="back-link" id="freshDay" style="color:var(--muted)">⟳ fresh set</button>' +
+        '<span class="ms-menu-wrap"><button class="pill pill-ghost" id="printDay" style="margin-left:6px">🖨 Print ▾</button>' +
+          '<div class="ms-menu" id="printMenu" hidden>' +
+            '<button type="button" data-print="day">This day</button>' +
+            '<button type="button" data-print="week">All 5 days</button>' +
+            '<button type="button" data-print="xt"' + (cfg.xtb ? '' : ' disabled title="Turn ×tables on in Design the questions"') + '>×tables only</button>' +
+          '</div></span>') +
       '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:21px;font-weight:700;letter-spacing:-.01em">' + esc(stDayFull(stCurWeek, stCurDay)) + '</span>' + badge + '</div>' +
       '<div class="ds-sheet">' +
         '<div class="ds-sheethead"><b>Mental Starter</b><span>name ________&nbsp;&nbsp;date ________</span></div>' +
@@ -644,14 +851,24 @@
         '<button class="dock" id="toBoard" style="flex:1.5">▶ Display on Whiteboard</button>' +
         '<button id="toScores" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:16px;font-size:15px;font-weight:700">Enter scores</button>' +
       '</div>';
-    wireBack(v);
-    document.getElementById('freshDay').onclick = function (){
-      if ((stDayHasAnn(dayISO) || stDayHasScores(dayISO)) && !confirm('This day has annotations or scores. Generate a fresh set anyway? The old questions will be gone.')) return;
-      stFreshDay(stCurWeek, stCurDay, stCfg().qCount); renderDayView(); toast('✓ Fresh questions for ' + stDayShort(stCurWeek, stCurDay) + ' — the old set is gone');
-    };
-    document.getElementById('printDay').onclick = function (){ stPrintDay(stCurWeek, stCurDay); };
+    msWireBack(v);
+    /* ⟳ fresh set is the same design screen, scoped to this day */
+    document.getElementById('freshDay').onclick = function (){ msOpenDesign(stCurDay, 'day'); };
+
+    var pm = document.getElementById('printMenu'), pb = document.getElementById('printDay');
+    pb.onclick = function (e){ e.stopPropagation(); pm.hidden = !pm.hidden; };
+    document.addEventListener('click', function closeMenu(){ if (pm) pm.hidden = true; document.removeEventListener('click', closeMenu); });
+    pm.querySelectorAll('[data-print]').forEach(function (b){
+      b.onclick = function (){
+        pm.hidden = true;
+        if (b.dataset.print === 'day') stPrintDay(stCurWeek, stCurDay);
+        else if (b.dataset.print === 'week') stPrintWeek(stCurWeek);
+        else stPrintTables(stCurWeek, stCurDay);
+      };
+    });
+
     document.getElementById('toBoard').onclick = function (){ openWhiteboard(); };
-    document.getElementById('toScores').onclick = function (){ teachGo('scores'); };
+    document.getElementById('toScores').onclick = function (){ msGo('scores'); };
   }
 
   /* ── Whiteboard mode (full-screen takeover) ── */
@@ -678,7 +895,7 @@
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
   function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
-  function closeWhiteboard(){ wbFlushSave(); document.getElementById('whiteboard').style.display = 'none'; teachGo('day'); }
+  function closeWhiteboard(){ wbFlushSave(); document.getElementById('whiteboard').style.display = 'none'; msGo('day'); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
     var wb = document.getElementById('whiteboard'), qs = wbQs(), pages = Math.max(1, Math.ceil(qs.length / 10)), grid = wbFocus == null, stage;
@@ -830,7 +1047,7 @@
   function ensureScoreCol(){ var b = stScoreBlock(), d = scoreDayISO(); if (b.dates.indexOf(d) < 0){ b.dates.push(d); b.dates.sort(); } return b; }
   function renderScores(){
     var v = document.getElementById('tv-scores'), b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster();
-    if (!list.length){ v.innerHTML = teachHead('day', stDayShort(stCurWeek, stCurDay), '') + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; wireBack(v); return; }
+    if (!list.length){ v.innerHTML = msHead('day', stDayShort(stCurWeek, stCurDay), '') + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; msWireBack(v); return; }
     var rows = list.map(function (p, i){
       var cell = (b.scores[p.id] && b.scores[p.id][d]) || {}, sel = i === scoreSel, val = cell.v != null ? cell.v : (sel ? '|' : '—');
       return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-2)"><span style="flex:1;font-weight:600;font-size:14.5px">' + esc(p.name) + '</span>' +
@@ -838,11 +1055,11 @@
         '<button class="ipad-tog" data-pid="' + p.id + '" style="border-radius:10px;padding:8px 13px;font-size:13px;' + (cell.ipad ? 'border:1.5px solid var(--gold-600);background:var(--gold-100)' : 'border:1px solid var(--line);background:var(--card);opacity:.35') + '">📱</button></div>';
     }).join('');
     var pad = ['1','2','3','4','5','6','7','8','9','0','⌫','↵'].map(function (k){ return '<button class="pad" data-k="' + k + '" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;color:var(--ink)">' + k + '</button>'; }).join('');
-    v.innerHTML = teachHead('day', stDayShort(stCurWeek, stCurDay), '<span class="pill pill-saved"><span>✓</span> saved · ' + stDayShort(stCurWeek, stCurDay) + ' column</span>') +
+    v.innerHTML = msHead('day', stDayShort(stCurWeek, stCurDay), '<span class="pill pill-saved"><span>✓</span> saved · ' + stDayShort(stCurWeek, stCurDay) + ' column</span>') +
       '<div style="flex:1;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 14px;min-height:0">' + rows + '</div>' +
       '<p class="hint small" style="margin:0;text-align:center">Tap a pupil, then tap the keypad — or just type on your keyboard (↵ / ↓ moves to the next pupil).</p>' +
       '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">' + pad + '</div>';
-    wireBack(v);
+    msWireBack(v);
     v.querySelectorAll('.score-cell').forEach(function (b2){ b2.onclick = function (){ scoreSel = +b2.dataset.i; renderScores(); }; });
     v.querySelectorAll('.ipad-tog').forEach(function (b2){ b2.onclick = function (){ toggleIpad(b2.dataset.pid); }; });
     v.querySelectorAll('.pad').forEach(function (b2){ b2.onclick = function (){ padKey(b2.dataset.k); }; });
@@ -874,238 +1091,66 @@
   function stDayPagesHTML(monday, i){
     var days = stWeek(monday) || [], qs = days[i] || [], dayISO = stDayISO(monday, i), cfg = stCfg(), label = stDayFull(monday, i), html = '';
     html += stSheetHTML(label, 'Mental Starter — ' + currentHalfTerm(), qs, false);   // all questions on one A4 page
-    if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO, cfg.xtCount), true);
+    if (cfg.xtb) html += stSheetHTML(label, 'Times tables', stTablesFor(dayISO, cfg.xtCount, cfg.xtPick), true);
     return html;
   }
   function stPrintDay(monday, i){ stPrintHTML(stDayPagesHTML(monday, i)); }
+  /* ×tables on their own — what the generator's "Times tables" mode printed,
+     now a choice on the sheet it belongs to rather than a mode of its own. */
+  function stPrintTables(monday, i){
+    var cfg = stCfg(), dayISO = stDayISO(monday, i);
+    var label = (typeof window.genTablesLabel === 'function') ? window.genTablesLabel(cfg.xtPick) : '';
+    stPrintHTML(stSheetHTML(stDayFull(monday, i), 'Times tables — ' + label, stTablesFor(dayISO, cfg.xtCount, cfg.xtPick), true));
+  }
   function stPrintWeek(monday){ var html = ''; for (var i = 0; i < 5; i++) html += stDayPagesHTML(monday, i); stPrintHTML(html); }
 
-  /* ── Pick a name (uses the tp_picker store, no-repeats) ── */
-  function renderPick() {
-    var v = document.getElementById('tv-pick');
-    var st = Store.get('tp_picker', { noRepeats: true, picked: [], currentId: null });
-    var name = st.currentId ? pupilName(st.currentId) : '—';
-    var counter = (st.picked ? st.picked.length : 0) + ' of ' + roster.length + ' had a turn';
-
-    /* Glow Getters award row — only when someone is currently picked and the
-       glow award path is available (it is loaded alongside this hub). */
-    var glowRow = '';
-    if (st.currentId && typeof window.ggAward === 'function') {
-      var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
-      var pts = (typeof window.ggGetPoints === 'function') ? window.ggGetPoints(st.currentId) : 0;
-      glowRow =
-        '<div class="glow-row">' +
-          '<button class="glow-minus" id="pickGlowMinus" title="Take a glow getters point">−</button>' +
-          '<div class="glow-tally"><span class="glow-n" id="pickGlowN">' + pts + '</span>' +
-            '<span class="glow-l">⚡ glow getters points</span></div>' +
-          '<button class="glow-plus" id="pickGlowPlus" title="Give a glow getters point">+' + step + '</button>' +
-        '</div>';
-    }
-
-    v.innerHTML = teachHead('home', 'Home', '<span style="font-size:12.5px;color:var(--faint);font-weight:600">' + counter + '</span>') +
-      '<div class="glance" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;border-radius:20px">' +
-        '<span style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)">' + (st.currentId ? 'Your turn,' : 'Tap pick to start') + '</span>' +
-        '<div style="font-size:52px;font-weight:800;letter-spacing:-.02em;color:var(--teal-700);line-height:1.1">' + esc(name) + '</div>' +
-        '<span style="font-size:13px;color:var(--muted)">no repeats until everyone has had a turn</span>' +
-        glowRow +
-      '</div>' +
-      '<div style="display:flex;gap:10px">' +
-        '<button class="dock" id="pickBtn" style="flex:1.4">Pick someone</button>' +
-        '<button id="pickReset" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:17px;font-size:15px;font-weight:700">Start afresh</button>' +
-      '</div>';
-    wireBack(v);
-    document.getElementById('pickBtn').onclick = function () {
-      var st = Store.get('tp_picker', { noRepeats: true, picked: [], currentId: null });
-      var remaining = roster.filter(function (p) { return (st.picked || []).indexOf(p.id) === -1; });
-      if (!remaining.length) { toast('Everyone has had a turn — start afresh!'); return; }
-      var pick = remaining[Math.floor(Math.random() * remaining.length)];
-      st.picked = (st.picked || []).concat(pick.id); st.currentId = pick.id; st.noRepeats = true;
-      Store.set('tp_picker', st); flashSaved(); renderPick();
-    };
-    document.getElementById('pickReset').onclick = function () {
-      var st = Store.get('tp_picker', {}); st.picked = []; st.currentId = null; Store.set('tp_picker', st); renderPick();
-    };
-
-    /* Award / remove a glow getters point for the currently picked pupil.
-       Mirrors Quick log: silent award (no smartboard-only animations), then
-       repaint just the tally so the picked name stays put. */
-    var glowMinus = document.getElementById('pickGlowMinus');
-    var glowPlus = document.getElementById('pickGlowPlus');
-    function pickGlow(sign) {
-      var cur = Store.get('tp_picker', {}).currentId;
-      if (!cur || typeof window.ggAward !== 'function') return;
-      var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
-      window.ggAward(cur, sign * step, { silent: true, label: 'Pick a name' });
-      var n = document.getElementById('pickGlowN');
-      if (n && typeof window.ggGetPoints === 'function') n.textContent = window.ggGetPoints(cur);
-      flashSaved();
-      toast(pupilName(cur) + ' ' + (sign > 0 ? '+' : '−') + step + ' ⚡');
-    }
-    if (glowMinus) glowMinus.onclick = function () { pickGlow(-1); };
-    if (glowPlus) glowPlus.onclick = function () { pickGlow(1); };
-  }
-
-  /* ── Points (quick glow getters point picker — award without the board) ── */
-  function renderPoints() {
-    var v = document.getElementById('tv-points');
-    var list = sortedRoster();
-    var step = (typeof window.ggGetStep === 'function') ? window.ggGetStep() : 1;
-
-    if (!list.length) {
-      v.innerHTML = teachHead('home', 'Home', '') +
-        '<div class="empty">No pupils yet — add some in Plan › Pupils first.</div>';
-      wireBack(v);
-      return;
-    }
-
-    var cards = list.map(function (p) {
-      var pts = (typeof window.ggGetPoints === 'function') ? window.ggGetPoints(p.id) : 0;
-      return '<div class="pts-card">' +
-        '<span class="pts-name">' + esc(p.name) + '</span>' +
-        '<div class="pts-row">' +
-          '<button class="pts-minus" data-pid="' + esc(p.id) + '" data-sign="-1" title="Take a point">−</button>' +
-          '<span class="pts-n" id="ptsn-' + esc(p.id) + '">' + pts + '</span>' +
-          '<button class="pts-plus" data-pid="' + esc(p.id) + '" data-sign="1" title="Give a point">+' + step + '</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
-
-    v.innerHTML = teachHead('home', 'Home',
-        '<button class="pill pill-ghost" id="ptsOpenBoard">Open board ↗</button>') +
-      '<div style="margin:2px 0 2px"><div class="eyebrow" style="color:var(--teal-600)">Glow Getters</div>' +
-        '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Award points</div></div>' +
-      '<p style="font-size:12.5px;color:var(--faint);margin:0 0 6px">Tap + or − to award glow getters points — no need to open the full board.</p>' +
-      '<div class="pts-grid">' + cards + '</div>';
-
-    wireBack(v);
-    var openBoard = document.getElementById('ptsOpenBoard');
-    if (openBoard && typeof openGlowGetters === 'function') openBoard.onclick = function () { openGlowGetters(); };
-
-    v.querySelectorAll('.pts-minus, .pts-plus').forEach(function (b) {
-      b.onclick = function () {
-        var pid = b.dataset.pid, sign = +b.dataset.sign;
-        if (typeof window.ggAward !== 'function') return;
-        window.ggAward(pid, sign * step, { silent: true, label: 'Points picker' });
-        var n = document.getElementById('ptsn-' + pid);
-        if (n && typeof window.ggGetPoints === 'function') n.textContent = window.ggGetPoints(pid);
-        flashSaved();
-      };
-    });
-  }
-
-  /* ── Who sits where (read-only from seating store) ── */
-  function renderSeats() {
-    var v = document.getElementById('tv-seats');
-    var seat = Store.get('tp_seating', null);
-    var cards = '';
-    if (seat && seat.groups && seat.groups.length) {
-      cards = seat.groups.map(function (g, i) {
-        var names = g.map(function (id) { return pupilName(id); }).join(' · ');
-        return tableCard('Table ' + (i + 1), names || '—');
-      }).join('');
-    } else {
-      // fall back to 6 tables of 5 from the roster
-      var list = sortedRoster();
-      for (var i = 0; i < Math.max(1, Math.ceil(list.length / 5)); i++) {
-        cards += tableCard('Table ' + (i + 1), list.slice(i * 5, i * 5 + 5).map(function (p) { return p.name; }).join(' · ') || '—');
-      }
-    }
-    v.innerHTML = teachHead('home', 'Home', '<span style="font-size:12px;color:var(--faint);font-weight:600">read-only here — rearrange in Plan › Organise</span>') +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start">' + cards + '</div>';
-    wireBack(v);
-  }
-  function tableCard(label, names) {
-    return '<div class="glance" style="border-radius:14px;padding:12px 14px"><b style="font-size:13px;color:var(--teal-700);display:block;margin-bottom:6px">' + esc(label) + '</b>' +
-      '<span style="font-size:13px;color:var(--muted);line-height:1.6">' + esc(names) + '</span></div>';
-  }
-
-  /* ── Groups (read-only, mirrors Plan › Organise › Groups) ── */
-  var GRP_COLORS_T = ['#2f55e0', '#e11d48', '#d99a07', '#6d4bdc', '#1f8a4c', '#5c6a6e'];
-  var groupsTeachClosed = {};
-  function grpCountLabel() {
-    var n = (typeof grpFlatGroups === 'function') ? grpFlatGroups().length : 0;
-    return n + (n === 1 ? ' group' : ' groups');
-  }
-  function renderGroupsTeach() {
-    var v = document.getElementById('tv-groups');
-    var tree = (typeof grpTree === 'function') ? grpTree() : [];
-    var T_SIZES = ['14px', '13.5px', '12.5px', '12px'];
-
-    function countGroups(node) { return node.type === 'group' ? 1 : node.children.reduce(function (a, c) { return a + countGroups(c); }, 0); }
-
-    var body = '';
-    (function walk(list, depth) {
-      list.forEach(function (node) {
-        if (node.type === 'heading') {
-          var closed = !!groupsTeachClosed[node.id];
-          var n = countGroups(node);
-          body += '<button class="grp-tband" data-gtoggle="' + esc(node.id) + '" '
-            + 'style="margin:' + (depth === 0 ? '8px' : '0') + ' 0 0 ' + (depth * 14) + 'px;display:flex;align-items:center;gap:7px;width:auto;background:none;border:none;padding:2px 6px 2px 0;cursor:pointer;text-align:left;border-radius:7px;">'
-            + '<span style="color:var(--faint);font-size:10px;">' + (closed ? '▶' : '▼') + '</span>'
-            + '<span style="font-size:' + T_SIZES[Math.min(depth, 3)] + ';font-weight:' + (depth === 0 ? '800' : '700') + ';letter-spacing:-.01em;color:' + (depth === 0 ? 'var(--ink)' : 'var(--muted)') + ';">' + esc(depth === 0 ? node.name.toUpperCase() : node.name) + '</span>'
-            + '<span style="font-size:11.5px;font-weight:600;color:var(--faint);">' + n + (n === 1 ? ' group' : ' groups') + '</span>'
-            + '</button>';
-          if (!closed) walk(node.children, depth + 1);
-        } else {
-          var bar = GRP_COLORS_T[node.colorIdx % GRP_COLORS_T.length];
-          var known = node.pupilIds.filter(function (pid) { return roster.some(function (p) { return p.id === pid; }); });
-          var memberLine = known.length ? known.map(function (p) { return esc(pupilName(p)); }).join(' · ') : 'No children yet';
-          body += '<div style="margin-left:' + (depth * 14) + 'px;background:#fff;border:1px solid var(--line);border-left:4px solid ' + bar + ';border-radius:14px;padding:12px 16px;box-shadow:var(--shadow);">'
-            + '<div style="display:flex;align-items:baseline;gap:8px;">'
-            + '<span style="font-size:16.5px;font-weight:700;letter-spacing:-.01em;">' + esc(node.name) + '</span>'
-            + '<span style="flex:1"></span>'
-            + '<span style="font-size:11.5px;font-weight:600;color:var(--faint);">' + esc(node.ta || '') + '</span>'
-            + '</div>'
-            + '<div style="font-size:15px;font-weight:500;color:var(--ink);line-height:1.65;margin-top:3px;">' + memberLine + '</div>'
-            + (node.notes ? '<div style="font-size:12px;font-weight:600;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--line-2);">' + esc(node.notes) + '</div>' : '')
-            + '</div>';
-        }
-      });
-    })(tree, 0);
-
-    if (!body) body = '<div class="empty">No groups yet — build your outline in Plan › Organise › Groups.</div>';
-
-    v.innerHTML = teachHead('home', 'Home',
-        '<span class="pill pill-saved"><span>✓</span> saved</span>' +
-        '<button class="pill pill-ghost" id="grpToPlan" style="margin-left:8px">Plan ↗</button>') +
-      '<div style="margin:2px 0 4px"><div class="eyebrow" style="color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
-      '<div style="font-size:23px;font-weight:700;letter-spacing:-.02em">Groups</div></div>' +
-      '<div style="display:flex;flex-direction:column;gap:14px">' + body + '</div>' +
-      '<p style="font-size:12px;color:var(--faint);text-align:center;margin:6px 0 0">read-only here — edit in Plan › Groups</p>';
-
-    wireBack(v);
-    var toPlan = document.getElementById('grpToPlan');
-    if (toPlan) toPlan.onclick = function () {
-      setMode('plan'); go('groups');
-    };
-    v.querySelectorAll('[data-gtoggle]').forEach(function (b) {
-      b.onclick = function () { var id = b.dataset.gtoggle; groupsTeachClosed[id] = !groupsTeachClosed[id]; renderGroupsTeach(); };
-    });
-  }
 
   /* ===================================================================
      PLAN MODE — sidebar regroup + aggregator pages
      =================================================================== */
+  /* The sidebar. Grouped by what a teacher is doing rather than by which
+     module a page came from — Board is the front-of-class set, Assess is
+     everything about marks, Organise is the room.
+
+     The Name Picker is here because it was NOT, and shipped invisible
+     (audit finding 7 — a redesign stranding live pages): it rendered fully
+     but was in neither PLAN_NAV nor the hash whitelist, so the only way in
+     was typing the hash by hand. The Question Generator had the same fault
+     and is no longer a page at all — it became Mental Starters' design step,
+     which is the only place its output was ever wanted.
+
+     Glow Getters is `external`: it is not a page you visit, it is a
+     window you put on the board, so the row opens glow-getters.html
+     rather than routing. #page-glow (the launcher) still answers #glow
+     and the legacy #battler — see docs/CONTRACT.md. */
   var PLAN_NAV = [
     { page: 'today', label: 'Today', icon: 'home' },
+    { section: 'Board' },
+    { page: 'glow', label: 'Glow Getters', icon: 'zap', external: true, title: 'Opens in its own window' },
+    { page: 'mental-starters', label: 'Mental Starters', icon: 'calculator' },
+    { page: 'name-picker', label: 'Name Picker', icon: 'target' },
+    { section: 'Pupils' },
     { page: 'pupils', label: 'Pupils', icon: 'users' },
     { page: 'class-context', label: 'Class Context', icon: 'clipboard-list' },
+    { section: 'Assess' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
+    { page: 'reports', label: 'Reports', icon: 'file-text' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
     { page: 'seating', label: 'Seating', icon: 'layout-grid' },
-    { page: 'instant', label: 'Instant Groups', icon: 'zap' },
+    /* saved groups are the everyday one, random groups the occasional one */
     { page: 'groups', label: 'Groups', icon: 'book-open' },
-    { section: 'Tools' },
-    /* The Question Generator renders and had no route in: absent from PLAN_NAV
-       and from the hash whitelists below, so the only way to it was typing the
-       hash by hand. Finding 7 of the audit — a redesign stranded live pages.
-       Mental Starters is NOT listed here on purpose: buildPlan() moves its
-       cards into Markbook's "Starter scores" tab (see move() below), leaving
-       #page-mental-starters an empty husk. A link here would open a blank. */
-    { page: 'generator', label: 'Question Generator', icon: 'help-circle' },
-    { page: 'reports', label: 'Reports', icon: 'file-text' }
+    { page: 'instant', label: 'Instant Groups', icon: 'shuffle' }
   ];
+
+  /* Hashes the app will route to. Kept next to PLAN_NAV so a new nav entry
+     cannot be added without a route — that mismatch is what stranded the
+     generator. `battler` is the pre-Sep-2026 name for glow (CONTRACT.md) and
+     `generator` is the retired Question Generator page — both are bookmarks
+     teachers already have, and showPage() maps them onto what replaced them.
+     `pupil` and `settings` have no nav row by design. */
+  var PLAN_HASHES = PLAN_NAV.filter(function (n) { return n.page; }).map(function (n) { return n.page; })
+    .concat(['pupil', 'settings', 'battler', 'generator']);
 
   function move(fromSel, to) {
     var src = document.querySelector(fromSel); if (!src || !to) return;
@@ -1113,16 +1158,25 @@
   }
 
   function buildPlan() {
-    /* sidebar: Open Teach button + 6-item nav + Settings gear */
+    /* sidebar: Quick log button + grouped nav + Settings footer.
+       Quick log takes the slot "Open Teach" had. It is the one thing
+       teachers actually used Teach for — a star, praise, concern or glow
+       point in two taps — so it stays one press away from anywhere. */
     var nav = document.querySelector('#planApp .navwrap');
     nav.innerHTML =
-      '<button class="open-teach" id="openTeach">' + svg('play', 16) + ' Open Teach</button>' +
+      '<button class="quick-log" id="quickLogBtn">' + svg('plus', 16) + ' Quick log</button>' +
       PLAN_NAV.map(function (n) {
         if (n.section) return '<div class="nav-section">' + n.section + '</div>';
-        return '<button class="nav-link" data-page="' + n.page + '"><span class="ico">' + svg(n.icon, 18) + '</span> <span>' + n.label + '</span>' +
-          (n.page === 'pupils' ? '<span class="count" id="navClassCount"></span>' : '') + '</button>';
+        return '<button class="nav-link" data-page="' + n.page + '"' +
+          (n.external ? ' data-external="1"' : '') + (n.title ? ' title="' + esc(n.title) + '"' : '') + '>' +
+          '<span class="ico">' + svg(n.icon, 18) + '</span> <span>' + esc(n.label) + '</span>' +
+          (n.page === 'pupils' ? '<span class="count" id="navClassCount"></span>' : '') +
+          (n.external ? '<span class="ext">' + svg('external', 14) + '</span>' : '') + '</button>';
       }).join('');
-    document.getElementById('openTeach').onclick = function () { setMode('teach'); };
+    document.getElementById('quickLogBtn').onclick = function () { openQuickLog(); };
+    /* the Pupils badge is otherwise only filled by renderDashboard/refreshAll,
+       and we no longer open on the dashboard */
+    if (typeof updateNavCount === 'function') updateNavCount();
 
     var foot = document.querySelector('#planApp .sidefoot');
     foot.removeAttribute('onclick'); foot.style.cursor = 'default';
@@ -1130,7 +1184,10 @@
       var gear = document.createElement('button'); gear.className = 'gear'; gear.title = 'Settings'; gear.innerHTML = svg('gear', 18);
       gear.onclick = function () { go('settings'); }; foot.appendChild(gear);
     }
-    var who = foot.querySelector('#sideWho'); if (who && who.parentNode) { who.parentNode.style.cursor = 'pointer'; who.parentNode.onclick = function () { go('settings'); }; }
+    /* the name opens Settings too, not just the gear */
+    var who = foot.querySelector('#sideWho');
+    if (who && who.parentNode) { who.parentNode.style.cursor = 'pointer'; who.parentNode.onclick = function () { go('settings'); }; }
+    var role = foot.querySelector('#sideRole'); if (role) role.textContent = 'Settings';
 
     var content = document.querySelector('#planApp .content');
     function section(id) { var s = document.createElement('section'); s.className = 'page'; s.id = 'page-' + id; content.appendChild(s); return s; }
@@ -1166,6 +1223,18 @@
     /* relocate existing content into the aggregators */
     move('#page-assessments', document.getElementById('mb-assessments'));
     move('#page-mental-starters', document.getElementById('mb-starters'));
+    /* …then give #page-mental-starters its own content back. The score table
+       has just moved to Markbook › Starter scores; what lands here is the
+       flow Teach used to own — pick a week, open a day, show it on the board.
+       Order matters: move() takes every child that is not .page-header, so
+       this has to run after it or the flow would be moved out too. */
+    (function () {
+      var ms = document.getElementById('page-mental-starters');
+      if (!ms) return;
+      var hd = ms.querySelector('.page-header p');
+      if (hd) hd.textContent = "Pick a week, then a day \u2014 printable sheet, whiteboard, or enter the scores. Recorded scores live in Markbook \u203a Starter scores.";
+      ms.insertAdjacentHTML('beforeend', msFlowHTML());
+    })();
     move('#page-charts', document.getElementById('mb-charts'));
     move('#page-class-list', document.getElementById('manageBody'));
     move('#page-profile', document.getElementById('settings-profile'));
@@ -1183,7 +1252,12 @@
     document.getElementById('closeManage').onclick = function () { document.getElementById('manageClass').style.display = 'none'; };
 
     /* rebind nav clicks (replaced DOM) */
-    document.querySelectorAll('#planApp .nav-link').forEach(function (b) { b.onclick = function () { go(b.dataset.page); }; });
+    document.querySelectorAll('#planApp .nav-link').forEach(function (b) {
+      b.onclick = function () {
+        if (b.dataset.external) { if (typeof openGlowGetters === 'function') openGlowGetters(); return; }
+        go(b.dataset.page);
+      };
+    });
   }
 
   function buildTabs(hostId, tabs, onShow) {
@@ -1229,7 +1303,7 @@
     if (concerns) n.push({ b: concerns + ' concern' + (concerns === 1 ? '' : 's'), t: ' this week to review', go: 'pupils', link: 'Pupils ›' });
     var starThisWeek = (spData || []).some(function (e) { return mondayOf(e.date) === monday; });
     if (roster.length && !starThisWeek) n.push({ b: 'Star pupil', t: ' not chosen this week', go: 'pupils', link: 'Pupils ›' });
-    if (!stWeek(addDaysISO(monday, 7))) n.push({ b: "Next week's starter", t: ' not set yet', go: '__teach_starter', link: 'Starter ›' });
+    if (!stWeek(addDaysISO(monday, 7))) n.push({ b: "Next week's starter", t: ' not set yet', go: 'mental-starters', link: 'Starter ›' });
     return n;
   }
   function renderToday() {
@@ -1266,7 +1340,7 @@
           '<p class="hint small" style="margin-top:10px">live — includes anything logged in Teach</p>' +
         '</div></div>';
     root.querySelectorAll('[data-go]').forEach(function (b) {
-      b.onclick = function () { var g = b.dataset.go; if (g === '__teach_starter') { setMode('teach'); teachGo('starter'); } else go(g); };
+      b.onclick = function () { var g = b.dataset.go; if (g === 'mental-starters') msGo('starter'); else go(g); };
     });
   }
 
@@ -1763,6 +1837,7 @@
      =================================================================== */
   function hubRenderPage(page) {
     if (page === 'today') renderToday();
+    else if (page === 'mental-starters') msGo(msView);
     else if (page === 'pupils') renderPupils();
     else if (page === 'pupil') renderRecord();
     else if (page === 'markbook') { var h = document.getElementById('mbTabs'); if (h) { var sub = h.querySelector('.tab.active'); showSub('mbTabs', sub ? sub.dataset.sub : 'mb-assessments'); } }
@@ -1771,28 +1846,21 @@
   }
 
   /* ===================================================================
-     MODE
+     OPENING PAGE
      =================================================================== */
-  function deviceDefaultMode() {
-    var coarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
-    return (coarse || window.innerWidth < 1024) ? 'teach' : 'plan';
+  /* A hash the app cannot route to lands on Today rather than on a blank
+     #planApp. showPage() itself falls back to #page-dashboard, which the
+     sidebar no longer links to, so the check belongs here. */
+  function openingPage() {
+    var hash = location.hash.replace('#', '');
+    return PLAN_HASHES.indexOf(hash) !== -1 ? hash : 'today';
   }
-  function setMode(m) {
-    Store.set('tp_mode', m);
-    document.body.dataset.mode = m;
-    window.scrollTo(0, 0);
-    if (m === 'teach') teachGo(teachScreen || 'home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'generator', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; go(valid ? hash : 'today'); }
-  }
-  window.hubSetMode = setMode;
-  window.hubTeachGo = teachGo;
 
   /* ===================================================================
      BOOT
      =================================================================== */
   function init() {
     stMigrateDates();
-    buildTeachShell();
     buildPlan();
 
     /* extra shared DOM: new-week sheet, whiteboard overlay, print container */
@@ -1810,7 +1878,6 @@
 
     /* physical-keyboard entry on the score sheet (laptop / iPad keyboard) */
     document.addEventListener('keydown', function (e) {
-      if (document.body.dataset.mode !== 'teach') return;
       var sv = document.getElementById('tv-scores'); if (!sv || !sv.classList.contains('active')) return;
       var t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
       if (/^[0-9]$/.test(e.key)) { padKey(e.key); e.preventDefault(); }
@@ -1828,13 +1895,13 @@
     var orig = window.renderPage;
     window.renderPage = function (page) { try { if (orig) orig(page); } catch (e) {} hubRenderPage(page); };
 
-    /* re-render Teach when shared data changes */
-    window.addEventListener('tp:sync', function () { if (document.body.dataset.mode === 'teach') teachGo(teachScreen); });
+    /* re-render the starter flow when shared data changes under it */
+    window.addEventListener('tp:sync', function () {
+      var ms = document.getElementById('page-mental-starters');
+      if (ms && ms.classList.contains('active')) msGo(msView);
+    });
 
-    var mode = Store.get('tp_mode', null) || deviceDefaultMode();
-    document.body.dataset.mode = mode;
-    if (mode === 'teach') teachGo('home');
-    else { var hash = location.hash.replace('#', ''); var valid = ['today', 'pupils', 'pupil', 'class-context', 'markbook', 'timetable', 'seating', 'instant', 'groups', 'generator', 'reports', 'settings', 'glow', 'battler'].indexOf(hash) !== -1; showPage(valid ? hash : 'today'); }
+    showPage(openingPage());
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

@@ -11,16 +11,24 @@ it has to work at 8:50am on a smartboard with thirty children arriving.
 
 ## What's in it
 
-**Desk** — the sitting-down surface, on a laptop: Today, Pupils, Class Context (SEND / EHCP /
-Pupil Premium), Markbook (assessments, mental-starter scores, charts, marking), Timetable, Seating,
-Instant Groups, Groups, Reports.
+**The app** — one sidebar, grouped by what you are doing. *Board*: Glow Getters, Mental Starters,
+Name Picker. *Pupils*: Pupils, Class Context (SEND / EHCP / Pupil Premium).
+*Assess*: Markbook (assessments, starter scores, charts, marking), Reports. *Organise*: Timetable,
+Seating, Groups, Instant Groups. **Quick log** sits above them all — a star, praise, concern or glow
+point in two taps.
 
-**Class** — the standing-up surface, on a tablet: this week's mental-maths starter, a fair name
-picker, fast point-awarding, seats and groups, a quick behaviour log.
+**Board** — the class-facing surface, projected. Reached from **Show on board ▶**. Holds
+**Glow Getters** (behaviour points, ranks, badges, group battles, seven board views) and the
+printable starter sheet.
 
-**Board** — the class-facing surface, projected. Reached from **Show on board ▶**, which sits in the
-same place on both of the other surfaces. Holds **Glow Getters** (behaviour points, ranks, badges,
-group battles, seven board views) and the printable starter sheet.
+> There was a separate tablet-first "Teach" surface until September 2026, chosen automatically
+> below 1024px. It was removed: everything it held now has a home in the sidebar, and Glow Getters
+> — the thing you actually stand up for — opens in its own window.
+
+> **Mental Starters** is three steps on one page: pick a week → design the questions → the day
+> sheet (print it, put it on the whiteboard, enter the scores). The middle step was the standalone
+> **Question Generator** until September 2026; it wrote to its own store, so the questions a
+> teacher designed there never reached the week the class actually got. `#generator` redirects.
 
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).

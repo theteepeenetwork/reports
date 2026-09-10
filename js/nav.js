@@ -11,9 +11,12 @@ function go(page){ location.hash = page; }
 function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
 
 function showPage(page){
-  // legacy routes: Glow Getters was #battler until the Sep 2026 rename.
-  // Teachers bookmark the board, so keep the old hash resolving.
+  // legacy routes. Teachers bookmark these, so keep the old hashes resolving.
+  //   #battler   — Glow Getters' name until the Sep 2026 rename.
+  //   #generator — the Question Generator, until it became the design step of
+  //                Mental Starters in the same redesign.
   if (page === 'battler') page = 'glow';
+  if (page === 'generator') page = 'mental-starters';
   if (!page) page = 'dashboard';
   document.querySelectorAll('.page').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('page-' + page);
@@ -33,7 +36,6 @@ function renderPage(page){
   if (page === 'class-list') rosRender();
   if (page === 'profile') renderProfile();
   // pluggable feature pages (defined in /js modules)
-  if (page === 'generator' && typeof genRender === 'function') genRender();
   if (page === 'glow') renderGlowLaunch();
   if (page === 'name-picker' && typeof npRender === 'function') npRender();
   if (page === 'timetable' && typeof ttRender === 'function') ttRender();
