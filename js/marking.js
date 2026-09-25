@@ -851,10 +851,10 @@
     if (dict.busy) return;
     var plan = ui.dictPlan || reparse();
     if (!plan || !plan.entries.length) { speak('Nothing to save yet.'); toast('Nothing to save yet'); return; }
-    if (ui.dictSmart && dict.smartAvail) {
+    if (ui.dictSmart && smartReady()) {
       dict.busy = true; refreshPreview();
       smartParse(ui.dictText).then(function (p) { dict.busy = false; finishSave(p || plan, !!p); })
-        .catch(function () { dict.busy = false; toast('Smart mode unavailable — used the on-device reading'); finishSave(plan, false); });
+        .catch(function (e) { dict.busy = false; toast((e && e.userMessage) || 'Smart mode unavailable — used the on-device reading'); finishSave(plan, false); });
       return;
     }
     finishSave(plan, false);
@@ -881,6 +881,16 @@
   }
 
   /* ---------- smart mode: Claude reads the note (server.js /api/dictate) ---------- */
+  /* smart mode needs the server switched on AND a signed-in teacher: the
+     server checks the Firebase ID token on every request */
+  function signedIn() { return !!(window.CLOUD && window.CLOUD.uid && window.firebase && window.firebase.auth); }
+  function smartReady() { return !!dict.smartAvail && signedIn(); }
+  function idToken() {
+    try {
+      var u = window.firebase.auth().currentUser;
+      return u ? u.getIdToken() : Promise.reject(new Error('not signed in'));
+    } catch (e) { return Promise.reject(e); }
+  }
   function checkSmart() {
     if (dict.smartAvail !== null || !window.fetch || location.protocol === 'file:') { if (location.protocol === 'file:') dict.smartAvail = false; return; }
     dict.smartAvail = false;
@@ -890,12 +900,21 @@
   }
   function smartParse(text) {
     var ctx = dictCtx();
-    return fetch('api/dictate', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+    return idToken().then(function (token) { return fetch('api/dictate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ text: text, pupils: ctx.pupils, sets: ctx.sets, markers: ctx.markers, today: ctx.today,
         activeSetId: ctx.activeSetId, activeActivityId: ctx.activeActivityId,
         activities: ctx.activities.slice(-40) })
-    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    }); }).then(function (r) {
+      if (r.ok) return r.json();
+      /* the server's own words for a refused sign-in or allow-list, so the
+         teacher knows why it fell back to the on-device reading */
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        var err = new Error('HTTP ' + r.status);
+        if ((r.status === 401 || r.status === 403) && j && j.error) err.userMessage = j.error + ' Used the on-device reading.';
+        throw err;
+      });
+    })
       .then(function (j) {
         var o = j && j.plan; if (!o) throw new Error('no plan');
         var ids = {}; ctx.pupils.forEach(function (p) { ids[p.id] = 1; });
@@ -939,7 +958,7 @@
       '<div class="mk-dictinterim" id="mkDictInterim" style="display:none"></div>' +
       '<div class="mk-dictopts">' +
         '<label class="mk-dictopt"><input type="checkbox" id="mkDictSpeak"' + (ui.dictSpeak ? ' checked' : '') + '> Speak confirmations</label>' +
-        '<label class="mk-dictopt" id="mkDictSmartWrap" style="' + (dict.smartAvail ? '' : 'display:none') + '"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> Smart mode (Claude reads the note when you save)</label>' +
+        '<label class="mk-dictopt" id="mkDictSmartWrap" style="' + (smartReady() ? '' : 'display:none') + '"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> Smart mode (Claude reads the note when you save)</label>' +
       '</div>' +
       '<div id="mkDictPreview"></div>' +
       (ui.dictLog.length ? '<div class="mk-dictlog">' + ui.dictLog.slice(0, 6).map(function (l) {
@@ -948,14 +967,14 @@
           (l.skipped.length ? '<div class="mk-dictwarn">Not saved (no pupil matched): ' + E(l.skipped.join(' · ')) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '') +
       '<div class="mk-dictnote">Voice uses your browser’s speech recognition. In Chrome and Edge the audio is sent to Google or Microsoft to be turned into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device. Nothing is saved until you say “save books” or tap Save.' +
-        (dict.smartAvail ? ' Smart mode sends the text and your class list to Anthropic (Claude) when you save.' : '') + '</div>';
+        (smartReady() ? ' Smart mode sends the text and your class list to Anthropic (Claude) when you save.' : '') + '</div>';
     refreshPreview();
     wireDict(host);
     showInterim();
   }
   function refreshPreview() {
     var el = document.getElementById('mkDictPreview'); if (!el) return;
-    var sw = document.getElementById('mkDictSmartWrap'); if (sw) sw.style.display = dict.smartAvail ? '' : 'none';
+    var sw = document.getElementById('mkDictSmartWrap'); if (sw) sw.style.display = smartReady() ? '' : 'none';
     var p = ui.dictPlan;
     if (dict.busy) { el.innerHTML = '<div class="mk-empty">Claude is reading your note…</div>'; return; }
     if (!p) { el.innerHTML = ''; return; }

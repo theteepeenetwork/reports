@@ -69,9 +69,13 @@ matters most: signing out must never push deletions to the cloud. See [tests/](t
 
 The app is static, so `server.js` is mostly a Node file server that gives Railway a process to
 run, with no build step. Its one endpoint, `/api/dictate`, is dictation's optional smart mode: it
-stays off unless `ANTHROPIC_API_KEY` is set in Railway's variables (`DICTATE_MODEL` and
-`DICTATE_RATE_PER_HOUR` are optional), and it needs the `@anthropic-ai/sdk` package, the only
-runtime dependency. `railway.json`
+stays off unless `ANTHROPIC_API_KEY` is set in Railway's variables, and it needs the
+`@anthropic-ai/sdk` package, the only runtime dependency. It answers signed-in teachers only: the
+page sends its Firebase ID token and the server verifies it against Google's signing keys for the
+project in `firebase-config.js` (override with `FIREBASE_PROJECT_ID`). Anyone can register an
+account, so also set **`DICTATE_ALLOWED_EMAILS`** to the staff who may use it, e.g.
+`@yourschool.org` or `a@x.org, b@x.org`. `DICTATE_MODEL` and `DICTATE_RATE_PER_HOUR` (per
+teacher) are optional. `railway.json`
 sets the start command and a `/healthz` check. Railway deploys `main` on push.
 
 **Every new hostname has to be added to Firebase**, or sign-in fails there with
