@@ -85,8 +85,9 @@ The recent multi-user work delivers these privacy properties — note them in yo
 - [ ] **Smart mode (Claude):** off unless the host sets `ANTHROPIC_API_KEY`. When a teacher turns it
       on, saving a dictation sends the text, the class list (names and internal ids), the set and
       activity names to Anthropic. If you enable it, add Anthropic as a sub-processor in your DPA
-      register and privacy notice, as for Google above. The endpoint does not check sign-in; add a
-      Firebase ID-token check before offering it beyond one school.
+      register and privacy notice, as for Google above. Only signed-in teachers can use it (the
+      server verifies their Firebase sign-in). Because anyone can create an account, also set
+      `DICTATE_ALLOWED_EMAILS` on the host to your staff addresses or school domain.
 
 ---
 
