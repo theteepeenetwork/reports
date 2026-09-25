@@ -191,6 +191,8 @@
           '<input class="mk-newsetin" id="mkNewSet" placeholder="New set…" value="' + E(ui.newSet) + '">' +
           '<button class="mk-newsetadd" id="mkAddSet">+</button></span>' +
         '<span class="mk-spacer"></span>' +
+        '<button class="mk-dictbtn' + (ui.dictOpen ? ' on' : '') + (ui.dictListening ? ' live' : '') + '" id="mkDictBtn">' +
+          (ui.dictListening ? '● Listening' : '🎤 Dictate marking') + '</button>' +
         '<button class="secondary small" id="mkManage">' + (ui.manage ? '✓ Done' : 'Rename / remove') + '</button>' +
       '</div>';
 
@@ -291,8 +293,10 @@
     }
 
     var feedback = (act && ui.feedbackOpen) ? buildFeedback(act) : '';
-    host.innerHTML = setsBar + '<div class="mk-cols">' + activitiesCol + listCol + '</div>' + feedback;
+    host.innerHTML = setsBar + (ui.dictOpen ? '<div id="mkDict"></div>' : '') +
+      '<div class="mk-cols">' + activitiesCol + listCol + '</div>' + feedback;
     wire(host);
+    if (ui.dictOpen) renderDict();
   }
   window.mkRender = mkRender;
 
@@ -357,6 +361,13 @@
       ui.newSet = ''; save(); mkRender();
     };
     if (ns) ns.onkeydown = function (e) { if (e.key === 'Enter' && addSet) addSet.click(); };
+    var dictBtn = host.querySelector('#mkDictBtn');
+    if (dictBtn) dictBtn.onclick = function () {
+      if (ui.dictOpen && ui.dictListening) { stopListening(); return; }
+      ui.dictOpen = !ui.dictOpen;
+      if (!ui.dictOpen) stopListening(true);
+      mkRender();
+    };
     var manage = host.querySelector('#mkManage');
     if (manage) manage.onclick = function () { ui.manage = !ui.manage; mkRender(); };
 
@@ -609,6 +620,427 @@
       b.classList.toggle('on', b.dataset.banktab === ui.bankFilter && !ui.search);
     });
   }
+
+  /* ===================================================================
+     DICTATE — mark a whole set of books by voice, hands-free
+     One tap starts the microphone (browsers insist on that one). After
+     it, everything is spoken:
+        "create new maths activity called partitioning on 25/9"
+        "Aurora answered most questions … not met"   "next pupil Zoey …"
+        "scratch that"  "read back"  "save books"  "stop listening"
+     The parser is js/dictate.js and runs on the device. Smart mode (off
+     by default) asks Claude, through server.js, to read the note at save.
+     Everything is written to the same tp_marking records the rows above
+     use, so the tap-to-mark list and dictation stay one markbook.
+     =================================================================== */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var rec = null, interim = '', recStopping = false;
+  var dict = { utterances: [], spokenCount: 0, spokenAct: '', smartAvail: null, busy: false };
+  ui.dictSpeak = true; ui.dictText = ''; ui.dictPlan = null; ui.dictLog = []; ui.dictFix = {};
+  try { ui.dictSmart = localStorage.getItem('mk_dict_smart') === '1'; } catch (e) { ui.dictSmart = false; }
+
+  function dictCtx() {
+    return {
+      pupils: pupils().map(function (p) { return { id: p.id, name: p.name }; }),
+      sets: mk.sets.map(function (s) { return { id: s.id, name: s.name }; }),
+      activities: mk.activities.map(function (a) { return { id: a.id, setId: a.setId, title: a.title, workDate: a.workDate }; }),
+      markers: (mk.quickButtons || []).map(function (q) { return q.text; }),
+      activeSetId: mk.activeSetId, activeActivityId: mk.activeActivityId, today: todayISO()
+    };
+  }
+  function pupilName(id) { var p = pupils().find(function (x) { return x.id === id; }); return p ? p.name : ''; }
+  function firstName(id) { return pupilName(id).split(/\s+/)[0]; }
+  function setName(id) { var s = mk.sets.find(function (x) { return x.id === id; }); return s ? s.name : ''; }
+
+  function reparse() {
+    if (!window.mkDictate || !(ui.dictText || '').trim()) { ui.dictPlan = null; return null; }
+    var plan = window.mkDictate.parse(ui.dictText, dictCtx());
+    /* a name the teacher has already fixed by hand stays fixed while they keep talking */
+    plan.entries.forEach(function (e) { var k = String(e.heard || '').toLowerCase(); if (!e.pupilId && ui.dictFix[k]) e.pupilId = ui.dictFix[k]; });
+    ui.dictPlan = plan;
+    return plan;
+  }
+
+  /* ---------- speaking back ---------- */
+  function speak(text, then) {
+    var synth = window.speechSynthesis;
+    if (!ui.dictSpeak || !synth || !text) { if (then) then(); return; }
+    /* stop listening while we talk, or the microphone hears us and writes it down */
+    var wasListening = ui.dictListening;
+    if (rec) { recStopping = true; try { rec.abort(); } catch (e) {} }
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-GB';
+    var v = (synth.getVoices() || []).find(function (x) { return /^en-GB/i.test(x.lang); }); if (v) u.voice = v;
+    u.rate = 1.05;
+    var done = false;
+    function after() { if (done) return; done = true; if (wasListening && ui.dictListening) startEngine(); if (then) then(); }
+    u.onend = after; u.onerror = after;
+    setTimeout(after, 1500 + text.length * 90);   // some browsers never fire onend
+    try { synth.cancel(); synth.speak(u); } catch (e) { after(); }
+  }
+  function describe(e) {
+    var bits = [e.pupilId ? firstName(e.pupilId) : 'unknown pupil “' + (e.heard || '?') + '”'];
+    if (e.met === 'met') bits.push('met'); else if (e.met === 'not') bits.push('not met');
+    e.markers.forEach(function (m) { bits.push(String(m).replace(/[.!?]+$/, '')); });
+    if (e.comment) bits.push('note logged');
+    return bits.join(', ');
+  }
+  function describeAct(a) {
+    if (!a) return '';
+    return (a.mode === 'new' ? 'New ' : 'Marking ') + ((a.setId ? setName(a.setId) : a.newSetName) || '') + ' activity, ' +
+      (a.title || 'no title yet') + ', ' + fmt(a.workDate);
+  }
+
+  /* ---------- the microphone ---------- */
+  function startListening() {
+    if (!SR) {
+      toast('This browser has no built-in speech — tap in the box and use your keyboard’s 🎤 instead');
+      var ta = document.getElementById('mkDictText'); if (ta) ta.focus();
+      return;
+    }
+    ui.dictOpen = true; ui.dictListening = true;
+    mkRender();
+    speak('Listening. Say save books when you’re done.');
+    startEngine();
+  }
+  function startEngine() {
+    if (!SR || !ui.dictListening || rec) return;
+    if (window.speechSynthesis && window.speechSynthesis.speaking) { setTimeout(startEngine, 400); return; }   // wait out our own voice
+    var r = new SR();
+    r.lang = 'en-GB'; r.continuous = true; r.interimResults = true;
+    r.onresult = function (e) {
+      interim = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) onUtterance(t); else interim += t;
+      }
+      showInterim();
+    };
+    r.onerror = function (e) {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+        ui.dictListening = false;
+        toast(e.error === 'audio-capture' ? 'No microphone found' : 'Microphone permission was refused — allow it in the browser to dictate');
+        mkRender();
+      }
+    };
+    /* Chrome ends a "continuous" session after a silence: quietly start again */
+    r.onend = function () {
+      rec = null; interim = ''; showInterim();
+      if (recStopping) { recStopping = false; return; }
+      if (ui.dictListening) setTimeout(startEngine, 200);
+    };
+    rec = r;
+    try { r.start(); } catch (e) { rec = null; }
+  }
+  function stopListening(silent) {
+    var had = ui.dictListening;
+    ui.dictListening = false; interim = '';
+    if (rec) { recStopping = true; try { rec.stop(); } catch (e) {} rec = null; }
+    if (!had) return;
+    if (!silent) {
+      var n = ui.dictPlan ? ui.dictPlan.entries.length : 0;
+      speak(n ? 'Stopped listening. ' + n + (n === 1 ? ' book is' : ' books are') + ' not saved yet.' : 'Stopped listening.');
+    }
+    if (document.getElementById('mb-marking')) mkRender();
+  }
+  function showInterim() {
+    var el = document.getElementById('mkDictInterim');
+    if (el) { el.textContent = interim ? '… ' + interim : ''; el.style.display = interim ? '' : 'none'; }
+  }
+
+  /* one finished, pause-delimited utterance */
+  function onUtterance(t) {
+    t = String(t || '').trim(); if (!t) return;
+    var c = window.mkDictate ? window.mkDictate.command(t) : null;
+    if (c && c.rest) appendText(c.rest);
+    if (c) { runCommand(c.cmd); return; }
+    appendText(t);
+  }
+  function appendText(t) {
+    var cur = (ui.dictText || '').replace(/\s+$/, '');
+    /* each pause becomes a full stop: speech recognition gives no punctuation,
+       and the pauses are where the teacher's thoughts break */
+    ui.dictText = cur ? cur + (/[.,;:!?]$/.test(cur) ? ' ' : '. ') + t : t;
+    dict.utterances.push(t);
+    var ta = document.getElementById('mkDictText'); if (ta) ta.value = ui.dictText;
+    var before = ui.dictPlan ? ui.dictPlan.entries.length : 0;
+    var plan = reparse();
+    refreshPreview();
+    if (!plan) return;
+    /* say the activity back once it's been heard */
+    var ak = plan.activity ? [plan.activity.mode, plan.activity.title, plan.activity.workDate].join('|') : '';
+    if (plan.activity && plan.activity.mode === 'new' && plan.activity.title && ak !== dict.spokenAct) { dict.spokenAct = ak; speak(describeAct(plan.activity) + '.'); return; }
+    /* a new book started → confirm the one just finished */
+    if (plan.entries.length > before && plan.entries.length >= 2 && plan.entries.length - 1 > dict.spokenCount) {
+      dict.spokenCount = plan.entries.length - 1;
+      speak(describe(plan.entries[plan.entries.length - 2]) + '.');
+    }
+  }
+  function runCommand(cmd) {
+    if (cmd === 'save') return saveDictation();
+    if (cmd === 'stop') return stopListening();
+    if (cmd === 'read') return readBack();
+    if (cmd === 'cancel') { clearDictation(); refreshAll(); speak('Cleared. Nothing was saved.'); return; }
+    if (cmd === 'undo') {
+      var last = dict.utterances.pop();
+      var txt = (ui.dictText || '').replace(/\s+$/, '');
+      if (last && txt.slice(-last.length) === last) txt = txt.slice(0, -last.length);
+      else txt = txt.replace(/[^.!?]*[.!?]?\s*$/, '');                        // edited by hand: drop the last sentence
+      ui.dictText = txt.replace(/[\s.,;:]+$/, '');
+      var plan = reparse();
+      dict.spokenCount = Math.min(dict.spokenCount, plan ? Math.max(0, plan.entries.length - 1) : 0);
+      refreshAll();
+      speak(last ? 'Removed: ' + last.split(/\s+/).slice(0, 6).join(' ') : 'Nothing to remove.');
+    }
+  }
+  function readBack() {
+    var p = ui.dictPlan;
+    if (!p || (!p.entries.length && !p.activity)) { speak('Nothing logged yet.'); return; }
+    var parts = [];
+    if (p.activity) parts.push(describeAct(p.activity) + '.');
+    parts.push(p.entries.length + (p.entries.length === 1 ? ' book.' : ' books.'));
+    p.entries.forEach(function (e) { parts.push(describe(e) + '.'); });
+    speak(parts.join(' '));
+  }
+  function clearDictation() { ui.dictText = ''; ui.dictPlan = null; ui.dictFix = {}; dict.utterances = []; dict.spokenCount = 0; dict.spokenAct = ''; }
+
+  /* ---------- saving ---------- */
+  function applyPlan(plan) {
+    load();
+    var a = plan && plan.activity;
+    if (!a) return { error: 'No activity — say “create new maths activity called …” or pick one on the left.' };
+    var act = null;
+    if (a.mode === 'existing') act = mk.activities.find(function (x) { return x.id === a.id; });
+    if (!act) {
+      if (!a.title) return { error: 'The new activity needs a title.' };
+      var setId = a.setId && mk.sets.some(function (s) { return s.id === a.setId; }) ? a.setId : null;
+      if (!setId && a.newSetName) {
+        var ex = mk.sets.find(function (s) { return s.name.toLowerCase() === a.newSetName.toLowerCase(); });
+        if (ex) setId = ex.id; else { setId = uid('s'); mk.sets.push({ id: setId, name: a.newSetName }); }
+      }
+      setId = setId || mk.activeSetId;
+      act = mk.activities.find(function (x) { return x.setId === setId && x.title.toLowerCase() === a.title.toLowerCase() && x.workDate === a.workDate; });
+      if (!act) { act = { id: uid('a'), setId: setId, title: a.title, workDate: a.workDate || todayISO() }; mk.activities.push(act); }
+    }
+    mk.activeSetId = act.setId; mk.activeActivityId = act.id;
+    var today = todayISO();
+    var m = mk.marks[act.id] || (mk.marks[act.id] = {});
+    var L = mk.lastMarked[act.setId] || (mk.lastMarked[act.setId] = {});
+    var saved = [], skipped = [];
+    var known = {}; pupils().forEach(function (p) { known[p.id] = 1; });
+    (plan.entries || []).forEach(function (e) {
+      if (!e.pupilId || !known[e.pupilId]) { skipped.push(e); return; }
+      var r = m[e.pupilId] || (m[e.pupilId] = {});
+      if (e.met) r.met = e.met;
+      (e.markers || []).forEach(function (t) {
+        if (!r.markers) r.markers = [];
+        if (r.markers.indexOf(t) < 0) r.markers.push(t);
+        if (!mk.quickButtons) mk.quickButtons = [];
+        if (!mk.quickButtons.some(function (q) { return q.text === t; })) mk.quickButtons.push({ id: uid('q'), text: t });
+      });
+      var c = normalize(e.comment || '');
+      if (c) r.comment = !r.comment ? c : (r.comment.indexOf(c) >= 0 ? r.comment : smartAppend(r.comment, c));
+      if (!r.markedDate) r.markedDate = today;
+      L[e.pupilId] = today;
+      saved.push(e);
+    });
+    save();
+    return { act: act, saved: saved, skipped: skipped };
+  }
+  function saveDictation() {
+    if (dict.busy) return;
+    var plan = ui.dictPlan || reparse();
+    if (!plan || !plan.entries.length) { speak('Nothing to save yet.'); toast('Nothing to save yet'); return; }
+    if (ui.dictSmart && dict.smartAvail) {
+      dict.busy = true; refreshPreview();
+      smartParse(ui.dictText).then(function (p) { dict.busy = false; finishSave(p || plan, !!p); })
+        .catch(function () { dict.busy = false; toast('Smart mode unavailable — used the on-device reading'); finishSave(plan, false); });
+      return;
+    }
+    finishSave(plan, false);
+  }
+  function finishSave(plan, smart) {
+    var res = applyPlan(plan);
+    if (res.error) { speak(res.error); toast(res.error); return; }
+    var names = res.saved.map(function (e) { return firstName(e.pupilId); });
+    ui.dictLog.unshift({
+      when: new Date().toTimeString().slice(0, 5), title: res.act.title, set: setName(res.act.setId), smart: smart,
+      lines: res.saved.map(function (e) { return describe(e); }),
+      skipped: res.skipped.map(function (e) { return e.raw || e.heard; })
+    });
+    /* anything that couldn't be matched stays in the box to fix; the rest is done */
+    var left = res.skipped.map(function (e) { return 'next pupil ' + (e.heard || 'unknown') + ' ' + (e.raw || ''); }).join('. ');
+    clearDictation();
+    ui.dictText = left;
+    reparse();
+    mkRender();
+    var msg = 'Saved ' + names.length + (names.length === 1 ? ' book' : ' books') + ' for ' + res.act.title + '.';
+    if (res.skipped.length) msg += ' ' + res.skipped.length + ' I couldn’t match to a pupil — ' + (res.skipped.length === 1 ? 'it’s' : 'they’re') + ' left on screen.';
+    toast(msg);
+    speak(msg);
+  }
+
+  /* ---------- smart mode: Claude reads the note (server.js /api/dictate) ---------- */
+  function checkSmart() {
+    if (dict.smartAvail !== null || !window.fetch || location.protocol === 'file:') { if (location.protocol === 'file:') dict.smartAvail = false; return; }
+    dict.smartAvail = false;
+    fetch('api/dictate', { method: 'GET', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { dict.smartAvail = !!(j && j.enabled); if (dict.smartAvail) refreshPreview(); })
+      .catch(function () {});
+  }
+  function smartParse(text) {
+    var ctx = dictCtx();
+    return fetch('api/dictate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, pupils: ctx.pupils, sets: ctx.sets, markers: ctx.markers, today: ctx.today,
+        activeSetId: ctx.activeSetId, activeActivityId: ctx.activeActivityId,
+        activities: ctx.activities.slice(-40) })
+    }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) {
+        var o = j && j.plan; if (!o) throw new Error('no plan');
+        var ids = {}; ctx.pupils.forEach(function (p) { ids[p.id] = 1; });
+        var acts = {}; ctx.activities.forEach(function (a) { acts[a.id] = a; });
+        var sets = {}; ctx.sets.forEach(function (s) { sets[s.id] = 1; });
+        var a = o.activity || {}, activity = null;
+        if (a.mode === 'existing' && acts[a.existingId]) { var x = acts[a.existingId]; activity = { mode: 'existing', id: x.id, setId: x.setId, title: x.title, workDate: x.workDate }; }
+        else if (a.mode === 'new') activity = { mode: 'new', setId: sets[a.setId] ? a.setId : null, newSetName: sets[a.setId] ? '' : (a.newSetName || ''), title: a.title || '', workDate: /^\d{4}-\d\d-\d\d$/.test(a.workDate) ? a.workDate : ctx.today };
+        else { var cur = acts[ctx.activeActivityId]; if (cur) activity = { mode: 'existing', id: cur.id, setId: cur.setId, title: cur.title, workDate: cur.workDate }; }
+        return {
+          activity: activity, unmatched: [], warnings: o.warnings || [],
+          entries: (o.entries || []).map(function (e) {
+            return { pupilId: ids[e.pupilId] ? e.pupilId : null, heard: e.heard || '', met: e.met === 'met' || e.met === 'not' ? e.met : null,
+                     markers: (e.markers || []).filter(Boolean), comment: e.comment || '', raw: e.heard || '' };
+          })
+        };
+      });
+  }
+
+  /* ---------- the panel ---------- */
+  function refreshAll() { var ta = document.getElementById('mkDictText'); if (ta) ta.value = ui.dictText; refreshPreview(); }
+  function renderDict() {
+    var host = document.getElementById('mkDict'); if (!host) return;
+    checkSmart();
+    host.className = 'mk-dict card' + (ui.dictListening ? ' live' : '');
+    host.innerHTML =
+      '<div class="mk-dicthead"><span class="mk-dicttitle">🎤 Dictate marking</span>' +
+        '<span class="mk-dictstate">' + (ui.dictListening ? '<span class="mk-dictdot"></span>Listening — hands-free' : (SR ? 'Microphone off' : 'Use your keyboard’s 🎤 to dictate')) + '</span>' +
+        '<span class="mk-spacer"></span><button class="mk-modal-x" id="mkDictClose" title="Close">✕</button></div>' +
+      '<div class="mk-dictcmds">Say: <b>“create new maths activity called partitioning on 25/9”</b> · a pupil’s name then your notes · ' +
+        '<b>“next pupil”</b> · <b>“scratch that”</b> · <b>“read back”</b> · <b>“save books”</b> · <b>“stop listening”</b></div>' +
+      '<div class="mk-dictrow">' +
+        '<textarea id="mkDictText" class="mk-dicttext" placeholder="Aurora answered most questions correctly but struggled with tens as a numeral. Not met. Next pupil Zoey answered all correctly, accessed the challenge, met, gold star.">' + E(ui.dictText) + '</textarea>' +
+        '<div class="mk-dictbtns">' +
+          (SR ? '<button class="mk-dictmic' + (ui.dictListening ? ' on' : '') + '" id="mkDictMic">' + (ui.dictListening ? '■ Stop' : '🎤 Start') + '</button>' : '') +
+          '<button id="mkDictSave">✓ Save books</button>' +
+          '<button class="secondary" id="mkDictRead">🔊 Read back</button>' +
+          '<button class="secondary" id="mkDictClear">Clear</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mk-dictinterim" id="mkDictInterim" style="display:none"></div>' +
+      '<div class="mk-dictopts">' +
+        '<label class="mk-dictopt"><input type="checkbox" id="mkDictSpeak"' + (ui.dictSpeak ? ' checked' : '') + '> Speak confirmations</label>' +
+        '<label class="mk-dictopt" id="mkDictSmartWrap" style="' + (dict.smartAvail ? '' : 'display:none') + '"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> Smart mode (Claude reads the note when you save)</label>' +
+      '</div>' +
+      '<div id="mkDictPreview"></div>' +
+      (ui.dictLog.length ? '<div class="mk-dictlog">' + ui.dictLog.slice(0, 6).map(function (l) {
+        return '<div class="mk-dictmsg"><div class="mk-dictmsg-h">✓ ' + E(l.when) + ' · ' + E(l.set) + ' · ' + E(l.title) + (l.smart ? ' · smart' : '') + '</div>' +
+          l.lines.map(function (x) { return '<div>' + E(x) + '</div>'; }).join('') +
+          (l.skipped.length ? '<div class="mk-dictwarn">Not saved (no pupil matched): ' + E(l.skipped.join(' · ')) + '</div>' : '') + '</div>';
+      }).join('') + '</div>' : '') +
+      '<div class="mk-dictnote">Voice uses your browser’s speech recognition. In Chrome and Edge the audio is sent to Google or Microsoft to be turned into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device. Nothing is saved until you say “save books” or tap Save.' +
+        (dict.smartAvail ? ' Smart mode sends the text and your class list to Anthropic (Claude) when you save.' : '') + '</div>';
+    refreshPreview();
+    wireDict(host);
+    showInterim();
+  }
+  function refreshPreview() {
+    var el = document.getElementById('mkDictPreview'); if (!el) return;
+    var sw = document.getElementById('mkDictSmartWrap'); if (sw) sw.style.display = dict.smartAvail ? '' : 'none';
+    var p = ui.dictPlan;
+    if (dict.busy) { el.innerHTML = '<div class="mk-empty">Claude is reading your note…</div>'; return; }
+    if (!p) { el.innerHTML = ''; return; }
+    var a = p.activity;
+    var actHTML = a
+      ? '<div class="mk-dictact"><span class="mk-dicttag ' + (a.mode === 'new' ? 'new' : '') + '">' + (a.mode === 'new' ? 'New activity' : 'Activity') + '</span>' +
+          '<b>' + E(a.title || '(no title)') + '</b> · ' + E((a.setId ? setName(a.setId) : a.newSetName + ' (new set)') || '') + ' · work done ' + E(fmt(a.workDate)) + '</div>'
+      : '<div class="mk-dictwarn">No activity yet — say “create new … activity called …”, or pick one on the left.</div>';
+    var opts = pupils();
+    var rows = p.entries.map(function (e, i) {
+      var sel = '<select class="mk-dictpupil" data-dpupil="' + i + '"><option value="">— who is this? —</option>' +
+        opts.map(function (x) { return '<option value="' + E(x.id) + '"' + (x.id === e.pupilId ? ' selected' : '') + '>' + E(x.name) + '</option>'; }).join('') + '</select>';
+      return '<div class="mk-dictentry' + (e.pupilId ? '' : ' bad') + '">' +
+        '<div class="mk-dictentry-top">' + sel +
+          (e.fuzzy || !e.pupilId ? '<span class="mk-dictheard">heard “' + E(e.heard) + '”</span>' : '') +
+          '<span class="mk-met">' +
+            '<button class="mk-met-y' + (e.met === 'met' ? ' on' : '') + '" data-dmet="' + i + '" title="Met">✓</button>' +
+            '<button class="mk-met-n' + (e.met === 'not' ? ' on' : '') + '" data-dnot="' + i + '" title="Not met">✗</button></span>' +
+          e.markers.map(function (t, k) { return '<button class="mk-mk mk-dictmk" data-dmk="' + i + ':' + k + '" title="Remove">' + E(t) + ' ✕</button>'; }).join('') +
+          '<span class="mk-spacer"></span><button class="mk-setx" data-ddel="' + i + '" title="Leave this book out">✕</button></div>' +
+        '<textarea class="mk-dictcomment" data-dcomment="' + i + '" rows="2" placeholder="(no written note)">' + E(e.comment) + '</textarea>' +
+      '</div>';
+    }).join('');
+    var warns = (p.warnings || []).concat((p.unmatched || []).map(function (u) { return 'Not attached to a pupil: “' + u + '”'; }));
+    el.innerHTML = actHTML +
+      (warns.length ? warns.map(function (w) { return '<div class="mk-dictwarn">' + E(w) + '</div>'; }).join('') : '') +
+      (rows || '<div class="mk-empty">Say a pupil’s name, then your notes.</div>');
+    wirePreview(el);
+  }
+  function wirePreview(el) {
+    var p = ui.dictPlan; if (!p) return;
+    el.querySelectorAll('[data-dpupil]').forEach(function (s) {
+      s.onchange = function () { var e = p.entries[+s.dataset.dpupil]; e.pupilId = s.value || null; e.fuzzy = false; ui.dictFix[String(e.heard || '').toLowerCase()] = e.pupilId; refreshPreview(); };
+    });
+    el.querySelectorAll('[data-dmet]').forEach(function (b) { b.onclick = function () { var e = p.entries[+b.dataset.dmet]; e.met = e.met === 'met' ? null : 'met'; refreshPreview(); }; });
+    el.querySelectorAll('[data-dnot]').forEach(function (b) { b.onclick = function () { var e = p.entries[+b.dataset.dnot]; e.met = e.met === 'not' ? null : 'not'; refreshPreview(); }; });
+    el.querySelectorAll('[data-dmk]').forEach(function (b) { b.onclick = function () { var ik = b.dataset.dmk.split(':'); p.entries[+ik[0]].markers.splice(+ik[1], 1); refreshPreview(); }; });
+    el.querySelectorAll('[data-ddel]').forEach(function (b) { b.onclick = function () { p.entries.splice(+b.dataset.ddel, 1); refreshPreview(); }; });
+    el.querySelectorAll('[data-dcomment]').forEach(function (t) { t.oninput = function () { p.entries[+t.dataset.dcomment].comment = t.value; }; });
+  }
+  function wireDict(host) {
+    var x = host.querySelector('#mkDictClose'); if (x) x.onclick = function () { stopListening(true); ui.dictOpen = false; mkRender(); };
+    var mic = host.querySelector('#mkDictMic'); if (mic) mic.onclick = function () { if (ui.dictListening) stopListening(); else startListening(); };
+    var ta = host.querySelector('#mkDictText');
+    if (ta) ta.oninput = function () { ui.dictText = ta.value; dict.utterances = []; reparse(); refreshPreview(); };
+    var sv = host.querySelector('#mkDictSave'); if (sv) sv.onclick = saveDictation;
+    var rb = host.querySelector('#mkDictRead'); if (rb) rb.onclick = readBack;
+    var cl = host.querySelector('#mkDictClear'); if (cl) cl.onclick = function () { clearDictation(); refreshAll(); };
+    var sp = host.querySelector('#mkDictSpeak'); if (sp) sp.onchange = function () { ui.dictSpeak = sp.checked; if (!sp.checked && window.speechSynthesis) window.speechSynthesis.cancel(); };
+    var sm = host.querySelector('#mkDictSmart');
+    if (sm) sm.onchange = function () { ui.dictSmart = sm.checked; try { localStorage.setItem('mk_dict_smart', sm.checked ? '1' : '0'); } catch (e) {} renderDict(); };
+  }
+
+  /* Test / automation hooks: feed a spoken utterance, or open the panel with text. */
+  window.mkDictUtter = function (t) { if (!ui.dictOpen) { ui.dictOpen = true; mkRender(); } onUtterance(t); };
+  window.mkDictOpen = function (text) {
+    ui.dictOpen = true; clearDictation(); ui.dictText = text || ''; reparse();
+    if (document.getElementById('mb-marking')) mkRender();
+    return ui.dictPlan;
+  };
+  window.mkDictSave = function () { saveDictation(); };
+
+  /* Siri / Shortcuts: index.html?dictate=<text>#markbook opens Marking with the
+     text read in. &save=1 saves straight away when every book matched a pupil
+     and the activity is clear; otherwise it waits on screen. */
+  function fromLink() {
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var text = q.get('dictate'); if (!text) return;
+    var autosave = q.get('save') === '1';
+    try { q.delete('dictate'); q.delete('save'); var rest = q.toString(); history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + '#markbook'); } catch (e) {}
+    var tries = 0;
+    (function go() {
+      var tab = document.querySelector('#mbTabs [data-sub="mb-marking"]');
+      if (!tab) { if (++tries < 50) setTimeout(go, 100); return; }
+      if (typeof window.go === 'function') window.go('markbook');
+      tab.click();
+      var plan = window.mkDictOpen(text);
+      var clean = plan && plan.activity && plan.entries.length && plan.entries.every(function (e) { return e.pupilId; }) &&
+        !(plan.unmatched || []).length && !(plan.activity.mode === 'new' && !plan.activity.title);
+      if (autosave && clean) saveDictation();
+      else if (autosave) toast('Some of that needs checking before it’s saved');
+    })();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(fromLink, 0); });
+  else setTimeout(fromLink, 0);
 
   /* ---------- multi-device / cloud sync redraw ---------- */
   window.addEventListener('tp:sync', function (e) {

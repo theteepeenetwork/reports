@@ -638,7 +638,16 @@
          nearest POSITIONED ancestor, which is not the strip, so it silently
          returns a number from somewhere up the tree and the row never moves. */
       var cr = selChip.getBoundingClientRect(), sr2 = strip.getBoundingClientRect();
-      strip.scrollLeft += (cr.left - sr2.left) - (strip.clientWidth - cr.width) / 2;
+      var shift = (cr.left - sr2.left) - (strip.clientWidth - cr.width) / 2;
+      /* centring can push the following week (often the one just designed)
+         past the right edge when the selected chip is wide: nudge right to
+         show it, but never so far that the selected chip's left edge goes */
+      var nx = selChip.nextElementSibling;
+      if (nx && nx.dataset && nx.dataset.wk) {
+        var over = (nx.getBoundingClientRect().right - sr2.left) - shift - strip.clientWidth;
+        if (over > 0) shift += Math.min(over, (cr.left - sr2.left) - shift);
+      }
+      strip.scrollLeft += shift;
     }
 
     document.getElementById('newWeek').onclick = openNewWeek;
