@@ -30,6 +30,15 @@ printable starter sheet.
 > **Question Generator** until September 2026; it wrote to its own store, so the questions a
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
 
+> **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice, hands-free
+> after one tap: *"create new maths activity called partitioning on 25/9 … Aurora … not met …
+> next pupil Zoey … met, gold star … save books"*. It reads the notes back as it goes, and "scratch
+> that", "read back" and "stop listening" work too. It writes the same records as tapping the rows.
+> The reading is done on the device (`js/dictate.js`); an optional **smart mode** asks Claude
+> instead, through `server.js`, and only when `ANTHROPIC_API_KEY` is set on the host (see
+> [PRIVACY.md](PRIVACY.md) §5). An iOS Shortcut can send Siri dictation in by opening
+> `…/index.html?dictate=<text>&save=1#markbook`.
+
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).
 
@@ -58,8 +67,11 @@ matters most: signing out must never push deletions to the cloud. See [tests/](t
 
 ## Hosting
 
-The app is static, so `server.js` exists only to give Railway a process to run: a
-zero-dependency Node file server, no build step, no runtime packages. `railway.json`
+The app is static, so `server.js` is mostly a Node file server that gives Railway a process to
+run, with no build step. Its one endpoint, `/api/dictate`, is dictation's optional smart mode: it
+stays off unless `ANTHROPIC_API_KEY` is set in Railway's variables (`DICTATE_MODEL` and
+`DICTATE_RATE_PER_HOUR` are optional), and it needs the `@anthropic-ai/sdk` package, the only
+runtime dependency. `railway.json`
 sets the start command and a `/healthz` check. Railway deploys `main` on push.
 
 **Every new hostname has to be added to Firebase**, or sign-in fails there with

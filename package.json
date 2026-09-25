@@ -2,7 +2,7 @@
   "name": "classroom-hub",
   "version": "0.1.0",
   "private": true,
-  "description": "Planning and teaching app for a UK primary classroom. Static \u2014 the package manifest exists only for the test suite.",
+  "description": "Planning and teaching app for a UK primary classroom. Static site; the one runtime dependency is the Anthropic SDK, used only by the optional dictation smart mode in server.js.",
   "scripts": {
     "start": "node server.js",
     "test": "playwright test",
@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "@playwright/test": "1.56.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0"
   }
 }

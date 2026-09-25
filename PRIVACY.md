@@ -76,6 +76,18 @@ The recent multi-user work delivers these privacy properties — note them in yo
 - [ ] Mention Firebase/Google as a sub-processor in your school's privacy notice (the one you
       publish to parents) if this app processes any pupil data.
 
+### Dictated marking (Markbook › Marking › 🎤)
+
+- [ ] **Speech recognition:** voice dictation uses the browser's built-in speech service. In Chrome
+      and Edge the audio is sent to Google or Microsoft to be transcribed, and pupils' names are
+      spoken in it. Safari on iPad/iPhone can transcribe on the device. Decide which browsers staff
+      may dictate in, or have them use the keyboard's own microphone button instead.
+- [ ] **Smart mode (Claude):** off unless the host sets `ANTHROPIC_API_KEY`. When a teacher turns it
+      on, saving a dictation sends the text, the class list (names and internal ids), the set and
+      activity names to Anthropic. If you enable it, add Anthropic as a sub-processor in your DPA
+      register and privacy notice, as for Google above. The endpoint does not check sign-in; add a
+      Firebase ID-token check before offering it beyond one school.
+
 ---
 
 ## 6. Authorised domains (Firebase Authentication)
