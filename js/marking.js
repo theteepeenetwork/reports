@@ -33,30 +33,52 @@
   }
   var mkLastAuto = '';   // last auto-generated class summary (for the Rebuild button)
 
-  /* Roll every pupil's outcome / markers / comment for an activity into
-     columns (label + the names underneath) plus grouped written comments. */
-  function aggregate(act) {
+  /* Everything the class feedback sheet shows for one activity:
+     outcomes (met / not met / marked with no outcome / not marked yet),
+     markers, and the written comments grouped by js/feedback.js into
+     "common feedback" (two or more children) and individual notes. */
+  function sheetData(act) {
     var P = pupils(), mks = mk.marks[act.id] || {};
-    var metNames = [], notNames = [], markerMap = {}, commentMap = {};
+    var d = { met: [], not: [], noOutcome: [], unmarked: [], markers: [], themes: [], individual: [], metOf: {}, total: P.length };
+    var markerMap = {}, items = [], byId = {};
     P.forEach(function (p) {
       var rec = mks[p.id] || {};
-      if (rec.met === 'met') metNames.push(p.name);
-      else if (rec.met === 'not') notNames.push(p.name);
-      (rec.markers || []).forEach(function (t) { (markerMap[t] || (markerMap[t] = [])).push(p.name); });
-      if (rec.comment) (commentMap[rec.comment] || (commentMap[rec.comment] = [])).push(p.name);
+      byId[p.id] = p;
+      d.metOf[p.id] = rec.met || null;
+      if (rec.met === 'met') d.met.push(p);
+      else if (rec.met === 'not') d.not.push(p);
+      else if (rec.markedDate) d.noOutcome.push(p);
+      else d.unmarked.push(p);
+      (rec.markers || []).forEach(function (t) { (markerMap[t] || (markerMap[t] = [])).push(p); });
+      if (rec.comment) items.push({ id: p.id, name: p.name, comment: rec.comment });
     });
-    var cols = [];
-    if (metNames.length) cols.push({ label: '✓ Met', cls: 'met', names: metNames });
-    if (notNames.length) cols.push({ label: '✗ Not met', cls: 'not', names: notNames });
-    Object.keys(markerMap).sort(function (a, b) { return markerMap[b].length - markerMap[a].length || a.localeCompare(b); })
-      .forEach(function (t) { cols.push({ label: t, cls: 'mk', names: markerMap[t] }); });
-    return { cols: cols, commentMap: commentMap };
+    d.marked = P.length - d.unmarked.length;
+    d.markers = Object.keys(markerMap).sort(function (a, b) { return markerMap[b].length - markerMap[a].length || a.localeCompare(b); })
+      .map(function (t) { return { label: String(t).replace(/[.!?]+$/, ''), pupils: markerMap[t] }; });
+    var g = window.mkFeedback ? window.mkFeedback.group(items) : { themes: [], individual: items.map(function (i) { return { id: i.id, text: i.comment }; }) };
+    d.themes = g.themes.map(function (t) { return { label: t.label, examples: t.examples, pupils: t.ids.map(function (id) { return byId[id]; }) }; });
+    d.individual = g.individual.map(function (x) { return { pupil: byId[x.id], text: x.text }; });
+    return d;
   }
-  function autoSummary(agg) {
-    var lines = agg.cols.map(function (c) { return c.label.replace(/^[✓✗]\s*/, '') + ': ' + c.names.join(', '); });
-    var ck = Object.keys(agg.commentMap);
-    if (ck.length) { lines.push(''); lines.push('Comments:'); ck.forEach(function (t) { lines.push('“' + t + '” — ' + agg.commentMap[t].join(', ')); }); }
-    return lines.join('\n');
+  function namesOf(list) { return list.map(function (p) { return p.name; }).join(', '); }
+  function autoSummary(d) {
+    var L = [];
+    L.push('Met (' + d.met.length + '): ' + (namesOf(d.met) || '—'));
+    L.push('Not met (' + d.not.length + '): ' + (namesOf(d.not) || '—'));
+    if (d.noOutcome.length) L.push('Marked, no outcome (' + d.noOutcome.length + '): ' + namesOf(d.noOutcome));
+    if (d.unmarked.length) L.push('Not marked yet (' + d.unmarked.length + '): ' + namesOf(d.unmarked));
+    if (d.themes.length) { L.push(''); L.push('Common feedback:'); d.themes.forEach(function (t) { L.push('• ' + t.label + ' (' + t.pupils.length + '): ' + namesOf(t.pupils)); }); }
+    if (d.markers.length) { L.push(''); L.push('Awards & markers:'); d.markers.forEach(function (m) { L.push('• ' + m.label + ' (' + m.pupils.length + '): ' + namesOf(m.pupils)); }); }
+    if (d.individual.length) { L.push(''); L.push('Individual notes:'); d.individual.forEach(function (x) { L.push('• ' + x.pupil.name + ': ' + x.text); }); }
+    return L.join('\n');
+  }
+  /* for the voice: "Partitioning. 12 met, 3 not met. Most common: …" */
+  function sheetSpeech(act, d) {
+    var s = act.title + '. ' + d.met.length + ' met, ' + d.not.length + ' not met';
+    if (d.unmarked.length) s += ', ' + d.unmarked.length + ' not marked yet';
+    s += '.';
+    if (d.themes.length) s += ' Most common: ' + d.themes[0].label + ', ' + d.themes[0].pupils.length + ' children.';
+    return s;
   }
   function pupils() { return (typeof sortedRoster === 'function') ? sortedRoster() : ((typeof roster !== 'undefined' && roster) ? roster.slice() : []); }
 
@@ -273,7 +295,7 @@
           '<div class="mk-list-head"><span class="mk-list-title">' + E(act.title) + '</span>' +
             '<span class="mk-list-count">' + markedCount + '/' + P.length + ' marked</span>' +
             '<span class="mk-spacer"></span>' +
-            '<button class="mk-fbtoggle" id="mkFbToggle">' + (ui.feedbackOpen ? '✕ Hide feedback' : '📋 Class feedback') + '</button></div>' +
+            '<button class="mk-fbtoggle" id="mkFbToggle">' + (ui.feedbackOpen ? '✕ Hide feedback sheet' : '📋 Class feedback sheet') + '</button></div>' +
           '<div class="mk-datepills">' +
             '<span class="mk-pill">Date of work <b>' + E(fmt(act.workDate)) + '</b></span>' +
             '<span class="mk-pill marked">Date marked <b>today · ' + E(fmt(today)) + '</b></span>' +
@@ -300,35 +322,79 @@
   }
   window.mkRender = mkRender;
 
-  /* ---------- whole-class feedback panel ---------- */
-  function buildFeedback(act) {
-    var agg = aggregate(act);
-    mkLastAuto = autoSummary(agg);
-    if (ui.summaryActId !== act.id) { ui.summaryActId = act.id; ui.summaryDraft = (mk.summaries && mk.summaries[act.id]) || mkLastAuto; }
-
-    var colsHTML = agg.cols.length
-      ? agg.cols.map(function (c) {
-          return '<div class="mk-fbcol"><div class="mk-fbcol-head ' + c.cls + '">' + E(c.label) + ' <span class="mk-fbn">' + c.names.length + '</span></div>' +
-            c.names.map(function (n) { return '<div class="mk-fbname">' + E(n) + '</div>'; }).join('') + '</div>';
+  /* ---------- class feedback sheet ---------- */
+  function chipsHTML(list, d) {
+    return list.length
+      ? list.map(function (p) {
+          var m = d.metOf[p.id];
+          return '<span class="mk-sh-name' + (m === 'met' ? ' met' : m === 'not' ? ' not' : '') + '">' +
+            (m === 'met' ? '✓ ' : m === 'not' ? '✗ ' : '') + E(p.name) + '</span>';
         }).join('')
-      : '<div class="mk-empty">No outcomes or markers recorded yet — mark some pupils to see them grouped here.</div>';
-
-    var ck = Object.keys(agg.commentMap);
-    var commentsHTML = ck.length
-      ? ck.map(function (t) { return '<div class="mk-fbcomment"><div class="mk-fbctext">“' + E(t) + '”</div><div class="mk-fbcnames">' + E(agg.commentMap[t].join(', ')) + '</div></div>'; }).join('')
-      : '<div class="mk-empty">No written comments yet.</div>';
-
-    return '<div class="mk-fbpanel card">' +
-      '<div class="mk-fbhead"><span class="mk-fbtitle">Whole-class feedback · ' + E(act.title) + '</span>' +
-        '<span class="mk-spacer"></span><button class="mk-modal-x" id="mkFbClose">✕</button></div>' +
-      '<div class="mk-fbsub">Markers &amp; outcomes</div>' +
-      '<div class="mk-fbcols">' + colsHTML + '</div>' +
-      '<div class="mk-fbsub">Written comments</div>' +
-      '<div class="mk-fbcomments">' + commentsHTML + '</div>' +
-      '<div class="mk-fbsub">Class summary <button class="mk-fblink" id="mkFbRebuild">↻ Rebuild from above</button></div>' +
-      '<textarea id="mkSummary" class="mk-fbsummary" placeholder="A whole-class summary — auto-built from the markers, outcomes and comments above. Edit freely, then Save or Copy.">' + E(ui.summaryDraft) + '</textarea>' +
-      '<div class="mk-fbbtns"><button id="mkFbSave">Save summary</button><button class="secondary" id="mkFbCopy">Copy</button></div>' +
+      : '<span class="mk-sh-none">—</span>';
+  }
+  /* one HTML body for the screen and the printout */
+  function sheetBody(act, d, summary) {
+    var set = mk.sets.find(function (x) { return x.id === act.setId; });
+    function box(cls, label, list) {
+      return '<div class="mk-sh-box ' + cls + '"><div class="mk-sh-boxhead">' + label + ' <b>' + list.length + '</b></div>' +
+        '<div class="mk-sh-names">' + chipsHTML(list, { metOf: {} }) + '</div></div>';
+    }
+    var outcomes = '<div class="mk-sh-outcomes">' +
+      box('met', '✓ Met', d.met) + box('not', '✗ Not met', d.not) +
+      (d.noOutcome.length ? box('none', 'Marked, no outcome', d.noOutcome) : '') +
+      (d.unmarked.length ? box('todo', 'Not marked yet', d.unmarked) : '') + '</div>';
+    var themes = d.themes.length
+      ? d.themes.map(function (t, i) {
+          return '<div class="mk-sh-theme"><div class="mk-sh-themehead"><span class="mk-sh-themelabel">' + E(t.label) + '</span>' +
+              '<span class="mk-sh-count">' + t.pupils.length + ' children</span></div>' +
+            '<div class="mk-sh-names">' + chipsHTML(t.pupils, d) + '</div>' +
+            (t.examples.length > 1 ? '<details class="mk-sh-said"><summary>How it was worded</summary>' +
+              t.examples.map(function (x) { return '<div>“' + E(x) + '”</div>'; }).join('') + '</details>' : '') +
+          '</div>';
+        }).join('')
+      : '<div class="mk-sh-empty">No shared feedback yet — it appears here once two or more children have a similar comment.</div>';
+    var markers = d.markers.length
+      ? d.markers.map(function (m) { return '<div class="mk-sh-row"><span class="mk-sh-rowlabel">' + E(m.label) + '</span><div class="mk-sh-names">' + chipsHTML(m.pupils, d) + '</div></div>'; }).join('')
+      : '';
+    var indiv = d.individual.length
+      ? d.individual.map(function (x) { return '<div class="mk-sh-row"><span class="mk-sh-rowlabel">' + chipsHTML([x.pupil], d) + '</span><span class="mk-sh-note">' + E(x.text) + '</span></div>'; }).join('')
+      : '';
+    return '<div class="mk-sh-title">Class feedback · ' + E(act.title) + '</div>' +
+      '<div class="mk-sh-sub">' + E(set ? set.name : '') + ' · work done ' + E(fmt(act.workDate)) + ' · ' + d.marked + ' of ' + d.total + ' books marked</div>' +
+      '<div class="mk-sh-h">Outcomes</div>' + outcomes +
+      '<div class="mk-sh-h">Common feedback <span class="mk-sh-hint">similar comments grouped</span></div>' + themes +
+      (markers ? '<div class="mk-sh-h">Awards &amp; markers</div>' + markers : '') +
+      (indiv ? '<div class="mk-sh-h">Individual notes</div>' + indiv : '') +
+      (summary ? '<div class="mk-sh-h">Class summary</div><div class="mk-sh-summary">' + E(summary) + '</div>' : '');
+  }
+  function buildFeedback(act) {
+    var d = sheetData(act);
+    mkLastAuto = autoSummary(d);
+    if (ui.summaryActId !== act.id) { ui.summaryActId = act.id; ui.summaryDraft = (mk.summaries && mk.summaries[act.id]) || ''; }
+    return '<div class="mk-fbpanel mk-sheet card" id="mkSheet">' +
+      '<div class="mk-fbhead"><span class="mk-sh-kicker">📋 Class feedback sheet</span><span class="mk-spacer"></span>' +
+        '<button id="mkFbPrint">🖨 Print</button>' +
+        '<button class="secondary" id="mkFbCopy">Copy as text</button>' +
+        '<button class="mk-modal-x" id="mkFbClose" title="Close">✕</button></div>' +
+      sheetBody(act, d, '') +
+      '<div class="mk-sh-h">Class summary <span class="mk-sh-hint">optional — printed with the sheet</span>' +
+        '<button class="mk-fblink" id="mkFbRebuild">↻ Fill in from the sheet</button></div>' +
+      '<textarea id="mkSummary" class="mk-fbsummary" placeholder="Anything to say to the whole class, or a note for yourself. ↻ fills it in from the sheet above.">' + E(ui.summaryDraft) + '</textarea>' +
+      '<div class="mk-fbbtns"><button class="secondary" id="mkFbSave">Save summary</button></div>' +
     '</div>';
+  }
+  function printSheet(act) {
+    var c = document.getElementById('starterPrint');
+    if (!c) { toast('Printing isn’t available here'); return; }
+    var d = sheetData(act);
+    c.innerHTML = '<div class="mk-sheet mk-sheet-print">' + sheetBody(act, d, ui.summaryActId === act.id ? ui.summaryDraft : (mk.summaries || {})[act.id]) + '</div>';
+    window.print();   // hub.js empties #starterPrint on afterprint
+  }
+  function openSheet() {
+    if (!activeActivity()) { toast('Pick an activity first'); return; }
+    ui.feedbackOpen = true; mkRender();
+    var el = document.getElementById('mkSheet');
+    if (el && el.scrollIntoView) try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
   }
 
   /* ---------- event wiring ---------- */
@@ -409,9 +475,9 @@
     host.querySelectorAll('[data-comment]').forEach(function (b) { b.onclick = function () { openEditor(b.dataset.comment); }; });
     host.querySelectorAll('[data-sort]').forEach(function (b) { b.onclick = function () { mk.sort = b.dataset.sort; save(); mkRender(); }; });
 
-    /* whole-class feedback panel */
+    /* class feedback sheet */
     var fbT = host.querySelector('#mkFbToggle');
-    if (fbT) fbT.onclick = function () { ui.feedbackOpen = !ui.feedbackOpen; mkRender(); };
+    if (fbT) fbT.onclick = function () { if (ui.feedbackOpen) { ui.feedbackOpen = false; mkRender(); } else openSheet(); };
     var fbC = host.querySelector('#mkFbClose');
     if (fbC) fbC.onclick = function () { ui.feedbackOpen = false; mkRender(); };
     var sumTa = host.querySelector('#mkSummary');
@@ -421,7 +487,13 @@
     var fbS = host.querySelector('#mkFbSave');
     if (fbS) fbS.onclick = function () { if (!mk.summaries) mk.summaries = {}; mk.summaries[ui.summaryActId] = ui.summaryDraft; save(); toast('Class summary saved'); };
     var fbCopy = host.querySelector('#mkFbCopy');
-    if (fbCopy) fbCopy.onclick = function () { copyText(ui.summaryDraft || ''); toast('Summary copied'); };
+    if (fbCopy) fbCopy.onclick = function () {
+      var act = activeActivity(); if (!act) return;
+      copyText(act.title + '\n\n' + mkLastAuto + (ui.summaryDraft ? '\n\nClass summary:\n' + ui.summaryDraft : ''));
+      toast('Feedback sheet copied');
+    };
+    var fbP = host.querySelector('#mkFbPrint');
+    if (fbP) fbP.onclick = function () { var act = activeActivity(); if (act) printSheet(act); };
   }
 
   function markToggle(pid) {
@@ -776,8 +848,14 @@
       speak(describe(plan.entries[plan.entries.length - 2]) + '.');
     }
   }
+  var HELP_SPOKEN = 'Say a pupil’s name, then your notes. Say next pupil between books. ' +
+    'Say scratch that to undo, read back to hear the list, save books to save, ' +
+    'and finished marking at the end for the class feedback sheet.';
   function runCommand(cmd) {
     if (cmd === 'save') return saveDictation();
+    if (cmd === 'finish') return saveDictation(function () { finishMarking(); });
+    if (cmd === 'sheet') return pendingCount() ? saveDictation(function () { finishMarking(); }) : finishMarking();
+    if (cmd === 'help') { ui.dictHelp = true; renderDict(); speak(HELP_SPOKEN); return; }
     if (cmd === 'stop') return stopListening();
     if (cmd === 'read') return readBack();
     if (cmd === 'cancel') { clearDictation(); refreshAll(); speak('Cleared. Nothing was saved.'); return; }
@@ -801,6 +879,15 @@
     parts.push(p.entries.length + (p.entries.length === 1 ? ' book.' : ' books.'));
     p.entries.forEach(function (e) { parts.push(describe(e) + '.'); });
     speak(parts.join(' '));
+  }
+  function pendingCount() { var p = ui.dictPlan; return p ? p.entries.filter(function (e) { return e.pupilId; }).length : 0; }
+  /* the end of the set: open the sheet and say the headline */
+  function finishMarking() {
+    var act = activeActivity();
+    if (!act) { speak('Pick an activity first.'); return; }
+    stopListening(true);
+    openSheet();
+    speak(sheetSpeech(act, sheetData(act)) + ' The class feedback sheet is on screen.');
   }
   function clearDictation() { ui.dictText = ''; ui.dictPlan = null; ui.dictFix = {}; dict.utterances = []; dict.spokenCount = 0; dict.spokenAct = ''; }
 
@@ -847,19 +934,22 @@
     save();
     return { act: act, saved: saved, skipped: skipped };
   }
-  function saveDictation() {
+  function saveDictation(after) {
     if (dict.busy) return;
     var plan = ui.dictPlan || reparse();
-    if (!plan || !plan.entries.length) { speak('Nothing to save yet.'); toast('Nothing to save yet'); return; }
+    if (!plan || !plan.entries.length) {
+      if (after) { after(); return; }                 // "finished marking" with nothing pending
+      speak('Nothing to save yet.'); toast('Nothing to save yet'); return;
+    }
     if (ui.dictSmart && smartReady()) {
       dict.busy = true; refreshPreview();
-      smartParse(ui.dictText).then(function (p) { dict.busy = false; finishSave(p || plan, !!p); })
-        .catch(function (e) { dict.busy = false; toast((e && e.userMessage) || 'Smart mode unavailable — used the on-device reading'); finishSave(plan, false); });
+      smartParse(ui.dictText).then(function (p) { dict.busy = false; finishSave(p || plan, !!p, after); })
+        .catch(function (e) { dict.busy = false; toast((e && e.userMessage) || 'Smart mode unavailable — used the on-device reading'); finishSave(plan, false, after); });
       return;
     }
-    finishSave(plan, false);
+    finishSave(plan, false, after);
   }
-  function finishSave(plan, smart) {
+  function finishSave(plan, smart, after) {
     var res = applyPlan(plan);
     if (res.error) { speak(res.error); toast(res.error); return; }
     var names = res.saved.map(function (e) { return firstName(e.pupilId); });
@@ -877,6 +967,7 @@
     var msg = 'Saved ' + names.length + (names.length === 1 ? ' book' : ' books') + ' for ' + res.act.title + '.';
     if (res.skipped.length) msg += ' ' + res.skipped.length + ' I couldn’t match to a pupil — ' + (res.skipped.length === 1 ? 'it’s' : 'they’re') + ' left on screen.';
     toast(msg);
+    if (after) { speak(msg, after); return; }
     speak(msg);
   }
 
@@ -895,7 +986,7 @@
     if (dict.smartAvail !== null || !window.fetch || location.protocol === 'file:') { if (location.protocol === 'file:') dict.smartAvail = false; return; }
     dict.smartAvail = false;
     fetch('api/dictate', { method: 'GET', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { dict.smartAvail = !!(j && j.enabled); if (dict.smartAvail) refreshPreview(); })
+      .then(function (j) { dict.smartAvail = !!(j && j.enabled); refreshPreview(); })
       .catch(function () {});
   }
   function smartParse(text) {
@@ -934,39 +1025,67 @@
       });
   }
 
-  /* ---------- the panel ---------- */
+  /* ---------- the panel ----------
+     Read top to bottom it is the whole job: the microphone, the three
+     steps (which activity → the books heard → save), the books waiting to
+     be saved, what was heard, and what has been saved already. */
   function refreshAll() { var ta = document.getElementById('mkDictText'); if (ta) ta.value = ui.dictText; refreshPreview(); }
+  function smartStatus() {
+    if (!dict.smartAvail) return '';                 // server has it off: nothing to offer, say nothing
+    if (!signedIn()) return '<span class="mk-dictopt off">Smart mode (Claude) — sign in to use it</span>';
+    return '<label class="mk-dictopt" id="mkDictSmartWrap"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> ' +
+      'Smart mode — Claude reads your notes when you save</label>';
+  }
+  var HELP_ROWS = [
+    ['Start an activity', '“Create new maths activity called partitioning on 25/9”'],
+    ['Mark a book', '“Aurora … most correct, struggled with tens … not met”'],
+    ['Next book', '“Next pupil Zoey …”'],
+    ['Outcome', '“met” · “not met” · “working towards”'],
+    ['Awards', '“gold star” · “accessed the challenge” · your quick markers'],
+    ['Undo the last thing', '“Scratch that”'],
+    ['Check the list', '“Read back”'],
+    ['Save what’s listed', '“Save books”'],
+    ['End of the set', '“Finished marking” — saves and opens the class feedback sheet'],
+    ['Stop the microphone', '“Stop listening”']
+  ];
   function renderDict() {
     var host = document.getElementById('mkDict'); if (!host) return;
     checkSmart();
     host.className = 'mk-dict card' + (ui.dictListening ? ' live' : '');
-    host.innerHTML =
-      '<div class="mk-dicthead"><span class="mk-dicttitle">🎤 Dictate marking</span>' +
-        '<span class="mk-dictstate">' + (ui.dictListening ? '<span class="mk-dictdot"></span>Listening — hands-free' : (SR ? 'Microphone off' : 'Use your keyboard’s 🎤 to dictate')) + '</span>' +
-        '<span class="mk-spacer"></span><button class="mk-modal-x" id="mkDictClose" title="Close">✕</button></div>' +
-      '<div class="mk-dictcmds">Say: <b>“create new maths activity called partitioning on 25/9”</b> · a pupil’s name then your notes · ' +
-        '<b>“next pupil”</b> · <b>“scratch that”</b> · <b>“read back”</b> · <b>“save books”</b> · <b>“stop listening”</b></div>' +
-      '<div class="mk-dictrow">' +
-        '<textarea id="mkDictText" class="mk-dicttext" placeholder="Aurora answered most questions correctly but struggled with tens as a numeral. Not met. Next pupil Zoey answered all correctly, accessed the challenge, met, gold star.">' + E(ui.dictText) + '</textarea>' +
-        '<div class="mk-dictbtns">' +
-          (SR ? '<button class="mk-dictmic' + (ui.dictListening ? ' on' : '') + '" id="mkDictMic">' + (ui.dictListening ? '■ Stop' : '🎤 Start') + '</button>' : '') +
-          '<button id="mkDictSave">✓ Save books</button>' +
-          '<button class="secondary" id="mkDictRead">🔊 Read back</button>' +
-          '<button class="secondary" id="mkDictClear">Clear</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="mk-dictinterim" id="mkDictInterim" style="display:none"></div>' +
-      '<div class="mk-dictopts">' +
-        '<label class="mk-dictopt"><input type="checkbox" id="mkDictSpeak"' + (ui.dictSpeak ? ' checked' : '') + '> Speak confirmations</label>' +
-        '<label class="mk-dictopt" id="mkDictSmartWrap" style="' + (smartReady() ? '' : 'display:none') + '"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> Smart mode (Claude reads the note when you save)</label>' +
-      '</div>' +
-      '<div id="mkDictPreview"></div>' +
-      (ui.dictLog.length ? '<div class="mk-dictlog">' + ui.dictLog.slice(0, 6).map(function (l) {
-        return '<div class="mk-dictmsg"><div class="mk-dictmsg-h">✓ ' + E(l.when) + ' · ' + E(l.set) + ' · ' + E(l.title) + (l.smart ? ' · smart' : '') + '</div>' +
+    var status = ui.dictListening
+      ? '<div class="mk-dictstatus live"><span class="mk-dictdot"></span><div class="mk-dictstatus-t"><b>Listening</b> — say a pupil’s name, then your notes. Say “next pupil” between books.</div>' +
+          '<button class="mk-dictmic on" id="mkDictMic">■ Stop</button></div>'
+      : SR
+        ? '<div class="mk-dictstatus"><div class="mk-dictstatus-t"><b>Microphone off.</b> Start it once and mark the whole set by voice.</div>' +
+            '<button class="mk-dictmic" id="mkDictMic">🎤 Start listening</button></div>'
+        : '<div class="mk-dictstatus"><div class="mk-dictstatus-t"><b>This browser can’t listen.</b> Tap in the “What you said” box and use your keyboard’s 🎤 instead.</div></div>';
+    var help = ui.dictHelp
+      ? '<div class="mk-dicthelp">' + HELP_ROWS.map(function (r) { return '<div class="mk-dicthelp-r"><span>' + E(r[0]) + '</span><span>' + E(r[1]) + '</span></div>'; }).join('') + '</div>'
+      : '';
+    var log = ui.dictLog.length ? '<div class="mk-dictlog">' + ui.dictLog.slice(0, 6).map(function (l, i) {
+        return '<div class="mk-dictmsg"><div class="mk-dictmsg-h">✓ Saved ' + l.lines.length + (l.lines.length === 1 ? ' book' : ' books') + ' · ' + E(l.title) +
+            ' <span class="mk-dictmsg-meta">' + E(l.set) + ' · ' + E(l.when) + (l.smart ? ' · smart' : '') + '</span></div>' +
           l.lines.map(function (x) { return '<div>' + E(x) + '</div>'; }).join('') +
-          (l.skipped.length ? '<div class="mk-dictwarn">Not saved (no pupil matched): ' + E(l.skipped.join(' · ')) + '</div>' : '') + '</div>';
-      }).join('') + '</div>' : '') +
-      '<div class="mk-dictnote">Voice uses your browser’s speech recognition. In Chrome and Edge the audio is sent to Google or Microsoft to be turned into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device. Nothing is saved until you say “save books” or tap Save.' +
+          (l.skipped.length ? '<div class="mk-dictwarn">Not saved — no pupil matched: ' + E(l.skipped.join(' · ')) + '</div>' : '') +
+          (i === 0 ? '<button class="mk-dictsheet" id="mkDictSheet">📋 Class feedback sheet</button>' : '') + '</div>';
+      }).join('') + '</div>' : '';
+    host.innerHTML =
+      '<div class="mk-dicthead"><span class="mk-dicttitle">🎤 Dictate marking</span><span class="mk-spacer"></span>' +
+        '<button class="mk-dicthelpbtn' + (ui.dictHelp ? ' on' : '') + '" id="mkDictHelp">? What can I say</button>' +
+        '<button class="mk-modal-x" id="mkDictClose" title="Close">✕</button></div>' +
+      status +
+      '<div class="mk-dictinterim" id="mkDictInterim" style="display:none"></div>' +
+      help +
+      '<div id="mkDictPreview"></div>' +
+      log +
+      '<div class="mk-dictsaid"><label for="mkDictText">What you said <span>— you can type or correct it here too</span></label>' +
+        '<textarea id="mkDictText" class="mk-dicttext" rows="3" placeholder="Create new maths activity called partitioning on 25/9. Aurora answered most questions correctly but struggled with tens as a numeral. Not met. Next pupil Zoey …">' + E(ui.dictText) + '</textarea></div>' +
+      '<div class="mk-dictopts">' +
+        '<label class="mk-dictopt"><input type="checkbox" id="mkDictSpeak"' + (ui.dictSpeak ? ' checked' : '') + '> Read each book back to me</label>' +
+        '<span id="mkDictSmartSlot">' + smartStatus() + '</span>' +
+      '</div>' +
+      '<div class="mk-dictnote">Nothing is saved until you say “save books” or “finished marking”, or tap Save. ' +
+        'Voice uses your browser’s speech recognition: Chrome and Edge send the audio to Google or Microsoft to turn it into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device.' +
         (smartReady() ? ' Smart mode sends the text and your class list to Anthropic (Claude) when you save.' : '') + '</div>';
     refreshPreview();
     wireDict(host);
@@ -974,37 +1093,73 @@
   }
   function refreshPreview() {
     var el = document.getElementById('mkDictPreview'); if (!el) return;
-    var sw = document.getElementById('mkDictSmartWrap'); if (sw) sw.style.display = smartReady() ? '' : 'none';
+    var slot = document.getElementById('mkDictSmartSlot');
+    if (slot && slot.dataset.v !== String(dict.smartAvail) + signedIn()) {
+      slot.dataset.v = String(dict.smartAvail) + signedIn(); slot.innerHTML = smartStatus();
+      var sm = slot.querySelector('#mkDictSmart');
+      if (sm) sm.onchange = function () { ui.dictSmart = sm.checked; try { localStorage.setItem('mk_dict_smart', sm.checked ? '1' : '0'); } catch (e) {} renderDict(); };
+    }
+    if (dict.busy) { el.innerHTML = '<div class="mk-empty">Claude is reading your notes…</div>'; return; }
     var p = ui.dictPlan;
-    if (dict.busy) { el.innerHTML = '<div class="mk-empty">Claude is reading your note…</div>'; return; }
-    if (!p) { el.innerHTML = ''; return; }
-    var a = p.activity;
-    var actHTML = a
-      ? '<div class="mk-dictact"><span class="mk-dicttag ' + (a.mode === 'new' ? 'new' : '') + '">' + (a.mode === 'new' ? 'New activity' : 'Activity') + '</span>' +
-          '<b>' + E(a.title || '(no title)') + '</b> · ' + E((a.setId ? setName(a.setId) : a.newSetName + ' (new set)') || '') + ' · work done ' + E(fmt(a.workDate)) + '</div>'
-      : '<div class="mk-dictwarn">No activity yet — say “create new … activity called …”, or pick one on the left.</div>';
+    var a = p && p.activity;
+    var entries = p ? p.entries : [];
+    var ready = entries.filter(function (e) { return e.pupilId; }).length;
+    var unnamed = entries.length - ready;
+
+    /* ① activity */
+    var cur = activeActivity();
+    var step1 = a
+      ? '<b>' + E(a.title || '(no title yet)') + '</b><span>' + (a.mode === 'new' ? 'new · ' : '') +
+          E((a.setId ? setName(a.setId) : a.newSetName + ' (new set)') || '') + ' · work done ' + E(fmt(a.workDate)) + '</span>'
+      : '<b class="todo">Not chosen yet</b><span>Say “create new maths activity called …”' + (cur ? ', or books go to <i>' + E(cur.title) + '</i>' : ', or pick one on the left') + '</span>';
+    /* ② books */
+    var step2 = entries.length
+      ? '<b>' + ready + (ready === 1 ? ' book' : ' books') + ' ready</b><span>' + (unnamed ? unnamed + ' need' + (unnamed === 1 ? 's' : '') + ' a name — pick below' : 'not saved yet') + '</span>'
+      : '<b class="todo">None yet</b><span>Say a pupil’s name, then your notes</span>';
+    /* ③ save */
+    var canSave = ready > 0 && !!a && !(a.mode === 'new' && !a.title);
+    var saveLabel = '✓ Save ' + (ready || '') + (ready === 1 ? ' book' : ' books') + (unnamed && ready ? ' (' + unnamed + ' left out)' : '');
+    var steps =
+      '<div class="mk-dictsteps">' +
+        '<div class="mk-dictstep' + (a ? ' ok' : '') + '"><span class="mk-dictstep-n">1</span><div class="mk-dictstep-b"><em>Activity</em>' + step1 + '</div></div>' +
+        '<div class="mk-dictstep' + (ready ? ' ok' : '') + '"><span class="mk-dictstep-n">2</span><div class="mk-dictstep-b"><em>Books</em>' + step2 + '</div></div>' +
+        '<div class="mk-dictstep save"><span class="mk-dictstep-n">3</span><div class="mk-dictstep-b">' +
+          '<button id="mkDictSave"' + (canSave ? '' : ' disabled') + '>' + saveLabel + '</button>' +
+          '<div class="mk-dictstep-links"><button class="mk-fblink" id="mkDictRead">🔊 Read back</button>' +
+            (entries.length || (ui.dictText || '').trim() ? '<button class="mk-fblink danger" id="mkDictClear">Discard</button>' : '') + '</div>' +
+        '</div></div>' +
+      '</div>';
+
     var opts = pupils();
-    var rows = p.entries.map(function (e, i) {
+    var rows = entries.map(function (e, i) {
       var sel = '<select class="mk-dictpupil" data-dpupil="' + i + '"><option value="">— who is this? —</option>' +
         opts.map(function (x) { return '<option value="' + E(x.id) + '"' + (x.id === e.pupilId ? ' selected' : '') + '>' + E(x.name) + '</option>'; }).join('') + '</select>';
       return '<div class="mk-dictentry' + (e.pupilId ? '' : ' bad') + '">' +
         '<div class="mk-dictentry-top">' + sel +
-          (e.fuzzy || !e.pupilId ? '<span class="mk-dictheard">heard “' + E(e.heard) + '”</span>' : '') +
-          '<span class="mk-met">' +
+          (!e.pupilId ? '<span class="mk-dictheard">heard “' + E(e.heard) + '” — pick who this is, or it won’t be saved</span>'
+            : e.fuzzy ? '<span class="mk-dictheard soft">heard “' + E(e.heard) + '”</span>' : '') +
+          '<span class="mk-met" title="Met / not met">' +
             '<button class="mk-met-y' + (e.met === 'met' ? ' on' : '') + '" data-dmet="' + i + '" title="Met">✓</button>' +
             '<button class="mk-met-n' + (e.met === 'not' ? ' on' : '') + '" data-dnot="' + i + '" title="Not met">✗</button></span>' +
-          e.markers.map(function (t, k) { return '<button class="mk-mk mk-dictmk" data-dmk="' + i + ':' + k + '" title="Remove">' + E(t) + ' ✕</button>'; }).join('') +
+          e.markers.map(function (t, k) { return '<button class="mk-mk mk-dictmk" data-dmk="' + i + ':' + k + '" title="Remove this marker">' + E(t) + ' ✕</button>'; }).join('') +
           '<span class="mk-spacer"></span><button class="mk-setx" data-ddel="' + i + '" title="Leave this book out">✕</button></div>' +
-        '<textarea class="mk-dictcomment" data-dcomment="' + i + '" rows="2" placeholder="(no written note)">' + E(e.comment) + '</textarea>' +
+        '<textarea class="mk-dictcomment" data-dcomment="' + i + '" rows="2" placeholder="No written note">' + E(e.comment) + '</textarea>' +
       '</div>';
     }).join('');
-    var warns = (p.warnings || []).concat((p.unmatched || []).map(function (u) { return 'Not attached to a pupil: “' + u + '”'; }));
-    el.innerHTML = actHTML +
-      (warns.length ? warns.map(function (w) { return '<div class="mk-dictwarn">' + E(w) + '</div>'; }).join('') : '') +
-      (rows || '<div class="mk-empty">Say a pupil’s name, then your notes.</div>');
+    var warns = p ? (p.warnings || []).concat((p.unmatched || []).map(function (u) { return 'Not attached to a pupil: “' + u + '”'; })) : [];
+    el.innerHTML = steps +
+      warns.map(function (w) { return '<div class="mk-dictwarn">' + E(w) + '</div>'; }).join('') +
+      (rows ? '<div class="mk-dictcards-h">Not saved yet — check them, then save</div>' + rows : '');
     wirePreview(el);
   }
   function wirePreview(el) {
+    var sv = el.querySelector('#mkDictSave'); if (sv) sv.onclick = function () { saveDictation(); };
+    var rb = el.querySelector('#mkDictRead'); if (rb) rb.onclick = readBack;
+    var cl = el.querySelector('#mkDictClear');
+    if (cl) cl.onclick = function () {
+      if (pendingCount() && !confirm('Discard ' + pendingCount() + ' unsaved book' + (pendingCount() === 1 ? '' : 's') + '?')) return;
+      clearDictation(); refreshAll();
+    };
     var p = ui.dictPlan; if (!p) return;
     el.querySelectorAll('[data-dpupil]').forEach(function (s) {
       s.onchange = function () { var e = p.entries[+s.dataset.dpupil]; e.pupilId = s.value || null; e.fuzzy = false; ui.dictFix[String(e.heard || '').toLowerCase()] = e.pupilId; refreshPreview(); };
@@ -1018,11 +1173,10 @@
   function wireDict(host) {
     var x = host.querySelector('#mkDictClose'); if (x) x.onclick = function () { stopListening(true); ui.dictOpen = false; mkRender(); };
     var mic = host.querySelector('#mkDictMic'); if (mic) mic.onclick = function () { if (ui.dictListening) stopListening(); else startListening(); };
+    var hb = host.querySelector('#mkDictHelp'); if (hb) hb.onclick = function () { ui.dictHelp = !ui.dictHelp; renderDict(); };
+    var sh = host.querySelector('#mkDictSheet'); if (sh) sh.onclick = openSheet;
     var ta = host.querySelector('#mkDictText');
     if (ta) ta.oninput = function () { ui.dictText = ta.value; dict.utterances = []; reparse(); refreshPreview(); };
-    var sv = host.querySelector('#mkDictSave'); if (sv) sv.onclick = saveDictation;
-    var rb = host.querySelector('#mkDictRead'); if (rb) rb.onclick = readBack;
-    var cl = host.querySelector('#mkDictClear'); if (cl) cl.onclick = function () { clearDictation(); refreshAll(); };
     var sp = host.querySelector('#mkDictSpeak'); if (sp) sp.onchange = function () { ui.dictSpeak = sp.checked; if (!sp.checked && window.speechSynthesis) window.speechSynthesis.cancel(); };
     var sm = host.querySelector('#mkDictSmart');
     if (sm) sm.onchange = function () { ui.dictSmart = sm.checked; try { localStorage.setItem('mk_dict_smart', sm.checked ? '1' : '0'); } catch (e) {} renderDict(); };

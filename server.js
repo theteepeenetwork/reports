@@ -372,5 +372,11 @@ module.exports = { verifyIdToken: verifyIdToken, allowedEmail: allowedEmail };
 if (require.main === module) {
   server.listen(PORT, '0.0.0.0', function () {
     console.log('Classroom Hub listening on ' + PORT);
+    /* say why smart mode is off, so a missing variable isn't a mystery */
+    const why = !process.env.ANTHROPIC_API_KEY ? 'no ANTHROPIC_API_KEY on this service'
+      : !dictateClient() ? '@anthropic-ai/sdk is not installed'
+      : !PROJECT_ID ? 'no Firebase project id (firebase-config.js or FIREBASE_PROJECT_ID)' : '';
+    console.log('Dictation smart mode: ' + (why ? 'OFF — ' + why : 'ON, for ' +
+      (process.env.DICTATE_ALLOWED_EMAILS ? 'DICTATE_ALLOWED_EMAILS' : 'any signed-in teacher (set DICTATE_ALLOWED_EMAILS to narrow it)')));
   });
 }
