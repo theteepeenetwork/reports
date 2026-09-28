@@ -20,8 +20,13 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass  # access log only — log_error still writes to stderr
 
 
-class Server(socketserver.TCPServer):
+class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    # Threaded with a deep backlog: Playwright's parallel workers each load a
+    # dozen local scripts at once, and a single-threaded server with the
+    # default backlog of 5 resets the overflow, so pages never finish loading.
     allow_reuse_address = True
+    daemon_threads = True
+    request_queue_size = 128
 
 
 if __name__ == '__main__':
