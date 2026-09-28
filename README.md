@@ -38,6 +38,13 @@ printable starter sheet.
 > instead, through `server.js`, and only when `ANTHROPIC_API_KEY` is set on the host (see
 > [PRIVACY.md](PRIVACY.md) §5). An iOS Shortcut can send Siri dictation in by opening
 > `…/index.html?dictate=<text>&save=1#markbook`.
+>
+> Saying **"finished marking"** at the end of a set saves it and opens the **class feedback sheet**
+> (also *📋 Class feedback sheet* above the marking list): who met / did not meet the objective,
+> who is not marked yet, the comments that say the same thing grouped with the children's names
+> (`js/feedback.js`, on the device: "struggled with tens as a numeral" and "found writing tens as
+> numerals tricky" group; "neat" and "not as neat" never do), awards, and individual notes. It
+> prints on its own page. The server logs at start-up whether smart mode is on, and why not.
 
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).

@@ -20,6 +20,9 @@
    joins each pause-separated utterance with ". " before it gets here, and
    "next pupil" always starts a new book, whatever follows it.
 
+   Voice commands (command()): save · finish (save + class feedback sheet) ·
+   sheet · undo · read · stop · cancel · help.
+
    Public: window.mkDictate = { parse, command, spokenPunctuation, parseDate }
    =================================================================== */
 (function () {
@@ -70,7 +73,11 @@
 
   /* ---------- voice commands: an utterance that is (or ends in) one ---------- */
   var COMMANDS = [
-    ['save',   /(?:^|\s)(?:save (?:the )?(?:books|marking|them|it all|all)|that'?s all(?: for now)?|finished marking|done marking|all done)$/i, /^(?:save|finished|done)$/i],
+    /* the end of the set: save, then open the class feedback sheet */
+    ['finish', /(?:^|\s)(?:(?:i'?ve |i have |i'?m |i am )?(?:finished|done) marking|that'?s (?:all|everyone|the lot|the last one)(?: for now)?|all done|finish(?:ed)?(?: the)? (?:set|books))$/i, /^(?:finished|done)$/i],
+    ['save',   /(?:^|\s)(?:save (?:the )?(?:books|marking|them|it all|all))$/i, /^save$/i],
+    ['sheet',  /(?:^|\s)(?:(?:show |open )?(?:the )?(?:whole[- ])?class feedback(?: sheet)?|(?:show |open )?(?:the )?feedback sheet)$/i, null],
+    ['help',   /(?:^|\s)(?:what can i say|help me|voice commands)$/i, /^help$/i],
     ['undo',   /(?:^|\s)(?:scratch that|undo that|delete that|delete last|remove last(?: pupil| one| book)?)$/i, /^(?:undo|scratch that)$/i],
     ['read',   /(?:^|\s)(?:read (?:it |that |them )?back|read back)$/i, null],
     ['stop',   /(?:^|\s)(?:stop listening|stop dictation|stop dictating|pause listening)$/i, null],
@@ -185,23 +192,31 @@
   var MET_RE = /\b(?:met|achieved|exceed(?:ed|ing)|greater\s+depth)\b/i;
 
   /* one clause → { met, markers, keep (text left once the control words go) } */
+  /* the verb a marker is usually spoken with: "given a gold star", "accessed the challenge" */
+  var MARK_LEAD = '(?:\\b(?:has|had|was|were|is)\\s+)?(?:\\b(?:given|gets?|got|earned|awarded|received|accessed|access|did|completed|attempted|tried|had a go at)\\s+)?(?:\\b(?:a|an|the)\\s+)?';
+  /* "met" on its own is the outcome; "met her target" is a sentence */
+  var MET_ALONE = /(?:\b(?:and|so)\s+)?(?:\b(?:has|she|he|they)\s+)?\b(?:met|achieved)\b(?!\s+(?:the|her|his|their|all|my|our|a|an|with|every|some|most|this|that)\b)/gi;
+
+  /* one clause → { met, markers, keep (the clause with the control words cut out) } */
   function readClause(text, rules) {
-    var met = null, markers = [], rest = text;
-    if (NOT_RE.test(rest)) { met = 'not'; rest = rest.replace(new RegExp(NOT_RE.source, 'gi'), ' '); }
-    else if (MET_RE.test(rest)) met = 'met';
+    var met = null, markers = [], cut = text;
+    if (NOT_RE.test(cut)) { met = 'not'; cut = cut.replace(new RegExp(NOT_RE.source, 'gi'), ' , '); }
+    else if (MET_RE.test(cut)) met = 'met';
     rules.forEach(function (r) {
-      if (r.re.test(rest) && !(r.neg && r.neg.test(text))) { markers.push(r.label); rest = rest.replace(new RegExp(r.re.source, 'gi'), ' '); }
+      if (r.re.test(cut) && !(r.neg && r.neg.test(text))) {
+        markers.push(r.label);
+        cut = cut.replace(new RegExp(MARK_LEAD + r.re.source, 'gi'), ' , ');
+      }
     });
-    /* a clause that was only control words ("met", "given gold star",
-       "accessed the challenge") is dropped from the written comment; one with
-       anything else in it stays whole, so the teacher's sentence survives */
-    var left = rest.replace(new RegExp(MET_RE.source, 'gi'), ' ').toLowerCase().split(/[^a-z']+/)
-      .filter(function (w) { return w && FILLER.indexOf(w) < 0; });
-    var standalone = /^\s*(?:and\s+|but\s+|so\s+)?(?:she\s+|he\s+|they\s+)?(?:has\s+)?(?:not\s+(?:yet\s+)?met|met)\s*$/i.test(text);
-    var keep = (left.length && !standalone) ? (met === 'not' ? text.replace(new RegExp(NOT_RE.source + '\\s*', 'gi'), '').trim() || text : text) : '';
-    /* "…as a numeral not met her date…" (no punctuation): if the outcome
-       sat mid-clause it was cut out above; tidy the double space it left */
-    return { met: met, markers: markers, keep: keep.replace(/\s{2,}/g, ' ').trim() };
+    cut = cut.replace(MET_ALONE, ' , ');
+    /* speech often runs a whole book together: "…all correct accessed the
+       challenge met given gold star date and title neat". Each control phrase
+       cut out above leaves a comma, so the rest reads "…all correct, date and
+       title neat". A clause left with nothing but filler is dropped. */
+    var keep = cut.replace(/\s*,[\s,]*/g, ', ').replace(/^[\s,]+|[\s,]+$/g, '')
+      .replace(/(?:,\s*)?\b(?:and|so|but)$/i, '').replace(/^(?:and|so|but)\b\s*/i, '').replace(/\s{2,}/g, ' ').trim();
+    var left = keep.toLowerCase().split(/[^a-z']+/).filter(function (w) { return w && FILLER.indexOf(w) < 0; });
+    return { met: met, markers: markers, keep: left.length ? keep : '' };
   }
   function tidyComment(clauses) {
     var s = clauses.map(function (c, i) { return c.text + (i < clauses.length - 1 ? (c.delim === ',' ? ',' : '.') : ''); }).join(' ');
