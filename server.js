@@ -82,7 +82,7 @@ function send(res, code, body, headers) {
        account on the sign-in screen, so a sign-in check alone keeps out
        strangers who never bothered, not strangers who did. Set it to the
        school's addresses: "a@school.org, b@school.org" or "@school.org";
-     - same-origin browsers only, a 64 KB body cap, and a per-teacher
+     - same-origin browsers only, a 256 KB body cap, and a per-teacher
        hourly limit.
    ===================================================================== */
 const DICTATE_MODEL = process.env.DICTATE_MODEL || 'claude-opus-5';
@@ -189,7 +189,7 @@ function rateLimited(ip) {
 
 const PLAN_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['activity', 'entries', 'warnings'],
+  required: ['activity', 'entries', 'corrections', 'warnings'],
   properties: {
     activity: {
       type: 'object', additionalProperties: false,
@@ -207,31 +207,47 @@ const PLAN_SCHEMA = {
       type: 'array',
       items: {
         type: 'object', additionalProperties: false,
-        required: ['pupilId', 'heard', 'met', 'markers', 'comment'],
+        required: ['pupilId', 'heard', 'nameGuessed', 'met', 'markers', 'comment'],
         properties: {
           pupilId: { type: 'string' },
           heard: { type: 'string' },
+          nameGuessed: { type: 'boolean' },
           met: { type: 'string', enum: ['met', 'not', 'none'] },
           markers: { type: 'array', items: { type: 'string' } },
           comment: { type: 'string' }
         }
       }
     },
+    corrections: {
+      type: 'array',
+      items: {
+        type: 'object', additionalProperties: false,
+        required: ['heard', 'meant'],
+        properties: { heard: { type: 'string' }, meant: { type: 'string' } }
+      }
+    },
     warnings: { type: 'array', items: { type: 'string' } }
   }
 };
 const DICTATE_SYSTEM = [
-  'You turn a UK primary teacher\'s dictated book-marking notes into structured marking records.',
-  'The notes came through speech recognition: expect missing punctuation, misheard names ("Zoe" for "Zoey") and filler words.',
+  'You fill in a UK primary teacher\'s marking records from notes they dictated while marking a set of exercise books.',
   '',
-  'Activity: if the teacher asks to create/start a new activity, set mode "new" with the set of books (setId from the sets list; if the subject is not in the list leave setId "" and put the subject in newSetName), a short title in Title case, and workDate as YYYY-MM-DD. Dates are UK day/month; with no year use the year that puts the date on or before today (a date more than two weeks ahead of today means last year). No date said means today.',
-  'If they name an existing activity, use mode "existing" and its id. Otherwise mode "none" (the app uses the activity the teacher has open). Unused string fields are "".',
+  'The notes came through a browser\'s speech recognition, which mishears a lot. Your first job is to work out what the teacher actually said.',
+  '- Punctuation is missing or wrong; pauses may appear as full stops.',
+  '- Names are often misheard or split: "Zoe" or "so we" for Zoey, "aurora" lower-case, "Ben cross" for Ben Cross, "Fin" for Finn. The class list is the only set of possible names: match every name to it by sound, not spelling.',
+  '- Other words are misheard as similar-sounding ones: "tennis numeral" for "tens as a numeral", "partition in" for "partitioning", "met" as "mat" or "mess", "not met" as "not mad", "gold star" as "goal star", "challenge" as "chalets". Choose the reading that makes sense for marking primary-school work in this subject.',
+  '- Where the transcript includes <alternatives> for a phrase, they are the recogniser\'s other guesses at the same words. Use them as evidence: the right reading is often in the alternatives, not the top guess.',
+  '- The teacher may correct themselves ("scratch that", "sorry, I meant", "no, not met"). Apply the correction and drop what it replaced. "Next pupil", "next", "finished marking" and similar are just the teacher moving on.',
   '',
-  'Entries: one per pupil whose book was described, in the order spoken. Match each to a pupil id from the class list, allowing for mishearing; if you cannot tell who it is, use pupilId "" and put what was heard in "heard". Never invent a pupil or merge two.',
+  'Activity: if the teacher starts a new activity ("create new maths activity called partitioning on 25/9"), set mode "new" with the set of books (setId from the sets list; if the subject is not in the list leave setId "" and put the subject in newSetName), a short title in Title case, and workDate as YYYY-MM-DD. Dates are UK day/month; with no year use the year that puts the date on or before today (a date more than two weeks ahead of today means last year). No date said means today. If they name an existing activity, use mode "existing" and its id. Otherwise mode "none" (the app uses the activity the teacher has open). Unused string fields are "".',
+  '',
+  'Entries: one per child whose book was described, in the order spoken. pupilId from the class list. "heard" is the name as the transcript had it. nameGuessed is true when the transcript did not plainly say that child\'s name and you matched it by sound or context. If you cannot choose between children, or the name matches no one, use pupilId "" rather than guess. Never invent a child, and never put two books under one child.',
   'met: "met" if the objective was met/achieved/exceeded, "not" if not met/working towards, "none" if not said.',
-  'markers: short labels for awards or flags such as a gold star or accessing the challenge. Reuse the teacher\'s own marker labels from the list exactly when they fit; otherwise use a short label like "Gold star" or "Challenge".',
-  'comment: the teacher\'s written note for that book, in their words: tidy grammar, punctuation and capitals, drop the pupil\'s name at the start and anything already captured as met/not met or a marker, but keep every observation. Empty string if there is nothing else.',
-  'warnings: short notes about anything you were unsure of. Words like "next pupil", "save books" or "scratch that" are commands, not notes.'
+  'markers: short labels for awards or flags such as a gold star or accessing the challenge. Reuse the teacher\'s own marker labels from the list exactly when they fit; otherwise a short label like "Gold star" or "Challenge".',
+  'comment: the teacher\'s note for that book, as the teacher meant it: corrected words, tidy grammar, punctuation and capitals, no child\'s name at the start, and nothing already captured as met/not met or a marker, but keep every observation. Do not add anything the teacher did not say. Empty string if there is nothing else.',
+  '',
+  'corrections: every place where you read a misheard word or name as something else, as {heard, meant} (e.g. {"heard": "tennis numeral", "meant": "tens as a numeral"}, {"heard": "so we", "meant": "Zoey Jones"}). The teacher checks these, so include every one and nothing else.',
+  'warnings: short notes about anything you could not work out, such as a book whose child you could not identify.'
 ].join('\n');
 
 function readBody(req, max) {
@@ -270,8 +286,14 @@ async function handleDictate(req, res) {
   if (rateLimited(claims.sub)) return sendJSON(res, 429, { error: 'Too many requests — try again later.' });
 
   let body;
-  try { body = JSON.parse(await readBody(req, 64 * 1024)); } catch (e) { return sendJSON(res, 400, { error: 'Bad request body.' }); }
+  try { body = JSON.parse(await readBody(req, 256 * 1024)); } catch (e) { return sendJSON(res, 400, { error: 'Bad request body.' }); }
   const text = String(body.text || '').slice(0, 20000);
+  /* the recogniser's other guesses for each phrase, when the page has them */
+  const segs = Array.isArray(body.segments) ? body.segments.slice(0, 400) : [];
+  const alternatives = segs.map(function (sg) {
+    const alts = Array.isArray(sg && sg.alts) ? sg.alts.slice(0, 5).map(function (a) { return String(a).slice(0, 400); }) : [];
+    return alts.length > 1 ? '<phrase>\n' + alts.map(function (a, i) { return (i ? 'or: ' : '') + a; }).join('\n') + '\n</phrase>' : '';
+  }).filter(Boolean).join('\n').slice(0, 30000);
   if (!text.trim()) return sendJSON(res, 400, { error: 'Nothing to read.' });
   const list = function (a, n) { return Array.isArray(a) ? a.slice(0, n) : []; };
   const context = {
@@ -293,7 +315,8 @@ async function handleDictate(req, res) {
       system: DICTATE_SYSTEM,
       messages: [{
         role: 'user',
-        content: '<context>\n' + JSON.stringify(context) + '\n</context>\n\n<dictation>\n' + text + '\n</dictation>'
+        content: '<context>\n' + JSON.stringify(context) + '\n</context>\n\n<dictation>\n' + text + '\n</dictation>' +
+          (alternatives ? '\n\n<alternatives>\nThe recogniser\'s other guesses, phrase by phrase, top guess first:\n' + alternatives + '\n</alternatives>' : '')
       }]
     });
     if (response.stop_reason === 'refusal') return sendJSON(res, 502, { error: 'Claude declined to read this note.' });

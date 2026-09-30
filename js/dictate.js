@@ -80,7 +80,7 @@
     ['help',   /(?:^|\s)(?:what can i say|help me|voice commands)$/i, /^help$/i],
     ['undo',   /(?:^|\s)(?:scratch that|undo that|delete that|delete last|remove last(?: pupil| one| book)?)$/i, /^(?:undo|scratch that)$/i],
     ['read',   /(?:^|\s)(?:read (?:it |that |them )?back|read back)$/i, null],
-    ['stop',   /(?:^|\s)(?:stop listening|stop dictation|stop dictating|pause listening)$/i, null],
+    ['stop',   /(?:^|\s)(?:stop (?:listening|recording|dictation|dictating)|pause listening|end (?:of )?recording)$/i, /^stop$/i],
     ['cancel', /(?:^|\s)(?:cancel (?:all|everything|marking)|start again|clear (?:it )?all)$/i, null]
   ];
   /* → { cmd, rest } where rest is the utterance with the command removed */
