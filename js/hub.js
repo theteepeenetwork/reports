@@ -537,26 +537,82 @@
   function chunk(arr, n){ var out = []; for (var i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; }
   function stDayShort(monday, i){ var d = parseISO(stDayISO(monday, i)); return ['Mon','Tue','Wed','Thu','Fri'][i] + ' ' + d.getDate(); }
   function stDayFull(monday, i){ return parseISO(stDayISO(monday, i)).toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long' }); }
-  function qPreview(qs){
-    return qs.slice(0, 3).map(function (q){
-      return String(GRQ(q)).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').replace(' =', '').trim();
-    }).join('  ·  ') + '  …';
+  /* one question as plain text for the week cards — keeps the "=" */
+  function qText(q){
+    return String(GRQ(q)).replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
   }
+
+  /* ── Score maths shared by the week view and score entry ──
+     Scores live in msData by half term, but "the previous 3 weeks" often
+     crosses a half-term boundary, so a date is looked up in every block
+     rather than only the current half term's. */
+  function stScoreAt(pid, iso) {
+    var hts = Object.keys(msData || {});
+    for (var i = 0; i < hts.length; i++) {
+      var sc = msData[hts[i]] && msData[hts[i]].scores, r = sc && sc[pid];
+      if (r && r[iso] && r[iso].v != null) return r[iso];
+    }
+    return null;
+  }
+  function stMean(vals) { return vals.length ? vals.reduce(function (a, c) { return a + c; }, 0) / vals.length : null; }
+  /* median, like msOutliers: one odd morning must not drag the baseline */
+  function stMedian(vals) {
+    if (!vals.length) return null;
+    var s = vals.slice().sort(function (a, b) { return a - b; }), m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+  function stFmt1(n) { return n == null ? '—' : (Math.round(n * 10) / 10).toFixed(1); }
+  function stMaxScore() { return stScoreBlock().max || 20; }
+  /* the same line msOutliers draws: a quarter of the paper, never under 4 marks */
+  function stGapFor(max) { return Math.max(4, Math.round((max || 20) * 0.25)); }
+  function stDayStats(iso) {
+    var vals = [], ipads = 0, list = sortedRoster();
+    list.forEach(function (p) { var c = stScoreAt(p.id, iso); if (c) { vals.push(c.v); if (c.ipad) ipads++; } });
+    return { n: vals.length, of: list.length, avg: stMean(vals), ipads: ipads };
+  }
+  function stWeekStats(monday) {
+    var days = [0, 1, 2, 3, 4].map(function (i) { return stDayStats(stDayISO(monday, i)); });
+    var all = [], ipads = 0, scored = 0;
+    sortedRoster().forEach(function (p) { for (var i = 0; i < 5; i++) { var c = stScoreAt(p.id, stDayISO(monday, i)); if (c) all.push(c.v); } });
+    days.forEach(function (d) { ipads += d.ipads; if (d.n) scored++; });
+    return { days: days, avg: stMean(all), ipads: ipads, scored: scored };
+  }
+  function stPupilWeek(pid, monday) {
+    var cells = [0, 1, 2, 3, 4].map(function (i) { return stScoreAt(pid, stDayISO(monday, i)); });
+    var vals = cells.filter(Boolean).map(function (c) { return c.v; });
+    return { cells: cells, vals: vals, n: vals.length, avg: stMean(vals) };
+  }
+  /* A pupil's scores over the three weeks before `monday` — the baseline
+     the score screen and the week summary both judge today against. */
+  function stPupilBaseline(pid, monday) {
+    var weeks = [21, 14, 7].map(function (n) { return stPupilWeek(pid, addDaysISO(monday, -n)); });
+    var vals = []; weeks.forEach(function (w) { vals = vals.concat(w.vals); });
+    return { weeks: weeks, vals: vals, avg: stMean(vals), median: stMedian(vals) };
+  }
+  function stTodayIndex(monday) { var t = todayKey(); for (var i = 0; i < 5; i++) if (stDayISO(monday, i) === t) return i; return -1; }
+  var ST_UP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>';
+  var ST_DOWN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/></svg>';
+  var ST_TABLET = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M11 18h2"/></svg>';
 
   /* ── Week view (teach screen 'starter') ── */
   function renderStarterWeek(){
     stEnsureCurrent();
     var v = document.getElementById('tv-starter');
-    var cfg = stCfg(), thisMon = mondayOf(), weeks = stWeeks();
+    var cfg = stCfg(), thisMon = mondayOf(), weeks = stWeeks(), today = todayKey(), max = stMaxScore();
     var keys = Object.keys(weeks).filter(function (k) { return parseISO(k).getDay() === 1; });   // Mondays only
     if (keys.indexOf(thisMon) < 0) keys.push(thisMon);
     if (keys.indexOf(stCurWeek) < 0) keys.push(stCurWeek);
     keys.sort();
+    /* each chip carries its week's class average, so the strip doubles as
+       a half term's progress at a glance */
     var chips = keys.map(function (k){
-      var sel = k === stCurWeek, suffix = k === thisMon ? ' · this week' : (k < thisMon ? ' ✓' : '');
-      var style = sel ? 'border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);font-weight:700;padding:6px 14px'
-                      : 'border:1px solid var(--line);background:var(--card);color:var(--muted);font-weight:600;padding:7px 14px';
-      return '<button class="wk-chip" data-wk="' + k + '" style="border-radius:999px;font-size:12.5px;white-space:nowrap;cursor:pointer;' + style + '">' + fmtWBShort(k) + suffix + '</button>';
+      var sel = k === stCurWeek, kws = stWeekStats(k);
+      var label = fmtWBShort(k) + (k === thisMon ? ' · now' : '');
+      var sub = kws.avg == null ? (k > thisMon ? 'upcoming' : 'no scores') : 'avg ' + stFmt1(kws.avg) + ' · ' + kws.scored + (kws.scored === 1 ? ' day' : ' days');
+      var style = sel ? 'border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700);padding:6px 13px'
+                      : 'border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 14px';
+      return '<button class="wk-chip" data-wk="' + k + '"' + (sel ? ' aria-current="true"' : '') + ' style="' + style + '">' +
+        '<span class="wk-chip-lbl">' + esc(label) + '</span><span class="wk-chip-sub">' + esc(sub) + '</span></button>';
     }).join('');
     /* ⊕ new week sits OUTSIDE the scroller. It used to be the last chip, which
        meant that on a device holding a term of weeks it scrolled off the end
@@ -564,55 +620,98 @@
     var newWeekBtn = '<button class="wk-chip wk-new" id="newWeek">⊕ new week</button>';
     var idx = keys.indexOf(stCurWeek);
 
-    var days = weeks[stCurWeek] || [];
-    var rows = [0,1,2,3,4].map(function (i){
-      var dayISO = stDayISO(stCurWeek, i), qs = days[i] || [], isToday = dayISO === todayKey();
-      var hasAnn = stDayHasAnn(dayISO), hasSc = stDayHasScores(dayISO), status, scol;
-      if (hasAnn || hasSc){ var parts = []; if (hasAnn) parts.push('✏ annotated'); if (hasSc) parts.push('✓ scores'); status = parts.join(' · '); scol = 'var(--success)'; }
-      else if (isToday){ status = 'tap to open'; scol = 'var(--teal-700)'; }
-      else { status = 'not used yet'; scol = 'var(--faint)'; }
-      var rowStyle = isToday ? 'border:2px solid var(--teal-600);background:var(--teal-50);box-shadow:0 4px 14px rgba(47,85,224,.12)'
-                             : 'border:1px solid var(--line);background:var(--card);box-shadow:0 4px 14px rgba(20,24,29,.04)';
-      return '<button class="day-row" data-day="' + i + '" style="' + rowStyle + '">' +
-        '<span style="flex:1;min-width:0;text-align:left">' +
-          '<span class="dr-label">' + stDayShort(stCurWeek, i) + (isToday ? ' · today' : '') + '</span>' +
-          '<span class="dr-prev">' + esc(qs.length ? qPreview(qs) : 'no set yet') + '</span></span>' +
-        '<span class="dr-status" style="color:' + scol + '">' + esc(status) + '</span></button>';
+    var days = weeks[stCurWeek] || [], hasWeek = !!weeks[stCurWeek];
+    var ws = stWeekStats(stCurWeek), pws = stWeekStats(addDaysISO(stCurWeek, -7));
+    var todayIdx = stTodayIndex(stCurWeek);
+
+    /* ── summary strip: this week in three numbers, and the way in to scores ── */
+    var delta = (ws.avg != null && pws.avg != null) ? ws.avg - pws.avg : null, deltaHTML = '';
+    if (delta != null) {
+      var dir = delta >= 0.05 ? 'up' : (delta <= -0.05 ? 'down' : '');
+      deltaHTML = '<span class="stw-delta ' + dir + '">' + (dir === 'up' ? '▲ ' : dir === 'down' ? '▼ ' : '') +
+        (dir ? stFmt1(Math.abs(delta)) + ' on last week' : 'same as last week') + '</span>';
+    }
+    var dots = ws.days.map(function (d, i) {
+      if (!d.n) return '<span class="stw-dot"></span>';
+      if (i === todayIdx && d.n < d.of) return '<span class="stw-dot part" style="--p:' + Math.round(d.n / d.of * 100) + '%"></span>';
+      return '<span class="stw-dot done"></span>';
+    }).join('');
+    var scoreDay = todayIdx >= 0 ? todayIdx : stCurDay, sd = ws.days[scoreDay];
+    var enterLbl = todayIdx >= 0 ? 'Enter today’s scores' : 'Enter scores · ' + stDayShort(stCurWeek, scoreDay);
+    var enterSub = (todayIdx >= 0 && sd.of) ? '<span class="stw-enter-sub">· ' + sd.n + ' of ' + sd.of + ' in</span>' : '';
+    var strip = '<div class="stw-strip">' +
+        '<div class="stw-stat-block"><span class="stw-k">Class average this week</span>' +
+          '<div class="stw-big"><b>' + stFmt1(ws.avg) + '</b><span>/ ' + max + '</span>' + deltaHTML + '</div></div>' +
+        '<span class="stw-rule"></span>' +
+        '<div class="stw-stat-block"><span class="stw-k">Days scored</span><div class="stw-dots">' + dots + '<b>' + ws.scored + ' of 5</b></div></div>' +
+        '<span class="stw-rule"></span>' +
+        '<div class="stw-stat-block"><span class="stw-k">iPads earned</span><div class="stw-ipads">' + ST_TABLET + '<b>' + ws.ipads + '</b></div></div>' +
+        '<span style="flex:1"></span>' +
+        '<button class="dock ms-save stw-enter" id="enterScores" data-sday="' + scoreDay + '">' + esc(enterLbl) + enterSub + '</button>' +
+      '</div>';
+
+    /* ── one card per day ── */
+    var cards = [0,1,2,3,4].map(function (i){
+      var iso = stDayISO(stCurWeek, i), qs = days[i] || [], isToday = i === todayIdx, ds = ws.days[i], hasAnn = stDayHasAnn(iso);
+      var pill = 'Ready', pcls = '';
+      if (isToday) { pill = 'Today'; pcls = 'today'; }
+      else if (ds.n) { pill = 'Scored'; pcls = 'done'; }
+      else if (iso < today) { pill = 'No scores'; pcls = 'miss'; }
+      else if (!qs.length) pill = 'No set';
+      var prev = qs.slice(0, 3).map(function (q) { return '<span>' + esc(qText(q)) + '</span>'; }).join('');
+      if (qs.length > 3) prev += '<span class="stw-more">+ ' + (qs.length - 3) + ' more' + (cfg.xtb ? ' · ×tables on back' : '') + '</span>';
+      if (!qs.length) prev = '<span class="stw-more">no set yet</span>';
+      var partial = isToday && ds.n && ds.n < ds.of, stat;
+      if (!ds.n) stat = '<div class="stw-daystat"><span>No scores yet</span></div><div class="stw-bar"></div>';
+      else if (partial) stat = '<div class="stw-daystat"><b>' + ds.n + ' of ' + ds.of + ' in</b><span>avg so far ' + stFmt1(ds.avg) + '</span></div>' +
+        '<div class="stw-bar"><i style="width:' + Math.round(ds.n / ds.of * 100) + '%"></i></div>';
+      else stat = '<div class="stw-daystat"><b>Avg ' + stFmt1(ds.avg) + ' / ' + max + '</b><span>' + ds.n + ' / ' + ds.of + '</span></div>' +
+        '<div class="stw-bar"><i style="width:' + Math.min(100, Math.round(ds.avg / max * 100)) + '%"></i></div>';
+      return '<div class="stw-card' + (isToday ? ' is-today' : '') + '">' +
+        '<div class="stw-card-head"><span class="stw-day">' + esc(stDayShort(stCurWeek, i)) + '</span>' +
+          (hasAnn ? '<span class="stw-ann" title="Whiteboard annotated">✏</span>' : '') +
+          '<span class="stw-pill ' + pcls + '">' + pill + '</span></div>' +
+        '<div class="stw-qs">' + prev + '</div>' + stat +
+        '<div class="stw-actions">' +
+          '<button class="stw-btn' + (isToday ? ' primary' : '') + '" data-sday="' + i + '">Scores</button>' +
+          '<button class="stw-btn" data-day="' + i + '"' + (qs.length ? '' : ' disabled') + '>Sheet</button>' +
+        '</div></div>';
     }).join('');
 
-    var hasWeek = !!weeks[stCurWeek];
     /* One line saying what this week was actually built from. The settings
-       themselves moved to the design step — the ⟳ Replace all 5 sets button
-       and the ×tables toggle that used to sit here are both that screen now. */
+       themselves live on the design step. */
     var setName = (typeof window.genSetName === 'function') ? window.genSetName(currentHalfTerm()) : currentHalfTerm();
-    var summary = 'Currently: ' + (cfg.mode === 'steps' ? 'chosen steps' : esc(setName) + ' preset') +
+    var summary = (cfg.mode === 'steps' ? 'chosen steps' : esc(setName) + ' preset') +
       ' · ' + cfg.qCount + ' per day · ' +
       (cfg.xtb ? '×tables on the back (' +
         ((typeof window.genTablesLabel === 'function') ? esc(window.genTablesLabel(cfg.xtPick)) : cfg.xtPick) +
         ', ' + cfg.xtCount + ')' : 'no ×tables page');
-    var designBtn = '<button id="designWeek" class="dock ms-save">' + svg('ruler', 16) + " Design this week's questions</button>" +
-      '<p class="ms-hint" style="text-align:center;margin:0">' + summary + '</p>';
-    var body = hasWeek
-      ? '<div style="display:flex;flex-direction:column;gap:10px">' + rows + '</div>' +
-        designBtn +
-        '<div style="display:flex;gap:8px">' +
-          '<button id="printWeek" style="flex:1;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🖨 Print all 5 days</button>' +
-          '<button id="clearWeek" class="danger" style="flex:1;border-radius:12px;padding:11px 14px;font-size:13px;font-weight:700">🧹 Clear week</button>' +
-        '</div>'
-      : '<div class="empty">No sets saved for ' + esc(fmtWB(stCurWeek)) + ' yet. Design the questions and they are saved to this week — scores you already entered are kept.</div>' +
-        designBtn;
+    var setsLine = '<div class="stw-sets"><span><b>This week’s sets:</b> ' + summary + '</span><span style="flex:1"></span>' +
+      '<button class="stw-link" id="designWeek2">Change</button>' +
+      (hasWeek ? '<button class="stw-link danger-text" id="clearWeek">Clear week…</button>' : '') + '</div>';
 
-    /* No title here — the page header carries it now. On the Teach surface
-       this view was the whole screen and needed its own. */
+    var body = hasWeek
+      ? '<div class="stw-days">' + cards + '</div>'
+      : '<div class="empty">No sets saved for ' + esc(fmtWB(stCurWeek)) + ' yet. Design the questions and they are saved to this week — scores you already entered are kept.</div>';
+
+    var isThis = stCurWeek === thisMon;
     v.innerHTML = msHead('', '', '<span class="pill pill-saved"><span>✓</span> saved</span>') +
-      '<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--teal-600)">' + esc(currentHalfTerm()) + '</div>' +
+      '<div class="stw-top">' +
+        '<div class="stw-title"><span class="stw-eyebrow">' + esc(currentHalfTerm()) + '</span>' +
+          '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2>Week of ' + esc(parseISO(stCurWeek).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })) + '</h2>' +
+          (isThis ? '<span class="stw-now">This week</span>' : '') + '</div></div>' +
+        '<div class="stw-tools">' +
+          (hasWeek ? '<button class="stw-tool" id="printWeek">🖨 Print week</button>' : '') +
+          '<button class="stw-tool" id="designWeek">' + svg('ruler', 16) + ' Design questions</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="wk-nav">' +
         '<button class="wk-step" id="wkPrev" title="Previous week"' + (idx <= 0 ? ' disabled' : '') + '>‹</button>' +
         '<div class="wk-chips" id="wkChips">' + chips + '</div>' +
         '<button class="wk-step" id="wkNext" title="Next week"' + (idx < 0 || idx >= keys.length - 1 ? ' disabled' : '') + '>›</button>' +
         newWeekBtn +
       '</div>' +
-      body;
+      strip + body + stWeekSummaryHTML(stCurWeek, ws, pws, max) + setsLine;
     msWireBack(v);
 
     function pickWeek(k){
@@ -622,36 +721,39 @@
       renderStarterWeek();
     }
     v.querySelectorAll('[data-wk]').forEach(function (b){ b.onclick = function (){ pickWeek(b.dataset.wk); }; });
-    var prev = document.getElementById('wkPrev'), next = document.getElementById('wkNext');
-    if (prev) prev.onclick = function (){ if (idx > 0) pickWeek(keys[idx - 1]); };
-    if (next) next.onclick = function (){ if (idx >= 0 && idx < keys.length - 1) pickWeek(keys[idx + 1]); };
+    var prevB = document.getElementById('wkPrev'), nextB = document.getElementById('wkNext');
+    if (prevB) prevB.onclick = function (){ if (idx > 0) pickWeek(keys[idx - 1]); };
+    if (nextB) nextB.onclick = function (){ if (idx >= 0 && idx < keys.length - 1) pickWeek(keys[idx + 1]); };
 
     /* Bring the selected week into view. Without this the row opens at
        scrollLeft 0 — the oldest week — so on a device with a term of saved
        weeks the one you are actually on, and the next one you just designed,
        are both off the right-hand edge with nothing to say so. Scroll the row
        itself, never scrollIntoView, which would drag the whole page. */
-    var strip = document.getElementById('wkChips');
-    var selChip = strip && strip.querySelector('[data-wk="' + stCurWeek + '"]');
-    if (strip && selChip) {
+    var wstrip = document.getElementById('wkChips');
+    var selChip = wstrip && wstrip.querySelector('[data-wk="' + stCurWeek + '"]');
+    if (wstrip && selChip) {
       /* Measure against the strip's own box. offsetLeft is relative to the
          nearest POSITIONED ancestor, which is not the strip, so it silently
          returns a number from somewhere up the tree and the row never moves. */
-      var cr = selChip.getBoundingClientRect(), sr2 = strip.getBoundingClientRect();
-      var shift = (cr.left - sr2.left) - (strip.clientWidth - cr.width) / 2;
+      var cr = selChip.getBoundingClientRect(), sr2 = wstrip.getBoundingClientRect();
+      var shift = (cr.left - sr2.left) - (wstrip.clientWidth - cr.width) / 2;
       /* centring can push the following week (often the one just designed)
          past the right edge when the selected chip is wide: nudge right to
          show it, but never so far that the selected chip's left edge goes */
       var nx = selChip.nextElementSibling;
       if (nx && nx.dataset && nx.dataset.wk) {
-        var over = (nx.getBoundingClientRect().right - sr2.left) - shift - strip.clientWidth;
+        var over = (nx.getBoundingClientRect().right - sr2.left) - shift - wstrip.clientWidth;
         if (over > 0) shift += Math.min(over, (cr.left - sr2.left) - shift);
       }
-      strip.scrollLeft += shift;
+      wstrip.scrollLeft += shift;
     }
 
     document.getElementById('newWeek').onclick = openNewWeek;
     document.getElementById('designWeek').onclick = function (){ msOpenDesign(null, 'starter'); };
+    document.getElementById('designWeek2').onclick = function (){ msOpenDesign(null, 'starter'); };
+    /* every way into score entry from here: the strip's button and each card's */
+    v.querySelectorAll('[data-sday]').forEach(function (b){ b.onclick = function (){ stPicked = true; stCurDay = +b.dataset.sday; msScoresBack = 'starter'; msGo('scores'); }; });
     if (hasWeek) {
       v.querySelectorAll('[data-day]').forEach(function (b){ b.onclick = function (){ stPicked = true; stCurDay = +b.dataset.day; msGo('day'); }; });
       document.getElementById('printWeek').onclick = function (){ stPrintWeek(stCurWeek); };
@@ -661,6 +763,71 @@
         toast('✓ Cleared ' + fmtWB(stCurWeek) + ' — design the questions to fill it again');
       };
     }
+  }
+
+  /* ── Week summary: who moved, compared with the week before ──
+     A pupil counts only with 2+ scores in BOTH weeks — one morning is not a
+     week. "Steady" is within a mark of last week's average. */
+  function stWeekSummaryHTML(monday, ws, pws, max) {
+    if (ws.avg == null) return '';
+    var prevMon = addDaysISO(monday, -7);
+    if (pws.avg == null) return '<section class="stw-summary"><div class="stw-sum-head"><div><h3>Week summary</h3>' +
+      '<span class="stw-note">Nothing to compare with yet — there are no scores for ' + esc(fmtWB(prevMon)) + '.</span></div></div></section>';
+    var rises = [], drops = [], steady = 0, dips = [], todayIdx = stTodayIndex(monday), th = stGapFor(max);
+    sortedRoster().forEach(function (p) {
+      var a = stPupilWeek(p.id, prevMon), b = stPupilWeek(p.id, monday);
+      if (a.n >= 2 && b.n >= 2) {
+        var d = b.avg - a.avg, row = { name: p.name, from: a.avg, to: b.avg, d: d };
+        if (d >= 1) rises.push(row); else if (d <= -1) drops.push(row); else steady++;
+      }
+      if (todayIdx >= 0) {
+        var c = b.cells[todayIdx], base = stPupilBaseline(p.id, monday);
+        if (c && base.vals.length >= 3 && c.v <= base.median - th) dips.push({ name: p.name, v: c.v, gap: Math.round(base.median - c.v) });
+      }
+    });
+    rises.sort(function (x, y) { return y.d - x.d; });
+    drops.sort(function (x, y) { return x.d - y.d; });
+    dips.sort(function (x, y) { return y.gap - x.gap; });
+
+    var dayRows = '', notYet = [];
+    ws.days.forEach(function (cur, i) {
+      var nm = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i], old = pws.days[i];
+      if (!cur.n) { notYet.push(nm); return; }
+      var so = (i === todayIdx && cur.n < cur.of) ? ' <span class="stw-sofar">so far</span>' : '';
+      dayRows += '<div class="stw-drow"><span class="stw-dname">' + nm + '</span><span class="stw-dval">' +
+        (old.avg != null ? '<span class="stw-from">' + stFmt1(old.avg) + ' →</span> ' : '') + '<b>' + stFmt1(cur.avg) + '</b>' + so + '</span>' +
+        (old.avg != null ? stChangeChip(cur.avg - old.avg) : '') + '</div>';
+    });
+    if (notYet.length) dayRows += '<div class="stw-drow muted"><span class="stw-dname">' + notYet.join(', ') + '</span><span class="stw-dval">not scored yet</span></div>';
+
+    function list(rows, cls, empty) {
+      if (!rows.length) return '<span class="stw-note">' + empty + '</span>';
+      return rows.slice(0, 4).map(function (r) {
+        return '<div class="stw-prow"><span class="stw-pname">' + esc(r.name) + '</span><span class="stw-from">' + stFmt1(r.from) + ' → ' + stFmt1(r.to) + '</span>' +
+          '<b class="stw-pd ' + cls + '">' + (r.d > 0 ? '+' : '−') + stFmt1(Math.abs(r.d)) + '</b></div>';
+      }).join('');
+    }
+    var dipNote = dips.slice(0, 2).map(function (d) { return esc(d.name) + ' scored ' + d.v + ' today — ' + d.gap + ' below their usual.'; }).join(' ');
+
+    return '<section class="stw-summary" aria-label="Week summary">' +
+      '<div class="stw-sum-head"><div><h3>Week summary</h3><span class="stw-note">Compared with ' + esc(fmtWB(prevMon)) + '</span></div>' +
+        '<div class="stw-counts"><span class="stw-count up">▲ ' + rises.length + ' up</span><span class="stw-count">' + steady + ' steady</span><span class="stw-count down">▼ ' + drops.length + ' down</span></div></div>' +
+      '<div class="stw-sum-grid">' +
+        '<div class="stw-panel"><span class="stw-ph">Class average by day</span>' +
+          '<div class="stw-drow total"><span class="stw-dname">Week</span><span class="stw-dval"><span class="stw-from">' + stFmt1(pws.avg) + ' →</span> <b>' + stFmt1(ws.avg) + '</b></span>' + stChangeChip(ws.avg - pws.avg) + '</div>' +
+          dayRows + '</div>' +
+        '<div class="stw-panel rise"><span class="stw-ph">' + ST_UP + ' Biggest rises</span>' + list(rises, 'up', 'No one is up by a mark or more yet.') +
+          (rises.length ? '<span class="stw-foot">Worth a star pupil nod.</span>' : '') + '</div>' +
+        '<div class="stw-panel drop"><span class="stw-ph">' + ST_DOWN + ' Biggest drops</span>' + list(drops, 'down', 'No one is down by a mark or more.') +
+          (dipNote ? '<span class="stw-foot">' + dipNote + ' Worth a quick check-in.</span>' : '') + '</div>' +
+      '</div>' +
+      '<span class="stw-note">Steady = within 1 mark of last week’s average. Pupils need 2 or more scores in both weeks to count.</span>' +
+      '</section>';
+  }
+  function stChangeChip(d) {
+    if (d >= 0.05) return '<span class="stw-chg up">▲ ' + stFmt1(d) + '</span>';
+    if (d <= -0.05) return '<span class="stw-chg down">▼ ' + stFmt1(-d) + '</span>';
+    return '<span class="stw-chg">±0</span>';
   }
 
   /* ── New week bottom sheet ── */
@@ -877,7 +1044,7 @@
     });
 
     document.getElementById('toBoard').onclick = function (){ openWhiteboard(); };
-    document.getElementById('toScores').onclick = function (){ msGo('scores'); };
+    document.getElementById('toScores').onclick = function (){ msScoresBack = 'day'; msGo('scores'); };
   }
 
   /* ── Whiteboard mode (full-screen takeover) ── */
@@ -1050,45 +1217,136 @@
     setTimeout(sizeWB, 30);
   }
 
-  /* ── Score entry (per open day; writes to the Mental Starters store) ── */
-  var scoreSel = 0;
+  /* ── Score entry (per open day; writes to the Mental Starters store) ──
+     One row per pupil: their previous three weeks (a bar per day plus the
+     week's average), their trend, and a plain number box for today — typed
+     on the laptop or the iPad's own keyboard. Enter / ↓ moves down the
+     register, ↑ moves back. Typing never re-renders the table, so focus
+     and the on-screen keyboard stay put. */
+  var msScoresBack = 'starter';
   function scoreDayISO(){ return stDayISO(stCurWeek, stCurDay); }
   function ensureScoreCol(){ var b = stScoreBlock(), d = scoreDayISO(); if (b.dates.indexOf(d) < 0){ b.dates.push(d); b.dates.sort(); } return b; }
-  function renderScores(){
-    var v = document.getElementById('tv-scores'), b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster();
-    if (!list.length){ v.innerHTML = msHead('day', stDayShort(stCurWeek, stCurDay), '') + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; msWireBack(v); return; }
-    var rows = list.map(function (p, i){
-      var cell = (b.scores[p.id] && b.scores[p.id][d]) || {}, sel = i === scoreSel, val = cell.v != null ? cell.v : (sel ? '|' : '—');
-      return '<div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-2)"><span style="flex:1;font-weight:600;font-size:14.5px">' + esc(p.name) + '</span>' +
-        '<button class="score-cell" data-i="' + i + '" style="width:64px;text-align:center;border-radius:10px;font-weight:700;font-size:14px;padding:' + (sel ? '8px 0;border:2px solid var(--teal-600);background:var(--teal-50);color:var(--teal-700)' : '9px 0;border:1px solid var(--line);background:var(--card);color:var(--ink)') + '">' + esc(String(val)) + '</button>' +
-        '<button class="ipad-tog" data-pid="' + p.id + '" style="border-radius:10px;padding:8px 13px;font-size:13px;' + (cell.ipad ? 'border:1.5px solid var(--gold-600);background:var(--gold-100)' : 'border:1px solid var(--line);background:var(--card);opacity:.35') + '">📱</button></div>';
+  function stFlagHTML(v, base, max) {
+    if (v == null || base.vals.length < 3) return '';
+    var gap = v - base.median, th = stGapFor(max);
+    if (gap <= -th) return '<span class="stc-flag down">▼ ' + Math.round(-gap) + ' below usual</span>';
+    if (gap >= th) return '<span class="stc-flag up">▲ ' + Math.round(gap) + ' above usual</span>';
+    return '';
+  }
+  function stBarsHTML(w, max) {
+    if (!w.n) return '<span class="stc-none">—</span>';
+    var bars = w.cells.map(function (c, j) {
+      var nm = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][j];
+      if (!c) return '<i class="gap" title="' + nm + ': no score"></i>';
+      return '<i class="' + (c.ipad ? 'ipad' : '') + '" style="height:' + Math.max(3, Math.round(c.v / max * 24)) + 'px" title="' + nm + ': ' + c.v + (c.ipad ? ' · iPad' : '') + '"></i>';
     }).join('');
-    var pad = ['1','2','3','4','5','6','7','8','9','0','⌫','↵'].map(function (k){ return '<button class="pad" data-k="' + k + '" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 0;font-size:16px;font-weight:700;color:var(--ink)">' + k + '</button>'; }).join('');
-    v.innerHTML = msHead('day', stDayShort(stCurWeek, stCurDay), '<span class="pill pill-saved"><span>✓</span> saved · ' + stDayShort(stCurWeek, stCurDay) + ' column</span>') +
-      '<div style="flex:1;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px 14px;min-height:0">' + rows + '</div>' +
-      '<p class="hint small" style="margin:0;text-align:center">Tap a pupil, then tap the keypad — or just type on your keyboard (↵ / ↓ moves to the next pupil).</p>' +
-      '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:7px">' + pad + '</div>';
+    return '<span class="stc-week"><span class="stc-bars">' + bars + '</span><b>' + stFmt1(w.avg) + '</b></span>';
+  }
+  function renderScores(){
+    var v = document.getElementById('tv-scores'), b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster(), max = b.max || 20;
+    var backLbl = msScoresBack === 'day' ? stDayShort(stCurWeek, stCurDay) : 'Week of ' + parseISO(stCurWeek).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    var head = msHead(msScoresBack, backLbl, '<span class="pill pill-saved"><span>✓</span> saved</span>');
+    var today = todayKey();
+    var tabs = [0,1,2,3,4].map(function (i){
+      var iso = stDayISO(stCurWeek, i), sel = i === stCurDay;
+      return '<button role="tab" class="stc-tab' + (sel ? ' on' : '') + '" data-sday="' + i + '" aria-selected="' + sel + '">' +
+        esc(stDayShort(stCurWeek, i)) + (iso === today ? ' · today' : '') + (stDayHasScores(iso) && !sel ? ' <span class="stc-tick">✓</span>' : '') + '</button>';
+    }).join('');
+    var title = '<div class="stw-top"><div class="stw-title"><span class="stw-eyebrow">Enter scores · out of ' + max + '</span><h2>' + esc(stDayFull(stCurWeek, stCurDay)) + '</h2></div>' +
+      '<div class="stc-tabs" role="tablist" aria-label="Day">' + tabs + '</div></div>';
+    if (!list.length){ v.innerHTML = head + title + '<div class="empty">Add pupils in Plan › Pupils first.</div>'; msWireBack(v); wireTabs(); return; }
+
+    var prevMons = [21, 14, 7].map(function (n) { return addDaysISO(stCurWeek, -n); });
+    var cols = '<div class="stc-row stc-headrow"><span>Pupil</span>' +
+      prevMons.map(function (m) { return '<span>' + esc(fmtWBShort(m)) + '</span>'; }).join('') +
+      '<span>3-wk trend</span><span class="c">' + esc(stDayShort(stCurWeek, stCurDay)) + '</span><span class="c">iPad</span></div>';
+    var rows = list.map(function (p, i){
+      var base = stPupilBaseline(p.id, stCurWeek), cell = (b.scores[p.id] && b.scores[p.id][d]) || {};
+      var w1 = base.weeks[0], w3 = base.weeks[2], trend = '<span class="stc-trend">—</span>';
+      var firstW = null, lastW = null; base.weeks.forEach(function (w) { if (w.n) { if (!firstW) firstW = w; lastW = w; } });
+      if (firstW && lastW && firstW !== lastW) {
+        var diff = lastW.avg - firstW.avg;
+        trend = diff >= 0.5 ? '<span class="stc-trend up">▲ ' + stFmt1(diff) + '</span>' : diff <= -0.5 ? '<span class="stc-trend down">▼ ' + stFmt1(-diff) + '</span>' : '<span class="stc-trend">— steady</span>';
+      }
+      return '<div class="stc-row" data-row="' + i + '">' +
+        '<span class="stc-name"><b>' + esc(p.name) + '</b><small>' + (base.avg != null ? '3-wk avg ' + stFmt1(base.avg) : 'no earlier scores') + '</small></span>' +
+        base.weeks.map(function (w) { return stBarsHTML(w, max); }).join('') + trend +
+        '<span class="stc-today"><input class="stc-input' + (cell.ipad ? ' is-ipad' : '') + '" id="stc-in-' + i + '" data-i="' + i + '" data-pid="' + p.id + '" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="' + max + '" placeholder="—" value="' + (cell.v != null ? cell.v : '') + '" aria-label="' + esc(p.name) + ' score">' +
+          '<span id="stc-flag-' + p.id + '">' + stFlagHTML(cell.v, base, max) + '</span></span>' +
+        '<span class="c"><button class="stc-ipad' + (cell.ipad ? ' on' : '') + '" data-pid="' + p.id + '" aria-pressed="' + !!cell.ipad + '" aria-label="iPad earned — ' + esc(p.name) + '">' + ST_TABLET + '</button></span>' +
+        '</div>';
+    }).join('');
+    var legend = '<div class="stc-legend"><span><span class="stc-bars"><i style="height:8px"></i><i style="height:12px"></i><i style="height:10px"></i></span> one bar per day, Mon–Fri · number is that week’s average</span>' +
+      '<span><span class="stc-bars"><i class="ipad" style="height:10px"></i></span> gold = earned an iPad</span>' +
+      '<span>▼ / ▲ today is ' + stGapFor(max) + '+ away from their usual (middle score of the last 3 weeks)</span></div>';
+
+    v.innerHTML = head + title +
+      '<div class="stc-card">' +
+        '<div class="stc-progress"><b id="stcCount"></b><div class="stw-bar"><i id="stcBar"></i></div><span class="stc-avg" id="stcAvg"></span>' +
+          '<span class="stw-note">Type a score · Enter or ↓ moves to the next pupil</span></div>' +
+        '<div class="stc-scroll"><div class="stc-table">' + cols + rows + '</div></div>' + legend +
+      '</div>';
     msWireBack(v);
-    v.querySelectorAll('.score-cell').forEach(function (b2){ b2.onclick = function (){ scoreSel = +b2.dataset.i; renderScores(); }; });
-    v.querySelectorAll('.ipad-tog').forEach(function (b2){ b2.onclick = function (){ toggleIpad(b2.dataset.pid); }; });
-    v.querySelectorAll('.pad').forEach(function (b2){ b2.onclick = function (){ padKey(b2.dataset.k); }; });
+    wireTabs();
+    stcProgress();
+
+    var inputs = v.querySelectorAll('.stc-input');
+    inputs.forEach(function (inp){
+      inp.addEventListener('focus', function (){ var r = inp.closest('.stc-row'); if (r) r.classList.add('is-focus'); inp.select(); });
+      inp.addEventListener('blur', function (){ var r = inp.closest('.stc-row'); if (r) r.classList.remove('is-focus'); });
+      inp.addEventListener('input', function (){
+        var raw = String(inp.value).replace(/[^0-9]/g, '').slice(0, 2);
+        if (raw !== '' && Number(raw) > max) raw = raw.slice(-1);   // "25" on a 20 paper → the 5 was meant as a new score
+        if (raw !== inp.value) inp.value = raw;
+        stcSet(inp.dataset.pid, raw === '' ? null : Number(raw));
+      });
+      inp.addEventListener('keydown', function (e){
+        var i = +inp.dataset.i, to = null;
+        if (e.key === 'Enter' || e.key === 'ArrowDown') to = i + 1;
+        else if (e.key === 'ArrowUp') to = i - 1;
+        if (to == null) return;
+        e.preventDefault();
+        var nx = document.getElementById('stc-in-' + to);
+        if (nx) nx.focus(); else if (e.key === 'Enter') inp.blur();
+      });
+    });
+    v.querySelectorAll('.stc-ipad').forEach(function (btn){
+      btn.onclick = function (){
+        var on = stcToggleIpad(btn.dataset.pid);
+        btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on);
+        var inp = v.querySelector('.stc-input[data-pid="' + btn.dataset.pid + '"]'); if (inp) inp.classList.toggle('is-ipad', on);
+      };
+    });
+
+    function wireTabs(){
+      v.querySelectorAll('.stc-tab').forEach(function (t){ t.onclick = function (){ stCurDay = +t.dataset.sday; renderScores(); }; });
+    }
   }
-  function padKey(k){
-    var b = ensureScoreCol(), d = scoreDayISO(), list = sortedRoster(), p = list[scoreSel]; if (!p) return;
-    if (k === '↵'){ scoreSel = Math.min(scoreSel + 1, list.length - 1); renderScores(); return; }
-    if (!b.scores[p.id]) b.scores[p.id] = {};
-    if (!b.scores[p.id][d]) b.scores[p.id][d] = { v: null, ipad: false };
-    var cur = b.scores[p.id][d].v; cur = cur == null ? '' : String(cur);
-    var next = k === '⌫' ? cur.slice(0, -1) : (cur.length >= 2 ? cur : cur + k);
-    b.scores[p.id][d].v = next === '' ? null : Number(next);
-    if (typeof msSave === 'function') msSave(); flashSaved(); renderScores();
-  }
-  function toggleIpad(pid){
+  function stcCell(pid){
     var b = ensureScoreCol(), d = scoreDayISO();
     if (!b.scores[pid]) b.scores[pid] = {};
     if (!b.scores[pid][d]) b.scores[pid][d] = { v: null, ipad: false };
-    b.scores[pid][d].ipad = !b.scores[pid][d].ipad;
-    if (typeof msSave === 'function') msSave(); flashSaved(); renderScores();
+    return b.scores[pid][d];
+  }
+  function stcSet(pid, val){
+    stcCell(pid).v = val;
+    if (typeof msSave === 'function') msSave(); flashSaved();
+    var f = document.getElementById('stc-flag-' + pid);
+    if (f) f.innerHTML = stFlagHTML(val, stPupilBaseline(pid, stCurWeek), stScoreBlock().max || 20);
+    stcProgress();
+  }
+  function stcToggleIpad(pid){
+    var c = stcCell(pid); c.ipad = !c.ipad;
+    if (typeof msSave === 'function') msSave(); flashSaved();
+    return c.ipad;
+  }
+  function stcProgress(){
+    var list = sortedRoster(), b = stScoreBlock(), d = scoreDayISO(), vals = [];
+    list.forEach(function (p){ var c = b.scores[p.id] && b.scores[p.id][d]; if (c && c.v != null) vals.push(c.v); });
+    var n = document.getElementById('stcCount'), bar = document.getElementById('stcBar'), av = document.getElementById('stcAvg');
+    if (n) n.textContent = vals.length + ' of ' + list.length + ' scored';
+    if (bar) bar.style.width = (list.length ? Math.round(vals.length / list.length * 100) : 0) + '%';
+    if (av) av.textContent = vals.length ? 'Average ' + stFmt1(stMean(vals)) : '';
   }
 
   /* ── Print (one renderer; reuses the existing .gen-day A4 print CSS) ── */
@@ -1241,7 +1499,7 @@
       var ms = document.getElementById('page-mental-starters');
       if (!ms) return;
       var hd = ms.querySelector('.page-header p');
-      if (hd) hd.textContent = "Pick a week, then a day \u2014 printable sheet, whiteboard, or enter the scores. Recorded scores live in Markbook \u203a Starter scores.";
+      if (hd) hd.textContent = "Pick a week, then enter the scores or open a day\u2019s sheet for printing and the whiteboard. The full score table lives in Markbook \u203a Starter scores.";
       ms.insertAdjacentHTML('beforeend', msFlowHTML());
     })();
     move('#page-charts', document.getElementById('mb-charts'));
@@ -1884,17 +2142,6 @@
     window.addEventListener('pagehide', wbFlushSave);
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') wbFlushSave(); });
     window.addEventListener('afterprint', function () { var c = document.getElementById('starterPrint'); if (c) c.innerHTML = ''; });
-
-    /* physical-keyboard entry on the score sheet (laptop / iPad keyboard) */
-    document.addEventListener('keydown', function (e) {
-      var sv = document.getElementById('tv-scores'); if (!sv || !sv.classList.contains('active')) return;
-      var t = e.target; if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-      if (/^[0-9]$/.test(e.key)) { padKey(e.key); e.preventDefault(); }
-      else if (e.key === 'Backspace') { padKey('⌫'); e.preventDefault(); }
-      else if (e.key === 'Enter') { padKey('↵'); e.preventDefault(); }
-      else if (e.key === 'ArrowDown') { scoreSel = Math.min(scoreSel + 1, sortedRoster().length - 1); renderScores(); e.preventDefault(); }
-      else if (e.key === 'ArrowUp') { scoreSel = Math.max(0, scoreSel - 1); renderScores(); e.preventDefault(); }
-    });
 
     /* tap the dimmed backdrop (outside the sheet) to dismiss Quick log */
     var bd = document.getElementById('qlBackdrop');
