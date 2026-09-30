@@ -24,7 +24,8 @@ async function open(page) {
 }
 
 /* A set of eight books, spoken the way speech recognition delivers it:
-   one call per pause, no punctuation, ending with "finished marking". */
+   one call per pause, no punctuation, ending with "finished marking",
+   which stops the recording and fills in the table. */
 const SET = [
   'create new maths activity called partitioning on 25/9',
   'Aurora has answered most questions correctly but some struggled with tens as a numeral', 'not met',
@@ -63,11 +64,14 @@ test('similar comments are grouped; opposite feedback never is', async ({ page }
   expect(g.individual.map(x => x.id).sort()).toEqual(['a', 'e', 'f']);
 });
 
-test('"finished marking" saves the set and opens the class feedback sheet', async ({ page }) => {
+const settled = page => page.waitForFunction(() => window.mkDictState().phase === 'idle' && window.mkDictState().result, null, { timeout: 5000 });
+
+test('a dictated set fills in the table and the class feedback sheet groups it', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page);
   for (const u of SET) await page.evaluate(t => window.mkDictUtter(t), u);
-  await page.waitForTimeout(400);
+  await settled(page);
+  await page.locator('#mkDictSheet').click();
 
   const sheet = page.locator('#mkSheet');
   await expect(sheet).toBeVisible();
@@ -97,7 +101,8 @@ test('"finished marking" saves the set and opens the class feedback sheet', asyn
 test('the sheet prints on its own and the summary fills in from it', async ({ page }) => {
   await open(page);
   for (const u of SET) await page.evaluate(t => window.mkDictUtter(t), u);
-  await page.waitForTimeout(300);
+  await settled(page);
+  await page.locator('#mkDictSheet').click();
   await page.evaluate(() => { window.__printed = null; window.print = () => { window.__printed = document.getElementById('starterPrint').innerHTML; }; });
 
   await page.locator('#mkFbRebuild').click();
@@ -110,23 +115,4 @@ test('the sheet prints on its own and the summary fills in from it', async ({ pa
   expect(printed).toContain('Class feedback · Partitioning');
   expect(printed).toContain('Struggled with the tens numerals');
   expect(printed, 'the saved summary prints too').toContain('Class summary');
-});
-
-test('the dictation panel says what is waiting to be saved', async ({ page }) => {
-  await open(page);
-  await page.locator('#mkDictBtn').click();
-  await expect(page.locator('#mkDictSave')).toBeDisabled();
-  await page.evaluate(() => {
-    window.mkDictUtter('create new maths activity called rounding on 26/9');
-    window.mkDictUtter('Aurora rounded to the nearest ten met');
-    window.mkDictUtter('next pupil Fred rounded down every time');
-  });
-  await expect(page.locator('.mk-dictstep').first()).toContainText('Rounding');
-  await expect(page.locator('#mkDictSave')).toHaveText('✓ Save 1 book (1 left out)');
-  await expect(page.locator('.mk-dictcards-h')).toHaveText(/not saved yet/i);
-  await expect(page.locator('.mk-dictentry.bad')).toContainText('pick who this is');
-
-  /* the help lists what can be said, including the new end-of-set command */
-  await page.locator('#mkDictHelp').click();
-  await expect(page.locator('.mk-dicthelp')).toContainText('Finished marking');
 });

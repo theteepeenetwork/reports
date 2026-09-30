@@ -811,8 +811,6 @@
 .mk-dict.live { border-color: var(--coral-500); box-shadow: 0 0 0 3px var(--coral-50); }
 .mk-dicthead { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .mk-dicttitle { font-size: 16px; font-weight: 700; }
-.mk-dicthelpbtn { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }
-.mk-dicthelpbtn:hover, .mk-dicthelpbtn.on { background: var(--line-2); color: var(--ink); transform: none; }
 /* microphone status: the one thing to look at while talking */
 .mk-dictstatus { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--page); border: 1px solid var(--line); }
 .mk-dictstatus.live { background: var(--coral-50); border-color: var(--coral-100); }
@@ -823,53 +821,33 @@
 .mk-dictmic:hover { background: var(--coral-600); }
 .mk-dictmic.on { background: var(--ink); border-color: var(--ink); }
 .mk-dictinterim { margin: 8px 2px 0; font-size: 13.5px; color: var(--muted); font-style: italic; }
-.mk-dicthelp { margin-top: 10px; border: 1px solid var(--line); border-radius: 11px; overflow: hidden; }
-.mk-dicthelp-r { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 7px 12px; font-size: 13px; border-top: 1px solid var(--line-2); }
-.mk-dicthelp-r:first-child { border-top: 0; }
-.mk-dicthelp-r span:first-child { font-weight: 700; color: var(--muted); }
-@media (max-width: 640px){ .mk-dicthelp-r { grid-template-columns: 1fr; gap: 2px; } }
-/* 1 activity → 2 books → 3 save */
-.mk-dictsteps { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; margin-top: 12px; }
-@media (max-width: 760px){ .mk-dictsteps { grid-template-columns: 1fr; } }
-.mk-dictstep { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; min-width: 0; }
-.mk-dictstep.ok { border-color: var(--teal-100); background: var(--teal-50); }
-.mk-dictstep.save { border: 0; padding: 0; align-items: center; }
-.mk-dictstep.save .mk-dictstep-n { display: none; }
-.mk-dictstep-n { flex: 0 0 22px; height: 22px; border-radius: 50%; background: var(--line-2); color: var(--muted); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-.mk-dictstep.ok .mk-dictstep-n { background: var(--teal-600); color: #fff; }
-.mk-dictstep-b { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 14px; }
-.mk-dictstep-b em { font-style: normal; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
-.mk-dictstep-b b { color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-.mk-dictstep-b b.todo { color: var(--muted); }
-.mk-dictstep-b span { font-size: 12.5px; color: var(--muted); }
-.mk-dictstep.save .mk-dictstep-b { gap: 6px; align-items: stretch; }
-#mkDictSave { font-size: 15px; padding: 11px 18px; white-space: nowrap; }
-#mkDictSave:disabled { opacity: .45; cursor: default; transform: none; }
-.mk-dictstep-links { display: flex; gap: 14px; justify-content: center; }
-.mk-dictcards-h { margin: 14px 0 2px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--coral-600); }
-.mk-dictentry { border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; margin-top: 8px; }
-.mk-dictentry.bad { border-color: var(--coral-500); background: var(--coral-50); }
-.mk-dictentry-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 7px; }
-.mk-dictpupil { width: auto; min-width: 170px; font-weight: 600; }
-.mk-dictheard { font-size: 12px; color: var(--coral-600); font-weight: 600; }
-.mk-dictheard.soft { color: var(--faint); }
-.mk-dictmk { cursor: pointer; }
-.mk-dictmk:hover { background: var(--coral-50); color: var(--coral-600); border-color: var(--coral-100); transform: none; }
-.mk-dictcomment { width: 100%; font-size: 13.5px; line-height: 1.45; min-height: 0; }
 .mk-dictwarn { margin-top: 8px; font-size: 12.5px; color: var(--coral-600); font-weight: 600; }
-.mk-dictlog { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
-.mk-dictmsg { border-radius: 12px 12px 12px 4px; background: var(--success-50); border: 1px solid #c9e8d7; padding: 10px 13px; font-size: 13px; color: var(--ink); line-height: 1.5; }
-.mk-dictmsg-h { font-weight: 700; color: var(--success); margin-bottom: 2px; }
-.mk-dictmsg-meta { font-weight: 600; color: var(--muted); margin-left: 6px; }
-.mk-dictsheet { margin-top: 8px; padding: 7px 13px; font-size: 13px; }
-.mk-dictsaid { margin-top: 14px; }
-.mk-dictsaid label { margin: 0 0 5px; font-size: 12px; }
-.mk-dictsaid label span { font-weight: 500; color: var(--faint); }
 .mk-dicttext { width: 100%; line-height: 1.5; font-size: 13.5px; }
-.mk-dictopts { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0 4px; }
-.mk-dictopt { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.mk-dictopt.off { color: var(--faint); }
-.mk-dictopt input { width: auto; margin: 0; }
+.mk-dicthint { font-size: 12.5px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+#mkDictClock { font-variant-numeric: tabular-nums; color: var(--coral-600); margin-left: 4px; }
+.mk-dictspin { width: 16px; height: 16px; border-radius: 50%; border: 2.5px solid var(--teal-100); border-top-color: var(--teal-600); flex: 0 0 auto; animation: mkSpin .8s linear infinite; }
+@keyframes mkSpin { to { transform: rotate(360deg); } }
+.mk-dict .mk-dicttext { margin-top: 10px; }
+.mk-dict .mk-dicttext[readonly] { background: var(--page); }
+.mk-dictgo { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.mk-dictgo button:first-child { padding: 10px 18px; }
+.mk-dictvia { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.mk-dictmsg-meta { font-weight: 600; color: var(--muted); margin-left: 4px; }
+/* what Claude filled in */
+.mk-dictres { margin-top: 14px; border: 1px solid #c9e8d7; background: var(--success-50); border-radius: 12px; padding: 12px 14px; }
+.mk-dictres.bad { border-color: var(--coral-100); background: var(--coral-50); color: var(--ink); font-size: 13.5px; }
+.mk-dictres-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 9px; font-size: 14px; }
+.mk-dictres-top > div > b { color: var(--success); }
+.mk-dictres-top button { padding: 7px 13px; font-size: 12.5px; }
+.mk-dictres-h { margin: 12px 0 6px; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--coral-600); }
+.mk-dictfix { display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+.mk-dictfix-heard { color: var(--muted); font-style: italic; }
+.mk-dictskip { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 7px 10px; margin-bottom: 6px; border-radius: 9px; background: var(--card); border: 1px solid var(--coral-100); font-size: 13.5px; }
+.mk-dictskip select { width: auto; min-width: 180px; }
+.mk-sh-name.guessed { border-style: dashed; border-color: var(--gold-500); }
+.mk-dictheard-all { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.mk-dictheard-all summary { cursor: pointer; font-weight: 600; }
+.mk-dictheard-all div { margin-top: 5px; line-height: 1.5; white-space: pre-wrap; }
 .mk-dictnote { margin-top: 10px; font-size: 11.5px; color: var(--faint); line-height: 1.5; }
 
 /* Print: show only the dedicated starter print container */

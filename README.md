@@ -30,17 +30,19 @@ printable starter sheet.
 > **Question Generator** until September 2026; it wrote to its own store, so the questions a
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
 
-> **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice, hands-free
-> after one tap: *"create new maths activity called partitioning on 25/9 … Aurora … not met …
-> next pupil Zoey … met, gold star … save books"*. It reads the notes back as it goes, and "scratch
-> that", "read back" and "stop listening" work too. It writes the same records as tapping the rows.
-> The reading is done on the device (`js/dictate.js`); an optional **smart mode** asks Claude
-> instead, through `server.js`, and only when `ANTHROPIC_API_KEY` is set on the host (see
-> [PRIVACY.md](PRIVACY.md) §5). An iOS Shortcut can send Siri dictation in by opening
-> `…/index.html?dictate=<text>&save=1#markbook`.
+> **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice. Tap Record and
+> talk through the set — *"new maths activity called partitioning on 25/9 … Aurora … not met …
+> next pupil Zoey … met, gold star …"* — then tap Stop or say "finished marking". Nothing is worked
+> out while you talk. At Stop the recording goes to **Claude** (through `server.js`, when the
+> teacher is signed in and `ANTHROPIC_API_KEY` is set; see [PRIVACY.md](PRIVACY.md) §5) with the
+> class list, sets, activities, markers and the speech recogniser's *other guesses* for every
+> phrase, which is what lets it work out misheard names and words. It fills in the table straight
+> away and lists what it had to guess, with one **Undo**; a book it can't put a name to waits for
+> the teacher to choose the child. Without Claude, `js/dictate.js` reads the notes on the device,
+> less well with names. It writes the same records as tapping the rows. An iOS Shortcut can send
+> Siri dictation in with `…/index.html?dictate=<text>&save=1#markbook`.
 >
-> Saying **"finished marking"** at the end of a set saves it and opens the **class feedback sheet**
-> (also *📋 Class feedback sheet* above the marking list): who met / did not meet the objective,
+> The **class feedback sheet** (📋 after dictating, or above the marking list) shows who met / did not meet the objective,
 > who is not marked yet, the comments that say the same thing grouped with the children's names
 > (`js/feedback.js`, on the device: "struggled with tens as a numeral" and "found writing tens as
 > numerals tricky" group; "neat" and "not as neat" never do), awards, and individual notes. It

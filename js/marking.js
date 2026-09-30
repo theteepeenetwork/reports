@@ -72,14 +72,6 @@
     if (d.individual.length) { L.push(''); L.push('Individual notes:'); d.individual.forEach(function (x) { L.push('• ' + x.pupil.name + ': ' + x.text); }); }
     return L.join('\n');
   }
-  /* for the voice: "Partitioning. 12 met, 3 not met. Most common: …" */
-  function sheetSpeech(act, d) {
-    var s = act.title + '. ' + d.met.length + ' met, ' + d.not.length + ' not met';
-    if (d.unmarked.length) s += ', ' + d.unmarked.length + ' not marked yet';
-    s += '.';
-    if (d.themes.length) s += ' Most common: ' + d.themes[0].label + ', ' + d.themes[0].pupils.length + ' children.';
-    return s;
-  }
   function pupils() { return (typeof sortedRoster === 'function') ? sortedRoster() : ((typeof roster !== 'undefined' && roster) ? roster.slice() : []); }
 
   /* ---------- store ---------- */
@@ -214,7 +206,7 @@
           '<button class="mk-newsetadd" id="mkAddSet">+</button></span>' +
         '<span class="mk-spacer"></span>' +
         '<button class="mk-dictbtn' + (ui.dictOpen ? ' on' : '') + (ui.dictListening ? ' live' : '') + '" id="mkDictBtn">' +
-          (ui.dictListening ? '● Listening' : '🎤 Dictate marking') + '</button>' +
+          (ui.dictListening ? '● Recording — stop' : '🎤 Dictate marking') + '</button>' +
         '<button class="secondary small" id="mkManage">' + (ui.manage ? '✓ Done' : 'Rename / remove') + '</button>' +
       '</div>';
 
@@ -429,9 +421,8 @@
     if (ns) ns.onkeydown = function (e) { if (e.key === 'Enter' && addSet) addSet.click(); };
     var dictBtn = host.querySelector('#mkDictBtn');
     if (dictBtn) dictBtn.onclick = function () {
-      if (ui.dictOpen && ui.dictListening) { stopListening(); return; }
+      if (ui.dictOpen && ui.dictListening) { stopRecording(); return; }   // "● Recording" stops, and Claude takes over
       ui.dictOpen = !ui.dictOpen;
-      if (!ui.dictOpen) stopListening(true);
       mkRender();
     };
     var manage = host.querySelector('#mkManage');
@@ -694,22 +685,29 @@
   }
 
   /* ===================================================================
-     DICTATE — mark a whole set of books by voice, hands-free
-     One tap starts the microphone (browsers insist on that one). After
-     it, everything is spoken:
-        "create new maths activity called partitioning on 25/9"
-        "Aurora answered most questions … not met"   "next pupil Zoey …"
-        "scratch that"  "read back"  "save books"  "stop listening"
-     The parser is js/dictate.js and runs on the device. Smart mode (off
-     by default) asks Claude, through server.js, to read the note at save.
-     Everything is written to the same tp_marking records the rows above
-     use, so the tap-to-mark list and dictation stay one markbook.
+     DICTATE — record, stop, and Claude fills in the table
+     Nothing is worked out while the teacher talks. The box only records:
+       tap Start (browsers insist on that one tap), talk through the whole
+       set — "create new maths activity called partitioning on 25/9 …
+       Aurora … not met … next pupil Zoey …" — then tap Stop or say
+       "finished marking".
+     At Stop the whole recording goes to Claude (server.js /api/dictate)
+     with the class list, the sets, the activities and the teacher's
+     markers, plus the recogniser's OTHER guesses for every phrase. Speech
+     recognition mishears names and marking vocabulary; the alternatives
+     and the class list are what let Claude work out "so we" → Zoey and
+     "tennis numeral" → "tens as a numeral". It fills in the table
+     straight away and lists what it had to guess, with one Undo.
+     When Claude isn't available (not signed in, or not set up on the
+     server) the on-device reader in js/dictate.js does the same job, less
+     well with names.
+     Writes the same tp_marking records as tapping the rows.
      =================================================================== */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-  var rec = null, interim = '', recStopping = false;
-  var dict = { utterances: [], spokenCount: 0, spokenAct: '', smartAvail: null, busy: false };
-  ui.dictSpeak = true; ui.dictText = ''; ui.dictPlan = null; ui.dictLog = []; ui.dictFix = {};
-  try { ui.dictSmart = localStorage.getItem('mk_dict_smart') === '1'; } catch (e) { ui.dictSmart = false; }
+  var rec = null, interim = '', recEnding = false;
+  /* phase: idle → recording → stopping → working → idle (with a result) */
+  var dict = { phase: 'idle', segments: [], edited: false, startedAt: 0, timer: null, smartAvail: null, result: null };
+  ui.dictText = '';
 
   function dictCtx() {
     return {
@@ -721,185 +719,167 @@
     };
   }
   function pupilName(id) { var p = pupils().find(function (x) { return x.id === id; }); return p ? p.name : ''; }
-  function firstName(id) { return pupilName(id).split(/\s+/)[0]; }
   function setName(id) { var s = mk.sets.find(function (x) { return x.id === id; }); return s ? s.name : ''; }
 
-  function reparse() {
-    if (!window.mkDictate || !(ui.dictText || '').trim()) { ui.dictPlan = null; return null; }
-    var plan = window.mkDictate.parse(ui.dictText, dictCtx());
-    /* a name the teacher has already fixed by hand stays fixed while they keep talking */
-    plan.entries.forEach(function (e) { var k = String(e.heard || '').toLowerCase(); if (!e.pupilId && ui.dictFix[k]) e.pupilId = ui.dictFix[k]; });
-    ui.dictPlan = plan;
-    return plan;
-  }
-
-  /* ---------- speaking back ---------- */
-  function speak(text, then) {
+  function speak(text) {
     var synth = window.speechSynthesis;
-    if (!ui.dictSpeak || !synth || !text) { if (then) then(); return; }
-    /* stop listening while we talk, or the microphone hears us and writes it down */
-    var wasListening = ui.dictListening;
-    if (rec) { recStopping = true; try { rec.abort(); } catch (e) {} }
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-GB';
-    var v = (synth.getVoices() || []).find(function (x) { return /^en-GB/i.test(x.lang); }); if (v) u.voice = v;
-    u.rate = 1.05;
-    var done = false;
-    function after() { if (done) return; done = true; if (wasListening && ui.dictListening) startEngine(); if (then) then(); }
-    u.onend = after; u.onerror = after;
-    setTimeout(after, 1500 + text.length * 90);   // some browsers never fire onend
-    try { synth.cancel(); synth.speak(u); } catch (e) { after(); }
-  }
-  function describe(e) {
-    var bits = [e.pupilId ? firstName(e.pupilId) : 'unknown pupil “' + (e.heard || '?') + '”'];
-    if (e.met === 'met') bits.push('met'); else if (e.met === 'not') bits.push('not met');
-    e.markers.forEach(function (m) { bits.push(String(m).replace(/[.!?]+$/, '')); });
-    if (e.comment) bits.push('note logged');
-    return bits.join(', ');
-  }
-  function describeAct(a) {
-    if (!a) return '';
-    return (a.mode === 'new' ? 'New ' : 'Marking ') + ((a.setId ? setName(a.setId) : a.newSetName) || '') + ' activity, ' +
-      (a.title || 'no title yet') + ', ' + fmt(a.workDate);
+    if (!synth || !text) return;
+    try {
+      var u = new SpeechSynthesisUtterance(text); u.lang = 'en-GB'; u.rate = 1.05;
+      var v = (synth.getVoices() || []).find(function (x) { return /^en-GB/i.test(x.lang); }); if (v) u.voice = v;
+      synth.cancel(); synth.speak(u);
+    } catch (e) {}
   }
 
-  /* ---------- the microphone ---------- */
-  function startListening() {
+  /* ---------- recording ---------- */
+  function startRecording() {
+    if (dict.phase === 'working') return;
     if (!SR) {
-      toast('This browser has no built-in speech — tap in the box and use your keyboard’s 🎤 instead');
+      toast('This browser can’t record — tap in the box and use your keyboard’s 🎤, then “Fill in the table”');
       var ta = document.getElementById('mkDictText'); if (ta) ta.focus();
       return;
     }
-    ui.dictOpen = true; ui.dictListening = true;
+    checkSmart();
+    if (dict.edited) { dict.segments = []; dict.edited = false; }   // typed text has no alternatives
+    dict.phase = 'recording'; dict.startedAt = Date.now(); ui.dictListening = true;
+    clearInterval(dict.timer);
+    dict.timer = setInterval(function () { var t = document.getElementById('mkDictClock'); if (t) t.textContent = clock(); }, 1000);
     mkRender();
-    speak('Listening. Say save books when you’re done.');
     startEngine();
   }
+  function clock() { var s = Math.floor((Date.now() - dict.startedAt) / 1000); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
   function startEngine() {
-    if (!SR || !ui.dictListening || rec) return;
-    if (window.speechSynthesis && window.speechSynthesis.speaking) { setTimeout(startEngine, 400); return; }   // wait out our own voice
+    if (!SR || rec || dict.phase !== 'recording') return;
     var r = new SR();
     r.lang = 'en-GB'; r.continuous = true; r.interimResults = true;
+    r.maxAlternatives = 5;              // the other guesses go to Claude as evidence
     r.onresult = function (e) {
       interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) {
-        var t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) onUtterance(t); else interim += t;
+        var res = e.results[i];
+        if (res.isFinal) {
+          var alts = [];
+          for (var j = 0; j < res.length; j++) { var t = String(res[j].transcript || '').trim(); if (t && alts.indexOf(t) < 0) alts.push(t); }
+          heard(alts);
+        } else interim += res[0].transcript;
       }
-      showInterim();
+      showLive();
     };
     r.onerror = function (e) {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
-        ui.dictListening = false;
         toast(e.error === 'audio-capture' ? 'No microphone found' : 'Microphone permission was refused — allow it in the browser to dictate');
-        mkRender();
+        dict.phase = 'idle'; ui.dictListening = false; clearInterval(dict.timer); mkRender();
       }
     };
-    /* Chrome ends a "continuous" session after a silence: quietly start again */
     r.onend = function () {
-      rec = null; interim = ''; showInterim();
-      if (recStopping) { recStopping = false; return; }
-      if (ui.dictListening) setTimeout(startEngine, 200);
+      rec = null; interim = '';
+      if (dict.phase === 'recording') { setTimeout(startEngine, 150); return; }   // Chrome stops after a silence
+      if (dict.phase === 'stopping') process();
     };
     rec = r;
     try { r.start(); } catch (e) { rec = null; }
   }
-  function stopListening(silent) {
-    var had = ui.dictListening;
-    ui.dictListening = false; interim = '';
-    if (rec) { recStopping = true; try { rec.stop(); } catch (e) {} rec = null; }
-    if (!had) return;
-    if (!silent) {
-      var n = ui.dictPlan ? ui.dictPlan.entries.length : 0;
-      speak(n ? 'Stopped listening. ' + n + (n === 1 ? ' book is' : ' books are') + ' not saved yet.' : 'Stopped listening.');
+  /* one finished phrase, with the recogniser's alternatives */
+  function heard(alts) {
+    if (!alts.length) return;
+    var c = window.mkDictate ? window.mkDictate.command(alts[0]) : null;
+    var end = c && (c.cmd === 'finish' || c.cmd === 'stop' || c.cmd === 'save');
+    var best = end ? c.rest : alts[0];
+    if (best) {
+      var cur = (ui.dictText || '').replace(/\s+$/, '');
+      ui.dictText = cur ? cur + (/[.,;:!?]$/.test(cur) ? ' ' : '. ') + best : best;
+      dict.segments.push({ best: best, alts: end ? [best] : alts });
     }
-    if (document.getElementById('mb-marking')) mkRender();
+    if (end) stopRecording();
   }
-  function showInterim() {
-    var el = document.getElementById('mkDictInterim');
-    if (el) { el.textContent = interim ? '… ' + interim : ''; el.style.display = interim ? '' : 'none'; }
+  function showLive() {
+    var ta = document.getElementById('mkDictText');
+    if (ta) { ta.value = ui.dictText + (interim ? (ui.dictText ? ' ' : '') + interim : ''); ta.scrollTop = ta.scrollHeight; }
+  }
+  function stopRecording() {
+    if (dict.phase !== 'recording') return;
+    dict.phase = 'stopping'; ui.dictListening = false; clearInterval(dict.timer);
+    mkRender();
+    if (rec) {
+      try { rec.stop(); } catch (e) { rec = null; }
+      /* stop() delivers the last phrase, then onend runs process(); don't wait forever */
+      setTimeout(function () { if (dict.phase === 'stopping') { rec = null; process(); } }, 2500);
+    }
+    if (!rec) process();
   }
 
-  /* one finished, pause-delimited utterance */
-  function onUtterance(t) {
-    t = String(t || '').trim(); if (!t) return;
-    var c = window.mkDictate ? window.mkDictate.command(t) : null;
-    if (c && c.rest) appendText(c.rest);
-    if (c) { runCommand(c.cmd); return; }
-    appendText(t);
+  /* ---------- Claude takes over ---------- */
+  function process() {
+    if (dict.phase === 'working') return;
+    var text = (ui.dictText || '').trim();
+    if (!text) { dict.phase = 'idle'; mkRender(); toast('Nothing was heard — try again a little closer to the microphone'); return; }
+    load();
+    dict.phase = 'working'; mkRender();
+    var segs = dict.edited ? [] : dict.segments;
+    checkSmart().then(function () {
+      var viaClaude = smartReady();
+      return (viaClaude ? smartParse(text, segs) : Promise.resolve(localParse(text)))
+        .then(function (plan) { finish(plan, viaClaude, ''); })
+        .catch(function (e) { finish(localParse(text), false, (e && e.userMessage) || 'Claude couldn’t be reached, so this device read your notes instead — check the names.'); });
+    });
   }
-  function appendText(t) {
-    var cur = (ui.dictText || '').replace(/\s+$/, '');
-    /* each pause becomes a full stop: speech recognition gives no punctuation,
-       and the pauses are where the teacher's thoughts break */
-    ui.dictText = cur ? cur + (/[.,;:!?]$/.test(cur) ? ' ' : '. ') + t : t;
-    dict.utterances.push(t);
-    var ta = document.getElementById('mkDictText'); if (ta) ta.value = ui.dictText;
-    var before = ui.dictPlan ? ui.dictPlan.entries.length : 0;
-    var plan = reparse();
-    refreshPreview();
-    if (!plan) return;
-    /* say the activity back once it's been heard */
-    var ak = plan.activity ? [plan.activity.mode, plan.activity.title, plan.activity.workDate].join('|') : '';
-    if (plan.activity && plan.activity.mode === 'new' && plan.activity.title && ak !== dict.spokenAct) { dict.spokenAct = ak; speak(describeAct(plan.activity) + '.'); return; }
-    /* a new book started → confirm the one just finished */
-    if (plan.entries.length > before && plan.entries.length >= 2 && plan.entries.length - 1 > dict.spokenCount) {
-      dict.spokenCount = plan.entries.length - 1;
-      speak(describe(plan.entries[plan.entries.length - 2]) + '.');
+  function localParse(text) {
+    var plan = window.mkDictate.parse(text, dictCtx());
+    plan.corrections = plan.entries.filter(function (e) { return e.pupilId && e.fuzzy; })
+      .map(function (e) { return { heard: e.heard, meant: pupilName(e.pupilId) }; });
+    plan.entries.forEach(function (e) { e.nameGuessed = !!e.fuzzy; });
+    return plan;
+  }
+  function finish(plan, viaClaude, note) {
+    var before = JSON.stringify(mk);
+    var res = applyPlan(plan);
+    dict.phase = 'idle';
+    if (res.error) {
+      dict.result = { error: res.error };
+      mkRender(); speak(res.error); return;
     }
+    dict.result = {
+      actId: res.act.id, title: res.act.title, set: setName(res.act.setId), workDate: res.act.workDate,
+      saved: res.saved, skipped: res.skipped, corrections: plan.corrections || [],
+      warnings: (plan.warnings || []).concat((plan.unmatched || []).map(function (u) { return 'Not attached to a child: “' + u + '”'; })),
+      viaClaude: viaClaude, note: note, transcript: ui.dictText, segments: dict.segments, undo: before
+    };
+    ui.dictText = ''; dict.segments = []; dict.edited = false;
+    mkRender();
+    var n = res.saved.length, check = dict.result.corrections.length + res.skipped.length;
+    speak('Marked ' + n + (n === 1 ? ' book' : ' books') + ' for ' + res.act.title + '.' +
+      (check ? ' ' + check + (check === 1 ? ' thing' : ' things') + ' to check on screen.' : ''));
   }
-  var HELP_SPOKEN = 'Say a pupil’s name, then your notes. Say next pupil between books. ' +
-    'Say scratch that to undo, read back to hear the list, save books to save, ' +
-    'and finished marking at the end for the class feedback sheet.';
-  function runCommand(cmd) {
-    if (cmd === 'save') return saveDictation();
-    if (cmd === 'finish') return saveDictation(function () { finishMarking(); });
-    if (cmd === 'sheet') return pendingCount() ? saveDictation(function () { finishMarking(); }) : finishMarking();
-    if (cmd === 'help') { ui.dictHelp = true; renderDict(); speak(HELP_SPOKEN); return; }
-    if (cmd === 'stop') return stopListening();
-    if (cmd === 'read') return readBack();
-    if (cmd === 'cancel') { clearDictation(); refreshAll(); speak('Cleared. Nothing was saved.'); return; }
-    if (cmd === 'undo') {
-      var last = dict.utterances.pop();
-      var txt = (ui.dictText || '').replace(/\s+$/, '');
-      if (last && txt.slice(-last.length) === last) txt = txt.slice(0, -last.length);
-      else txt = txt.replace(/[^.!?]*[.!?]?\s*$/, '');                        // edited by hand: drop the last sentence
-      ui.dictText = txt.replace(/[\s.,;:]+$/, '');
-      var plan = reparse();
-      dict.spokenCount = Math.min(dict.spokenCount, plan ? Math.max(0, plan.entries.length - 1) : 0);
-      refreshAll();
-      speak(last ? 'Removed: ' + last.split(/\s+/).slice(0, 6).join(' ') : 'Nothing to remove.');
-    }
+  function undoLast() {
+    var r = dict.result; if (!r || !r.undo) return;
+    if (typeof Store !== 'undefined') Store.set(MK_KEY, JSON.parse(r.undo));
+    mk = null; load(); save();
+    ui.dictText = r.transcript; dict.segments = r.segments || []; dict.edited = false;
+    dict.result = null;
+    mkRender();
+    toast('Undone — your notes are back in the box');
   }
-  function readBack() {
-    var p = ui.dictPlan;
-    if (!p || (!p.entries.length && !p.activity)) { speak('Nothing logged yet.'); return; }
-    var parts = [];
-    if (p.activity) parts.push(describeAct(p.activity) + '.');
-    parts.push(p.entries.length + (p.entries.length === 1 ? ' book.' : ' books.'));
-    p.entries.forEach(function (e) { parts.push(describe(e) + '.'); });
-    speak(parts.join(' '));
+  /* a book Claude couldn't put a name to: the teacher picks the child */
+  function assignSkipped(i, pupilId) {
+    var r = dict.result; if (!r || !r.skipped[i] || !pupilId) return;
+    var act = mk.activities.find(function (a) { return a.id === r.actId; }); if (!act) return;
+    var e = r.skipped[i];
+    var out = applyPlan({ activity: { mode: 'existing', id: act.id }, entries: [Object.assign({}, e, { pupilId: pupilId })] });
+    if (out.error) { toast(out.error); return; }
+    r.skipped.splice(i, 1);
+    r.saved.push(Object.assign({}, e, { pupilId: pupilId }));
+    mkRender();
   }
-  function pendingCount() { var p = ui.dictPlan; return p ? p.entries.filter(function (e) { return e.pupilId; }).length : 0; }
-  /* the end of the set: open the sheet and say the headline */
-  function finishMarking() {
-    var act = activeActivity();
-    if (!act) { speak('Pick an activity first.'); return; }
-    stopListening(true);
-    openSheet();
-    speak(sheetSpeech(act, sheetData(act)) + ' The class feedback sheet is on screen.');
-  }
-  function clearDictation() { ui.dictText = ''; ui.dictPlan = null; ui.dictFix = {}; dict.utterances = []; dict.spokenCount = 0; dict.spokenAct = ''; }
 
   /* ---------- saving ---------- */
   function applyPlan(plan) {
     load();
     var a = plan && plan.activity;
-    if (!a) return { error: 'No activity — say “create new maths activity called …” or pick one on the left.' };
+    if (!a) return { error: 'I couldn’t tell which activity this is. Pick one on the left, or start with “create new maths activity called …”, then try again.' };
     var act = null;
     if (a.mode === 'existing') act = mk.activities.find(function (x) { return x.id === a.id; });
     if (!act) {
-      if (!a.title) return { error: 'The new activity needs a title.' };
+      if (!a.title) return { error: 'I heard a new activity but no title. Say “… activity called …” and try again.' };
       var setId = a.setId && mk.sets.some(function (s) { return s.id === a.setId; }) ? a.setId : null;
       if (!setId && a.newSetName) {
         var ex = mk.sets.find(function (s) { return s.name.toLowerCase() === a.newSetName.toLowerCase(); });
@@ -934,46 +914,8 @@
     save();
     return { act: act, saved: saved, skipped: skipped };
   }
-  function saveDictation(after) {
-    if (dict.busy) return;
-    var plan = ui.dictPlan || reparse();
-    if (!plan || !plan.entries.length) {
-      if (after) { after(); return; }                 // "finished marking" with nothing pending
-      speak('Nothing to save yet.'); toast('Nothing to save yet'); return;
-    }
-    if (ui.dictSmart && smartReady()) {
-      dict.busy = true; refreshPreview();
-      smartParse(ui.dictText).then(function (p) { dict.busy = false; finishSave(p || plan, !!p, after); })
-        .catch(function (e) { dict.busy = false; toast((e && e.userMessage) || 'Smart mode unavailable — used the on-device reading'); finishSave(plan, false, after); });
-      return;
-    }
-    finishSave(plan, false, after);
-  }
-  function finishSave(plan, smart, after) {
-    var res = applyPlan(plan);
-    if (res.error) { speak(res.error); toast(res.error); return; }
-    var names = res.saved.map(function (e) { return firstName(e.pupilId); });
-    ui.dictLog.unshift({
-      when: new Date().toTimeString().slice(0, 5), title: res.act.title, set: setName(res.act.setId), smart: smart,
-      lines: res.saved.map(function (e) { return describe(e); }),
-      skipped: res.skipped.map(function (e) { return e.raw || e.heard; })
-    });
-    /* anything that couldn't be matched stays in the box to fix; the rest is done */
-    var left = res.skipped.map(function (e) { return 'next pupil ' + (e.heard || 'unknown') + ' ' + (e.raw || ''); }).join('. ');
-    clearDictation();
-    ui.dictText = left;
-    reparse();
-    mkRender();
-    var msg = 'Saved ' + names.length + (names.length === 1 ? ' book' : ' books') + ' for ' + res.act.title + '.';
-    if (res.skipped.length) msg += ' ' + res.skipped.length + ' I couldn’t match to a pupil — ' + (res.skipped.length === 1 ? 'it’s' : 'they’re') + ' left on screen.';
-    toast(msg);
-    if (after) { speak(msg, after); return; }
-    speak(msg);
-  }
 
-  /* ---------- smart mode: Claude reads the note (server.js /api/dictate) ---------- */
-  /* smart mode needs the server switched on AND a signed-in teacher: the
-     server checks the Firebase ID token on every request */
+  /* ---------- Claude (server.js /api/dictate) ---------- */
   function signedIn() { return !!(window.CLOUD && window.CLOUD.uid && window.firebase && window.firebase.auth); }
   function smartReady() { return !!dict.smartAvail && signedIn(); }
   function idToken() {
@@ -982,218 +924,162 @@
       return u ? u.getIdToken() : Promise.reject(new Error('not signed in'));
     } catch (e) { return Promise.reject(e); }
   }
+  /* asks the server once whether Claude is switched on; Stop waits for the answer */
   function checkSmart() {
-    if (dict.smartAvail !== null || !window.fetch || location.protocol === 'file:') { if (location.protocol === 'file:') dict.smartAvail = false; return; }
-    dict.smartAvail = false;
-    fetch('api/dictate', { method: 'GET', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { dict.smartAvail = !!(j && j.enabled); refreshPreview(); })
-      .catch(function () {});
+    if (dict.smartCheck) return dict.smartCheck;
+    if (!window.fetch || location.protocol === 'file:') { dict.smartAvail = false; return (dict.smartCheck = Promise.resolve(false)); }
+    dict.smartCheck = fetch('api/dictate', { method: 'GET', cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { dict.smartAvail = !!(j && j.enabled); var n = document.getElementById('mkDictVia'); if (n) n.innerHTML = viaLine(); return dict.smartAvail; })
+      .catch(function () { dict.smartAvail = false; return false; });
+    return dict.smartCheck;
   }
-  function smartParse(text) {
+  function smartParse(text, segments) {
     var ctx = dictCtx();
     return idToken().then(function (token) { return fetch('api/dictate', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify({ text: text, pupils: ctx.pupils, sets: ctx.sets, markers: ctx.markers, today: ctx.today,
-        activeSetId: ctx.activeSetId, activeActivityId: ctx.activeActivityId,
-        activities: ctx.activities.slice(-40) })
+      body: JSON.stringify({ text: text, segments: segments || [], pupils: ctx.pupils, sets: ctx.sets, markers: ctx.markers, today: ctx.today,
+        activeSetId: ctx.activeSetId, activeActivityId: ctx.activeActivityId, activities: ctx.activities.slice(-40) })
     }); }).then(function (r) {
       if (r.ok) return r.json();
-      /* the server's own words for a refused sign-in or allow-list, so the
-         teacher knows why it fell back to the on-device reading */
+      /* the server's own words for a refused sign-in or allow-list */
       return r.json().catch(function () { return {}; }).then(function (j) {
         var err = new Error('HTTP ' + r.status);
-        if ((r.status === 401 || r.status === 403) && j && j.error) err.userMessage = j.error + ' Used the on-device reading.';
+        if (j && j.error) err.userMessage = j.error + ' This device read your notes instead — check the names.';
         throw err;
       });
-    })
-      .then(function (j) {
-        var o = j && j.plan; if (!o) throw new Error('no plan');
-        var ids = {}; ctx.pupils.forEach(function (p) { ids[p.id] = 1; });
-        var acts = {}; ctx.activities.forEach(function (a) { acts[a.id] = a; });
-        var sets = {}; ctx.sets.forEach(function (s) { sets[s.id] = 1; });
-        var a = o.activity || {}, activity = null;
-        if (a.mode === 'existing' && acts[a.existingId]) { var x = acts[a.existingId]; activity = { mode: 'existing', id: x.id, setId: x.setId, title: x.title, workDate: x.workDate }; }
-        else if (a.mode === 'new') activity = { mode: 'new', setId: sets[a.setId] ? a.setId : null, newSetName: sets[a.setId] ? '' : (a.newSetName || ''), title: a.title || '', workDate: /^\d{4}-\d\d-\d\d$/.test(a.workDate) ? a.workDate : ctx.today };
-        else { var cur = acts[ctx.activeActivityId]; if (cur) activity = { mode: 'existing', id: cur.id, setId: cur.setId, title: cur.title, workDate: cur.workDate }; }
-        return {
-          activity: activity, unmatched: [], warnings: o.warnings || [],
-          entries: (o.entries || []).map(function (e) {
-            return { pupilId: ids[e.pupilId] ? e.pupilId : null, heard: e.heard || '', met: e.met === 'met' || e.met === 'not' ? e.met : null,
-                     markers: (e.markers || []).filter(Boolean), comment: e.comment || '', raw: e.heard || '' };
-          })
-        };
-      });
+    }).then(function (j) {
+      var o = j && j.plan; if (!o) throw new Error('no plan');
+      var ids = {}; ctx.pupils.forEach(function (p) { ids[p.id] = 1; });
+      var acts = {}; ctx.activities.forEach(function (a) { acts[a.id] = a; });
+      var sets = {}; ctx.sets.forEach(function (s) { sets[s.id] = 1; });
+      var a = o.activity || {}, activity = null;
+      if (a.mode === 'existing' && acts[a.existingId]) { var x = acts[a.existingId]; activity = { mode: 'existing', id: x.id, setId: x.setId, title: x.title, workDate: x.workDate }; }
+      else if (a.mode === 'new') activity = { mode: 'new', setId: sets[a.setId] ? a.setId : null, newSetName: sets[a.setId] ? '' : (a.newSetName || ''), title: a.title || '', workDate: /^\d{4}-\d\d-\d\d$/.test(a.workDate) ? a.workDate : ctx.today };
+      else { var cur = acts[ctx.activeActivityId]; if (cur) activity = { mode: 'existing', id: cur.id, setId: cur.setId, title: cur.title, workDate: cur.workDate }; }
+      return {
+        activity: activity, unmatched: [], warnings: o.warnings || [],
+        corrections: (o.corrections || []).filter(function (c) { return c && c.heard && c.meant && c.heard.toLowerCase() !== c.meant.toLowerCase(); }),
+        entries: (o.entries || []).map(function (e) {
+          return { pupilId: ids[e.pupilId] ? e.pupilId : null, heard: e.heard || '', nameGuessed: !!e.nameGuessed,
+                   met: e.met === 'met' || e.met === 'not' ? e.met : null,
+                   markers: (e.markers || []).filter(Boolean), comment: e.comment || '', raw: e.comment || '' };
+        })
+      };
+    });
   }
 
-  /* ---------- the panel ----------
-     Read top to bottom it is the whole job: the microphone, the three
-     steps (which activity → the books heard → save), the books waiting to
-     be saved, what was heard, and what has been saved already. */
-  function refreshAll() { var ta = document.getElementById('mkDictText'); if (ta) ta.value = ui.dictText; refreshPreview(); }
-  function smartStatus() {
-    if (!dict.smartAvail) return '';                 // server has it off: nothing to offer, say nothing
-    if (!signedIn()) return '<span class="mk-dictopt off">Smart mode (Claude) — sign in to use it</span>';
-    return '<label class="mk-dictopt" id="mkDictSmartWrap"><input type="checkbox" id="mkDictSmart"' + (ui.dictSmart ? ' checked' : '') + '> ' +
-      'Smart mode — Claude reads your notes when you save</label>';
+  /* ---------- the panel ---------- */
+  function viaLine() {
+    if (smartReady()) return 'Claude reads your notes when you stop, and works out anything misheard.';
+    if (dict.smartAvail && !signedIn()) return 'Sign in so Claude can read your notes — until then this device does it, and it is less accurate with names.';
+    return 'This device reads your notes when you stop. It is less accurate with misheard names than Claude.';
   }
-  var HELP_ROWS = [
-    ['Start an activity', '“Create new maths activity called partitioning on 25/9”'],
-    ['Mark a book', '“Aurora … most correct, struggled with tens … not met”'],
-    ['Next book', '“Next pupil Zoey …”'],
-    ['Outcome', '“met” · “not met” · “working towards”'],
-    ['Awards', '“gold star” · “accessed the challenge” · your quick markers'],
-    ['Undo the last thing', '“Scratch that”'],
-    ['Check the list', '“Read back”'],
-    ['Save what’s listed', '“Save books”'],
-    ['End of the set', '“Finished marking” — saves and opens the class feedback sheet'],
-    ['Stop the microphone', '“Stop listening”']
-  ];
+  function resultHTML() {
+    var r = dict.result; if (!r) return '';
+    if (r.error) return '<div class="mk-dictres bad"><b>Nothing was filled in.</b> ' + E(r.error) + '</div>';
+    var opts = pupils();
+    var check = '';
+    if (r.corrections.length) {
+      check += '<div class="mk-dictres-h">' + (r.viaClaude ? 'Claude’s guesses at what was misheard — check these' : 'Names matched by sound — check these') + '</div>' +
+        '<div class="mk-dictfix">' + r.corrections.map(function (c) {
+          return '<div><span class="mk-dictfix-heard">“' + E(c.heard) + '”</span> → <b>' + E(c.meant) + '</b></div>';
+        }).join('') + '</div>';
+    }
+    if (r.skipped.length) {
+      check += '<div class="mk-dictres-h">Whose book is this?</div>' + r.skipped.map(function (e, i) {
+        return '<div class="mk-dictskip"><div><span class="mk-dictfix-heard">heard “' + E(e.heard || '?') + '”</span>' +
+            (e.comment ? ' — ' + E(e.comment) : '') + '</div>' +
+          '<select data-skip="' + i + '"><option value="">Choose the child…</option>' +
+            opts.map(function (p) { return '<option value="' + E(p.id) + '">' + E(p.name) + '</option>'; }).join('') + '</select></div>';
+      }).join('');
+    }
+    if (r.warnings.length) check += r.warnings.map(function (w) { return '<div class="mk-dictwarn">' + E(w) + '</div>'; }).join('');
+    var rows = r.saved.map(function (e) {
+      return '<span class="mk-sh-name' + (e.met === 'met' ? ' met' : e.met === 'not' ? ' not' : '') + (e.nameGuessed ? ' guessed' : '') + '"' +
+        (e.nameGuessed ? ' title="Name worked out from “' + E(e.heard) + '”"' : '') + '>' +
+        (e.met === 'met' ? '✓ ' : e.met === 'not' ? '✗ ' : '') + E(pupilName(e.pupilId)) + (e.nameGuessed ? ' ?' : '') + '</span>';
+    }).join('');
+    return '<div class="mk-dictres">' +
+      '<div class="mk-dictres-top"><div><b>✓ ' + r.saved.length + (r.saved.length === 1 ? ' book' : ' books') + ' filled in</b> · ' +
+          E(r.title) + ' <span class="mk-dictmsg-meta">' + E(r.set) + ' · work done ' + E(fmt(r.workDate)) + (r.viaClaude ? ' · read by Claude' : ' · read on this device') + '</span></div>' +
+        '<span class="mk-spacer"></span><button class="secondary" id="mkDictUndo">↶ Undo</button>' +
+        '<button id="mkDictSheet">📋 Class feedback sheet</button></div>' +
+      (r.note ? '<div class="mk-dictwarn">' + E(r.note) + '</div>' : '') +
+      '<div class="mk-sh-names">' + rows + '</div>' +
+      check +
+      '<details class="mk-dictheard-all"><summary>What was heard</summary><div>' + E(r.transcript) + '</div></details>' +
+    '</div>';
+  }
   function renderDict() {
     var host = document.getElementById('mkDict'); if (!host) return;
     checkSmart();
-    host.className = 'mk-dict card' + (ui.dictListening ? ' live' : '');
-    var status = ui.dictListening
-      ? '<div class="mk-dictstatus live"><span class="mk-dictdot"></span><div class="mk-dictstatus-t"><b>Listening</b> — say a pupil’s name, then your notes. Say “next pupil” between books.</div>' +
-          '<button class="mk-dictmic on" id="mkDictMic">■ Stop</button></div>'
-      : SR
-        ? '<div class="mk-dictstatus"><div class="mk-dictstatus-t"><b>Microphone off.</b> Start it once and mark the whole set by voice.</div>' +
-            '<button class="mk-dictmic" id="mkDictMic">🎤 Start listening</button></div>'
-        : '<div class="mk-dictstatus"><div class="mk-dictstatus-t"><b>This browser can’t listen.</b> Tap in the “What you said” box and use your keyboard’s 🎤 instead.</div></div>';
-    var help = ui.dictHelp
-      ? '<div class="mk-dicthelp">' + HELP_ROWS.map(function (r) { return '<div class="mk-dicthelp-r"><span>' + E(r[0]) + '</span><span>' + E(r[1]) + '</span></div>'; }).join('') + '</div>'
-      : '';
-    var log = ui.dictLog.length ? '<div class="mk-dictlog">' + ui.dictLog.slice(0, 6).map(function (l, i) {
-        return '<div class="mk-dictmsg"><div class="mk-dictmsg-h">✓ Saved ' + l.lines.length + (l.lines.length === 1 ? ' book' : ' books') + ' · ' + E(l.title) +
-            ' <span class="mk-dictmsg-meta">' + E(l.set) + ' · ' + E(l.when) + (l.smart ? ' · smart' : '') + '</span></div>' +
-          l.lines.map(function (x) { return '<div>' + E(x) + '</div>'; }).join('') +
-          (l.skipped.length ? '<div class="mk-dictwarn">Not saved — no pupil matched: ' + E(l.skipped.join(' · ')) + '</div>' : '') +
-          (i === 0 ? '<button class="mk-dictsheet" id="mkDictSheet">📋 Class feedback sheet</button>' : '') + '</div>';
-      }).join('') + '</div>' : '';
+    var ph = dict.phase;
+    host.className = 'mk-dict card' + (ph === 'recording' ? ' live' : '');
+    var top;
+    if (ph === 'recording') {
+      top = '<div class="mk-dictstatus live"><span class="mk-dictdot"></span><div class="mk-dictstatus-t"><b>Recording</b> <span id="mkDictClock">' + clock() + '</span>' +
+          '<div class="mk-dicthint">Talk through the books. Tap Stop or say “finished marking” when you’re done.</div></div>' +
+        '<button class="mk-dictmic on" id="mkDictMic">■ Stop</button></div>';
+    } else if (ph === 'stopping' || ph === 'working') {
+      top = '<div class="mk-dictstatus"><span class="mk-dictspin"></span><div class="mk-dictstatus-t"><b>' +
+        (smartReady() ? 'Claude is reading your notes and filling in the table…' : 'Reading your notes and filling in the table…') + '</b></div></div>';
+    } else {
+      top = '<div class="mk-dictstatus"><div class="mk-dictstatus-t"><b>' + (SR ? 'Press record and talk through the books.' : 'This browser can’t record.') + '</b>' +
+          '<div class="mk-dicthint">' + (SR ? 'Start with the activity — “new maths activity called partitioning on 25/9” — then each child’s name and your notes.'
+            : 'Tap in the box below and use your keyboard’s 🎤, then “Fill in the table”.') + '</div></div>' +
+        (SR ? '<button class="mk-dictmic" id="mkDictMic">🎤 Record</button>' : '') + '</div>';
+    }
+    var busy = ph !== 'idle';
     host.innerHTML =
       '<div class="mk-dicthead"><span class="mk-dicttitle">🎤 Dictate marking</span><span class="mk-spacer"></span>' +
-        '<button class="mk-dicthelpbtn' + (ui.dictHelp ? ' on' : '') + '" id="mkDictHelp">? What can I say</button>' +
         '<button class="mk-modal-x" id="mkDictClose" title="Close">✕</button></div>' +
-      status +
-      '<div class="mk-dictinterim" id="mkDictInterim" style="display:none"></div>' +
-      help +
-      '<div id="mkDictPreview"></div>' +
-      log +
-      '<div class="mk-dictsaid"><label for="mkDictText">What you said <span>— you can type or correct it here too</span></label>' +
-        '<textarea id="mkDictText" class="mk-dicttext" rows="3" placeholder="Create new maths activity called partitioning on 25/9. Aurora answered most questions correctly but struggled with tens as a numeral. Not met. Next pupil Zoey …">' + E(ui.dictText) + '</textarea></div>' +
-      '<div class="mk-dictopts">' +
-        '<label class="mk-dictopt"><input type="checkbox" id="mkDictSpeak"' + (ui.dictSpeak ? ' checked' : '') + '> Read each book back to me</label>' +
-        '<span id="mkDictSmartSlot">' + smartStatus() + '</span>' +
-      '</div>' +
-      '<div class="mk-dictnote">Nothing is saved until you say “save books” or “finished marking”, or tap Save. ' +
-        'Voice uses your browser’s speech recognition: Chrome and Edge send the audio to Google or Microsoft to turn it into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device.' +
-        (smartReady() ? ' Smart mode sends the text and your class list to Anthropic (Claude) when you save.' : '') + '</div>';
-    refreshPreview();
+      top +
+      '<textarea id="mkDictText" class="mk-dicttext" rows="' + (ph === 'recording' ? 5 : 3) + '"' + (busy ? ' readonly' : '') +
+        ' placeholder="' + (SR ? 'What you say appears here. You can also type or paste notes.' : 'Type or dictate your notes here.') + '">' + E(ui.dictText) + '</textarea>' +
+      (ph === 'idle' && (ui.dictText || '').trim() ? '<div class="mk-dictgo"><button id="mkDictGo">Fill in the table</button>' +
+        '<button class="mk-fblink danger" id="mkDictClear">Clear</button></div>' : '') +
+      '<div class="mk-dictvia" id="mkDictVia">' + viaLine() + '</div>' +
+      resultHTML() +
+      '<div class="mk-dictnote">Recording uses your browser’s speech recognition: Chrome and Edge send the audio to Google or Microsoft to turn it into text, so the names you say go with it; Safari on iPad and iPhone can do it on the device.' +
+        (smartReady() ? ' Claude receives the text and your class list.' : '') + '</div>';
     wireDict(host);
-    showInterim();
-  }
-  function refreshPreview() {
-    var el = document.getElementById('mkDictPreview'); if (!el) return;
-    var slot = document.getElementById('mkDictSmartSlot');
-    if (slot && slot.dataset.v !== String(dict.smartAvail) + signedIn()) {
-      slot.dataset.v = String(dict.smartAvail) + signedIn(); slot.innerHTML = smartStatus();
-      var sm = slot.querySelector('#mkDictSmart');
-      if (sm) sm.onchange = function () { ui.dictSmart = sm.checked; try { localStorage.setItem('mk_dict_smart', sm.checked ? '1' : '0'); } catch (e) {} renderDict(); };
-    }
-    if (dict.busy) { el.innerHTML = '<div class="mk-empty">Claude is reading your notes…</div>'; return; }
-    var p = ui.dictPlan;
-    var a = p && p.activity;
-    var entries = p ? p.entries : [];
-    var ready = entries.filter(function (e) { return e.pupilId; }).length;
-    var unnamed = entries.length - ready;
-
-    /* ① activity */
-    var cur = activeActivity();
-    var step1 = a
-      ? '<b>' + E(a.title || '(no title yet)') + '</b><span>' + (a.mode === 'new' ? 'new · ' : '') +
-          E((a.setId ? setName(a.setId) : a.newSetName + ' (new set)') || '') + ' · work done ' + E(fmt(a.workDate)) + '</span>'
-      : '<b class="todo">Not chosen yet</b><span>Say “create new maths activity called …”' + (cur ? ', or books go to <i>' + E(cur.title) + '</i>' : ', or pick one on the left') + '</span>';
-    /* ② books */
-    var step2 = entries.length
-      ? '<b>' + ready + (ready === 1 ? ' book' : ' books') + ' ready</b><span>' + (unnamed ? unnamed + ' need' + (unnamed === 1 ? 's' : '') + ' a name — pick below' : 'not saved yet') + '</span>'
-      : '<b class="todo">None yet</b><span>Say a pupil’s name, then your notes</span>';
-    /* ③ save */
-    var canSave = ready > 0 && !!a && !(a.mode === 'new' && !a.title);
-    var saveLabel = '✓ Save ' + (ready || '') + (ready === 1 ? ' book' : ' books') + (unnamed && ready ? ' (' + unnamed + ' left out)' : '');
-    var steps =
-      '<div class="mk-dictsteps">' +
-        '<div class="mk-dictstep' + (a ? ' ok' : '') + '"><span class="mk-dictstep-n">1</span><div class="mk-dictstep-b"><em>Activity</em>' + step1 + '</div></div>' +
-        '<div class="mk-dictstep' + (ready ? ' ok' : '') + '"><span class="mk-dictstep-n">2</span><div class="mk-dictstep-b"><em>Books</em>' + step2 + '</div></div>' +
-        '<div class="mk-dictstep save"><span class="mk-dictstep-n">3</span><div class="mk-dictstep-b">' +
-          '<button id="mkDictSave"' + (canSave ? '' : ' disabled') + '>' + saveLabel + '</button>' +
-          '<div class="mk-dictstep-links"><button class="mk-fblink" id="mkDictRead">🔊 Read back</button>' +
-            (entries.length || (ui.dictText || '').trim() ? '<button class="mk-fblink danger" id="mkDictClear">Discard</button>' : '') + '</div>' +
-        '</div></div>' +
-      '</div>';
-
-    var opts = pupils();
-    var rows = entries.map(function (e, i) {
-      var sel = '<select class="mk-dictpupil" data-dpupil="' + i + '"><option value="">— who is this? —</option>' +
-        opts.map(function (x) { return '<option value="' + E(x.id) + '"' + (x.id === e.pupilId ? ' selected' : '') + '>' + E(x.name) + '</option>'; }).join('') + '</select>';
-      return '<div class="mk-dictentry' + (e.pupilId ? '' : ' bad') + '">' +
-        '<div class="mk-dictentry-top">' + sel +
-          (!e.pupilId ? '<span class="mk-dictheard">heard “' + E(e.heard) + '” — pick who this is, or it won’t be saved</span>'
-            : e.fuzzy ? '<span class="mk-dictheard soft">heard “' + E(e.heard) + '”</span>' : '') +
-          '<span class="mk-met" title="Met / not met">' +
-            '<button class="mk-met-y' + (e.met === 'met' ? ' on' : '') + '" data-dmet="' + i + '" title="Met">✓</button>' +
-            '<button class="mk-met-n' + (e.met === 'not' ? ' on' : '') + '" data-dnot="' + i + '" title="Not met">✗</button></span>' +
-          e.markers.map(function (t, k) { return '<button class="mk-mk mk-dictmk" data-dmk="' + i + ':' + k + '" title="Remove this marker">' + E(t) + ' ✕</button>'; }).join('') +
-          '<span class="mk-spacer"></span><button class="mk-setx" data-ddel="' + i + '" title="Leave this book out">✕</button></div>' +
-        '<textarea class="mk-dictcomment" data-dcomment="' + i + '" rows="2" placeholder="No written note">' + E(e.comment) + '</textarea>' +
-      '</div>';
-    }).join('');
-    var warns = p ? (p.warnings || []).concat((p.unmatched || []).map(function (u) { return 'Not attached to a pupil: “' + u + '”'; })) : [];
-    el.innerHTML = steps +
-      warns.map(function (w) { return '<div class="mk-dictwarn">' + E(w) + '</div>'; }).join('') +
-      (rows ? '<div class="mk-dictcards-h">Not saved yet — check them, then save</div>' + rows : '');
-    wirePreview(el);
-  }
-  function wirePreview(el) {
-    var sv = el.querySelector('#mkDictSave'); if (sv) sv.onclick = function () { saveDictation(); };
-    var rb = el.querySelector('#mkDictRead'); if (rb) rb.onclick = readBack;
-    var cl = el.querySelector('#mkDictClear');
-    if (cl) cl.onclick = function () {
-      if (pendingCount() && !confirm('Discard ' + pendingCount() + ' unsaved book' + (pendingCount() === 1 ? '' : 's') + '?')) return;
-      clearDictation(); refreshAll();
-    };
-    var p = ui.dictPlan; if (!p) return;
-    el.querySelectorAll('[data-dpupil]').forEach(function (s) {
-      s.onchange = function () { var e = p.entries[+s.dataset.dpupil]; e.pupilId = s.value || null; e.fuzzy = false; ui.dictFix[String(e.heard || '').toLowerCase()] = e.pupilId; refreshPreview(); };
-    });
-    el.querySelectorAll('[data-dmet]').forEach(function (b) { b.onclick = function () { var e = p.entries[+b.dataset.dmet]; e.met = e.met === 'met' ? null : 'met'; refreshPreview(); }; });
-    el.querySelectorAll('[data-dnot]').forEach(function (b) { b.onclick = function () { var e = p.entries[+b.dataset.dnot]; e.met = e.met === 'not' ? null : 'not'; refreshPreview(); }; });
-    el.querySelectorAll('[data-dmk]').forEach(function (b) { b.onclick = function () { var ik = b.dataset.dmk.split(':'); p.entries[+ik[0]].markers.splice(+ik[1], 1); refreshPreview(); }; });
-    el.querySelectorAll('[data-ddel]').forEach(function (b) { b.onclick = function () { p.entries.splice(+b.dataset.ddel, 1); refreshPreview(); }; });
-    el.querySelectorAll('[data-dcomment]').forEach(function (t) { t.oninput = function () { p.entries[+t.dataset.dcomment].comment = t.value; }; });
+    showLive();
   }
   function wireDict(host) {
-    var x = host.querySelector('#mkDictClose'); if (x) x.onclick = function () { stopListening(true); ui.dictOpen = false; mkRender(); };
-    var mic = host.querySelector('#mkDictMic'); if (mic) mic.onclick = function () { if (ui.dictListening) stopListening(); else startListening(); };
-    var hb = host.querySelector('#mkDictHelp'); if (hb) hb.onclick = function () { ui.dictHelp = !ui.dictHelp; renderDict(); };
-    var sh = host.querySelector('#mkDictSheet'); if (sh) sh.onclick = openSheet;
+    var x = host.querySelector('#mkDictClose');
+    if (x) x.onclick = function () { if (dict.phase === 'recording') stopRecording(); ui.dictOpen = false; mkRender(); };
+    var mic = host.querySelector('#mkDictMic'); if (mic) mic.onclick = function () { if (dict.phase === 'recording') stopRecording(); else startRecording(); };
     var ta = host.querySelector('#mkDictText');
-    if (ta) ta.oninput = function () { ui.dictText = ta.value; dict.utterances = []; reparse(); refreshPreview(); };
-    var sp = host.querySelector('#mkDictSpeak'); if (sp) sp.onchange = function () { ui.dictSpeak = sp.checked; if (!sp.checked && window.speechSynthesis) window.speechSynthesis.cancel(); };
-    var sm = host.querySelector('#mkDictSmart');
-    if (sm) sm.onchange = function () { ui.dictSmart = sm.checked; try { localStorage.setItem('mk_dict_smart', sm.checked ? '1' : '0'); } catch (e) {} renderDict(); };
+    if (ta) ta.oninput = function () { if (dict.phase !== 'idle') return; ui.dictText = ta.value; dict.edited = true; var g = document.getElementById('mkDictGo'); if (!g && ta.value.trim()) renderDictKeepCaret(ta); };
+    var go = host.querySelector('#mkDictGo'); if (go) go.onclick = function () { process(); };
+    var cl = host.querySelector('#mkDictClear'); if (cl) cl.onclick = function () { ui.dictText = ''; dict.segments = []; dict.edited = false; mkRender(); };
+    var un = host.querySelector('#mkDictUndo'); if (un) un.onclick = undoLast;
+    var sh = host.querySelector('#mkDictSheet'); if (sh) sh.onclick = openSheet;
+    host.querySelectorAll('[data-skip]').forEach(function (s) { s.onchange = function () { assignSkipped(+s.dataset.skip, s.value); }; });
+  }
+  /* typing into an empty box shows "Fill in the table" without losing the caret */
+  function renderDictKeepCaret(ta) {
+    var pos = ta.selectionStart; renderDict();
+    var t = document.getElementById('mkDictText'); if (t) { t.focus(); try { t.setSelectionRange(pos, pos); } catch (e) {} }
   }
 
-  /* Test / automation hooks: feed a spoken utterance, or open the panel with text. */
-  window.mkDictUtter = function (t) { if (!ui.dictOpen) { ui.dictOpen = true; mkRender(); } onUtterance(t); };
-  window.mkDictOpen = function (text) {
-    ui.dictOpen = true; clearDictation(); ui.dictText = text || ''; reparse();
-    if (document.getElementById('mb-marking')) mkRender();
-    return ui.dictPlan;
+  /* Test / automation hooks: a finished phrase (with alternatives), stop, or text to read. */
+  window.mkDictUtter = function (t, alts) {
+    if (!ui.dictOpen) { ui.dictOpen = true; mkRender(); }
+    if (dict.phase === 'idle') { dict.phase = 'recording'; dict.startedAt = Date.now(); ui.dictListening = true; mkRender(); }
+    heard(alts && alts.length ? alts : [t]);
+    showLive();
   };
-  window.mkDictSave = function () { saveDictation(); };
+  window.mkDictStop = function () { stopRecording(); };
+  window.mkDictOpen = function (text) {
+    ui.dictOpen = true; ui.dictText = text || ''; dict.segments = []; dict.edited = true; dict.result = null;
+    if (document.getElementById('mb-marking')) mkRender();
+  };
+  window.mkDictProcess = function () { process(); };
+  window.mkDictState = function () { return { phase: dict.phase, result: dict.result && { error: dict.result.error, saved: (dict.result.saved || []).length, skipped: (dict.result.skipped || []).length, corrections: dict.result.corrections, viaClaude: dict.result.viaClaude } }; };
 
   /* Siri / Shortcuts: index.html?dictate=<text>#markbook opens Marking with the
-     text read in. &save=1 saves straight away when every book matched a pupil
-     and the activity is clear; otherwise it waits on screen. */
+     text in the box; &save=1 fills in the table straight away. */
   function fromLink() {
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var text = q.get('dictate'); if (!text) return;
@@ -1205,11 +1091,8 @@
       if (!tab) { if (++tries < 50) setTimeout(go, 100); return; }
       if (typeof window.go === 'function') window.go('markbook');
       tab.click();
-      var plan = window.mkDictOpen(text);
-      var clean = plan && plan.activity && plan.entries.length && plan.entries.every(function (e) { return e.pupilId; }) &&
-        !(plan.unmatched || []).length && !(plan.activity.mode === 'new' && !plan.activity.title);
-      if (autosave && clean) saveDictation();
-      else if (autosave) toast('Some of that needs checking before it’s saved');
+      window.mkDictOpen(text);
+      if (autosave) process();
     })();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(fromLink, 0); });
