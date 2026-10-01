@@ -20,8 +20,15 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass  # access log only — log_error still writes to stderr
 
 
-class Server(socketserver.TCPServer):
+class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    # Threaded with a deep backlog: Playwright's parallel workers (desk + class
+    # projects, fullyParallel) open many connections at once. A single-threaded
+    # server with the default backlog of 5 makes macOS reset the overflow
+    # (ERR_CONNECTION_RESET / ERR_SOCKET_NOT_CONNECTED on js/css), so pages
+    # never finish loading and specs time out in their open() helpers.
     allow_reuse_address = True
+    daemon_threads = True
+    request_queue_size = 128
 
 
 if __name__ == '__main__':
