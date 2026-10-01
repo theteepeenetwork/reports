@@ -1079,7 +1079,8 @@
       var page = Math.min(wbPage, pages - 1), pageQs = qs.slice(page * 10, page * 10 + 10);
       stage = '<div class="wb-grid">' + pageQs.map(function (q, i){ return '<div class="wb-card"><span class="wb-num">' + (page * 10 + i + 1) + '</span><div class="wb-q">' + GRQ(q) + '</div></div>'; }).join('') + '</div>';
     } else {
-      stage = '<div class="wb-focus"><span class="wb-num big">' + (wbFocus + 1) + '</span><div class="wb-q big">' + GRQ(qs[wbFocus]) + '</div></div>';
+      /* one at a time: the whole board is squared paper, the question sits top left */
+      stage = '<div class="wb-focus"><div class="wb-focus-q"><span class="wb-num big">' + (wbFocus + 1) + '</span><div class="wb-q big">' + GRQ(qs[wbFocus]) + '</div></div></div>';
     }
     var pager = (grid && pages > 1) ? '<button class="wb-tb" id="wbPagePrev">‹</button><span class="wb-pagelbl">page ' + (Math.min(wbPage, pages - 1) + 1) + ' / ' + pages + '</span><button class="wb-tb" id="wbPageNext">›</button>' : '';
     var modeBtn = grid ? '<button class="wb-tb" id="wbFocusFirst">1 at a time ›</button>'
@@ -1120,12 +1121,53 @@
     var fa = document.getElementById('wbFocusAll'); if (fa) fa.onclick = function (){ wbPage = Math.floor(wbFocus / 10); wbFocus = null; renderWhiteboard(); };
     var px = document.getElementById('wbPopX'); if (px) px.onclick = function (){ wbPopup = null; renderWhiteboard(); };
     setupWBCanvas();
+    setupWBPopup();
   }
   function wbPopupHTML(){
     var label = wbPopup === 'hundred' ? '100 square' : '× tables', cells = '';
     if (wbPopup === 'hundred'){ for (var n = 1; n <= 100; n++) cells += '<span class="wb-cell">' + n + '</span>'; }
     else { for (var r = 1; r <= 10; r++) for (var c = 1; c <= 10; c++){ cells += '<span class="wb-cell' + ((r === 1 || c === 1) ? ' hdr' : '') + '">' + (r * c) + '</span>'; } }
-    return '<div class="wb-popup"><div class="wb-popup-head"><b>' + label + '</b><button id="wbPopX">✕</button></div><div class="wb-popup-grid">' + cells + '</div></div>';
+    return '<div class="wb-popup" id="wbPop"><div class="wb-popup-head" id="wbPopHead"><b>' + label + '</b><span class="wb-popup-hint">drag to move</span><button id="wbPopX" aria-label="Close">✕</button></div><div class="wb-popup-grid">' + cells + '</div><span class="wb-popup-size" id="wbPopSize" title="Drag to resize" aria-label="Resize"></span></div>';
+  }
+  /* The 100 square and × tables float over the board: drag the header to move, the corner to
+     resize (it stays square, so the cells do too). Where each one sits is remembered per
+     device, and clamped to the stage so a smaller screen can never lose it off the edge. */
+  var wbPopBox = (function (){ try { return JSON.parse(localStorage.getItem('hub.wbPopBox')) || {}; } catch (e) { return {}; } })();
+  function wbSavePopBox(){ try { localStorage.setItem('hub.wbPopBox', JSON.stringify(wbPopBox)); } catch (e) {} }
+  function setupWBPopup(){
+    var pop = document.getElementById('wbPop'), stage = document.getElementById('wbStage'); if (!pop || !stage) return;
+    var kind = wbPopup, head = document.getElementById('wbPopHead'), grip = document.getElementById('wbPopSize');
+    var sw = stage.clientWidth, sh = stage.clientHeight;
+    var box = wbPopBox[kind] ? { x: wbPopBox[kind].x, y: wbPopBox[kind].y, w: wbPopBox[kind].w } : { w: 320, x: sw - 320 - 18, y: 16 };
+    function apply(){
+      var headH = head.offsetHeight || 38;
+      box.w = Math.max(200, Math.min(box.w, sw - 8, sh - headH - 8));
+      pop.style.width = box.w + 'px';
+      pop.style.fontSize = (box.w / 30.5).toFixed(1) + 'px';   // the cells grow with the square
+      var h = pop.offsetHeight;
+      box.x = Math.max(0, Math.min(box.x, sw - box.w));
+      box.y = Math.max(0, Math.min(box.y, sh - h));
+      pop.style.left = box.x + 'px'; pop.style.top = box.y + 'px'; pop.style.right = 'auto';
+    }
+    apply();
+    function drag(el, onMove){
+      el.onpointerdown = function (e){
+        if (e.target.id === 'wbPopX') return;
+        e.preventDefault(); e.stopPropagation();
+        try { el.setPointerCapture(e.pointerId); } catch (err) {}
+        var sx = e.clientX, sy = e.clientY, start = { x: box.x, y: box.y, w: box.w };
+        pop.classList.add('moving');
+        el.onpointermove = function (ev){ onMove(start, ev.clientX - sx, ev.clientY - sy); apply(); };
+        el.onpointerup = el.onpointercancel = function (ev){
+          try { el.releasePointerCapture(ev.pointerId); } catch (err) {}
+          el.onpointermove = el.onpointerup = el.onpointercancel = null;
+          pop.classList.remove('moving');
+          wbPopBox[kind] = { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w) }; wbSavePopBox();
+        };
+      };
+    }
+    drag(head, function (st, dx, dy){ box.x = st.x + dx; box.y = st.y + dy; });
+    drag(grip, function (st, dx, dy){ box.w = st.w + Math.max(dx, dy); });
   }
   function wbPt(e){ var r = wbRect || (wbRect = wbCanvas.getBoundingClientRect()); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; }
   /* Committed strokes for the current view, cached — the old code re-parsed the whole
