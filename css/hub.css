@@ -510,7 +510,7 @@
 .wb-q.big .gen-clock { width: 150px; height: 150px; }
 .wb-q .gen-qtext { font-size: 14px; color: var(--muted); }
 /* one at a time: squared paper edge to edge, question top left, clear of the top and side */
-.wb-focus { position: absolute; inset: 0; background-color: #fff; background-image: linear-gradient(to right, #d5def3 1px, transparent 1px), linear-gradient(to bottom, #d5def3 1px, transparent 1px); background-size: 34px 34px; background-position: -1px -1px; }
+.wb-focus { position: absolute; inset: 0; background-color: #fff; background-image: linear-gradient(to right, #d5def3 1px, transparent 1px), linear-gradient(to bottom, #d5def3 1px, transparent 1px); background-size: 68px 68px; background-position: -1px -1px; }
 .wb-focus-q { position: absolute; left: 48px; top: 40px; right: 48px; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
 .wb-focus-q .wb-q { text-align: left; background: rgba(255,255,255,.9); border-radius: 12px; padding: 4px 12px; overflow-wrap: anywhere; }
 .wb-pointer { display: none; position: absolute; left: 0; top: 0; z-index: 20; pointer-events: none; will-change: transform; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
