@@ -1069,22 +1069,28 @@
                             // main thread right when the next rapid stroke was landing
   function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
   function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
-  function wbAnnKey(){ if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
-  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
+  /* The answers page comes after the last question: page qPages in the grid, wbFocus === qs.length one at a time. */
+  function wbQPages(){ return Math.max(1, Math.ceil(wbQs().length / 10)); }
+  function wbOnAnswers(){ return wbFocus != null ? wbFocus >= wbQs().length : wbPage >= wbQPages(); }
+  function wbAnnKey(){ if (wbOnAnswers()) return wbDayKey() + ':ans'; if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
+  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; wbPopInk = {}; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
   function closeWhiteboard(){ wbFlushSave(); document.getElementById('whiteboard').style.display = 'none'; msGo('day'); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
-    var wb = document.getElementById('whiteboard'), qs = wbQs(), pages = Math.max(1, Math.ceil(qs.length / 10)), grid = wbFocus == null, stage;
-    if (grid){
+    var wb = document.getElementById('whiteboard'), qs = wbQs(), qPages = wbQPages(), pages = qPages + 1, grid = wbFocus == null, onAns = wbOnAnswers(), stage;
+    if (onAns){
+      stage = wbAnswersHTML(qs);
+    } else if (grid){
       var page = Math.min(wbPage, pages - 1), pageQs = qs.slice(page * 10, page * 10 + 10);
       stage = '<div class="wb-grid">' + pageQs.map(function (q, i){ return '<div class="wb-card"><span class="wb-num">' + (page * 10 + i + 1) + '</span><div class="wb-q">' + GRQ(q) + '</div></div>'; }).join('') + '</div>';
     } else {
       /* one at a time: the whole board is squared paper, the question sits top left */
       stage = '<div class="wb-focus"><div class="wb-focus-q"><span class="wb-num big">' + (wbFocus + 1) + '</span><div class="wb-q big">' + GRQ(qs[wbFocus]) + '</div></div></div>';
     }
-    var pager = (grid && pages > 1) ? '<button class="wb-tb" id="wbPagePrev">‹</button><span class="wb-pagelbl">page ' + (Math.min(wbPage, pages - 1) + 1) + ' / ' + pages + '</span><button class="wb-tb" id="wbPageNext">›</button>' : '';
-    var modeBtn = grid ? '<button class="wb-tb" id="wbFocusFirst">1 at a time ›</button>'
-                       : '<button class="wb-tb" id="wbFocusPrev">‹</button><span class="wb-pagelbl">' + (wbFocus + 1) + ' / ' + qs.length + '</span><button class="wb-tb" id="wbFocusNext">›</button><button class="wb-tb" id="wbFocusAll">⊞ all</button>';
+    var pageLbl = onAns ? 'answers' : 'page ' + (Math.min(wbPage, pages - 1) + 1) + ' / ' + qPages;
+    var pager = grid ? '<button class="wb-tb" id="wbPagePrev">‹</button><span class="wb-pagelbl">' + pageLbl + '</span><button class="wb-tb" id="wbPageNext">›</button>' : '';
+    var modeBtn = grid ? (onAns ? '' : '<button class="wb-tb" id="wbFocusFirst">1 at a time ›</button>')
+                       : '<button class="wb-tb" id="wbFocusPrev">‹</button><span class="wb-pagelbl">' + (onAns ? 'answers' : (wbFocus + 1) + ' / ' + qs.length) + '</span><button class="wb-tb" id="wbFocusNext">›</button><button class="wb-tb" id="wbFocusAll">⊞ all</button>';
     wb.innerHTML =
       '<div class="wb-top">' +
         '<button class="wb-tb" id="wbExit">✕ exit</button>' +
@@ -1095,10 +1101,11 @@
         (stCurDay > 0 ? '<button class="wb-tb" id="wbPrevDay">‹ ' + stDayShort(stCurWeek, stCurDay - 1) + '</button>' : '') +
         (stCurDay < 4 ? '<button class="wb-tb" id="wbNextDay">' + stDayShort(stCurWeek, stCurDay + 1) + ' ›</button>' : '') +
       '</div>' +
-      '<div class="wb-stage" id="wbStage">' + stage + '<canvas id="wbCanvas"></canvas>' + (wbPopup ? wbPopupHTML() : '') + '</div>' +
+      '<div class="wb-stage" id="wbStage">' + stage + '<canvas id="wbCanvas"></canvas>' + (wbPopup ? wbPopupHTML() : '') + WB_POINTER + '</div>' +
       '<div class="wb-toolbar">' +
         '<button class="wb-tb" id="wbPen" style="' + tbStyle(wbTool === 'pen') + '">✏ Pen</button>' +
         '<button class="wb-tb" id="wbRub" style="' + tbStyle(wbTool === 'rubber') + '">◌ Rubber</button>' +
+        '<button class="wb-tb" id="wbPtr" style="' + tbStyle(wbTool === 'pointer') + '">➚ Pointer</button>' +
         '<button class="wb-tb" id="wbClear">Clear all</button>' +
         '<span style="flex:1"></span>' +
         '<button class="wb-tb" id="wb100" style="' + tbStyle(wbPopup === 'hundred') + '">▦ 100 square</button>' +
@@ -1110,19 +1117,35 @@
     var nd = document.getElementById('wbNextDay'); if (nd) nd.onclick = function (){ stCurDay++; wbPage = 0; wbFocus = null; renderWhiteboard(); };
     document.getElementById('wbPen').onclick = function (){ wbTool = 'pen'; renderWhiteboard(); };
     document.getElementById('wbRub').onclick = function (){ wbTool = 'rubber'; renderWhiteboard(); };
-    document.getElementById('wbClear').onclick = function (){ clearTimeout(wbSaveT); wbSaveT = 0; stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
+    document.getElementById('wbPtr').onclick = function (){ wbTool = 'pointer'; renderWhiteboard(); };
+    document.getElementById('wbClear').onclick = function (){ clearTimeout(wbSaveT); wbSaveT = 0; stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbPopInk = {}; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
     document.getElementById('wb100').onclick = function (){ wbPopup = wbPopup === 'hundred' ? null : 'hundred'; renderWhiteboard(); };
     document.getElementById('wbTimes').onclick = function (){ wbPopup = wbPopup === 'times' ? null : 'times'; renderWhiteboard(); };
     var pp = document.getElementById('wbPagePrev'); if (pp) pp.onclick = function (){ wbPage = Math.max(0, wbPage - 1); renderWhiteboard(); };
     var pn = document.getElementById('wbPageNext'); if (pn) pn.onclick = function (){ wbPage = Math.min(pages - 1, wbPage + 1); renderWhiteboard(); };
-    var ff = document.getElementById('wbFocusFirst'); if (ff) ff.onclick = function (){ wbFocus = Math.min(wbPage, pages - 1) * 10; renderWhiteboard(); };
+    var ff = document.getElementById('wbFocusFirst'); if (ff) ff.onclick = function (){ wbFocus = Math.min(wbPage, qPages - 1) * 10; renderWhiteboard(); };
     var fp = document.getElementById('wbFocusPrev'); if (fp) fp.onclick = function (){ wbFocus = Math.max(0, wbFocus - 1); renderWhiteboard(); };
-    var fn = document.getElementById('wbFocusNext'); if (fn) fn.onclick = function (){ wbFocus = Math.min(qs.length - 1, wbFocus + 1); renderWhiteboard(); };
-    var fa = document.getElementById('wbFocusAll'); if (fa) fa.onclick = function (){ wbPage = Math.floor(wbFocus / 10); wbFocus = null; renderWhiteboard(); };
+    var fn = document.getElementById('wbFocusNext'); if (fn) fn.onclick = function (){ wbFocus = Math.min(qs.length, wbFocus + 1); renderWhiteboard(); };
+    var fa = document.getElementById('wbFocusAll'); if (fa) fa.onclick = function (){ wbPage = onAns ? qPages : Math.floor(wbFocus / 10); wbFocus = null; renderWhiteboard(); };
     var px = document.getElementById('wbPopX'); if (px) px.onclick = function (){ wbPopup = null; renderWhiteboard(); };
     setupWBCanvas();
     setupWBPopup();
   }
+  /* Every answer for the day on one page, after the questions — the teacher shows it once the
+     questions have been gone through and annotated. Columns grow with the count so twenty fit. */
+  function wbAnswersHTML(qs){
+    var dayISO = wbDayKey(), cols = qs.length > 10 ? 4 : 2;
+    var cells = qs.map(function (q, i){
+      var a = typeof window.genAnswer === 'function' ? window.genAnswer(q, dayISO) : '';
+      return '<div class="wb-ans"><span class="wb-num">' + (i + 1) + '</span><div class="wb-ans-q">' + GRQ(q) + '</div>' +
+        '<b class="wb-ans-a' + (a.length > 6 ? ' long' : '') + '">' + (a ? esc(a) : '—') + '</b></div>';
+    }).join('');
+    return '<div class="wb-answers"><div class="wb-answers-head">Answers</div><div class="wb-answers-grid" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + cells + '</div></div>';
+  }
+  /* The pointer: an arrow a little bigger than a mouse cursor, so the back row can see it. Its
+     tip is at the SVG's top-left; it shows only while a pencil or finger is on the board. */
+  var WB_POINTER = '<div class="wb-pointer" id="wbPointer" aria-hidden="true"><svg viewBox="0 0 30 42" width="46" height="64">' +
+    '<path d="M2 2 L2 33 L10 25.5 L15.5 38.5 L21 36 L15.5 23.5 L26 23.5 Z" fill="#0a84ff" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg></div>';
   function wbPopupHTML(){
     var label = wbPopup === 'hundred' ? '100 square' : '× tables', cells = '';
     if (wbPopup === 'hundred'){ for (var n = 1; n <= 100; n++) cells += '<span class="wb-cell">' + n + '</span>'; }
@@ -1148,6 +1171,7 @@
       box.x = Math.max(0, Math.min(box.x, sw - box.w));
       box.y = Math.max(0, Math.min(box.y, sh - h));
       pop.style.left = box.x + 'px'; pop.style.top = box.y + 'px'; pop.style.right = 'auto';
+      if (wbPopInk[kind] && wbPopInk[kind].length) paintWB();   // its ink moves and scales with it
     }
     apply();
     function drag(el, onMove){
@@ -1190,19 +1214,54 @@
   }
   function redrawWB(){
     if (!wbCtx) return; wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
-    var strokes = wbLayer().slice(); for (var id in wbStrokes) strokes.push(wbStrokes[id]);
+    var strokes = wbLayer().slice(), popStrokes = wbPopLayer().slice();
+    for (var id in wbStrokes) (wbStrokes[id].pop ? popStrokes : strokes).push(wbStrokes[id]);
     wbCtx.strokeStyle = '#2f55e0'; wbCtx.lineCap = 'round'; wbCtx.lineJoin = 'round'; wbCtx.lineWidth = Math.max(3, wbCanvas.width / 340);
-    strokes.forEach(function (st){ wbCtx.beginPath(); st.pts.forEach(function (p, i){ var x = p[0] * wbCanvas.width, y = p[1] * wbCanvas.height; i ? wbCtx.lineTo(x, y) : wbCtx.moveTo(x, y); }); wbCtx.stroke(); });
+    var W = wbCanvas.width, H = wbCanvas.height;
+    var line = function (st, fx, fy){ wbCtx.beginPath(); st.pts.forEach(function (p, i){ var x = fx(p), y = fy(p); i ? wbCtx.lineTo(x, y) : wbCtx.moveTo(x, y); }); wbCtx.stroke(); };
+    strokes.forEach(function (st){ line(st, function (p){ return p[0] * W; }, function (p){ return p[1] * H; }); });
+    var pr = popStrokes.length && wbPopRect();
+    if (pr){
+      var cr = wbCanvas.getBoundingClientRect(), k = W / cr.width, ox = (pr.left - cr.left) * k, oy = (pr.top - cr.top) * k, s = pr.width * k;
+      popStrokes.forEach(function (st){ line(st, function (p){ return ox + p[0] * s; }, function (p){ return oy + p[1] * s; }); });
+    }
   }
+  /* Ink on the 100 square / × tables lives with the popup, in its own coordinates (fractions of
+     its width), so it moves and scales with it. It is never saved: it belongs to the question on
+     the board and clears as soon as the view changes (next question, page, day) or on Clear all. */
+  var wbPopInk = {}, wbPopInkKey = null;
+  function wbPopRect(){ var el = document.getElementById('wbPop'); return el ? el.getBoundingClientRect() : null; }
+  function wbPopLayer(){
+    var key = wbAnnKey(); if (wbPopInkKey !== key){ wbPopInkKey = key; wbPopInk = {}; }
+    if (!wbPopup) return [];
+    return wbPopInk[wbPopup] || (wbPopInk[wbPopup] = []);
+  }
+  function wbPopPt(e, r){ return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.width]; }
+  function wbOnPop(e){ var r = wbPopRect(); return r && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom ? r : null; }
   /* Coalesce repaints to one per display frame — repainting on every pointer sample stutters. */
   function paintWB(){ if (wbRAF) return; wbRAF = requestAnimationFrame(function (){ wbRAF = 0; redrawWB(); }); }
-  function eraseWB(p){
-    var list = wbLayer();
-    var hit = function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.028; }); };
-    var kept = list.filter(function (st){ return !hit(st); });
+  function eraseWB(e){
+    var list = wbLayer(), p = wbPt(e);
+    var hit = function (p, r){ return function (st){ return st.pts.some(function (q){ return Math.hypot(q[0] - p[0], q[1] - p[1]) < r; }); }; };
+    var kept = list.filter(function (st){ return !hit(p, 0.028)(st); });
     // Erase from the cache only; persist once on pointer-up (a localStorage write per sample froze the rubber).
     if (kept.length !== list.length){ wbLayerCache = kept; wbEraseDirty = true; paintWB(); }
+    var pops = wbPopLayer(), pr = pops.length && wbPopRect();
+    if (pr){
+      var pk = pops.filter(function (st){ return !hit(wbPopPt(e, pr), 0.028 * wbRect.width / pr.width)(st); });
+      if (pk.length !== pops.length){ wbPopInk[wbPopup] = pk; paintWB(); }
+    }
   }
+  /* Pointer tool: a pencil points from its nib; a finger points from above its tip, so the
+     teacher's own finger never hides the arrow from them. */
+  var wbPointerId = null;
+  function wbShowPointer(e){
+    var el = document.getElementById('wbPointer'); if (!el) return;
+    var r = wbRect || wbCanvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (e.pointerType === 'touch'){ x -= 26; y -= 78; }
+    el.style.transform = 'translate(' + x + 'px,' + y + 'px)'; el.style.display = 'block';
+  }
+  function wbHidePointer(){ wbPointerId = null; var el = document.getElementById('wbPointer'); if (el) el.style.display = 'none'; }
   /* Any in-progress finger/palm strokes are noise the moment a pencil arrives — drop them. */
   function wbDropTouch(){
     var dropped = false;
@@ -1218,7 +1277,7 @@
   function setupWBCanvas(){
     wbCanvas = document.getElementById('wbCanvas'); if (!wbCanvas) return; wbCtx = wbCanvas.getContext('2d');
     wbFlushSave();   // a debounced save may still be pending for the previous view — never drop it
-    wbStrokes = {}; wbErasers = {}; wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbRect = null;
+    wbStrokes = {}; wbErasers = {}; wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbRect = null; wbPointerId = null;
     // iPad long-press callout / context menu cancels the pencil stroke mid-word — suppress it.
     wbCanvas.oncontextmenu = function (e){ e.preventDefault(); };
     /* Safari treats two quick pencil taps as a double-tap gesture (smart text selection you
@@ -1234,21 +1293,27 @@
       else if (e.pointerType === 'touch' && wbPenEver) return;                        // pencil owns the board → reject finger/palm
       e.preventDefault(); try { wbCanvas.setPointerCapture(e.pointerId); } catch (err) {}
       wbRect = wbCanvas.getBoundingClientRect();
-      if (wbTool === 'rubber'){ wbErasers[e.pointerId] = e.pointerType; eraseWB(wbPt(e)); return; }
-      wbStrokes[e.pointerId] = { pts: [wbPt(e)], touch: e.pointerType === 'touch' };
+      if (wbTool === 'pointer'){ wbPointerId = e.pointerId; wbShowPointer(e); return; }
+      if (wbTool === 'rubber'){ wbErasers[e.pointerId] = e.pointerType; eraseWB(e); return; }
+      var pr = wbOnPop(e);   // started on the 100 square / × tables → the ink goes with it
+      wbStrokes[e.pointerId] = pr ? { pts: [wbPopPt(e, pr)], touch: e.pointerType === 'touch', pop: wbPopup, pr: pr }
+                                  : { pts: [wbPt(e)], touch: e.pointerType === 'touch' };
     };
     wbCanvas.onpointermove = function (e){
-      if (wbErasers[e.pointerId]){ wbSamples(e).forEach(function (ev){ eraseWB(wbPt(ev)); }); return; }
+      if (wbPointerId === e.pointerId){ wbShowPointer(e); return; }
+      if (wbErasers[e.pointerId]){ wbSamples(e).forEach(function (ev){ eraseWB(ev); }); return; }
       var st = wbStrokes[e.pointerId]; if (!st) return;
-      wbSamples(e).forEach(function (ev){ st.pts.push(wbPt(ev)); }); paintWB();
+      wbSamples(e).forEach(function (ev){ st.pts.push(st.pop ? wbPopPt(ev, st.pr) : wbPt(ev)); }); paintWB();
     };
     var finish = function (e, commit){
       if (!e) return;
       try { wbCanvas.releasePointerCapture(e.pointerId); } catch (err) {}
+      if (wbPointerId === e.pointerId){ wbHidePointer(); return; }
       if (wbErasers[e.pointerId]){ delete wbErasers[e.pointerId]; if (wbEraseDirty){ wbEraseDirty = false; wbScheduleSave(); } return; }
       var st = wbStrokes[e.pointerId]; if (!st) return; delete wbStrokes[e.pointerId];
       if (!commit){ paintWB(); return; }
       if (st.pts.length < 2) st.pts.push([st.pts[0][0] + 0.003, st.pts[0][1] + 0.003]);
+      if (st.pop){ if (st.pop === wbPopup) wbPopLayer().push({ pts: st.pts }); paintWB(); return; }
       wbLayer().push({ pts: st.pts });
       wbScheduleSave(); paintWB();
     };

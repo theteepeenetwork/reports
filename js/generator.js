@@ -454,6 +454,69 @@
     return fn ? fn(q) : esc(JSON.stringify(q));
   }
 
+  /* ── Answers (descriptor -> plain text, for the board's answer page) ──
+     Every type works its answer out from the descriptor, so weeks saved
+     before answers existed still get them. The one exception is 'prompt':
+     a composed string carries its answer in q.ans (js/wrsteps.js), and an
+     old prompt saved without one answers '' — the board shows a dash.
+     'future' needs the day the starter is for; without it, ''. */
+  var GEN_ONES = ['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve',
+                  'thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  var GEN_TENS = ['', '', 'twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+  function genWords(n){
+    n = +n;
+    if (n === 100) return 'one hundred';
+    if (n < 20) return GEN_ONES[n] || String(n);
+    return GEN_TENS[Math.floor(n / 10)] + (n % 10 ? '-' + GEN_ONES[n % 10] : '');
+  }
+  function genTimeWords(it){
+    var h = it.h, m = it.m, next = h % 12 + 1;
+    if (m === 0) return h + " o'clock";
+    if (m === 30) return 'half past ' + h;
+    if (m === 15) return 'quarter past ' + h;
+    if (m === 45) return 'quarter to ' + next;
+    return m < 30 ? m + ' past ' + h : (60 - m) + ' to ' + next;
+  }
+  var GEN_SIDES = { triangle: 3, square: 4, rectangle: 4, pentagon: 5, hexagon: 6, octagon: 8 };
+  var GEN_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var GEN_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  function genCalc(a, op, b){ a = +a; b = +b; return op === '+' ? a + b : op === '-' ? a - b : op === '×' ? a * b : a / b; }
+  var GEN_ANSWERS = {
+    arith: function (q){ return genCalc(q.a, q.op, q.b); },
+    arith3: function (q){ return +q.a + +q.b + +q.c; },
+    half: function (q){ return q.n; },
+    times: function (q){ return q.base * q.by; },
+    divide: function (q){ return q.by; },
+    clock: function (q){
+      if (q.items.length === 1) return genTimeWords(q.items[0]);
+      return q.items.map(function (it, i){ return 'ABC'.charAt(i) + ': ' + genTimeWords(it); }).join(' · ');
+    },
+    placeval: function (q){ return q.tens * 10 + q.ones; },
+    missing: function (q){ return q.blank === 'a' ? q.sum - q.b : q.sum - q.a; },
+    words: function (q){ return genWords(q.n); },
+    shape: function (q){ return GEN_SIDES[q.shape] != null ? GEN_SIDES[q.shape] : ''; },
+    future: function (q, dayISO){
+      if (!dayISO) return '';
+      var d = new Date(dayISO + 'T12:00:00');
+      if (q.unit === 'month') return GEN_MONTHS[(d.getMonth() + q.n) % 12];
+      d.setDate(d.getDate() + q.n); return GEN_DAYS[d.getDay()];
+    },
+    compare: function (q){
+      var l = genCalc(q.a, q.aop, q.b), r = genCalc(q.c, q.bop || '+', q.d);
+      return l < r ? '<' : l > r ? '>' : '=';
+    },
+    seq: function (q){ return q.start + q.step * q.blank; },
+    tensones: function (q){ return q.part === 'tens' ? Math.floor(q.n / 10) : q.n % 10; },
+    prompt: function (q){ return q.ans == null ? '' : q.ans; },
+    partition: function (q){ return (q.n - q.n % 10) + ' + ' + (q.n % 10); },
+    step: function (q){ return q.dir === 'less' ? q.n - q.by : q.n + q.by; }
+  };
+  function genAnswer(q, dayISO){
+    var fn = q && GEN_ANSWERS[q.t];
+    if (!fn) return '';
+    try { var a = fn(q, dayISO); return a == null ? '' : String(a); } catch (e) { return ''; }
+  }
+
   /* ── Step picker ────────────────────────────────────────── */
   /* A closed <select> shows only the chosen option's own text, never its
      optgroup, so the block has to be inside the label or a set slot reads
@@ -511,6 +574,7 @@
   window.genTablesLabel = genTablesLabel;
   window.genStepPicker = genStepPicker;
   window.genRenderQuestion = genRenderQuestion;
+  window.genAnswer = genAnswer;
   window.genHourAngle = genHourAngle;
   window.genMinuteAngle = genMinuteAngle;
   window.genClockMinutes = genClockMinutes;
