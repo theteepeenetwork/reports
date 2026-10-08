@@ -306,8 +306,9 @@ function doRender(){
   const ae=document.activeElement,aid=ae&&ae.id,sel=aid&&typeof ae.selectionStart==="number"?[ae.selectionStart,ae.selectionEnd]:null;
   memo={};
   $("#cls").textContent=S.settings.className?S.settings.className:"";
-  const nrev=reviewItems().reduce((n,r)=>n+r.flagged.length,0);
-  const tabs=[["tracker","Tracker"],["assess","Assess"],["review","Review"+(nrev?` <span class="badge">${nrev}</span>`:"")],["practise","Practise"],["plans","Plans"],["print","Print"],["class","Class"]];
+  /* Classroom Hub: no Practise (games) or Review (the photo-marking queue)
+     tabs. Their views are kept, unreachable. */
+  const tabs=[["tracker","Tracker"],["assess","Assess"],["plans","Plans"],["print","Print"],["class","Class"]];
   $("#nav").innerHTML=tabs.map(([k,l])=>`<button data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
   $("#banner").innerHTML=bannerHtml();
   $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS.tracker)();
@@ -333,16 +334,14 @@ VIEWS.tracker=function(){
   const avg=assessed.length?Math.round(assessed.reduce((n,[,s])=>n+s.known,0)/assessed.length):0;
   const deltas=assessed.filter(([,s])=>s.delta!=null);
   const avgDelta=deltas.length?(deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length):null;
-  const nrev=sums.reduce((n,[,s])=>n+s.review,0);
   const cell=S.ui.cell;
   let h=`<div class="stats">
     <div class="stat"><b>${avg}<small class="muted" style="font-size:15px"> /100</small></b><span>Class average correct</span></div>
     <div class="stat"><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>Average change since previous check</span></div>
     <div class="stat"><b>${assessed.length}<small class="muted" style="font-size:15px"> of ${ids.length}</small></b><span>Pupils assessed</span></div>
-    <div class="stat"><b>${nrev}</b><span>Words waiting for your review</span></div>
   </div>
   <div class="row" style="justify-content:space-between">
-    <div class="legend">${["known","secure","notyet","slipped","review"].map(k=>`<span><i class="s-${k}"></i>${STLABEL[k]}</span>`).join("")}<span><i></i>Not assessed</span></div>
+    <div class="legend">${["known","secure","notyet","slipped"].map(k=>`<span><i class="s-${k}"></i>${STLABEL[k]}</span>`).join("")}<span><i></i>Not assessed</span></div>
     <span class="muted small">Tap a pupil for detail, or a square to change a mark.</span>
   </div>`;
   if(cell&&S.pupils[cell.p]){
@@ -422,7 +421,7 @@ function drawerHtml(pid){
   <div class="stats"><div class="stat"><b>${s.known}</b><span>correct /100</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous</span></div></div>`;
   if(pts.length){const max=100;h+=`<div><h3>Progress</h3><div class="hist">${pts.map(([d,n])=>`<div style="height:${Math.max(2,n/max*100)}%"><span>${n}</span></div>`).join("")}</div><div class="histx">${pts.map(([d])=>`<span>${fmtShort(d)}</span>`).join("")}</div></div>`}
   h+=`<div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${practiseWords(pid).map(i=>{const b=(pr.boxes||{})[i]||0;return `<div class="lw"><span class="small muted">#${i+1} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">All 100 correct.</p>'}</div></div>
-  <div class="row"><button class="btn primary" data-a="practiseWith" data-id="${pid}">Practise now</button><button class="btn" data-a="openPlan" data-id="${pid}">Progression plan</button><button class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards PDF</button><button class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet PDF</button></div>`;
+  <div class="row"><button class="btn primary" data-a="openPlan" data-id="${pid}">Progression plan</button><button class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards PDF</button><button class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet PDF</button></div>`;
   if(mis.length)h+=`<div><h3>What ${esc(p.name.split(" ")[0])} wrote</h3><div class="chips" style="margin-top:8px">${mis.slice(-24).reverse().map(([i,r])=>`<span class="wchip">${esc(r)}<small>for ${esc(WORDS[i])}</small></span>`).join("")}</div></div>`;
   h+=`<div><h3>Assessments</h3><div class="stack" style="margin-top:8px">${s.sessions.map(x=>{const w=Object.values(x.words||{});const c=w.filter(v=>v.s==="c").length,q=w.filter(v=>v.s==="?").length;const conf=S.ui.confirm==="ses"+x.id;
     return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span><b>${fmtDate(x.date)}</b> <span class="muted small">${x.kind==="reading"?"reading":"spelling"} · ${w.length} words · ${c} correct${q?` · ${q} to review`:""}</span></span><button class="btn sm ${conf?"no":"ghost"}" data-a="delSession" data-id="${x.id}">${conf?"Confirm delete":"Delete"}</button></div>`}).join("")||'<p class="muted">No assessments yet.</p>'}</div></div>`;
@@ -530,7 +529,10 @@ function drawCrops(){
   });
 }
 
-/* ----- Practise ----- */
+/* ----- Practise -----
+   Classroom Hub: no Practise tab — the on-screen games aren't wanted here.
+   VIEWS.practise is kept, unreachable; practiseWords() is still used by
+   plans and books. */
 VIEWS.practise=function(){
   const P=S.ui.practise;
   if(S.ui.act)return activityView();
@@ -960,7 +962,7 @@ function buildPlan(pid){
   if(revisit.length)recs.push({t:"Revisit slipped words",f:"Daily warm-up",d:`${wl(revisit)} ${revisit.length>1?"were":"was"} correct before. Add ${revisit.length>1?"them":"it"} back into flash cards until secure.`});
   if(ready.length)recs.push({t:"Re-check",f:"Next 1:1",d:`${wl(ready)} reached the top of the practice ladder. Check ${ready.length>1?"them":"it"} 1:1 and mark in Quick check.`});
   if(gains)recs.push({t:"Keep the pace",f:"Ongoing",d:`Strong progress (+${s.delta}) since the last check, so the focus set is ${focusN} words.`});
-  if(focus.length)recs.push({t:"Practise games and sentences",f:"2–3 times a week",d:"Games in the Practise tab, plus dictating the sentence for each focus word (Print > Dictation script)."});
+  if(focus.length)recs.push({t:"Practice sheets and sentences",f:"2–3 times a week",d:"Practice sheets from the Print tab, plus dictating the sentence for each focus word (Print > Dictation script)."});
   const reviewDate=pl.reviewDate||addDays(s.lastDate||localDate(),14);
   const criteria=focus.length||revisit.length?`${first} spells ${wl([...focus,...revisit])} correctly in two separate checks.`:`${first} keeps all 100 words secure.`;
   const log=pr.log||[];
@@ -991,7 +993,7 @@ function planView(pid){
   const p=buildPlan(pid),s=p.s,name=S.pupils[pid].name,draft=S.ui.planDraft[pid];
   const pats=patternList(p);
   const ladder=[0,1,2,3].map(b=>[b,[...p.focus,...p.revisit].filter(i=>(p.boxes[i]||0)===b).length]);
-  return `<div class="row" style="justify-content:space-between"><button class="btn ghost" data-a="closePlan">← All plans</button><div class="row"><button class="btn" data-a="practiseWith" data-id="${pid}">Practise now</button><button class="btn" data-a="pdfPlan" data-id="${pid}">Plan PDF</button><button class="btn" data-a="pdfBook" data-id="${pid}">Practice book</button><button class="btn primary" data-a="pdfPack" data-id="${pid}">Practice pack PDF</button></div></div>
+  return `<div class="row" style="justify-content:space-between"><button class="btn ghost" data-a="closePlan">← All plans</button><div class="row"><button class="btn" data-a="pdfPlan" data-id="${pid}">Plan PDF</button><button class="btn" data-a="pdfBook" data-id="${pid}">Practice book</button><button class="btn primary" data-a="pdfPack" data-id="${pid}">Practice pack PDF</button></div></div>
   <div class="panel stack" style="border-top:6px solid ${s.sessions.length?BANDS[Math.min(s.level,9)].c:"var(--line)"}">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><span class="muted small">Spelling plan</span><h2 style="font-size:28px">${esc(name)}</h2><p class="muted">${esc(levelLabel(s))}</p></div>
       <div class="row small"><label for="pf${pid}"><b>Focus size</b></label><select id="pf${pid}" data-c="planFocus" data-id="${pid}"><option value="">Automatic (${p.autoN})</option>${[3,5,8,10].map(v=>`<option value="${v}" ${p.pl.focusN==v?"selected":""}>${v} words</option>`).join("")}</select>
