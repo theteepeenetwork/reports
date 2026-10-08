@@ -1032,3 +1032,8 @@
 .stc-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 .stc-legend .stc-bars { height: 14px; }
 .stc-legend .stc-bars i { width: 5px; }
+
+/* Hundred Words (#hundred-words): its own page, framed. Fills the content
+   column down to the bottom of the window. */
+.hw-frame { display: block; width: 100%; height: calc(100vh - 140px); min-height: 520px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+@media (max-width: 900px) { .hw-frame { height: calc(100vh - 110px); } }

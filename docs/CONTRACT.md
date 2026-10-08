@@ -40,6 +40,14 @@ Readers MUST accept both `{v,t}` (legacy) and `{v,t,ver}`. Only ever ADD `ver`.
 `resetSession` clears via an unhooked raw remove (`LS.removeItem` / a `CLOUD.resetting` flag that
 short-circuits the `Storage.prototype.setItem` hook) so a sign-out NEVER wipes the cloud account.
 
+## Hundred Words: `tp_hundred_words` (Oct 2026)
+`hundred-words.html` (framed on `#hundred-words`) was written as a claude.ai artifact.
+`js/hundred-words-runtime.js` stands in for its `window.claude.use("db")`: the whole database is
+one JSON value, `{ sessions, practice, plans, settings }`, under the per-class key
+**`tp_hundred_words`** (in `DATA_KEYS` and `TP_PER_CLASS`). Writes go through the hub window's
+`localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are read from the
+active class's `tp_roster`, and every record is keyed by roster pupil id.
+
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)
 Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes
 and routes (`js/glow.js`, `gg*`, `.gg-*`, `#glow`) — it does NOT cover storage. The key stays

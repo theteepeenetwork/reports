@@ -1,0 +1,1448 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hundred Words</title>
+<!-- Classroom Hub: class-key routing, then the storage that stands in for
+     the claude.ai runtime this page was written for. Both must load before
+     the page script below. -->
+<script src="js/classkeys.js?v=2"></script>
+<script src="js/hundred-words-runtime.js?v=1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: exercise-book page — ruled header with red margin, tabbed workspace, wide scrolling class grid */
+:root{
+  --paper:#f6f7fb; --card:#ffffff; --ink:#1c2333; --muted:#5b6478; --line:#dde2ec; --rule:#c8d5ef; --margin:#d9606b;
+  --accent:#2747b0; --accent-ink:#ffffff; --accent-soft:#e5ebfb;
+  --ok:#6fcf97; --ok-strong:#1f7a45; --ok-soft:#d4f0de; --ok-ink:#145c33;
+  --no:#cf4b45; --no-soft:#fbdedb; --rev:#d8961a; --rev-soft:#fcefcf;
+  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
+  --f-ui:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-display:'Bricolage Grotesque','Atkinson Hyperlegible',system-ui,sans-serif;
+  --f-word:'Andika','Comic Sans MS','Trebuchet MS',sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#11151e; --card:#1a2030; --ink:#e6e9f2; --muted:#9ba4b7; --line:#2b3346; --rule:#2a3a5f; --margin:#e47d86;
+  --accent:#8fa7ff; --accent-ink:#0c1120; --accent-soft:#222c4b;
+  --ok:#2f8f58; --ok-strong:#6ee09d; --ok-soft:#1b3a29; --ok-ink:#9fe9bd;
+  --no:#ee7b75; --no-soft:#41221f; --rev:#efb54a; --rev-soft:#3d3018;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#11151e; --card:#1a2030; --ink:#e6e9f2; --muted:#9ba4b7; --line:#2b3346; --rule:#2a3a5f; --margin:#e47d86;
+  --accent:#8fa7ff; --accent-ink:#0c1120; --accent-soft:#222c4b;
+  --ok:#2f8f58; --ok-strong:#6ee09d; --ok-soft:#1b3a29; --ok-ink:#9fe9bd;
+  --no:#ee7b75; --no-soft:#41221f; --rev:#efb54a; --rev-soft:#3d3018;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--paper);color:var(--ink)}
+body{font-family:var(--f-ui);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
+header.top{position:relative;padding-block:22px 0;border-bottom:2px solid var(--rule)}
+header.top::before{content:"";position:absolute;left:-6px;top:0;bottom:0;width:2px;background:var(--margin);opacity:.8}
+.brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
+.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4vw,34px);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.brand .cls{color:var(--muted);font-size:15px}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:14px;scrollbar-width:none}
+nav.tabs button{background:none;border:0;padding:10px 14px 11px;border-bottom:3px solid transparent;color:var(--muted);font-weight:700;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
+nav.tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:hover{color:var(--ink)}
+.badge{background:var(--rev);color:#1d1400;border-radius:999px;font-size:12px;padding:0 7px;min-width:20px;text-align:center}
+.banner{margin-top:14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.banner:empty{display:none}
+main{margin-top:20px;display:grid;gap:20px}
+h2{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.stack{display:grid;gap:12px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.btn{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:700;display:inline-flex;gap:6px;align-items:center;justify-content:center}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ok{background:var(--ok-strong);border-color:var(--ok-strong);color:var(--card)}
+.btn.no{background:var(--card);border-color:var(--no);color:var(--no)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:13px;border-radius:7px}
+input[type=text],input[type=date],select,textarea{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 10px;min-width:0}
+textarea{width:100%;min-height:140px;resize:vertical}
+label.chk{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:var(--card);padding:8px 14px;cursor:pointer;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.stat b{display:block;font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{color:var(--muted);font-size:13px}
+.up{color:var(--ok-ink)} .down{color:var(--no)}
+/* grid */
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
+.grid-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);max-height:75vh}
+table.grid{border-collapse:separate;border-spacing:0;font-size:12px}
+table.grid th,table.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0}
+table.grid thead th{position:sticky;background:var(--card);z-index:2}
+table.grid thead tr:first-child th{top:0;height:26px}
+table.grid thead tr:nth-child(2) th{top:26px}
+th.blk{font-weight:700;font-variant-numeric:tabular-nums;border-top:5px solid var(--band)!important;border-right:2px solid var(--muted)!important}
+th.w{height:74px;width:17px;min-width:17px;vertical-align:bottom;padding-bottom:4px!important;font-weight:400;font-family:var(--f-word)}
+th.w span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-size:12px}
+th.w.be,td.be{border-right:2px solid var(--muted)!important}
+th.name-h,th.pn{position:sticky;left:0;z-index:3;background:var(--card);text-align:left;min-width:150px;max-width:180px;padding:0 8px!important}
+th.name-h{z-index:4}
+th.pn{font-weight:400;height:28px}
+th.pn button{background:none;border:0;padding:4px 0;cursor:pointer;font-weight:700;text-align:left;display:flex;gap:6px;align-items:center;max-width:100%}
+th.pn button span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--band);border:1px solid rgba(0,0,0,.25);flex:none}
+td.c{width:17px;min-width:17px;height:28px;cursor:pointer}
+td.c:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.s-known{background:var(--ok)}
+.s-secure{background:var(--ok-strong)}
+.s-notyet{background:var(--no-soft)}
+.s-slipped{background:var(--no-soft);box-shadow:inset 0 -4px 0 var(--no)}
+.s-review{background:repeating-linear-gradient(45deg,var(--rev) 0 3px,var(--rev-soft) 3px 6px)}
+td.sel{outline:3px solid var(--accent)!important;outline-offset:-3px}
+th.score-h,td.score{position:sticky;right:0;background:var(--card);min-width:66px;text-align:center;font-variant-numeric:tabular-nums;z-index:1}
+th.score-h{z-index:3}
+td.score b{font-size:14px}
+td.score small{display:block;font-size:11px;line-height:1}
+.cellbar{position:sticky;left:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--accent-soft)}
+/* insights */
+.ins h3{margin-bottom:8px}
+.ins ul{margin:0;padding-left:18px;display:grid;gap:4px}
+.wchip{display:inline-flex;gap:6px;align-items:baseline;border:1px solid var(--line);border-radius:8px;padding:3px 9px;background:var(--paper);font-family:var(--f-word);font-size:16px}
+.wchip small{font-family:var(--f-ui);color:var(--muted);font-size:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.band{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.ai-out{white-space:pre-wrap;line-height:1.55}
+/* assess */
+.drop{border:2px dashed var(--rule);border-radius:12px;padding:26px;text-align:center;display:grid;gap:8px;justify-items:center;background:var(--paper)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.job{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:start;border-top:1px solid var(--line);padding-top:14px}
+.job img{width:120px;border-radius:8px;border:1px solid var(--line);display:block}
+@media (max-width:560px){.job{grid-template-columns:1fr}.job img{width:100%;max-width:260px}}
+.marks{display:flex;flex-wrap:wrap;gap:5px}
+.mk{border:1px solid var(--line);border-radius:7px;padding:3px 7px;background:var(--paper);cursor:pointer;font-size:13px;display:inline-flex;gap:5px;align-items:baseline}
+.mk b{font-family:var(--f-word);font-size:15px}
+.mk.m-c{background:var(--ok-soft);border-color:var(--ok)}
+.mk.m-x{background:var(--no-soft);border-color:var(--no)}
+.mk.m-q{background:var(--rev-soft);border-color:var(--rev)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
+.pill.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
+.pill.no{background:var(--no-soft);border-color:var(--no)}
+.pill.rev{background:var(--rev-soft);border-color:var(--rev)}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.qgrid button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 4px;cursor:pointer;font-family:var(--f-word);font-size:17px;display:grid;line-height:1.1}
+.qgrid button small{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
+.qgrid button.q-c{background:var(--ok-soft);border-color:var(--ok)}
+.qgrid button.q-x{background:var(--no-soft);border-color:var(--no)}
+/* review */
+.rv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
+@media (max-width:760px){.rv{grid-template-columns:1fr}}
+.rv .photo img{width:100%;border-radius:8px;border:1px solid var(--line)}
+.ritem{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;border-top:1px solid var(--line);padding-block:10px}
+.ritem canvas{width:150px;height:70px;border-radius:6px;border:1px solid var(--line);background:var(--paper)}
+@media (max-width:560px){.ritem{grid-template-columns:1fr}}
+.target{font-family:var(--f-word);font-size:24px;font-weight:700}
+/* practise */
+.kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.kids button{padding:16px 10px;border-radius:14px;border:1px solid var(--line);background:var(--card);cursor:pointer;font-family:var(--f-word);font-size:20px;font-weight:700;display:grid;gap:6px;justify-items:center}
+.ladder{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.lw{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--paper);display:grid;gap:6px}
+.lw .word{font-family:var(--f-word);font-size:28px;font-weight:700}
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:7px;border-radius:4px;background:var(--line)}
+.steps i.on{background:var(--ok-strong)}
+.acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.act{text-align:left;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--card);cursor:pointer;display:grid;gap:4px}
+.act:hover{border-color:var(--accent)}
+.act b{font-family:var(--f-display);font-size:18px}
+.stage{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(18px,4vw,40px);display:grid;gap:22px;justify-items:center;text-align:center;min-height:440px;align-content:center}
+.big{font-family:var(--f-word);font-weight:700;font-size:clamp(64px,14vw,140px);line-height:1;letter-spacing:.01em;word-break:break-word}
+.big .gap{display:inline-block;min-width:.6em;border-bottom:6px solid var(--accent);color:var(--accent)}
+.opts{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.opt{font-family:var(--f-word);font-weight:700;font-size:clamp(28px,6vw,44px);min-width:110px;padding:12px 22px;border-radius:16px;border:2px solid var(--line);background:var(--paper);cursor:pointer}
+.opt.right{background:var(--ok-soft);border-color:var(--ok-strong)}
+.opt.wrong{background:var(--no-soft);border-color:var(--no);animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.answer{min-height:1.1em;min-width:3em;border-bottom:4px dashed var(--rule);cursor:pointer}
+.prog{color:var(--muted);font-weight:700}
+.kbtn{font-size:20px;padding:14px 26px;border-radius:14px}
+/* drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--card);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.15);z-index:20;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.drawer:empty{display:none}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:30;max-width:calc(100% - 32px)}
+.toast:empty{display:none}
+.empty{text-align:center;padding:30px 16px;display:grid;gap:10px;justify-items:center}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hist{display:flex;gap:6px;align-items:flex-end;height:110px;border-bottom:1px solid var(--line);padding-top:16px}
+.hist div{flex:1;max-width:44px;background:var(--accent);border-radius:4px 4px 0 0;position:relative;min-height:2px}
+.hist div span{position:absolute;top:-17px;left:0;right:0;text-align:center;font-size:11px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.histx{display:flex;gap:6px}.histx span{flex:1;max-width:44px;text-align:center;font-size:11px;color:var(--muted)}
+.wmap{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:260px}
+.wmap i{aspect-ratio:1;border-radius:3px;border:1px solid var(--line);max-width:100%}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Hundred Words</h1><span class="cls" id="cls"></span></div>
+    <nav class="tabs" id="nav" aria-label="Sections"></nav>
+  </header>
+  <div class="banner" id="banner"></div>
+  <main id="main">
+    <div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>
+  </main>
+</div>
+<aside class="drawer" id="drawer"></aside>
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+
+<script>
+const WORDS=["the","and","a","to","said","in","he","I","of","it","was","you","they","on","she","is","for","at","his","but","that","with","all","an","so","we","can","are","up","had","my","her","what","there","out","this","have","went","be","like","some","not","then","were","go","little","as","no","saw","make","mum","one","them","do","me","down","dad","big","when","it’s","see","looked","very","look","don’t","come","will","into","back","from","children","him","Mr","off","asked","get","just","now","came","oh","about","got","their","people","your","put","could","house","old","too","by","day","made","time","I’m","if","help","Mrs","called","here"];
+const SENT=["The dog ran to the park.","I like fish and chips.","I can see a red bus.","We went to the shop.","“Hello,” said Mum.","The cat is in the box.","He kicked the ball.","I am six years old.","I ate a bowl of soup.","Pick it up, please.","It was a sunny day.","Can you see the bird?","They are playing outside.","The book is on the table.","She has a new coat.","My bag is red.","This cake is for you.","Look at the moon.","Sam lost his hat.","I ran fast but I fell over.","Is that your pencil?","Come and play with me.","We all sang a song.","I ate an apple.","I was so happy.","We are going to the beach.","I can ride a bike.","You are my friend.","The kite went up high.","We had pizza for tea.","This is my teddy.","Give the ball to her.","What is your name?","There is a frog in the pond.","Let the dog out.","This is fun!","I have two sisters.","We went to the zoo.","I will be good.","I like ice cream.","Can I have some milk?","It is not raining.","We ate lunch, then we played.","We were very tired.","Let’s go home.","A little mouse ran past.","He is as tall as me.","There is no more juice.","I saw a big ship.","Let’s make a cake.","My mum is kind.","I have one brother.","I gave them a sticker.","What do you want?","Can you see me?","Sit down, please.","My dad can swim.","That is a big dog.","When is lunch?","It’s time for bed.","I can see a rainbow.","She looked under the bed.","The snail was very slow.","Look at my picture.","Don’t run in the hall.","Come here, please.","I will help you.","The frog jumped into the pond.","Put it back on the shelf.","I got a card from Gran.","The children ran outside.","I waved at him.","Mr Smith is our teacher.","Turn off the light.","She asked for a drink.","Go and get your coat.","I am just coming.","Tidy up now, please.","My friend came to play.","Oh no, it’s raining!","This book is about dinosaurs.","I got a new bike.","They put on their coats.","Lots of people came to the party.","Is this your bag?","Put your hand up.","Could you open the door?","My house has a red door.","My shoes are old.","I want to come too.","The book is by the bed.","Today is a sunny day.","I made a card for Mum.","What time is it?","I’m going to the park.","You can play if you are good.","Please help me tidy up.","Mrs Jones has a dog.","My cat is called Tom.","Come and sit here."];
+const BANDS=[{n:"Pink",c:"#f2a7c3"},{n:"Red",c:"#e04b4b"},{n:"Yellow",c:"#f4d13d"},{n:"Blue",c:"#4b8ee0"},{n:"Green",c:"#43b16a"},{n:"Orange",c:"#f28a35"},{n:"Turquoise",c:"#29b3ae"},{n:"Purple",c:"#8d5cc7"},{n:"Gold",c:"#c9a227"},{n:"White",c:"#f4f4f4"}];
+const STLABEL={none:"Not assessed",known:"Correct",secure:"Secure (correct twice)",notyet:"Not yet",slipped:"Slipped (was correct before)",review:"Waiting for your review"};
+const LADDER=["New","Learning","Practising","Ready to check"];
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const z2=n=>String(n).padStart(2,"0");
+const localDate=(d=new Date())=>d.getFullYear()+"-"+z2(d.getMonth()+1)+"-"+z2(d.getDate());
+const fmtDate=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+const fmtShort=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+const uid=()=>Math.random().toString(36).slice(2,10);
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const isKnown=st=>st==="known"||st==="secure";
+const bandOf=i=>BANDS[Math.floor(i/10)];
+const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...");
+
+/* ---------- state ---------- */
+const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
+  mode:"loading", tab:"tracker",
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading"},cell:null,pupil:null,confirm:null,
+      print:{cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
+let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
+const memPhotos={};
+let memo={};
+
+function toast(msg){const t=$("#toast");t.textContent=msg;clearTimeout(toast.t);toast.t=setTimeout(()=>t.textContent="",3600)}
+const writeChains={};
+function saveDoc(col,id,data){
+  if(col==="settings")S.settings=data;else S[col][id]=data;
+  render();
+  if(S.mode!=="live")return Promise.resolve();
+  const path=col+"/"+id;
+  const p=(writeChains[path]||Promise.resolve()).then(()=>db.doc(path).set(data)).catch(e=>toast(dbErr(e)));
+  writeChains[path]=p;return p;
+}
+function removeDoc(col,id){
+  delete S[col][id];render();
+  if(S.mode!=="live")return;
+  const path=col+"/"+id;
+  writeChains[path]=(writeChains[path]||Promise.resolve()).then(()=>db.doc(path).delete()).catch(e=>toast(dbErr(e)));
+}
+function dbErr(e){return e&&e.code==="quota_exceeded"?"Storage is full — delete old sessions to make room.":"Couldn’t save that change. Check your connection and try again."}
+
+/* ---------- derived ---------- */
+function pupilIds(){return Object.keys(S.pupils).filter(id=>!S.pupils[id].archived).sort((a,b)=>S.pupils[a].name.localeCompare(S.pupils[b].name))}
+function sessionsFor(pid){
+  if(memo["ss"+pid])return memo["ss"+pid];
+  return memo["ss"+pid]=Object.entries(S.sessions).filter(([,s])=>s.pupilId===pid).map(([id,s])=>({id,...s})).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function wordStates(pid,{before,upto}={}){
+  const out=Array.from({length:100},()=>({st:"none",hist:[]}));
+  for(const s of sessionsFor(pid)){
+    if(before&&s.date>=before)continue;
+    if(upto&&s.date>upto)continue;
+    for(const [k,w] of Object.entries(s.words||{})){const i=+k;if(out[i])out[i].hist.push({date:s.date,sid:s.id,...w})}
+  }
+  for(const o of out){
+    const h=o.hist;if(!h.length)continue;
+    const last=h[h.length-1],priorC=h.slice(0,-1).some(x=>x.s==="c");
+    o.st=last.s==="?"?"review":last.s==="c"?(priorC?"secure":"known"):(priorC?"slipped":"notyet");
+    o.last=last;
+  }
+  return out;
+}
+function summary(pid){
+  if(memo["sum"+pid])return memo["sum"+pid];
+  const ws=wordStates(pid),ss=sessionsFor(pid);
+  const count=(arr,f)=>arr.filter(f).length;
+  const known=count(ws,w=>isKnown(w.st)),secure=count(ws,w=>w.st==="secure"),review=count(ws,w=>w.st==="review"),assessed=count(ws,w=>w.st!=="none");
+  const lastDate=ss.length?ss[ss.length-1].date:null;
+  let prevKnown=null;
+  if(lastDate){const prev=wordStates(pid,{before:lastDate});if(prev.some(w=>w.st!=="none"))prevKnown=count(prev,w=>isKnown(w.st))}
+  let level=10;for(let b=0;b<10;b++){if(ws.slice(b*10,b*10+10).some(w=>!isKnown(w.st))){level=b;break}}
+  const next=ws.map((w,i)=>i).filter(i=>!isKnown(ws[i].st)).slice(0,6);
+  return memo["sum"+pid]={ws,known,secure,review,assessed,lastDate,prevKnown,delta:prevKnown==null?null:known-prevKnown,level,next,sessions:ss};
+}
+function reviewItems(){
+  const out=[];
+  for(const [sid,s] of Object.entries(S.sessions)){
+    if(!S.pupils[s.pupilId])continue;
+    const flagged=Object.entries(s.words||{}).filter(([,w])=>w.s==="?").map(([k,w])=>({i:+k,...w}));
+    if(flagged.length)out.push({sid,s,flagged:flagged.sort((a,b)=>a.i-b.i)});
+  }
+  return out.sort((a,b)=>a.s.date.localeCompare(b.s.date));
+}
+function practiceFor(pid){return S.practice[pid]||{boxes:{},log:[]}}
+
+/* ---------- rendering ---------- */
+let rq=0;
+function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()})}
+function doRender(){
+  const ae=document.activeElement,aid=ae&&ae.id,sel=aid&&typeof ae.selectionStart==="number"?[ae.selectionStart,ae.selectionEnd]:null;
+  memo={};
+  $("#cls").textContent=S.settings.className?S.settings.className:"";
+  const nrev=reviewItems().reduce((n,r)=>n+r.flagged.length,0);
+  const tabs=[["tracker","Tracker"],["assess","Assess"],["review","Review"+(nrev?` <span class="badge">${nrev}</span>`:"")],["practise","Practise"],["plans","Plans"],["print","Print"],["class","Class"]];
+  $("#nav").innerHTML=tabs.map(([k,l])=>`<button data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+  $("#banner").innerHTML=bannerHtml();
+  $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS.tracker)();
+  $("#drawer").innerHTML=S.ui.pupil&&S.pupils[S.ui.pupil]?drawerHtml(S.ui.pupil):"";
+  drawCrops();
+  if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
+}
+function bannerHtml(){
+  if(S.mode==="demo")return `<b>Example class.</b><span>These pupils and results are made up so you can explore. Nothing is saved.</span><button class="btn sm" data-a="exitDemo">Start my own class</button>`;
+  if(S.mode==="offline")return `<b>Viewing only.</b><span>Saving isn’t available in this view. You can explore with the example class.</span><button class="btn sm" data-a="demo">Load example class</button>`;
+  return "";
+}
+const bandDot=b=>`<span class="dot" style="--band:${BANDS[Math.min(b,9)].c}"></span>`;
+function levelLabel(sm){if(!sm.sessions.length)return "Not assessed yet";if(sm.level>=10)return "All 100 correct";const b=BANDS[sm.level];return `${b.n} · words ${sm.level*10+1}–${sm.level*10+10}`}
+
+const VIEWS={};
+/* ----- Tracker ----- */
+VIEWS.tracker=function(){
+  const ids=pupilIds();
+  if(!ids.length)return emptyClass();
+  const sums=ids.map(id=>[id,summary(id)]);
+  const assessed=sums.filter(([,s])=>s.sessions.length);
+  const avg=assessed.length?Math.round(assessed.reduce((n,[,s])=>n+s.known,0)/assessed.length):0;
+  const deltas=assessed.filter(([,s])=>s.delta!=null);
+  const avgDelta=deltas.length?(deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length):null;
+  const nrev=sums.reduce((n,[,s])=>n+s.review,0);
+  const cell=S.ui.cell;
+  let h=`<div class="stats">
+    <div class="stat"><b>${avg}<small class="muted" style="font-size:15px"> /100</small></b><span>Class average correct</span></div>
+    <div class="stat"><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>Average change since previous check</span></div>
+    <div class="stat"><b>${assessed.length}<small class="muted" style="font-size:15px"> of ${ids.length}</small></b><span>Pupils assessed</span></div>
+    <div class="stat"><b>${nrev}</b><span>Words waiting for your review</span></div>
+  </div>
+  <div class="row" style="justify-content:space-between">
+    <div class="legend">${["known","secure","notyet","slipped","review"].map(k=>`<span><i class="s-${k}"></i>${STLABEL[k]}</span>`).join("")}<span><i></i>Not assessed</span></div>
+    <span class="muted small">Tap a pupil for detail, or a square to change a mark.</span>
+  </div>`;
+  if(cell&&S.pupils[cell.p]){
+    const st=summary(cell.p).ws[cell.i];
+    h+=`<div class="cellbar"><b>${esc(S.pupils[cell.p].name)}</b><span class="wchip">${esc(WORDS[cell.i])}<small>#${cell.i+1}</small></span><span class="muted">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
+      <span class="row" style="margin-left:auto"><button class="btn sm ok" data-a="setCell" data-s="c">Correct today</button><button class="btn sm no" data-a="setCell" data-s="x">Not yet today</button><button class="btn sm ghost" data-a="closeCell">Close</button></span></div>`;
+  }
+  h+=`<div class="grid-wrap"><table class="grid"><thead><tr><th class="name-h" rowspan="2">Pupil</th>`;
+  for(let b=0;b<10;b++)h+=`<th class="blk" colspan="10" style="--band:${BANDS[b].c}">${b*10+1}–${b*10+10}</th>`;
+  h+=`<th class="score-h" rowspan="2">Score<br><span class="muted small">/100</span></th></tr><tr>`;
+  for(let i=0;i<100;i++)h+=`<th class="w ${i%10===9?"be":""}"><span>${esc(WORDS[i])}</span></th>`;
+  h+=`</tr></thead><tbody>`;
+  for(const [id,s] of sums){
+    h+=`<tr><th class="pn"><button data-a="openPupil" data-id="${id}" title="${esc(levelLabel(s))}">${s.sessions.length?bandDot(s.level):'<span class="dot" style="--band:transparent"></span>'}<span class="nm">${esc(S.pupils[id].name)}</span></button></th>`;
+    for(let i=0;i<100;i++){const st=s.ws[i].st;const sel=cell&&cell.p===id&&cell.i===i;
+      h+=`<td class="c s-${st}${i%10===9?" be":""}${sel?" sel":""}" data-a="cell" data-p="${id}" data-i="${i}" title="${esc(WORDS[i])}: ${STLABEL[st]}"></td>`}
+    h+=`<td class="score">${s.sessions.length?`<b>${s.known}</b>${s.delta!=null?`<small class="${s.delta>0?"up":s.delta<0?"down":"muted"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`;
+  }
+  h+=`</tbody></table></div>`;
+  h+=insightsHtml(sums);
+  return h;
+};
+function emptyClass(){
+  return `<div class="panel empty">
+    <h2>Add your class to begin</h2>
+    <p class="muted" style="max-width:52ch">This class has no pupils yet. Add them on the Pupils page and they appear here. Then print the answer sheets, run the spelling check, and enter each child’s results with Quick check in Assess.</p>
+    <div class="row" style="justify-content:center">${window.hwHub?`<button class="btn primary" data-a="hubPupils">Go to Pupils</button>`:""}${S.mode!=="demo"?`<button class="btn" data-a="demo">Explore an example class</button>`:""}</div>
+  </div>`;
+}
+function insightsHtml(sums){
+  const assessed=sums.filter(([,s])=>s.sessions.length);
+  if(!assessed.length)return `<div class="panel"><h3>Insights appear after the first assessment</h3><p class="muted">Print answer sheets from the Print tab, run the check, then enter each child’s results with Quick check in Assess.</p></div>`;
+  // most missed
+  const miss=Array(100).fill(0),slip=Array(100).fill(0),mis={};
+  for(const [,s] of assessed)s.ws.forEach((w,i)=>{
+    if(w.st==="notyet"||w.st==="slipped")miss[i]++;
+    if(w.st==="slipped")slip[i]++;
+    for(const h of w.hist)if(h.s==="x"&&h.r){(mis[i]=mis[i]||{})[h.r.toLowerCase()]=(mis[i][h.r.toLowerCase()]||0)+1}
+  });
+  const topMiss=miss.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]||a[0]-b[0]).slice(0,10);
+  const slips=slip.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const pats=Object.entries(mis).flatMap(([i,m])=>Object.entries(m).map(([r,n])=>[+i,r,n])).sort((a,b)=>b[2]-a[2]).slice(0,10);
+  // groups
+  const groups={};for(const [id,s] of assessed)(groups[s.level]=groups[s.level]||[]).push(id);
+  // watch
+  const watch=assessed.filter(([,s])=>s.delta!=null&&s.delta<=0).map(([id,s])=>[id,`no gain since last check (${s.known})`]);
+  const lowest=assessed.slice().sort((a,b)=>a[1].known-b[1].known).slice(0,3).filter(([id])=>!watch.some(w=>w[0]===id)).map(([id,s])=>[id,`lowest scores (${s.known})`]);
+  const stars=assessed.filter(([,s])=>s.delta!=null&&s.delta>=10).sort((a,b)=>b[1].delta-a[1].delta).slice(0,5);
+  // ready to check from practice
+  const ready=[];for(const [id,s] of sums){const b=practiceFor(id).boxes||{};const r=Object.entries(b).filter(([i,v])=>v>=3&&!isKnown(s.ws[+i].st)).map(([i])=>+i);if(r.length)ready.push([id,r])}
+  const name=id=>esc(S.pupils[id].name);
+  let h=`<div class="cols">`;
+  h+=`<div class="panel ins"><h3>Teach to the whole class</h3><p class="muted small" style="margin-bottom:10px">Words the most pupils still can’t spell.</p>
+    <div class="chips">${topMiss.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n} of ${assessed.length}</small></span>`).join("")||'<span class="muted">Every assessed word is correct.</span>'}</div>
+    ${slips.length?`<p class="small" style="margin-top:12px"><b>Slipping:</b> ${slips.map(([i,n])=>`${esc(WORDS[i])} (${n})`).join(", ")}. These were correct before and wrong last time.</p>`:""}</div>`;
+  h+=`<div class="panel ins"><h3>Groups by level</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t finished.</p><div class="stack">
+    ${Object.keys(groups).sort((a,b)=>a-b).map(l=>`<div><span class="band">${bandDot(+l)}${+l>=10?"All 100 correct":`${BANDS[l].n} <span class="muted small">(${l*10+1}–${l*10+10})</span>`}</span><div class="small">${groups[l].map(name).join(", ")}</div></div>`).join("")}</div></div>`;
+  h+=`<div class="panel ins"><h3>Common misspellings</h3><p class="muted small" style="margin-bottom:10px">What children actually wrote. Useful for spotting phonics gaps.</p>
+    ${pats.length?`<ul>${pats.map(([i,r,n])=>`<li><b style="font-family:var(--f-word)">${esc(WORDS[i])}</b> → “${esc(r)}” <span class="muted">×${n}</span></li>`).join("")}</ul>`:'<p class="muted">Misspellings appear once marked sheets are saved.</p>'}</div>`;
+  h+=`<div class="panel ins"><h3>Pupils to look at</h3><ul>${[...watch,...lowest].map(([id,why])=>`<li><a href="#" data-a="openPupil" data-id="${id}">${name(id)}</a> <span class="muted">— ${why}</span></li>`).join("")||'<li class="muted">No concerns flagged.</li>'}</ul>
+    ${stars.length?`<p class="small" style="margin-top:10px"><b>Big gains:</b> ${stars.map(([id,s])=>`${name(id)} (+${s.delta})`).join(", ")}</p>`:""}
+    ${ready.length?`<p class="small" style="margin-top:10px"><b>Ready to check</b> (practised to the top of the ladder): ${ready.map(([id,r])=>`${name(id)} (${r.map(i=>esc(WORDS[i])).join(", ")})`).join("; ")}</p>`:""}</div>`;
+  h+=`</div>`;
+  const ai=S.ui.ai;
+  h+=`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Written summary</h3>${sampleApi?`<button class="btn" data-a="aiSummary" ${ai&&ai.status==="thinking"?"disabled":""}>${ai&&ai.text?"Write again":"Write a summary with Claude"}</button>`:""}</div>
+    <div class="ai-out" id="aiOut">${ai?(ai.text?esc(ai.text):ai.status==="thinking"?'<span class="spin"></span> Thinking…':esc(ai.err||"")):`<span class="muted">${sampleApi?"Claude reads the figures above and writes a short summary you can paste into notes or a report.":"Written summaries aren’t available in Classroom Hub."}</span>`}</div></div>`;
+  return h;
+}
+function drawerHtml(pid){
+  const p=S.pupils[pid],s=summary(pid),pr=practiceFor(pid);
+  const dates=[...new Set(s.sessions.map(x=>x.date))];
+  const pts=dates.map(d=>[d,wordStates(pid,{upto:d}).filter(w=>isKnown(w.st)).length]);
+  const mis=[];s.ws.forEach((w,i)=>w.hist.forEach(h=>{if(h.s==="x"&&h.r)mis.push([i,h.r,h.date])}));
+  let h=`<div class="stack">
+  <div class="row" style="justify-content:space-between"><h2>${esc(p.name)}</h2><button class="btn ghost" data-a="closePupil" aria-label="Close">Close</button></div>
+  <div class="row"><span class="band">${s.sessions.length?bandDot(s.level):""}${esc(levelLabel(s))}</span></div>
+  <div class="stats"><div class="stat"><b>${s.known}</b><span>correct /100</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous</span></div></div>`;
+  if(pts.length){const max=100;h+=`<div><h3>Progress</h3><div class="hist">${pts.map(([d,n])=>`<div style="height:${Math.max(2,n/max*100)}%"><span>${n}</span></div>`).join("")}</div><div class="histx">${pts.map(([d])=>`<span>${fmtShort(d)}</span>`).join("")}</div></div>`}
+  h+=`<div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${practiseWords(pid).map(i=>{const b=(pr.boxes||{})[i]||0;return `<div class="lw"><span class="small muted">#${i+1} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">All 100 correct.</p>'}</div></div>
+  <div class="row"><button class="btn primary" data-a="practiseWith" data-id="${pid}">Practise now</button><button class="btn" data-a="openPlan" data-id="${pid}">Progression plan</button><button class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards PDF</button><button class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet PDF</button></div>`;
+  if(mis.length)h+=`<div><h3>What ${esc(p.name.split(" ")[0])} wrote</h3><div class="chips" style="margin-top:8px">${mis.slice(-24).reverse().map(([i,r])=>`<span class="wchip">${esc(r)}<small>for ${esc(WORDS[i])}</small></span>`).join("")}</div></div>`;
+  h+=`<div><h3>Assessments</h3><div class="stack" style="margin-top:8px">${s.sessions.map(x=>{const w=Object.values(x.words||{});const c=w.filter(v=>v.s==="c").length,q=w.filter(v=>v.s==="?").length;const conf=S.ui.confirm==="ses"+x.id;
+    return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span><b>${fmtDate(x.date)}</b> <span class="muted small">${x.kind==="reading"?"reading":"spelling"} · ${w.length} words · ${c} correct${q?` · ${q} to review`:""}</span></span><button class="btn sm ${conf?"no":"ghost"}" data-a="delSession" data-id="${x.id}">${conf?"Confirm delete":"Delete"}</button></div>`}).join("")||'<p class="muted">No assessments yet.</p>'}</div></div>`;
+  return h+`</div>`;
+}
+
+/* ----- Assess ----- */
+VIEWS.assess=function(){
+  /* Classroom Hub: Quick check only. Photo marking is not offered yet;
+     photoView() is kept, unreachable, for when it comes back. */
+  let h=`<div class="row" style="justify-content:space-between"><h2>Assess</h2></div>`;
+  if(!pupilIds().length)return h+`<div class="panel empty"><p>Add pupils on the Pupils page first.</p>${window.hwHub?`<button class="btn" data-a="hubPupils">Go to Pupils</button>`:""}</div>`;
+  return h+quickView();
+};
+function photoView(){
+  const canPhoto=sampleApi&&imgLimits;
+  let h=`<div class="panel stack">
+  <div class="row"><label for="aDate"><b>Assessment date</b></label><input type="date" id="aDate" data-c="date" value="${S.ui.date}"></div>`;
+  if(!canPhoto)h+=`<p class="muted">Photo marking isn’t available in Classroom Hub. Use <a href="#" data-a="amode" data-k="quick">Quick check</a> to enter marks by hand.</p>`;
+  else h+=`<div class="drop" id="drop"><h3>Add photos of answer sheets</h3><p class="muted small" style="max-width:56ch">One photo per sheet, taken from above in good light with the whole page in frame. Claude reads each child’s writing exactly as written, marks it against the word list, and sends anything unclear to Review.</p><button class="btn primary" data-a="pick">Choose photos</button></div>`;
+  h+=`</div>`;
+  const jobs=S.ui.jobs;
+  if(jobs.length){
+    const ready=jobs.filter(j=>j.status==="done"&&j.pid).length;
+    h+=`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Sheets (${jobs.length})</h3><div class="row">${ready?`<button class="btn primary" data-a="saveAll">Save ${ready} marked sheet${ready>1?"s":""}</button>`:""}<button class="btn ghost" data-a="clearJobs">Clear list</button></div></div>`;
+    for(const j of jobs)h+=jobHtml(j);
+    h+=`</div>`;
+  }
+  return h;
+}
+function jobHtml(j){
+  let body="";
+  if(j.status==="queued")body=`<p class="muted">Waiting…</p>`;
+  else if(j.status==="reading")body=`<p><span class="spin"></span> Reading handwriting… this can take up to a minute.</p>`;
+  else if(j.status==="error")body=`<p class="down">${esc(j.err)}</p><div class="row"><button class="btn sm" data-a="retryJob" data-j="${j.id}">Try again</button><button class="btn sm ghost" data-a="dropJob" data-j="${j.id}">Remove</button></div>`;
+  else{
+    const b=j.boxes;const c=b.filter(x=>x.s==="c").length,x=b.filter(x=>x.s==="x").length,q=b.filter(x=>x.s==="?").length;
+    const opts=pupilIds().map(id=>`<option value="${id}" ${j.pid===id?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("");
+    body=`<div class="row"><label for="jp${j.id}" class="small"><b>Pupil</b></label><select id="jp${j.id}" data-c="jobPupil" data-j="${j.id}" ${j.status==="saved"?"disabled":""}><option value="">Choose…</option>${opts}</select>
+      <span class="muted small">${j.nameRead?`Sheet says “${esc(j.nameRead)}”`:"No name found on sheet"}</span></div>
+      <div class="row small"><span class="pill ok">${c} correct</span><span class="pill no">${x} not yet</span>${q?`<span class="pill rev">${q} for review</span>`:""}<span class="muted">${b.length} boxes read${j.issues?` · ${esc(j.issues)}`:""}</span></div>
+      <div class="marks">${b.map((m,k)=>`<button class="mk m-${m.s==="?"?"q":m.s}" data-a="jobMark" data-j="${j.id}" data-k="${k}" title="Target: ${esc(WORDS[m.n-1])}. Tap to change." ${j.status==="saved"?"disabled":""}><span class="muted">${m.n}</span><b>${m.r===""?"—":esc(m.r)}</b></button>`).join("")}</div>
+      <div class="row">${j.status==="saved"?`<span class="pill ok">Saved</span>`:j.status==="saving"?`<span class="spin"></span>`:`<button class="btn primary sm" data-a="saveJob" data-j="${j.id}" ${j.pid?"":"disabled"}>Save</button><button class="btn sm ghost" data-a="dropJob" data-j="${j.id}">Remove</button>`}<span class="muted small">Tap a word to switch between correct, not yet and review.</span></div>`;
+  }
+  return `<div class="job"><img src="${j.url}" alt="Answer sheet photo"><div class="stack">${body}</div></div>`;
+}
+function quickView(){
+  const q=S.ui.quick,ids=pupilIds();
+  const opts=ids.map(id=>`<option value="${id}" ${q.pid===id?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("");
+  let h=`<div class="panel stack"><p class="muted">Use this for a reading check (the child reads each word aloud) or to type in marks from a paper grid. Tap once for correct, twice for not yet, three times to clear.</p>
+  <div class="row"><select id="qPupil" data-c="quickPupil"><option value="">Choose pupil…</option>${opts}</select>
+  <input type="date" id="qDate" data-c="date" value="${S.ui.date}">
+  <div class="seg"><button data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button><button data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button></div></div>`;
+  if(q.pid){
+    const s=summary(q.pid);const n=Object.keys(q.marks).length;
+    h+=`<div class="qgrid">${WORDS.map((w,i)=>{const m=q.marks[i];const prev=s.ws[i].st;return `<button class="${m?"q-"+m:""}" data-a="qmark" data-i="${i}"><small>${i+1}${prev!=="none"?" · "+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
+    <div class="row"><button class="btn primary" data-a="saveQuick" ${n?"":"disabled"}>Save ${n} mark${n===1?"":"s"}</button><button class="btn ghost" data-a="qAll" data-s="c">Mark rest correct</button><button class="btn ghost" data-a="qClear">Clear</button></div>`;
+  }
+  return h+`</div>`;
+}
+
+/* ----- Review ----- */
+VIEWS.review=function(){
+  const items=reviewItems();
+  if(!items.length)return `<h2>Review</h2><div class="panel empty"><h3>Nothing to review</h3><p class="muted">When Claude can’t read a word confidently, it waits here for you to decide.</p></div>`;
+  let h=`<h2>Review</h2><p class="muted">Claude wasn’t sure about these. Check the child’s writing and decide.</p>`;
+  for(const {sid,s,flagged} of items){
+    const photo=flagged.find(f=>f.photo)?.photo;
+    const src=photoSrc(photo);
+    h+=`<div class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h3>${esc(S.pupils[s.pupilId].name)} <span class="muted small">· ${fmtDate(s.date)}</span></h3><button class="btn sm" data-a="acceptAi" data-sid="${sid}">Accept Claude’s best guess for all ${flagged.length}</button></div>
+    <div class="rv">${src?`<div class="photo"><img src="${src}" alt="Answer sheet photo"></div>`:`<div class="muted small">No photo stored for this sheet.</div>`}<div>`;
+    for(const f of flagged){
+      const fsrc=photoSrc(f.photo);
+      h+=`<div class="ritem">${fsrc&&f.box?`<canvas width="300" height="140" data-crop="${esc(fsrc)}" data-box="${f.box.join(",")}"></canvas>`:`<span></span>`}
+        <div><span class="muted small">#${f.i+1} · should be</span><div class="target">${esc(WORDS[f.i])}</div><div class="small">Claude read <b style="font-family:var(--f-word);font-size:16px">${f.r?`“${esc(f.r)}”`:"nothing"}</b>${f.note?` <span class="muted">— ${esc(f.note)}</span>`:""}</div></div>
+        <div class="row"><button class="btn ok" data-a="decide" data-sid="${sid}" data-i="${f.i}" data-s="c">Correct</button><button class="btn no" data-a="decide" data-sid="${sid}" data-i="${f.i}" data-s="x">Not yet</button></div></div>`;
+    }
+    h+=`</div></div></div>`;
+  }
+  return h;
+};
+function photoSrc(p){if(!p)return null;if(p.startsWith("mem:"))return memPhotos[p.slice(4)]||null;return "/_blob/"+p}
+const imgCache={};
+function loadImg(src){if(!imgCache[src])imgCache[src]=new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=rej;im.src=src});return imgCache[src]}
+function drawCrops(){
+  document.querySelectorAll("canvas[data-crop]").forEach(async cv=>{
+    try{const im=await loadImg(cv.dataset.crop);const [x,y,w,h]=cv.dataset.box.split(",").map(Number);
+      const px=w*.35,py=h*.6;const sx=Math.max(0,(x-px))*im.naturalWidth,sy=Math.max(0,(y-py))*im.naturalHeight;
+      const sw=Math.min(1,w+2*px)*im.naturalWidth,sh=Math.min(1,h+2*py)*im.naturalHeight;
+      const ctx=cv.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+      const sc=Math.min(cv.width/sw,cv.height/sh);const dw=sw*sc,dh=sh*sc;
+      ctx.drawImage(im,sx,sy,sw,sh,(cv.width-dw)/2,(cv.height-dh)/2,dw,dh);
+    }catch(e){}
+  });
+}
+
+/* ----- Practise ----- */
+VIEWS.practise=function(){
+  const P=S.ui.practise;
+  if(S.ui.act)return activityView();
+  const ids=pupilIds();
+  if(!P.pid){
+    return `<h2>Practise</h2><p class="muted">Children practise their own next words. Pick a name to start.</p>
+    ${ids.length?`<div class="kids">${ids.map(id=>{const s=summary(id);return `<button data-a="pickKid" data-id="${id}">${s.sessions.length?bandDot(s.level):""}${esc(S.pupils[id].name.split(" ")[0])}</button>`}).join("")}</div>`:`<div class="panel empty"><p>Add pupils in the Class tab first.</p></div>`}`;
+  }
+  const s=summary(P.pid),pr=practiceFor(P.pid),words=practiseWords(P.pid);
+  const first=esc(S.pupils[P.pid].name.split(" ")[0]);
+  return `<div class="row" style="justify-content:space-between"><h2>${first}’s words</h2><button class="btn" data-a="pickKid" data-id="">Change child</button></div>
+  <div class="ladder">${words.map(i=>{const b=(pr.boxes||{})[i]||0;return `<div class="lw"><span class="small muted">${bandOf(i).n} · #${i+1}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")}</div>
+  <h3>Choose a game</h3>
+  <div class="acts">
+    <button class="act" data-a="startAct" data-k="flash"><b>Flash cards</b><span class="muted small">Read each card. Say if you knew it.</span></button>
+    ${canSpeak?`<button class="act" data-a="startAct" data-k="listen"><b>Listen and find</b><span class="muted small">Hear a word, tap the right one.</span></button>`:""}
+    <button class="act" data-a="startAct" data-k="missing"><b>Missing letter</b><span class="muted small">Pick the letter that fills the gap.</span></button>
+    <button class="act" data-a="startAct" data-k="build"><b>Build the word</b><span class="muted small">Tap the letters in the right order.</span></button>
+    <button class="act" data-a="startAct" data-k="lcwc"><b>Look, cover, write, check</b><span class="muted small">Write it on a whiteboard, then check.</span></button>
+  </div>
+  ${canSpeak?`<p class="small"><a href="#" data-a="voiceSettings">Change the voice</a></p>`:""}
+  <p class="muted small">Each word climbs the ladder when it’s right first time: Learning, Practising, Ready to check. Words leave the list once a teacher check marks them correct.</p>`;
+};
+function practiseWords(pid){const p=buildPlan(pid);return [...p.focus,...p.revisit].slice(0,8)}
+const canSpeak="speechSynthesis" in window;
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
+let voices=[];
+function loadVoices(){try{voices=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang))}catch(e){voices=[]}}
+const NOVELTY=/compact|espeak|eloquence|albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|sandy|reed|flo/i;
+function voiceScore(v){const n=v.name;let sc=0;
+  if(/natural|neural|premium|enhanced/i.test(n))sc+=60;if(/siri/i.test(n))sc+=50;if(/online/i.test(n))sc+=30;if(/google/i.test(n))sc+=25;
+  if(/en[-_]GB/i.test(v.lang))sc+=20;else if(/en[-_](IE|AU|NZ)/i.test(v.lang))sc+=8;
+  if(/sonia|libby|maisie|ryan|thomas|serena|kate|daniel|stephanie|martha|arthur|oliver/i.test(n))sc+=6;
+  if(NOVELTY.test(n))sc-=200;return sc}
+function rankedVoices(){return voices.slice().sort((a,b)=>voiceScore(b)-voiceScore(a)||a.name.localeCompare(b.name))}
+function pickVoice(){const want=lsGet("hw-voice");return (want&&voices.find(v=>v.name===want))||rankedVoices()[0]||null}
+function voiceRate(){const r=parseFloat(lsGet("hw-rate"));return r>=.5&&r<=1.3?r:.9}
+function say(t){if(!canSpeak)return;try{speechSynthesis.cancel();if(!voices.length)loadVoices();const u=new SpeechSynthesisUtterance(t);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-GB";u.rate=voiceRate();u.pitch=1;speechSynthesis.speak(u)}catch(e){}}
+if(canSpeak){loadVoices();try{speechSynthesis.addEventListener("voiceschanged",()=>{loadVoices();if(S.tab==="class")render()})}catch(e){}}
+function voicePanel(){
+  if(!canSpeak)return `<p class="small muted">This browser can’t speak words aloud, so Listen and find is hidden.</p>`;
+  const want=lsGet("hw-voice"),list=rankedVoices(),best=list[0],r=voiceRate();
+  return `<h3 style="margin-top:8px">Voice for practice games</h3>
+   <div class="row"><select id="voiceSel" data-c="voice" aria-label="Voice" style="max-width:100%"><option value="">Most natural available${best?` (${esc(best.name)})`:""}</option>${list.map(v=>`<option value="${esc(v.name)}" ${want===v.name?"selected":""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}</select>
+   <select id="rateSel" data-c="rate" aria-label="Speed">${[[.75,"Slow"],[.9,"Steady"],[1,"Natural speed"]].map(([v,l])=>`<option value="${v}" ${Math.abs(r-v)<.01?"selected":""}>${l}</option>`).join("")}</select>
+   <button class="btn sm" data-a="testVoice">${spk} Test</button></div>
+   <p class="small muted">Voices come from this device, so each computer or tablet can be set separately. The most natural ones are usually called Natural, Neural, Enhanced or Premium. To add one: on a Mac or iPad, go to Settings › Accessibility › Spoken Content › Voices › English (UK) and download an Enhanced or Premium voice. In Microsoft Edge, the “Online (Natural)” voices such as Sonia or Libby are built in. In Chrome, try Google UK English Female.</p>`;
+}
+const spk=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
+function startAct(type){
+  const pid=S.ui.practise.pid;let items=shuffle(practiseWords(pid));
+  if(!items.length){toast("No words left to practise — all 100 are correct!");return}
+  if(type==="missing"||type==="build")items=items.filter(i=>WORDS[i].replace(/[’']/g,"").length>=2);
+  if(!items.length){toast("These words are too short for that game. Try flash cards.");return}
+  const a={type,pid,items,i:0,res:{},first:true,phase:"look",picked:[],wrong:null,done:false};
+  setupItem(a);S.ui.act=a;render();
+  if(type==="listen")setTimeout(()=>say(WORDS[a.items[0]]),300);
+}
+function setupItem(a){
+  const idx=a.items[a.i];if(idx==null)return;const w=WORDS[idx];a.first=true;a.wrong=null;a.phase="look";a.picked=[];a.lock=false;
+  if(a.type==="listen"){const pool=shuffle([...new Set([...practiseWords(a.pid),...Array.from({length:20},(_,k)=>Math.min(99,Math.max(0,idx-10+k)))])].filter(i=>i!==idx)).slice(0,3);a.opts=shuffle([idx,...pool])}
+  if(a.type==="missing"){const pos=[...w].map((c,k)=>/[a-z]/i.test(c)?k:-1).filter(k=>k>=0);a.gap=pos[Math.floor(Math.random()*pos.length)];const right=w[a.gap];const up=right!==right.toLowerCase();const pool=shuffle("aeioustnrhdlmwcy".split("").filter(c=>c!==right.toLowerCase())).slice(0,2).map(c=>up?c.toUpperCase():c);a.opts=shuffle([right,...pool])}
+  if(a.type==="build"){let t;const letters=[...w];do{t=shuffle(letters.map((c,k)=>({c,k})))}while(letters.length>1&&t.map(x=>x.c).join("")===w);a.tiles=t}
+}
+function activityView(){
+  const a=S.ui.act;const first=esc(S.pupils[a.pid]?.name.split(" ")[0]||"");
+  const top=`<div class="row" style="justify-content:space-between"><span class="prog">${a.done?"Finished":`Word ${a.i+1} of ${a.items.length}`}</span><button class="btn" data-a="endAct">Stop</button></div>`;
+  if(a.done){
+    const right=a.items.filter(i=>a.res[i]).length;
+    return top+`<div class="stage"><h2 style="font-size:32px">Well done, ${first}!</h2><p class="big" style="font-size:72px">${right}/${a.items.length}</p>
+    <div class="chips" style="justify-content:center">${a.items.map(i=>`<span class="wchip" style="border-color:${a.res[i]?"var(--ok)":"var(--no)"}">${esc(WORDS[i])}<small>${a.res[i]?"first time":"keep practising"}</small></span>`).join("")}</div>
+    <div class="row" style="justify-content:center"><button class="btn primary kbtn" data-a="startAct" data-k="${a.type}">Play again</button><button class="btn kbtn" data-a="endAct">Choose another game</button></div></div>`;
+  }
+  const idx=a.items[a.i],w=WORDS[idx];
+  const hear=canSpeak?`<button class="btn" data-a="say" data-i="${idx}">${spk} Hear it</button>`:"";
+  if(a.type==="flash")return top+`<div class="stage"><div class="big">${esc(w)}</div>${hear}<div class="row" style="justify-content:center"><button class="btn no kbtn" data-a="flash" data-v="0">Not yet</button><button class="btn ok kbtn" data-a="flash" data-v="1">I know it</button></div></div>`;
+  if(a.type==="listen")return top+`<div class="stage"><button class="btn primary kbtn" data-a="say" data-i="${idx}">${spk} Hear the word</button><button class="btn ghost small" data-a="saySent" data-i="${idx}">Hear it in a sentence</button><div class="opts">${a.opts.map(o=>`<button class="opt ${a.wrong===o?"wrong":""}" data-a="listenPick" data-i="${o}">${esc(WORDS[o])}</button>`).join("")}</div></div>`;
+  if(a.type==="missing")return top+`<div class="stage"><div class="big">${[...w].map((c,k)=>k===a.gap?`<span class="gap">${a.phase==="right"?esc(c):"&nbsp;"}</span>`:esc(c)).join("")}</div>${hear}<div class="opts">${a.opts.map(o=>`<button class="opt ${a.wrong===o?"wrong":""}" data-a="missPick" data-v="${o}">${o}</button>`).join("")}</div></div>`;
+  if(a.type==="build"){const used=new Set(a.picked);return top+`<div class="stage">${hear||`<p class="muted">Build: <b>${esc(w)}</b></p>`}<div class="big answer" data-a="buildUndo" title="Tap to undo">${a.picked.map(k=>esc(a.tiles[k].c)).join("")||"&nbsp;"}</div><div class="opts">${a.tiles.map((t,k)=>`<button class="opt" data-a="buildPick" data-k="${k}" ${used.has(k)?"disabled style='opacity:.25'":""}>${esc(t.c)}</button>`).join("")}</div>${a.wrong?`<p class="down">Not quite — try again.</p>`:""}<button class="btn ghost" data-a="buildPeek">Show me the word</button></div>`}
+  if(a.type==="lcwc"){
+    if(a.phase==="look")return top+`<div class="stage"><p class="muted">Look carefully at the word.</p><div class="big">${esc(w)}</div>${hear}<button class="btn primary kbtn" data-a="lcwc" data-k="cover">Cover it</button></div>`;
+    if(a.phase==="cover")return top+`<div class="stage"><p class="muted" style="font-size:22px">Write the word on your whiteboard.</p><div class="big" style="color:var(--line)">? ? ?</div><button class="btn primary kbtn" data-a="lcwc" data-k="check">Check it</button></div>`;
+    return top+`<div class="stage"><p class="muted">Does yours match?</p><div class="big">${esc(w)}</div><div class="row" style="justify-content:center"><button class="btn no kbtn" data-a="lcwcRes" data-v="0">Not quite</button><button class="btn ok kbtn" data-a="lcwcRes" data-v="1">I got it</button></div></div>`;
+  }
+  return top;
+}
+function nextItem(ok){
+  const a=S.ui.act;const idx=a.items[a.i];if(!(idx in a.res))a.res[idx]=ok;
+  a.i++;if(a.i>=a.items.length){a.done=true;finishAct(a)}else{setupItem(a);if(a.type==="listen")setTimeout(()=>say(WORDS[a.items[a.i]]),250)}
+  render();
+}
+function finishAct(a){
+  const pr=practiceFor(a.pid);const boxes={...(pr.boxes||{})};
+  for(const [i,ok] of Object.entries(a.res))boxes[i]=ok?Math.min(3,(boxes[i]||0)+1):1;
+  const log=[...(pr.log||[]),{date:localDate(),type:a.type,n:a.items.length,right:Object.values(a.res).filter(Boolean).length}].slice(-60);
+  saveDoc("practice",a.pid,{boxes,log});
+}
+
+/* ----- Print ----- */
+VIEWS.print=function(){
+  const P=S.ui.print,ids=pupilIds();
+  const pupilPick=(key)=>`<div class="chips">${ids.map(id=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPid" value="${id}" ${P.pids.includes(id)?"checked":""}>${esc(S.pupils[id].name)}</label>`).join("")}</div><div class="row small"><a href="#" data-a="pidsAll">Select all</a><a href="#" data-a="pidsNone">Select none</a></div>`;
+  const ok=!!dl;
+  return `<h2>Print</h2>${ok?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}
+  <div class="cols">
+   <div class="panel stack"><h3>Spelling answer sheets</h3><p class="muted small">20 numbered boxes per A4 page with handwriting lines. Read each word aloud (use the dictation script) and children write it in the matching box.</p>
+    <div class="chips">${[0,1,2,3,4].map(p=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPage" value="${p}" ${P.pages.includes(p)?"checked":""}>Words ${p*20+1}–${p*20+20}</label>`).join("")}</div>
+    <label class="chk"><input type="checkbox" data-c="printNamed" ${P.named?"checked":""}>Print a set for each pupil with their name on</label>
+    ${P.named?pupilPick():""}
+    <div class="row"><button class="btn primary" data-a="pdfSheets">Download answer sheets</button><button class="btn" data-a="pdfScript">Download dictation script</button></div></div>
+   <div class="panel stack"><h3>Flash cards</h3><p class="muted small">Colour-coded by level, with the word number on each card. “Each pupil” uses their plan’s focus words first, then revisit and next-up words.</p>
+    <div class="row"><label for="cpc" class="small"><b>Cards per child</b></label><select id="cpc" data-c="cardsPerChild">${[3,4,5,6,8,10,12,15,20].map(v=>`<option value="${v}" ${cardsPerChild()===v?"selected":""}>${v}</option>`).join("")}</select><span class="muted small">Applies to every child, here, in practice packs and in the pupil panel.</span></div>
+    <div class="seg"><button data-a="cardLayout" data-k="stack" aria-pressed="${P.cardLayout==="stack"}">Stack and cut</button><button data-a="cardLayout" data-k="sheet" aria-pressed="${P.cardLayout==="sheet"}">Sheet by sheet</button></div>
+    <p class="small">${P.cardLayout==="stack"?(P.cardsFor==="levels"?"Each sheet repeats one word in every space. Print, square the stack and cut once: every pile is a complete, identical pack for a group.":"Each space on the sheet belongs to one child, and sheet 1 is their name card. Print, square the stack and cut once: every pile is one child’s complete set with their name on top. Up to "+cardGrid(+P.cardSize).per+" children per stack."):"Cards fill each sheet in order. Best for one child or a single level."} <span class="muted">${cutHelp(+P.cardSize)}</span></p>
+    ${P.stackNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(P.stackNote)}</p>`:""}
+    <div class="seg"><button data-a="cardsFor" data-k="levels" aria-pressed="${P.cardsFor==="levels"}">By level</button><button data-a="cardsFor" data-k="pupils" aria-pressed="${P.cardsFor==="pupils"}">Each pupil’s next words</button></div>
+    ${P.cardsFor==="levels"?`<div class="chips">${BANDS.map((b,l)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${b.n} ${l*10+1}–${l*10+10}</label>`).join("")}</div>`:pupilPick()}
+    <div class="row"><label for="cSize" class="small"><b>Size</b></label><select id="cSize" data-c="cardSize"><option value="10" ${P.cardSize==10?"selected":""}>10 per page</option><option value="4" ${P.cardSize==4?"selected":""}>4 large per page</option></select>
+    <label class="chk small"><input type="checkbox" data-c="cardSent" ${P.cardSent?"checked":""}>Add the dictation sentence</label></div>
+    <button class="btn primary" data-a="pdfCards">Download flash cards</button></div>
+   <div class="panel stack"><h3>Daily practice books</h3><p class="muted small">A5 look-say-cover-write-check pages from each child’s progression plan: a single day, or a 5 or 10-day book with a cover and tick chart. Laid out to stack and cut: print, square the stack, one cut across the middle, and the piles are complete books.</p>
+    ${pupilPick()}
+    <div class="row"><select id="bDays2" data-c="bookDays" aria-label="Days"><option value="1" ${P.bookDays==1?"selected":""}>1 day</option><option value="5" ${P.bookDays==5?"selected":""}>1 week (5 days)</option><option value="10" ${P.bookDays==10?"selected":""}>2 weeks (10 days)</option></select><button class="btn primary" data-a="pdfBooksSel">Download books</button></div>${S.ui.print.bookNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(S.ui.print.bookNote)}</p>`:""}</div>
+   <div class="panel stack"><h3>Practice sheets</h3><p class="muted small">Printable activities made from each child’s focus words, or from a whole level. The sheets ticked here also go into practice packs.</p>
+    <div class="chips">${Object.entries(ACTS).map(([k,a])=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printAct" value="${k}" ${P.acts.includes(k)?"checked":""}>${a.name}</label>`).join("")}</div>
+    <div class="seg"><button data-a="actsFor" data-k="pupils" aria-pressed="${P.actsFor==="pupils"}">Each pupil’s focus words</button><button data-a="actsFor" data-k="levels" aria-pressed="${P.actsFor==="levels"}">By level</button></div>
+    ${P.actsFor==="levels"?`<div class="chips">${BANDS.map((b,l)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${b.n} ${l*10+1}–${l*10+10}</label>`).join("")}</div>`:pupilPick()}
+    <button class="btn primary" data-a="pdfActs">Download practice sheets</button></div>
+   <div class="panel stack"><h3>Targeted check sheets</h3><p class="muted small">For 1:1 re-checks: one sheet per pupil listing only words they haven’t got yet, plus your script for those words.</p>
+    ${P.named?"":pupilPick()}
+    <div class="row"><label for="tN" class="small">Words per pupil</label><select id="tN" data-c="targetN"><option value="10" ${P.targetN==10?"selected":""}>10</option><option value="20" ${P.targetN==20?"selected":""}>20</option></select></div>
+    <button class="btn primary" data-a="pdfTargeted">Download check sheets</button></div>
+   <div class="panel stack"><h3>Class record</h3><p class="muted small">Your A3 class grid, filled in with the latest results and colour-coded. Or a spreadsheet of the same.</p>
+    <div class="row"><button class="btn primary" data-a="pdfGrid">Download A3 class grid</button><button class="btn" data-a="csv">Download spreadsheet (CSV)</button></div></div>
+  </div>`;
+};
+
+/* ----- Class ----- */
+VIEWS.class=function(){
+  const ids=pupilIds(),st=S.settings;
+  return `<h2>Class</h2><div class="cols">
+  <div class="panel stack"><h3>Pupils (${ids.length})</h3>
+   <p class="muted small">This is your Classroom Hub class list. Add, rename or remove pupils on the Pupils page.</p>
+   <div class="stack">${ids.map(id=>`<div style="border-bottom:1px solid var(--line);padding-bottom:6px">${esc(S.pupils[id].name)}</div>`).join("")}</div>
+   ${window.hwHub?`<div class="row"><button class="btn" data-a="hubPupils">Go to Pupils</button></div>`:""}</div>
+  <div class="panel stack"><h3>Settings</h3>
+   <label for="clsName"><b>Class name</b></label><input type="text" id="clsName" data-c="className" value="${esc(st.className)}" placeholder="e.g. Year 1 Oak">
+   <label class="chk"><input type="checkbox" data-c="strictCaps" ${st.strictCaps?"checked":""}>Require capitals for I, I’m, Mr and Mrs</label>
+   <label class="chk"><input type="checkbox" data-c="acceptNoApos" ${st.acceptNoApos?"checked":""}>Accept it’s, don’t and I’m without the apostrophe</label>
+   <p class="muted small">Other capital letters are always ignored. Settings apply to sheets you mark from now on.</p>
+   ${voicePanel()}
+   <h3 style="margin-top:8px">How levels work</h3>
+   <p class="small">The 100 words are split into ten levels of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s level is the first set of ten they haven’t fully got. A word is <b>secure</b> once it has been correct in two separate checks.</p>
+   ${S.mode==="demo"?`<button class="btn" data-a="exitDemo">Leave example class</button>`:S.mode!=="live"?`<button class="btn" data-a="demo">Load example class</button>`:""}
+  </div></div>`;
+};
+
+/* ---------- photo marking ---------- */
+function canvasBlob(cv){return new Promise(r=>cv.toBlob(r,"image/jpeg",.88))}
+async function prepImages(file){
+  const url=URL.createObjectURL(file);
+  const im=new Image();im.src=url;await im.decode();
+  const W=im.naturalWidth,H=im.naturalHeight;
+  const cut=async(y0,y1)=>{const sh=(y1-y0)*H;const sc=Math.min(1,2000/Math.max(W,sh));const cv=document.createElement("canvas");cv.width=Math.round(W*sc);cv.height=Math.round(sh*sc);cv.getContext("2d").drawImage(im,0,y0*H,W,sh,0,0,cv.width,cv.height);return canvasBlob(cv)};
+  const full=await cut(0,1),top=await cut(0,.55),bot=await cut(.45,1);
+  URL.revokeObjectURL(url);
+  return {full,top,bot};
+}
+function photoPrompt(three){
+  const roster=pupilIds().map(id=>S.pupils[id].name);
+  return `You are helping a primary school teacher mark a high-frequency word SPELLING check from a photo of one child's answer sheet.
+
+The sheet has a printed header (Name, Date, and a word-number range such as "Words 21-40") and numbered answer boxes. Each box's printed number is the number of the word in the list below. The teacher read each word aloud and the child wrote it in the matching box.
+${three?"Image 1 is the whole sheet. Images 2 and 3 are the top and bottom halves of the same sheet at higher resolution; use them to read small letters.":"The image is the whole sheet."}
+
+Word list (number: word):
+${WORDS.map((w,i)=>`${i+1}: ${w.replace(/’/g,"'")}`).join("\n")}
+
+Class list: ${roster.join("; ")||"(none)"}
+
+For EVERY numbered box on the sheet:
+- "read": transcribe EXACTLY what the child wrote, letter by letter, keeping their capitals and apostrophes. Never correct their spelling. Young children's misspellings are expected (e.g. "sed", "wos", "thay") and must be copied as written. If a letter is reversed (b/d, p/q, s, j) write the letter it was meant to be and set "reversal": true. If the child crossed something out, transcribe their final attempt.
+- "confidence": "high" only if you are certain of every letter. Use "low" if any letter is ambiguous, faint, overwritten, cut off, or could be read two ways, or if you are not sure which box the writing belongs to.
+- "blank": true if the box is empty (then read is "").
+- "note": a few words if anything is unusual (e.g. "second letter could be a or o"), else "".
+- "box": approximate [x, y, width, height] of the child's writing in image 1, as fractions 0-1 of the image width and height.
+
+Also read the name written or printed on the sheet, and if it clearly matches someone on the class list give that exact class-list name as "rosterMatch".
+
+Reply with only this JSON:
+{"name": string|null, "rosterMatch": string|null, "boxes": [{"n": number, "read": string, "confidence": "high"|"low", "blank": boolean, "reversal": boolean, "note": string, "box": [number,number,number,number]}], "issues": string}
+"issues" is "" unless the photo has a problem the teacher should know about (blurred, part of the page missing, not an answer sheet).`;
+}
+function normWord(t,target){
+  let x=String(t||"").trim().replace(/[’‘`´]/g,"'").replace(/^["“”]+|[.,!?;:"“”]+$/g,"");
+  let y=target.replace(/’/g,"'");
+  if(S.settings.acceptNoApos){x=x.replace(/'/g,"");y=y.replace(/'/g,"")}
+  const strict=S.settings.strictCaps&&/[A-Z]/.test(y);
+  if(!strict){x=x.toLowerCase();y=y.toLowerCase()}
+  return [x,y];
+}
+function markBox(b){
+  const n=Math.round(Number(b.n));if(!(n>=1&&n<=100))return null;
+  const r=b.blank?"":String(b.read??"").trim();
+  const [x,y]=normWord(r,WORDS[n-1]);
+  const ai=r&&x===y?"c":"x";
+  const s=b.blank?"x":(b.confidence!=="high"||b.reversal)?"?":ai;
+  const box=Array.isArray(b.box)&&b.box.length===4&&b.box.every(v=>typeof v==="number"&&v>=0&&v<=1)?b.box:null;
+  return {n,r,ai,s,conf:b.confidence==="high"?"high":"low",note:[b.reversal?"reversed letter":"",b.note||""].filter(Boolean).join("; "),box};
+}
+function matchPupil(res){
+  const ids=pupilIds();const norm=s=>String(s||"").toLowerCase().replace(/[^a-z ]/g,"").trim();
+  const exact=ids.find(id=>norm(S.pupils[id].name)===norm(res.rosterMatch))||ids.find(id=>norm(S.pupils[id].name)===norm(res.name));
+  if(exact)return exact;
+  const n=norm(res.name);if(!n)return "";
+  const hits=ids.filter(id=>{const pn=norm(S.pupils[id].name);return pn.split(" ")[0]===n.split(" ")[0]});
+  return hits.length===1?hits[0]:"";
+}
+let jobRunning=false;
+async function runJobs(){
+  if(jobRunning)return;jobRunning=true;
+  try{
+    let j;
+    while((j=S.ui.jobs.find(x=>x.status==="queued"))){
+      j.status="reading";render();
+      try{
+        if(!j.imgs)j.imgs=await prepImages(j.file);
+        j.blob=j.imgs.full;
+        const three=(imgLimits.maxCount||1)>=3;
+        const res=await sampleApi.json(photoPrompt(three),{images:three?[j.imgs.full,j.imgs.top,j.imgs.bot]:[j.imgs.full],modelTier:"complex"});
+        if(!res||!Array.isArray(res.boxes))throw {code:"invalid_json"};
+        const seen=new Set();
+        j.boxes=res.boxes.map(markBox).filter(b=>b&&!seen.has(b.n)&&seen.add(b.n)).sort((a,b)=>a.n-b.n);
+        if(!j.boxes.length)throw {code:"no_boxes"};
+        j.nameRead=res.name||"";j.issues=res.issues||"";j.pid=j.pid||matchPupil(res);
+        j.status="done";
+      }catch(e){
+        j.status="error";
+        j.err=e.code==="not_granted"?"Claude access wasn’t allowed for this page. Allow it from the page’s permissions to mark photos.":
+          e.code==="rate_limited"?"Claude is busy or your usage limit was reached. Wait a moment, then try again.":
+          e.code==="image_rejected"?"That image couldn’t be used. Try a JPEG or PNG photo.":
+          e.code==="no_boxes"?"No numbered answer boxes were found. Check the photo shows a whole answer sheet.":
+          e.code==="invalid_json"?"Claude’s reply couldn’t be read. Try again.":
+          (e instanceof Error&&!e.code)?"This photo couldn’t be opened. If it’s HEIC, export it as JPEG.":"Something went wrong reading this sheet. Try again.";
+        if(e.code==="not_granted"){S.ui.jobs.forEach(x=>{if(x.status==="queued"){x.status="error";x.err=j.err}})}
+      }
+      render();
+    }
+  }finally{jobRunning=false}
+}
+function addFiles(files){
+  for(const f of files){if(!f.type.startsWith("image/")&&!/\.(heic|heif)$/i.test(f.name))continue;
+    S.ui.jobs.push({id:uid(),file:f,status:"queued",url:URL.createObjectURL(f),pid:""})}
+  render();runJobs();
+}
+async function saveJob(j){
+  if(!j.pid){toast("Choose the pupil first");return}
+  j.status="saving";render();
+  let photo="mem:"+j.id;memPhotos[j.id]=j.blob?URL.createObjectURL(j.blob):j.url;
+  if(assetsApi&&S.mode==="live"&&j.blob){try{const a=await assetsApi.upload(j.blob);photo=a.id}catch(e){toast("Photo not stored; marks saved. You can still review this session now.")}}
+  const sid=j.pid+"_"+S.ui.date,old=S.sessions[sid];
+  const words={...((old&&old.words)||{})};
+  for(const b of j.boxes){const w={s:b.s,r:b.r,ai:b.ai,conf:b.conf,note:b.note,photo,src:"photo"};if(b.box)w.box=b.box;words[b.n-1]=w}
+  await saveDoc("sessions",sid,{pupilId:j.pid,date:S.ui.date,kind:"spelling",words,photos:[...((old&&old.photos)||[]),photo],updatedAt:Date.now()});
+  j.status="saved";render();
+}
+
+/* ---------- PDFs ---------- */
+function jsPDFctor(){if(!window.jspdf){toast("The PDF tool didn’t load. Reload the page and try again.");return null}return window.jspdf.jsPDF}
+async function offer(doc,filename){
+  if(!dl){toast("Downloads aren’t available in this view.");return}
+  try{await dl.save({filename,data:doc.output("blob")});toast("Saved "+filename)}
+  catch(e){if(e&&e.code!=="declined")toast(e&&e.code==="rate_limited"?"A download is already waiting for you to confirm.":"The download didn’t start. Try again.")}
+}
+const rgb=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+function drawSheet(doc,{title,name,range,nums,foot}){
+  const M=12,PW=210,PH=297;
+  doc.setFillColor(0,0,0);[[M,M],[PW-M-5,M],[M,PH-M-5],[PW-M-5,PH-M-5]].forEach(([x,y])=>doc.rect(x,y,5,5,"F"));
+  doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(pdfText(title),M+9,M+4.5);
+  doc.setDrawColor(0);doc.setLineWidth(.7);doc.roundedRect(PW-M-66,M+9,58,15,2,2);doc.setFontSize(17);doc.text(range,PW-M-37,M+19,{align:"center"});
+  doc.setFont("helvetica","normal");doc.setFontSize(12);doc.text("Name:",M,M+19);
+  if(name){doc.setFont("helvetica","bold");doc.setFontSize(18);doc.text(pdfText(name),M+16,M+19.5);doc.setFont("helvetica","normal");doc.setFontSize(12)}
+  else{doc.setLineWidth(.3);doc.line(M+15,M+20,M+100,M+20)}
+  doc.text("Date:",M,M+31);doc.setLineWidth(.3);doc.line(M+15,M+32,M+70,M+32);
+  const top=M+40,rowH=23,colW=(PW-2*M-6)/2;
+  nums.forEach((wi,j)=>{const col=j<10?0:1,row=j%10,x=M+col*(colW+6),y=top+row*rowH;
+    doc.setDrawColor(0);doc.setLineWidth(.45);doc.roundedRect(x,y,14,19,1.5,1.5);
+    doc.setFont("helvetica","bold");doc.setFontSize(wi+1>=100?13:16);doc.text(String(wi+1),x+7,y+12.3,{align:"center"});
+    doc.roundedRect(x+16,y,colW-16,19,1.5,1.5);
+    doc.setDrawColor(150);doc.setLineWidth(.3);doc.line(x+19,y+14.5,x+colW-3,y+14.5);
+    doc.setLineDashPattern([1.2,1.2],0);doc.line(x+19,y+8.5,x+colW-3,y+8.5);doc.setLineDashPattern([],0);
+  });
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(120);doc.text(pdfText(foot||""),PW/2,PH-M-1,{align:"center"});doc.setTextColor(0);
+}
+function scriptPages(doc,indices,heading,first){
+  const M=16;let y=0,page=first?0:1;
+  const header=()=>{doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfText(heading),M,M+4);doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90);
+    doc.text("Say the word, read the sentence, then say the word again. Children write it in the box with the same number.",M,M+11);doc.setTextColor(0);y=M+22};
+  indices.forEach((i,k)=>{
+    if(k%42===0){if(page>0)doc.addPage();page++;header()}
+    doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(String(i+1)+".",M+8,y,{align:"right"});
+    doc.text(pdfText(WORDS[i]),M+11,y);doc.setFont("helvetica","normal");doc.text(pdfText(SENT[i]),M+42,y);
+    doc.setDrawColor(225);doc.setLineWidth(.2);doc.line(M,y+2,210-M,y+2);y+=5.6;
+  });
+}
+const PDF={
+  sheets(){const J=jsPDFctor();if(!J)return;const P=S.ui.print;const pages=P.pages.slice().sort();if(!pages.length){toast("Choose at least one page");return}
+    const names=P.named?P.pids.filter(id=>S.pupils[id]).map(id=>S.pupils[id].name):[null];if(P.named&&!names.length){toast("Choose the pupils to print for");return}
+    const doc=new J({unit:"mm",format:"a4"});let first=true;
+    for(const nm of names)for(const p of pages){if(!first)doc.addPage();first=false;
+      drawSheet(doc,{title:"100 high frequency words - spelling",name:nm,range:`Words ${p*20+1}-${p*20+20}`,nums:Array.from({length:20},(_,k)=>p*20+k),foot:`${S.settings.className?S.settings.className+" · ":""}Sheet ${pages.indexOf(p)+1} of ${pages.length}`})}
+    offer(doc,"answer-sheets.pdf")},
+  script(){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});scriptPages(doc,WORDS.map((_,i)=>i),"Dictation script: 100 high frequency words",true);offer(doc,"dictation-script.pdf")},
+  targeted(pids){const J=jsPDFctor();if(!J)return;const n=+S.ui.print.targetN||10;pids=pids.filter(id=>S.pupils[id]);if(!pids.length){toast("Choose the pupils to print for");return}
+    const doc=new J({unit:"mm",format:"a4"});let first=true;
+    for(const id of pids){const ws=summary(id).ws;const nums=ws.map((w,i)=>i).filter(i=>!isKnown(ws[i].st)).slice(0,n);if(!nums.length)continue;
+      if(!first)doc.addPage();first=false;
+      drawSheet(doc,{title:"Spelling check",name:S.pupils[id].name,range:`${nums.length} words`,nums,foot:"Targeted check"});
+      doc.addPage();scriptPages(doc,nums,`Teacher script for ${S.pupils[id].name}`,true)}
+    if(first){toast("Those pupils have no words left to check");return}
+    offer(doc,pids.length===1?`check-sheet-${S.pupils[pids[0]].name.replace(/\W+/g,"-").toLowerCase()}.pdf`:"check-sheets.pdf")},
+  async cards(groups,filename){const J=jsPDFctor();if(!J)return;await fontsReady();
+    const doc=new J({unit:"mm",format:"a4"});const n=drawCards(doc,groups,{size:+S.ui.print.cardSize,sent:S.ui.print.cardSent});
+    if(!n){toast("No cards to print");return}offer(doc,filename)},
+  async acts(groups,filename){const J=jsPDFctor();if(!J)return;const acts=S.ui.print.acts;if(!acts.length){toast("Choose at least one activity");return}await fontsReady();
+    const doc=new J({unit:"mm",format:"a4"});for(const g of groups)drawActPages(doc,acts,g.items,g.label);if(!doc.__used){toast("No words to make sheets from");return}offer(doc,filename)},
+  async stackPupils(pids,filename){const J=jsPDFctor();if(!J)return;pids=pids.filter(id=>S.pupils[id]);if(!pids.length){toast("Choose the pupils to print for");return}
+    await fontsReady();const size=+S.ui.print.cardSize,sent=S.ui.print.cardSent,per=cardGrid(size).per,doc=new J({unit:"mm",format:"a4"});let batches=0;
+    for(let b=0;b<pids.length;b+=per){const group=pids.slice(b,b+per);batches++;
+      const piles=group.map((id,k)=>{const cards=childCards(id),first=S.pupils[id].name.split(" ")[0];
+        return [{cover:true,name:S.pupils[id].name,sub:`${cards.length} flash cards${pids.length>per?` · batch ${batches}, pile ${k+1}`:""}`},...cards.map(i=>({i,label:first}))]});
+      drawStack(doc,piles,{size,sent})}
+    if(!doc.__used){toast("No cards to print");return}
+    S.ui.print.stackNote=`${batches} stack${batches>1?"s":""} of ${cardsPerChild()+1} sheets (name card + ${cardsPerChild()} cards), up to ${per} children per stack. Print, keep each stack together, square it and cut. ${cutHelp(size)}`;render();
+    offer(doc,filename)},
+  async stackLevels(levels,filename){const J=jsPDFctor();if(!J)return;if(!levels.length){toast("Choose at least one level");return}
+    await fontsReady();const size=+S.ui.print.cardSize,sent=S.ui.print.cardSent,per=cardGrid(size).per,doc=new J({unit:"mm",format:"a4"});
+    const words=levels.flatMap(l=>Array.from({length:10},(_,k)=>l*10+k)).map(i=>({i,label:""}));
+    drawStack(doc,Array.from({length:per},()=>words),{size,sent});
+    S.ui.print.stackNote=`${words.length} sheets, one word per sheet. Square the stack and cut to get ${per} identical packs. ${cutHelp(size)}`;render();
+    offer(doc,filename)},
+  async books(pids,filename){const J=jsPDFctor();if(!J)return;pids=pids.filter(id=>S.pupils[id]);if(!pids.length){toast("Choose the pupils to print for");return}
+    toast("Building practice book"+(pids.length>1?"s":"")+"…");await fontsReady();const doc=new J({unit:"mm",format:"a4"});
+    const days=+S.ui.print.bookDays||5,books=[],names=[];
+    for(const id of pids){const b=bookPages(id,days);if(b){books.push(b);names.push(S.pupils[id].name)}}
+    if(!books.length){toast("Those pupils have no words left to practise");return}
+    layBooks(doc,books);S.ui.print.bookNote=bookNote(names,days);render();offer(doc,filename)},
+  plans(pids,filename){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});pids.forEach(id=>drawPlan(doc,id));offer(doc,filename)},
+  async packs(pids,filename){const J=jsPDFctor();if(!J)return;toast("Building practice pack"+(pids.length>1?"s":"")+"…");await fontsReady();
+    const doc=new J({unit:"mm",format:"a4"});for(const id of pids)await buildPack(doc,id,S.ui.print.acts);offer(doc,filename)},
+  grid(){const J=jsPDFctor();if(!J)return;const ids=pupilIds();
+    const doc=new J({unit:"mm",format:"a3",orientation:"landscape"});const PW=420,PH=297,M=10,nameW=40,scoreW=14,colW=(PW-2*M-nameW-scoreW)/100,blockH=6,wordH=22,rowsTop=M+blockH+wordH;
+    const rowH=Math.min(8,(PH-M-rowsTop-10)/Math.max(ids.length,1));
+    doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text("100 high",M+1.5,M+4);doc.text("frequency words",M+1.5,M+8);
+    doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("Class: "+pdfText(S.settings.className||""),M+1.5,M+13);
+    doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),M+1.5,M+17);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Pupil name",M+1.5,rowsTop-2);
+    for(let b=0;b<10;b++){const x=M+nameW+b*10*colW;doc.setFillColor(...rgb(BANDS[b].c));doc.rect(x,M,10*colW,1.6,"F");doc.setFontSize(9);doc.text(`${b*10+1}-${b*10+10}`,x+5*colW,M+5,{align:"center"})}
+    doc.setFont("helvetica","normal");doc.setFontSize(7);
+    for(let i=0;i<100;i++){const x=M+nameW+i*colW;doc.text(pdfText(WORDS[i]),x+colW/2+1.1,rowsTop-1.2,{angle:90})}
+    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Score",PW-M-scoreW/2,M+9,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("/ 100",PW-M-scoreW/2,M+13,{align:"center"});
+    const fills={known:"#9fdcb4",secure:"#2f9e5b",notyet:"#f6c9c5",slipped:"#f6c9c5",review:"#f3d68a"};
+    ids.forEach((id,r)=>{const y=rowsTop+r*rowH,s=summary(id);
+      if(r%2)doc.setFillColor(246,246,246),doc.rect(M,y,PW-2*M,rowH,"F");
+      doc.setFont("helvetica","normal");doc.setFontSize(Math.min(9,rowH*1.4));doc.setTextColor(0);doc.text(pdfText(S.pupils[id].name).slice(0,24),M+1.5,y+rowH*.68);
+      s.ws.forEach((w,i)=>{const f=fills[w.st];if(!f)return;const x=M+nameW+i*colW;doc.setFillColor(...rgb(f));doc.rect(x+.25,y+.25,colW-.5,rowH-.5,"F");
+        if(w.st==="slipped"){doc.setFillColor(207,75,69);doc.circle(x+colW/2,y+rowH/2,Math.min(colW,rowH)*.18,"F")}});
+      if(s.sessions.length){doc.setFont("helvetica","bold");doc.text(String(s.known),PW-M-scoreW/2,y+rowH*.68,{align:"center"})}
+    });
+    const bottom=rowsTop+ids.length*rowH;
+    doc.setDrawColor(200);doc.setLineWidth(.15);
+    for(let i=0;i<=100;i++){const x=M+nameW+i*colW;doc.line(x,M+blockH,x,bottom)}
+    for(let r=0;r<=ids.length;r++){const y=rowsTop+r*rowH;doc.line(M,y,PW-M,y)}
+    doc.setDrawColor(90);doc.setLineWidth(.45);
+    for(let b=0;b<=10;b++){const x=M+nameW+b*10*colW;doc.line(x,M,x,bottom)}
+    doc.rect(M,M,PW-2*M,bottom-M);doc.line(PW-M-scoreW,M,PW-M-scoreW,bottom);doc.line(M,rowsTop,PW-M,rowsTop);
+    const ly=Math.min(PH-6,bottom+7);let lx=M;doc.setFont("helvetica","normal");doc.setFontSize(8);
+    [["known","Correct"],["secure","Secure (correct twice)"],["notyet","Not yet"],["slipped","Slipped (dot)"],["review","Needs review"]].forEach(([k,l])=>{doc.setFillColor(...rgb(fills[k]));doc.rect(lx,ly-3,4,4,"F");if(k==="slipped"){doc.setFillColor(207,75,69);doc.circle(lx+2,ly-1,.7,"F")}doc.text(l,lx+5.5,ly);lx+=doc.getTextWidth(l)+14});
+    offer(doc,"class-grid-a3.pdf")},
+  csv(){if(!dl){toast("Downloads aren’t available in this view.");return}
+    const q=v=>`"${String(v).replace(/"/g,'""')}"`;const rows=[["Pupil","Correct","Secure","Level","Last assessed",...WORDS].map(q).join(",")];
+    for(const id of pupilIds()){const s=summary(id);rows.push([S.pupils[id].name,s.known,s.secure,s.sessions.length?(s.level>=10?"Complete":BANDS[s.level].n):"",s.lastDate||"",...s.ws.map(w=>({known:"Y",secure:"Y",notyet:"N",slipped:"N",review:"?"}[w.st]||""))].map(q).join(","))}
+    dl.save({filename:"hundred-words.csv",data:rows.join("\n")}).then(()=>toast("Saved hundred-words.csv")).catch(e=>{if(e&&e.code!=="declined")toast("The download didn’t start. Try again.")})}
+};
+
+/* ---------- progression plans ---------- */
+const ERR={blank:"Left blank",sounded:"Sounded out or another attempt",vowel:"Vowel mix-up",missing:"Missed a letter",extra:"Added a letter",order:"Letters in the wrong order",apostrophe:"Missed the apostrophe",caps:"Capital letter",reversal:"Reversed letters (b/d, p/q)"};
+function isSubseq(a,b){let j=0;for(const ch of b){if(ch===a[j])j++}return j===a.length}
+function classify(target,read){
+  const t=target.replace(/’/g,"'").toLowerCase(),raw=String(read||"").replace(/[’‘]/g,"'").trim(),r=raw.toLowerCase();
+  if(!r)return "blank";
+  if(r===t)return "caps";
+  if(t.includes("'")&&r===t.replace(/'/g,""))return "apostrophe";
+  const v=s=>s.replace(/[aeiouy]/g,"*");
+  if(r.length===t.length&&v(r)===v(t))return "vowel";
+  if(r.length===t.length-1&&isSubseq(r,t))return "missing";
+  if(r.length===t.length+1&&isSubseq(t,r))return "extra";
+  if(r.length===t.length&&[...r].sort().join("")===[...t].sort().join(""))return "order";
+  return "sounded";
+}
+const addDays=(d,n)=>{const x=new Date(d+"T12:00");x.setDate(x.getDate()+n);return localDate(x)};
+const wl=a=>a.map(i=>WORDS[i]).join(", ");
+function buildPlan(pid){
+  if(memo["plan"+pid])return memo["plan"+pid];
+  const s=summary(pid),pl=S.plans[pid]||{},pr=practiceFor(pid),boxes=pr.boxes||{},first=S.pupils[pid].name.split(" ")[0];
+  const assessed=s.sessions.length>0,plateau=s.delta!=null&&s.delta<=0,gains=s.delta!=null&&s.delta>=10;
+  const autoN=plateau?3:gains?8:5,focusN=pl.focusN||autoN;
+  const idx=s.ws.map((w,i)=>i);
+  const revisit=idx.filter(i=>s.ws[i].st==="slipped").slice(0,5);
+  const open=idx.filter(i=>!isKnown(s.ws[i].st)&&s.ws[i].st!=="slipped");
+  const focus=open.slice(0,focusN),nextUp=open.slice(focusN,focusN+5);
+  const pats={};const add=(k,i,r)=>{const p=pats[k]=pats[k]||{n:0,ex:[]};p.n++;if(r&&p.ex.length<3)p.ex.push([i,r])};
+  s.ws.forEach((w,i)=>{if(w.st!=="notyet"&&w.st!=="slipped")return;const last=[...w.hist].reverse().find(h=>h.s==="x");if(!last||last.r==null)return;
+    add(classify(WORDS[i],last.r),i,last.r);if(/revers/i.test(last.note||""))add("reversal",i,last.r)});
+  const n=k=>pats[k]?pats[k].n:0,ex=k=>(pats[k]?pats[k].ex:[]).map(([i,r])=>`“${r}” for ${WORDS[i]}`).join(", ");
+  const ready=Object.entries(boxes).filter(([i,v])=>v>=3&&!isKnown(s.ws[+i].st)).map(([i])=>+i);
+  const recs=[];
+  if(!assessed)recs.push({t:"Baseline check",f:"This week",d:"Run the spelling check (Print > Answer sheets) so this plan can be based on real results. Until then it starts from the first words on the list."});
+  if(plateau)recs.push({t:"Smaller steps",f:"Daily",d:`No gain since the last check, so the focus set is ${focusN} words. Short daily 1:1 practice works better than longer weekly sessions.`});
+  if(focus.length)recs.push({t:"Flash cards",f:"5 minutes daily",d:`Read the ${focus.length} focus words quickly. Keep any ‘not yet’ cards in the pile and go round again.`});
+  if(n("blank")>=3&&n("blank")>=n("sounded"))recs.push({t:"Recognise before spelling",f:"Daily",d:`${n("blank")} words were left blank. Build reading first: Listen and find in the app, and spot the words in reading books, before asking for spellings.`});
+  if(n("sounded")>=2)recs.push({t:"Look, say, cover, write, check",f:"3 times a week",d:`${first} is sounding words out (${ex("sounded")}). Point out the tricky part of each word, then use the look-cover-write-check sheet.`});
+  if(n("vowel")+n("missing")+n("extra")>=2)recs.push({t:"Missing letters",f:"Twice a week",d:`Most letters are right but one is missed or swapped (${[ex("vowel"),ex("missing"),ex("extra")].filter(Boolean).join(", ")}). Use the missing-letters sheet and say each sound while writing.`});
+  if(n("order"))recs.push({t:"Build the word",f:"Twice a week",d:`The right letters are there in the wrong order (${ex("order")}). Use letter tiles or the Build the word game.`});
+  if(n("reversal"))recs.push({t:"Letter formation",f:"Daily warm-up",d:"Some letters are reversed. Use the trace-and-write sheet and model the correct formation for b, d, p and q."});
+  if(n("apostrophe"))recs.push({t:"Contractions",f:"One short lesson, then revisit",d:"Teach it’s = it is, don’t = do not, I’m = I am, and show the apostrophe standing in for the missing letter."});
+  if(revisit.length)recs.push({t:"Revisit slipped words",f:"Daily warm-up",d:`${wl(revisit)} ${revisit.length>1?"were":"was"} correct before. Add ${revisit.length>1?"them":"it"} back into flash cards until secure.`});
+  if(ready.length)recs.push({t:"Re-check",f:"Next 1:1",d:`${wl(ready)} reached the top of the practice ladder. Check ${ready.length>1?"them":"it"} 1:1 and mark in Quick check.`});
+  if(gains)recs.push({t:"Keep the pace",f:"Ongoing",d:`Strong progress (+${s.delta}) since the last check, so the focus set is ${focusN} words.`});
+  if(focus.length)recs.push({t:"Practise games and sentences",f:"2–3 times a week",d:"Games in the Practise tab, plus dictating the sentence for each focus word (Print > Dictation script)."});
+  const reviewDate=pl.reviewDate||addDays(s.lastDate||localDate(),14);
+  const criteria=focus.length||revisit.length?`${first} spells ${wl([...focus,...revisit])} correctly in two separate checks.`:`${first} keeps all 100 words secure.`;
+  const log=pr.log||[];
+  return memo["plan"+pid]={s,pl,first,focusN,autoN,focus,nextUp,revisit,pats,recs,ready,reviewDate,criteria,plateau,gains,assessed,sessions:log.length,lastPractice:log.length?log[log.length-1].date:null,boxes};
+}
+function planWords(pid){const p=buildPlan(pid);let ws=[...p.focus,...p.revisit];if(ws.length<4)ws=[...ws,...p.nextUp].slice(0,Math.max(4,ws.length));return ws.slice(0,10)}
+function savePlan(pid,patch){saveDoc("plans",pid,{...(S.plans[pid]||{}),...patch,updated:Date.now()})}
+function patternList(p){return Object.entries(p.pats).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>({k,label:ERR[k],n:v.n,ex:v.ex}))}
+function wordMap(s){return `<div class="wmap">${s.ws.map((w,i)=>`<i class="s-${w.st}" style="${i%10===0?`box-shadow:inset 3px 0 0 ${BANDS[i/10].c}`:""}" title="${i+1}. ${esc(WORDS[i])}: ${STLABEL[w.st]}"></i>`).join("")}</div>`}
+
+VIEWS.plans=function(){
+  if(S.ui.plan&&S.pupils[S.ui.plan])return planView(S.ui.plan);
+  const ids=pupilIds();
+  if(!ids.length)return `<h2>Progression plans</h2><div class="panel empty"><p>Add pupils in the Class tab first.</p></div>`;
+  const today=localDate();
+  return `<div class="row" style="justify-content:space-between"><h2>Progression plans</h2><div class="row"><button class="btn" data-a="pdfAllPlans">All plans</button><button class="btn" data-a="pdfAllPacks">All practice packs</button><button class="btn" data-a="pdfAllCards">All flash cards (stack and cut)</button></div></div>
+  <div class="panel row" style="justify-content:space-between"><div style="max-width:62ch"><h3>Daily practice books for the whole class</h3><p class="small muted">Each child gets their own A5 book: a cover with their words, target and tick chart, then a look-say-cover-write-check page for each day using their plan’s words — or just one day’s page. Two children share each A4 sheet, laid out to stack and cut: print, square the stack, cut once across the middle, and each pile is a run of complete books in page order.</p></div>
+  <div class="row"><select id="bDays" data-c="bookDays" aria-label="Days"><option value="1" ${S.ui.print.bookDays==1?"selected":""}>1 day</option><option value="5" ${S.ui.print.bookDays==5?"selected":""}>1 week (5 days)</option><option value="10" ${S.ui.print.bookDays==10?"selected":""}>2 weeks (10 days)</option></select><button class="btn primary" data-a="pdfAllBooks">Print books for all ${ids.length}</button></div>${S.ui.print.bookNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(S.ui.print.bookNote)}</p>`:""}</div>
+  <p class="muted" style="max-width:75ch">Each plan is built from the child’s checks, what they actually wrote, and their practice. The focus set gets smaller when progress stalls and bigger when it speeds up. Open a plan to change the focus size, review date or notes. A practice pack is the plan plus flash cards and the practice sheets ticked in the Print tab.</p>
+  <div class="cols">${ids.map(id=>{const p=buildPlan(id),s=p.s,top=patternList(p)[0];const due=p.reviewDate<=today;
+    return `<div class="panel stack"><div class="row" style="justify-content:space-between"><h3 class="band">${s.sessions.length?bandDot(s.level):""}${esc(S.pupils[id].name)}</h3><span class="pill ${due?"rev":""}">${due?"Review due":"Review "+fmtShort(p.reviewDate)}</span></div>
+    <p class="small muted">${esc(levelLabel(s))}${s.sessions.length?` · ${s.known}/100${s.delta!=null?` (${s.delta>0?"+":""}${s.delta})`:""}`:""}</p>
+    <div class="chips">${p.focus.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${p.revisit.map(i=>`<span class="wchip" style="border-color:var(--no)">${esc(WORDS[i])}<small>revisit</small></span>`).join("")||(p.focus.length?"":'<span class="muted small">All words secure</span>')}</div>
+    ${top?`<p class="small">Most common: <b>${esc(top.label.toLowerCase())}</b> (${top.n})</p>`:""}
+    <div class="row"><button class="btn sm primary" data-a="openPlan" data-id="${id}">Open plan</button><button class="btn sm" data-a="pdfPlan" data-id="${id}">Plan PDF</button><button class="btn sm" data-a="pdfBook" data-id="${id}">Practice book</button><button class="btn sm" data-a="pdfPack" data-id="${id}">Practice pack</button></div></div>`}).join("")}</div>`;
+};
+function planView(pid){
+  const p=buildPlan(pid),s=p.s,name=S.pupils[pid].name,draft=S.ui.planDraft[pid];
+  const pats=patternList(p);
+  const ladder=[0,1,2,3].map(b=>[b,[...p.focus,...p.revisit].filter(i=>(p.boxes[i]||0)===b).length]);
+  return `<div class="row" style="justify-content:space-between"><button class="btn ghost" data-a="closePlan">← All plans</button><div class="row"><button class="btn" data-a="practiseWith" data-id="${pid}">Practise now</button><button class="btn" data-a="pdfPlan" data-id="${pid}">Plan PDF</button><button class="btn" data-a="pdfBook" data-id="${pid}">Practice book</button><button class="btn primary" data-a="pdfPack" data-id="${pid}">Practice pack PDF</button></div></div>
+  <div class="panel stack" style="border-top:6px solid ${s.sessions.length?BANDS[Math.min(s.level,9)].c:"var(--line)"}">
+    <div class="row" style="justify-content:space-between;align-items:flex-start"><div><span class="muted small">Spelling plan</span><h2 style="font-size:28px">${esc(name)}</h2><p class="muted">${esc(levelLabel(s))}</p></div>
+      <div class="row small"><label for="pf${pid}"><b>Focus size</b></label><select id="pf${pid}" data-c="planFocus" data-id="${pid}"><option value="">Automatic (${p.autoN})</option>${[3,5,8,10].map(v=>`<option value="${v}" ${p.pl.focusN==v?"selected":""}>${v} words</option>`).join("")}</select>
+      <label for="pr${pid}"><b>Review by</b></label><input type="date" id="pr${pid}" data-c="planReview" data-id="${pid}" value="${p.reviewDate}"></div></div>
+    <div class="cols">
+      <div class="stack"><h3>Where ${esc(p.first)} is now</h3>
+        <div class="stats"><div class="stat"><b>${s.known}</b><span>correct /100</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous check</span></div></div>
+        <p class="small muted">${s.lastDate?`Last checked ${fmtDate(s.lastDate)}.`:"Not checked yet."} ${p.sessions?`${p.sessions} practice session${p.sessions>1?"s":""}, last on ${fmtDate(p.lastPractice)}.`:"No practice recorded yet."}</p></div>
+      <div class="stack"><h3>All 100 words</h3>${wordMap(s)}<p class="small muted">Read across, ten words per row. Each row is one level.</p></div>
+    </div>
+    <div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${p.focus.map(i=>{const b=p.boxes[i]||0;return `<div class="lw"><span class="small muted">#${i+1} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">No new words. All 100 are correct.</p>'}</div>
+      ${p.revisit.length?`<p class="small" style="margin-top:10px"><b>Revisit</b> (correct before, wrong last time): ${esc(wl(p.revisit))}</p>`:""}
+      ${p.nextUp.length?`<p class="small" style="margin-top:6px"><b>Next up</b> when these are secure: ${esc(wl(p.nextUp))}</p>`:""}
+      <p class="small muted" style="margin-top:6px">Practice ladder: ${ladder.map(([b,c])=>`${LADDER[b]} ${c}`).join(" · ")}</p></div>
+    <div class="cols">
+      <div class="stack"><h3>What we noticed</h3>${p.assessed?(pats.length?`<ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">${pats.map(x=>`<li><b>${esc(x.label)}</b>: ${x.n} word${x.n>1?"s":""}${x.ex.length?` <span class="muted">(${x.ex.map(([i,r])=>`“${esc(r)}” for ${esc(WORDS[i])}`).join(", ")})</span>`:""}</li>`).join("")}</ul>`:'<p class="small muted">No written attempts to analyse yet. Patterns appear once photo-marked sheets are saved.</p>'):'<p class="small muted">No spelling check yet.</p>'}
+        ${p.plateau?'<p class="small down">No gain since the previous check.</p>':p.gains?`<p class="small up">Big gain since the previous check (+${s.delta}).</p>`:""}</div>
+      <div class="stack"><h3>Plan for the next two weeks</h3><div class="stack" style="gap:8px">${p.recs.map(r=>`<div class="small"><b>${esc(r.t)}</b> <span class="pill">${esc(r.f)}</span><div class="muted">${esc(r.d)}</div></div>`).join("")}</div></div>
+    </div>
+    <div><h3>Success looks like</h3><p>${esc(p.criteria)} <span class="muted">Review by ${fmtDate(p.reviewDate)}.</span></p></div>
+    <div class="stack"><label for="pn_${pid}"><h3>Teacher notes</h3></label><textarea id="pn_${pid}" data-bind-plan="${pid}" data-c="planNotes" data-id="${pid}" placeholder="e.g. Responds well to rainbow writing. Practising with TA on Tuesdays." style="min-height:90px">${esc(draft!=null?draft:(p.pl.notes||""))}</textarea><p class="small muted">Notes print on the plan. They save when you click away.</p></div>
+  </div>`;
+}
+
+/* ---------- printable sheets (canvas pages) ---------- */
+const CW=1240,CH=1754,FW="Andika, 'Comic Sans MS', sans-serif",FU="'Atkinson Hyperlegible', Arial, sans-serif";
+function np(doc){if(doc.__used)doc.addPage();doc.__used=true}
+async function fontsReady(){try{await Promise.all(["700 120px Andika","400 60px Andika","700 30px 'Atkinson Hyperlegible'","400 24px 'Atkinson Hyperlegible'"].map(f=>document.fonts.load(f)))}catch(e){}}
+function cpage(){const cv=document.createElement("canvas");cv.width=CW;cv.height=CH;const c=cv.getContext("2d");c.fillStyle="#fff";c.fillRect(0,0,CW,CH);c.textBaseline="alphabetic";return {cv,c}}
+function cflush(doc,cv){np(doc);doc.addImage(cv.toDataURL("image/jpeg",.85),"JPEG",0,0,210,297)}
+function rngFrom(seed){let t=seed>>>0;return()=>{t=t+0x6D2B79F5|0;let x=Math.imul(t^t>>>15,1|t);x=x+Math.imul(x^x>>>7,61|x)^x;return((x^x>>>14)>>>0)/4294967296}}
+function wrapText(c,t,x,y,w,lh){let line="";for(const wd of t.split(" ")){const test=line?line+" "+wd:wd;if(c.measureText(test).width>w&&line){c.fillText(line,x,y);line=wd;y+=lh}else line=test}if(line)c.fillText(line,x,y);return y+lh}
+function guides(c,x1,x2,base,h){c.save();c.lineWidth=2;c.strokeStyle="#8f99ad";c.beginPath();c.moveTo(x1,base);c.lineTo(x2,base);c.stroke();
+  c.strokeStyle="#bcc4d4";c.setLineDash([9,9]);c.beginPath();c.moveTo(x1,base-h);c.lineTo(x2,base-h);c.stroke();c.setLineDash([]);
+  c.strokeStyle="#dde2ec";c.beginPath();c.moveTo(x1,base-2*h);c.lineTo(x2,base-2*h);c.stroke();c.restore()}
+function sheetHead(c,title,instr,label){
+  c.textAlign="left";c.fillStyle="#111";c.font=`700 44px ${FU}`;c.fillText(title,70,100);
+  c.textAlign="right";if(label){c.font=`700 30px ${FU}`;c.fillText(label,CW-70,100)}else{c.font=`400 26px ${FU}`;c.fillStyle="#333";c.fillText("Name: ______________________",CW-70,100)}
+  c.textAlign="left";c.font=`400 24px ${FU}`;c.fillStyle="#555";wrapText(c,instr,70,145,CW-140,32);
+}
+function fitFont(c,text,weight,max,min,width,fam=FW){let fs=max;c.font=`${weight} ${fs}px ${fam}`;while(c.measureText(text).width>width&&fs>min){fs-=4;c.font=`${weight} ${fs}px ${fam}`}return fs}
+function wordBank(c,ws,y){c.save();c.strokeStyle="#9aa3b5";c.lineWidth=2;c.strokeRect(70,y,CW-140,96);c.fillStyle="#555";c.font=`700 22px ${FU}`;c.fillText("Word bank",90,y+30);
+  c.fillStyle="#111";c.font=`400 42px ${FW}`;c.fillText(shuffle(ws.map(i=>WORDS[i])).join("     "),90,y+78,CW-180);c.restore();return y+96}
+function cleanWord(w){return w.replace(/[’']/g,"").toLowerCase()}
+const ACTS={
+  /* the daily practice page (see drawDayPage), two to a sheet: the same
+     words, reshuffled for the second day. Cut across the middle. */
+  lcwc:{name:"Look, say, cover, write, check",per:8,draw(c,ws,label){
+    const r=rngFrom(hashStr(ws.join(","))),again=ws.map(v=>[r(),v]).sort((a,b)=>a[0]-b[0]).map(p=>p[1]);
+    drawHalves(c,[h=>drawDayPage(h,label,ws,""),h=>drawDayPage(h,label,again,"")]);}},
+  trace:{name:"Trace and write",per:6,draw(c,ws,label){
+    sheetHead(c,"Trace and write","Trace over the grey words, saying each letter as you write it. Then write the word on your own on the empty lines.",label);
+    const top=215,bh=(CH-top-50)/6,fs=88,h=fs*.46;
+    ws.forEach((i,k)=>{const y=top+k*bh,w=WORDS[i];c.font=`400 ${fs}px ${FW}`;const ww=c.measureText(w).width;const fit=Math.max(1,Math.min(3,Math.floor((CW-200)/(ww+70))));
+      const b1=y+bh*.43,b2=y+bh*.9;guides(c,110,CW-70,b1,h);guides(c,110,CW-70,b2,h);
+      c.fillStyle="#999";c.font=`700 24px ${FU}`;c.textAlign="left";c.fillText(String(k+1),70,b1);
+      c.font=`400 ${fs}px ${FW}`;c.fillStyle="#c9ced8";for(let t=0;t<fit;t++)c.fillText(w,130+t*(ww+70),b1)});}},
+  missing:{name:"Missing letters",per:10,draw(c,ws,label){
+    sheetHead(c,"Missing letters","Write the missing letters in the boxes. Then write the whole word on the line. Use the word bank to help.",label);
+    let y=wordBank(c,ws,200)+40;const rh=Math.min(130,(CH-y-60)/ws.length);
+    ws.forEach((i,k)=>{const w=WORDS[i],r=rngFrom(i*97+13),pos=[...w].map((ch,j)=>/[a-z]/i.test(ch)?j:-1).filter(j=>j>=0);
+      const nb=pos.length<=3?1:2,blanks=new Set();while(blanks.size<nb&&blanks.size<pos.length)blanks.add(pos[Math.floor(r()*pos.length)]);
+      const base=y+k*rh+rh*.68;c.fillStyle="#999";c.font=`700 24px ${FU}`;c.textAlign="left";c.fillText(String(k+1),70,base);
+      c.font=`700 64px ${FW}`;let x=120;const bw=c.measureText("m").width*1.05;
+      [...w].forEach((ch,j)=>{if(blanks.has(j)){c.strokeStyle="#7d879b";c.lineWidth=2.5;c.strokeRect(x+3,base-58,bw,70);x+=bw+8}else{c.fillStyle="#111";c.fillText(ch,x,base);x+=c.measureText(ch).width+2}});
+      guides(c,Math.max(560,x+40),CW-70,base,rh*.2)});}},
+  wordsearch:{name:"Word search",per:10,draw(c,ws,label){
+    const words=[...new Set(ws.map(i=>cleanWord(WORDS[i])))].filter(w=>w.length>=2&&w.length<=10);
+    sheetHead(c,"Word search","Find each word in the grid. Words go across or down. Colour each one and tick it off the list.",label);
+    const size=words.length>6||words.some(w=>w.length>8)?10:8,r=rngFrom(ws.reduce((a,b)=>a*31+b,7));
+    const g=Array.from({length:size},()=>Array(size).fill(""));const placed=[];
+    for(const w of words.slice().sort((a,b)=>b.length-a.length)){let ok=false;for(let t=0;t<300&&!ok;t++){const d=r()<.5?[0,1]:[1,0];const rr=Math.floor(r()*(size-(d[0]?w.length-1:0))),cc=Math.floor(r()*(size-(d[1]?w.length-1:0)));
+      if(rr<0||cc<0)break;if([...w].every((ch,j)=>{const v=g[rr+d[0]*j][cc+d[1]*j];return !v||v===ch})){[...w].forEach((ch,j)=>g[rr+d[0]*j][cc+d[1]*j]=ch);ok=true;placed.push(w)}}}
+    const fill="abcdefghiklmnoprstuwy";for(const row of g)for(let j=0;j<size;j++)if(!row[j])row[j]=fill[Math.floor(r()*fill.length)];
+    const cell=size===10?88:100,x0=(CW-size*cell)/2,top=220;c.strokeStyle="#7d879b";c.lineWidth=2;c.strokeRect(x0,top,size*cell,size*cell);
+    c.font=`400 54px ${FW}`;c.fillStyle="#111";c.textAlign="center";
+    g.forEach((row,a)=>row.forEach((ch,b)=>c.fillText(ch,x0+b*cell+cell/2,top+a*cell+cell*.68)));
+    c.strokeStyle="#dde2ec";c.lineWidth=1;for(let k=1;k<size;k++){c.beginPath();c.moveTo(x0+k*cell,top);c.lineTo(x0+k*cell,top+size*cell);c.moveTo(x0,top+k*cell);c.lineTo(x0+size*cell,top+k*cell);c.stroke()}
+    const ly=top+size*cell+80;c.textAlign="left";c.font=`400 46px ${FW}`;
+    placed.forEach((w,k)=>{const x=k<5?200:720,y=ly+(k%5)*72;c.strokeStyle="#7d879b";c.lineWidth=2;c.strokeRect(x-60,y-36,38,38);c.fillStyle="#111";c.fillText(w,x,y)});}},
+  sentences:{name:"Finish the sentence",per:10,draw(c,ws,label){
+    sheetHead(c,"Finish the sentence","Read each sentence. Choose the missing word from the word bank and write it on the line.",label);
+    let y=wordBank(c,ws,200)+50;const rh=Math.min(122,(CH-y-50)/ws.length);
+    ws.forEach((i,k)=>{const sent=SENT[i],w=WORDS[i].replace(/[.*+?^${}()|[\]\\]/g,"\\$&");const m=new RegExp("(^|[^A-Za-z’'])("+w+")(?![A-Za-z’'])","i").exec(sent);
+      const base=y+k*rh+rh*.6;c.fillStyle="#999";c.font=`700 24px ${FU}`;c.textAlign="left";c.fillText(String(k+1),70,base);
+      c.fillStyle="#111";c.font=`400 42px ${FW}`;let x=120;
+      const before=m?sent.slice(0,m.index+m[1].length):sent+" ",after=m?sent.slice(m.index+m[0].length):"";
+      c.fillText(before,x,base);x+=c.measureText(before).width+6;c.strokeStyle="#7d879b";c.lineWidth=2.5;c.beginPath();c.moveTo(x,base+6);c.lineTo(x+230,base+6);c.stroke();x+=236;c.fillText(after,x,base)});}},
+  bingo:{name:"Bingo boards",per:12,draw(c,ws,label){
+    sheetHead(c,"Word bingo","Cut out the boards. Cross off each word when the caller reads it. Shout ‘Bingo!’ when your board is full.",label);
+    let pool=[...ws];for(let j=ws[ws.length-1]+1;pool.length<9&&j<100;j++)if(!pool.includes(j))pool.push(j);for(let j=ws[0]-1;pool.length<9&&j>=0;j--)if(!pool.includes(j))pool.push(j);
+    const r=rngFrom(ws.reduce((a,b)=>a*17+b,3)),bw=520,bh=430,gx=(CW-2*bw)/3,top=210;
+    for(let b=0;b<6;b++){const x=gx+(b%2)*(bw+gx),y=top+Math.floor(b/2)*(bh+40);const pick=pool.map(v=>[r(),v]).sort((p,q)=>p[0]-q[0]).slice(0,9).map(p=>p[1]);
+      c.strokeStyle="#333";c.lineWidth=3;c.strokeRect(x,y,bw,bh);c.lineWidth=1.5;c.strokeStyle="#7d879b";
+      for(let k=1;k<3;k++){c.beginPath();c.moveTo(x+k*bw/3,y);c.lineTo(x+k*bw/3,y+bh);c.moveTo(x,y+k*bh/3);c.lineTo(x+bw,y+k*bh/3);c.stroke()}
+      pick.forEach((wi,k)=>{c.fillStyle="#111";c.textAlign="center";fitFont(c,WORDS[wi],700,50,24,bw/3-20);c.fillText(WORDS[wi],x+(k%3)*bw/3+bw/6,y+Math.floor(k/3)*bh/3+bh/6+16)})}
+    c.textAlign="left";c.fillStyle="#555";c.font=`400 22px ${FU}`;wrapText(c,"Caller’s list: "+pool.map(i=>WORDS[i]).join(", "),70,CH-60,CW-140,28);}},
+};
+function drawActPages(doc,acts,ws,label){
+  for(const k of acts){const A_=ACTS[k];if(!A_||!ws.length)continue;
+    const chunks=k==="bingo"?[ws.slice(0,12)]:Array.from({length:Math.ceil(ws.length/A_.per)},(_,p)=>ws.slice(p*A_.per,p*A_.per+A_.per));
+    for(const ch of chunks){const {cv,c}=cpage();A_.draw(c,ch,label);cflush(doc,cv)}}
+}
+function cardsPerChild(){return Math.max(1,Math.min(30,+S.settings.cardsPerChild||10))}
+function childCards(pid){
+  const p=buildPlan(pid),ws=p.s.ws,seen=new Set(),out=[];
+  for(const i of [...p.focus,...p.revisit,...p.nextUp,...ws.map((w,i)=>i).filter(i=>!isKnown(ws[i].st))])if(!seen.has(i)){seen.add(i);out.push(i)}
+  return out.slice(0,cardsPerChild());
+}
+function cardGrid(size){const cols=2,rows=size===4?2:5;return {cols,rows,per:cols*rows,cw:CW/cols,ch:CH/rows}}
+function cutLines(c,{cols,rows,cw,ch}){c.save();c.strokeStyle="#9aa";c.lineWidth=1.5;c.setLineDash([10,8]);c.beginPath();for(let k=1;k<cols;k++){c.moveTo(k*cw,0);c.lineTo(k*cw,CH)}for(let r=1;r<rows;r++){c.moveTo(0,r*ch);c.lineTo(CW,r*ch)}c.stroke();c.restore()}
+function drawCardCell(c,x,y,cw,ch,spec,size,sent){
+  if(!spec)return;
+  if(spec.cover){c.save();c.strokeStyle="#222";c.lineWidth=5;rr(c,x+24,y+24,cw-48,ch-48,20);c.stroke();
+    c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";fitFont(c,spec.name,700,size===4?150:84,28,cw-110);c.fillText(spec.name,x+cw/2,y+ch/2-ch*.08);
+    c.textBaseline="alphabetic";c.font=`400 ${size===4?30:21}px ${FU}`;c.fillStyle="#555";c.fillText(spec.sub,x+cw/2,y+ch/2+ch*.24,cw-80);c.restore();return}
+  const i=spec.i,b=bandOf(i),bw=size===4?48:34;
+  c.fillStyle=b.c;c.fillRect(x+18,y+18,bw,ch-36);if(b.n==="White"){c.strokeStyle="#bbb";c.lineWidth=2;c.strokeRect(x+18,y+18,bw,ch-36)}
+  c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";fitFont(c,WORDS[i],700,size===4?230:150,40,cw-160);c.fillText(WORDS[i],x+cw/2+18,y+ch/2-(sent?ch*.06:0));
+  c.textBaseline="alphabetic";c.font=`700 ${size===4?26:20}px ${FU}`;c.fillStyle="#777";c.textAlign="right";c.fillText(`${spec.label?spec.label+" · ":""}${b.n} · #${i+1}`,x+cw-26,y+(size===4?60:46));
+  if(sent){c.textAlign="center";c.fillStyle="#444";fitFont(c,SENT[i],400,size===4?34:24,16,cw-110,FU);c.fillText(SENT[i],x+cw/2+18,y+ch-(size===4?60:34))}
+}
+function drawCards(doc,groups,{size=10,sent=false}={}){
+  const g_=cardGrid(size);let n=0;
+  for(const g of groups){for(let p=0;p<g.items.length;p+=g_.per){const {cv,c}=cpage();
+    g.items.slice(p,p+g_.per).forEach((i,k)=>{n++;drawCardCell(c,(k%g_.cols)*g_.cw,Math.floor(k/g_.cols)*g_.ch,g_.cw,g_.ch,{i,label:g.label},size,sent)});
+    cutLines(c,g_);cflush(doc,cv)}}
+  return n;
+}
+/* Stack-and-cut: each cell position is one pile; page p holds card p of every pile. */
+function drawStack(doc,piles,{size=10,sent=false}={}){
+  const g_=cardGrid(size),pages=Math.max(0,...piles.map(p=>p.length));
+  for(let p=0;p<pages;p++){const {cv,c}=cpage();
+    piles.forEach((pile,k)=>drawCardCell(c,(k%g_.cols)*g_.cw,Math.floor(k/g_.cols)*g_.ch,g_.cw,g_.ch,pile[p],size,sent));
+    cutLines(c,g_);cflush(doc,cv)}
+  return pages;
+}
+const cutHelp=size=>size===4?"Cut down the middle (105 mm) and across the middle (148.5 mm): page halves both ways.":"Cut down the middle (105 mm) and across at fifths (59.4, 118.8, 178.2 and 237.6 mm from the top).";
+function drawPlan(doc,pid){
+  const p=buildPlan(pid),s=p.s,name=S.pupils[pid].name;np(doc);
+  const M=14,W=210;let y=M;const T=(t,x,yy,o)=>doc.text(pdfText(t),x,yy,o);
+  const ensure=h=>{if(y+h>284){doc.addPage();y=M+4}};
+  const head=t=>{ensure(16);y+=3;doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(12);T(t,M,y);doc.setDrawColor(205);doc.setLineWidth(.3);doc.line(M,y+1.8,W-M,y+1.8);y+=7.5;doc.setFont("helvetica","normal");doc.setFontSize(10)};
+  const para=(t,x=M,w=W-2*M,lh=4.7)=>{const lines=doc.splitTextToSize(pdfText(t),w);ensure(lines.length*lh);lines.forEach(l=>{doc.text(l,x,y);y+=lh})};
+  const bullet=(b,t)=>{doc.setFont("helvetica","bold");const bw=b?doc.getTextWidth(pdfText(b)+"  "):0;ensure(5);if(b)T(b,M+4,y);doc.setFont("helvetica","normal");
+    const lines=doc.splitTextToSize(pdfText(t),W-2*M-4-bw);ensure(lines.length*4.7);lines.forEach((l,k)=>{doc.text(l,M+4+(k===0?bw:0),y);y+=4.7})};
+  doc.setFillColor(...rgb(p.assessed?BANDS[Math.min(s.level,9)].c:"#cccccc"));doc.rect(0,0,W,5,"F");
+  doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(20);T("Spelling plan",M,y+9);doc.setFontSize(15);T(name,M,y+17);
+  doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(80);
+  T(S.settings.className||"",W-M,y+7,{align:"right"});T("Made "+fmtDate(localDate()),W-M,y+12,{align:"right"});doc.setFont("helvetica","bold");doc.setTextColor(0);T("Review by "+fmtDate(p.reviewDate),W-M,y+17,{align:"right"});
+  y+=26;
+  head(`Where ${p.first} is now`);
+  const cell=4.3,mx=W-M-10*cell,my=y-3.5;
+  const fills={known:"#9fdcb4",secure:"#2f9e5b",notyet:"#f6c9c5",slipped:"#e58a84",review:"#f3d68a"};
+  s.ws.forEach((w,i)=>{doc.setFillColor(...rgb(fills[w.st]||"#ffffff"));doc.setDrawColor(190);doc.setLineWidth(.15);doc.rect(mx+(i%10)*cell,my+Math.floor(i/10)*cell,cell,cell,"FD")});
+  for(let b=0;b<10;b++){doc.setFillColor(...rgb(BANDS[b].c));doc.rect(mx-2.6,my+b*cell,1.8,cell,"F")}
+  doc.setFontSize(7);doc.setTextColor(110);T("All 100 words, read across. Green = correct.",mx+5*cell,my+10*cell+3.2,{align:"center"});doc.setTextColor(0);doc.setFontSize(10);
+  const facts=[["Level",p.assessed?(s.level>=10?"All 100 correct":`${BANDS[s.level].n} (words ${s.level*10+1}-${s.level*10+10})`):"Not checked yet"],
+    ["Correct",p.assessed?`${s.known} / 100${s.delta!=null?`  (${s.delta>0?"+":""}${s.delta} since previous check)`:""}`:"-"],
+    ["Secure",p.assessed?`${s.secure} (correct in two separate checks)`:"-"],["Last checked",s.lastDate?fmtDate(s.lastDate):"-"],
+    ["Practice",p.sessions?`${p.sessions} session${p.sessions>1?"s":""}, last ${fmtDate(p.lastPractice)}`:"None recorded yet"]];
+  facts.forEach(([k,v])=>{doc.setFont("helvetica","bold");T(k,M,y);doc.setFont("helvetica","normal");T(v,M+26,y);y+=5.4});
+  y=Math.max(y,my+10*cell+6);
+  head("Focus words");
+  if(p.focus.length){let x=M;doc.setFont("helvetica","bold");doc.setFontSize(17);ensure(12);
+    p.focus.forEach(i=>{const t=pdfText(WORDS[i]),tw=doc.getTextWidth(t)+9;if(x+tw>W-M){x=M;y+=12;ensure(12)}doc.setDrawColor(...rgb(BANDS[Math.floor(i/10)].c==="#f4f4f4"?"#999999":BANDS[Math.floor(i/10)].c));doc.setLineWidth(.8);doc.roundedRect(x,y-6.8,tw,10,2,2,"S");doc.text(t,x+4.5,y);x+=tw+3});
+    y+=9;doc.setFontSize(10);doc.setFont("helvetica","normal")}else para("No new words: all 100 are correct.");
+  if(p.revisit.length)bullet("Revisit:",`${wl(p.revisit)} (correct before, wrong last time)`);
+  if(p.nextUp.length)bullet("Next up:",`${wl(p.nextUp)} (once the focus words are secure)`);
+  head("What we noticed");
+  const pats=patternList(p);
+  if(!p.assessed)para("No spelling check yet.");
+  else if(!pats.length)para("No written attempts to analyse yet.");
+  else pats.slice(0,4).forEach(x=>bullet("-",`${x.label}: ${x.n} word${x.n>1?"s":""}${x.ex.length?` (${x.ex.map(([i,r])=>`"${r}" for ${WORDS[i]}`).join(", ")})`:""}`));
+  if(p.plateau)bullet("-","No gain since the previous check.");if(p.gains)bullet("-",`Big gain since the previous check (+${s.delta}).`);
+  head("Plan for the next two weeks");
+  p.recs.slice(0,6).forEach(r=>{ensure(10);doc.setFont("helvetica","bold");T(r.t,M+4,y);const tw=doc.getTextWidth(pdfText(r.t));doc.setFont("helvetica","italic");doc.setTextColor(90);T(r.f,M+6+tw,y);doc.setTextColor(0);doc.setFont("helvetica","normal");y+=4.7;para(r.d,M+4,W-2*M-4);y+=1.2});
+  head("Success looks like");para(`${p.criteria} Review by ${fmtDate(p.reviewDate)}.`);
+  head("Teacher notes");
+  if(p.pl.notes)para(p.pl.notes);else{ensure(20);doc.setDrawColor(200);for(let k=0;k<3;k++){doc.line(M,y+2,W-M,y+2);y+=7}}
+  const home=[...p.focus,...p.revisit];
+  if(home.length){y+=4;doc.setFontSize(10);const txt=`At home: please practise these words with ${p.first} for five minutes a day: ${wl(home)}. Read them together, write them, and spot them in books. Thank you!`;
+    const lines=doc.splitTextToSize(pdfText(txt),W-2*M-8);ensure(lines.length*4.7+8);doc.setDrawColor(120);doc.setLineDashPattern([1.5,1.5],0);doc.roundedRect(M,y-1,W-2*M,lines.length*4.7+5,2,2);doc.setLineDashPattern([],0);
+    y+=3.5;lines.forEach(l=>{doc.text(l,M+4,y);y+=4.7})}
+}
+async function buildPack(doc,pid,acts){
+  drawPlan(doc,pid);const p=buildPlan(pid);const first=p.first;
+  const cards=childCards(pid);
+  if(cards.length)drawCards(doc,[{label:first,items:cards}],{size:10,sent:S.ui.print.cardSent});
+  drawActPages(doc,acts,planWords(pid),S.pupils[pid].name);
+}
+
+/* ---------- daily practice books (A5, two per A4) ---------- */
+const HW=1240,HH=877,WEEKDAYS=["Monday","Tuesday","Wednesday","Thursday","Friday"];
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function hashStr(s){let h=2166136261;for(const ch of s)h=Math.imul(h^ch.charCodeAt(0),16777619);return h>>>0}
+function bookWords(pid){return practiseWords(pid).slice(0,8)}
+/* Two A5 pages on one A4 canvas, with the cut line between them. */
+function drawHalves(c,halves){
+  halves.forEach((fn,k)=>{if(!fn)return;c.save();c.translate(0,k*HH);c.strokeStyle="#333";c.lineWidth=3;rr(c,34,34,HW-68,HH-68,22);c.stroke();fn(c);c.restore()});
+  c.save();c.strokeStyle="#999";c.lineWidth=1.5;c.setLineDash([14,10]);c.beginPath();c.moveTo(0,HH);c.lineTo(CW,HH);c.stroke();c.setLineDash([]);
+  c.fillStyle="#999";c.font=`400 17px ${FU}`;c.textAlign="right";c.fillText("cut here",CW-12,HH-7);c.restore();
+}
+function bookPage(doc,halves){const {cv,c}=cpage();drawHalves(c,halves);cflush(doc,cv)}
+const dayLabel=(d,days)=>days>1?`Day ${d+1} · ${WEEKDAYS[d%5]}${days>5?` (week ${Math.floor(d/5)+1})`:""}`:"";
+function drawDay(c,pid,words,d,days){drawDayPage(c,S.pupils[pid].name,words,dayLabel(d,days))}
+/* The daily practice page: look-say-cover-write-check for up to 8 words.
+   `name` blank prints a name line instead. */
+function drawDayPage(c,name,words,sub){
+  const x0=72,x1=HW-72;
+  c.textAlign="left";c.fillStyle="#111";c.font=`700 34px ${FU}`;c.fillText("Look, say, cover, write, check",x0,100);
+  c.font=`400 22px ${FU}`;c.fillStyle="#555";c.fillText(`${sub?sub+"     ":""}Date: ______________`,x0,136);
+  c.textAlign="right";if(name){c.font=`700 30px ${FW}`;c.fillStyle="#111";c.fillText(name,x1,100)}else{c.font=`400 24px ${FU}`;c.fillStyle="#333";c.fillText("Name: __________________",x1,100)}
+  const top=162,bottom=HH-92,wW=270,tk=72,cW=(x1-x0-wW-2*tk)/2,hdr=44,n=words.length,rh=Math.min(112,(bottom-top-hdr)/n);
+  const xs=[x0,x0+wW,x0+wW+cW,x0+wW+cW+tk,x0+wW+2*cW+tk,x1];
+  c.fillStyle="#eef1f6";c.fillRect(x0,top,x1-x0,hdr);
+  c.fillStyle="#222";c.font=`700 21px ${FU}`;c.textAlign="center";
+  ["Look and say","Cover and write","✓","Cover and write again","✓"].forEach((t,k)=>c.fillText(t,(xs[k]+xs[k+1])/2,top+29));
+  const tb=top+hdr+rh*n;
+  words.forEach((i,k)=>{const y=top+hdr+k*rh;c.fillStyle="#111";c.textAlign="center";fitFont(c,WORDS[i],700,Math.min(64,rh*.55),28,wW-30);c.fillText(WORDS[i],x0+wW/2,y+rh*.68);
+    guides(c,xs[1]+14,xs[2]-14,y+rh*.74,rh*.2);guides(c,xs[3]+14,xs[4]-14,y+rh*.74,rh*.2);
+    c.strokeStyle="#c3cad8";c.lineWidth=1.5;c.beginPath();c.moveTo(x0,y+rh);c.lineTo(x1,y+rh);c.stroke()});
+  c.strokeStyle="#6f7a90";c.lineWidth=2;c.strokeRect(x0,top,x1-x0,tb-top);c.beginPath();c.moveTo(x0,top+hdr);c.lineTo(x1,top+hdr);[2,3,4].forEach(k=>{c.moveTo(xs[k],top);c.lineTo(xs[k],tb)});c.stroke();
+  c.setLineDash([12,9]);c.lineWidth=3;c.beginPath();c.moveTo(xs[1],top-12);c.lineTo(xs[1],tb+12);c.stroke();c.setLineDash([]);
+  c.textAlign="left";c.font=`400 19px ${FU}`;c.fillStyle="#666";c.fillText("Look at each word and say it. Fold along the dashed line to cover it. Write it, unfold and check. Tick when it’s right.",x0,HH-58,x1-x0);
+}
+function drawCover(c,pid,words,days){
+  const p=buildPlan(pid),x0=90,x1=HW-72,band=p.assessed?BANDS[Math.min(p.s.level,9)].c:"#cccccc";
+  c.fillStyle=band;rr(c,40,40,30,HH-80,12);c.fill();
+  c.textAlign="left";c.fillStyle="#111";c.font=`700 54px ${FW}`;c.fillText(`${p.first}’s spelling book`,x0,112);
+  c.font=`400 22px ${FU}`;c.fillStyle="#555";c.fillText([S.settings.className,`Started ____________`,`Check by ${fmtDate(p.reviewDate)}`].filter(Boolean).join("     ·     "),x0,150);
+  c.font=`700 22px ${FU}`;c.fillStyle="#333";c.fillText("My words",x0,200);
+  let x=x0,y=258;c.font=`700 44px ${FW}`;
+  words.forEach(i=>{const t=WORDS[i],tw=c.measureText(t).width+40;if(x+tw>x1){x=x0;y+=74}c.strokeStyle=BANDS[Math.floor(i/10)].c==="#f4f4f4"?"#999":BANDS[Math.floor(i/10)].c;c.lineWidth=4;rr(c,x,y-48,tw,64,14);c.stroke();c.fillStyle="#111";c.fillText(t,x+20,y);x+=tw+14});
+  y+=52;c.font=`400 21px ${FU}`;c.fillStyle="#333";y=wrapText(c,"My target: "+p.criteria,x0,y,x1-x0,28)+8;
+  const n=words.length,cols=days,ww=220,cell=Math.min(66,(x1-x0-ww)/cols),rh=Math.min(44,(HH-80-y-40)/(n+1));
+  c.font=`700 18px ${FU}`;c.fillStyle="#333";c.textAlign="center";
+  for(let d=0;d<cols;d++)c.fillText(days>5?String(d+1):WEEKDAYS[d].slice(0,3),x0+ww+d*cell+cell/2,y+rh*.65);
+  c.textAlign="left";c.fillText("Tick when I got it right",x0,y+rh*.65);
+  words.forEach((i,k)=>{const yy=y+(k+1)*rh;c.font=`400 ${Math.min(30,rh*.7)}px ${FW}`;c.fillStyle="#111";c.fillText(WORDS[i],x0+10,yy+rh*.72,ww-20);
+    c.strokeStyle="#9aa3b5";c.lineWidth=1.5;for(let d=0;d<cols;d++)c.strokeRect(x0+ww+d*cell+4,yy+3,cell-8,rh-6)});
+}
+/* A book's A5 pages, in order: a cover (not for a single day), then a
+   page per day with the words in a fresh order each day. */
+function bookPages(pid,days){
+  const words=bookWords(pid);if(!words.length)return null;
+  const pages=days>1?[c=>drawCover(c,pid,words,days)]:[];
+  for(let d=0;d<days;d++){const r=rngFrom(hashStr(pid)+d*7919),order=d===0?words:words.map(v=>[r(),v]).sort((a,b)=>a[0]-b[0]).map(p=>p[1]);pages.push(c=>drawDay(c,pid,order,d,days))}
+  return pages;
+}
+/* Stack and cut. Every book in a print has the same number of pages, and
+   sheet k carries page k of one book on top and page k of the next book
+   below. Print single-sided, square the stack, cut once across the middle:
+   each pile is a run of complete books, already in page order. A lone book
+   is split instead: first half down the top, second half down the bottom. */
+function layBooks(doc,books){
+  if(books.length===1){const b=books[0],m=Math.ceil(b.length/2);for(let k=0;k<m;k++)bookPage(doc,[b[k],b[m+k]]);return}
+  for(let j=0;j<books.length;j+=2){const a=books[j],b=books[j+1]||[];for(let k=0;k<a.length;k++)bookPage(doc,[a[k],b[k]])}
+}
+function bookNote(names,days){
+  const what=days>1?`${days}-day books`:"one-day pages",n=names.length;
+  if(n===1)return days>1?`Print single-sided, square the stack and cut across the middle. Put the bottom pile under the top pile and staple: that’s ${names[0]}’s book in page order.`:`Print and cut across the middle.`;
+  const top=names.filter((_,k)=>k%2===0),bot=names.filter((_,k)=>k%2===1);
+  return `${n} ${what} on ${Math.ceil(n/2)*(days>1?days+1:1)} A4 sheets. Print single-sided, square the stack and cut once across the middle (the A4 half). Top pile, in order: ${top.join(", ")}. Bottom pile: ${bot.join(", ")}.${days>1?" Each book is the next "+(days+1)+" pages of its pile.":""}`;
+}
+
+/* ---------- AI summary ---------- */
+async function aiSummary(){
+  const ids=pupilIds().filter(id=>summary(id).sessions.length);
+  const lines=ids.map(id=>{const s=summary(id);return `${S.pupils[id].name}: ${s.known}/100 correct, ${s.secure} secure, level ${s.level>=10?"complete":BANDS[s.level].n+" (words "+(s.level*10+1)+"-"+(s.level*10+10)+")"}, change since previous check ${s.delta==null?"n/a":s.delta}, next words: ${s.next.map(i=>WORDS[i]).join(", ")}`});
+  const miss=Array(100).fill(0);ids.forEach(id=>summary(id).ws.forEach((w,i)=>{if(w.st==="notyet"||w.st==="slipped")miss[i]++}));
+  const top=miss.map((n,i)=>[WORDS[i],n]).filter(x=>x[1]).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([w,n])=>`${w} (${n})`).join(", ");
+  const mis=[];ids.forEach(id=>summary(id).ws.forEach((w,i)=>w.hist.forEach(h=>{if(h.s==="x"&&h.r)mis.push(`${WORDS[i]}→${h.r}`)})));
+  const prompt=`You are helping a UK primary school teacher understand their class's progress on the 100 high frequency words (spelling check). Write 5-7 short bullet points (use "• "), plain UK English, no headings, under 200 words. Cover: whole-class teaching priorities, any phonics patterns in the misspellings, suggested small groups, pupils who need a closer look, and something to celebrate. Only use the data below; do not invent figures.
+
+Class: ${S.settings.className||"(unnamed)"}, ${ids.length} pupils assessed.
+Words most pupils can't yet spell (count of pupils): ${top||"none"}
+Sample of misspellings (target→written): ${mis.slice(0,80).join(", ")||"none recorded"}
+Pupils:
+${lines.join("\n")}`;
+  S.ui.ai={status:"thinking",text:""};render();
+  try{
+    await sampleApi(prompt,{onText:({text})=>{S.ui.ai.text=text;S.ui.ai.status="writing";const o=$("#aiOut");if(o)o.textContent=text}});
+    S.ui.ai.status="done";
+  }catch(e){S.ui.ai={status:"error",text:e.text||"",err:e.code==="not_granted"?"Claude access wasn’t allowed for this page.":e.code==="rate_limited"?"Claude is busy or your usage limit was reached. Try again later.":"The summary couldn’t be written. Try again."}}
+  render();
+}
+
+/* ---------- actions ---------- */
+function addPupils(){
+  const names=S.ui.draft.split(/\n|,/).map(s=>s.trim()).filter(Boolean);
+  if(!names.length){toast("Type at least one name");return}
+  const existing=new Set(Object.values(S.pupils).map(p=>p.name.toLowerCase()));
+  let n=0;for(const nm of names){if(existing.has(nm.toLowerCase()))continue;existing.add(nm.toLowerCase());saveDoc("pupils",uid(),{name:nm.slice(0,60),created:Date.now()});n++}
+  S.ui.draft="";toast(n?`Added ${n} pupil${n>1?"s":""}`:"Those pupils are already on the list");render();
+}
+function decide(sid,i,s){
+  const ses=S.sessions[sid];if(!ses)return;
+  const words={...ses.words};words[i]={...words[i],s,reviewed:true};
+  saveDoc("sessions",sid,{...ses,words});
+}
+const A={
+  tab:el=>{S.tab=el.dataset.k;S.ui.cell=null;if(el.dataset.k==="plans")S.ui.plan=null;window.scrollTo({top:0})},
+  openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null},
+  closePupil:()=>{S.ui.pupil=null},
+  cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
+  closeCell:()=>{S.ui.cell=null},
+  setCell:el=>{const {p,i}=S.ui.cell;const sid=p+"_"+localDate(),old=S.sessions[sid];const words={...((old&&old.words)||{})};words[i]={s:el.dataset.s,src:"manual"};
+    saveDoc("sessions",sid,{pupilId:p,date:localDate(),kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});toast(`${WORDS[i]} marked ${el.dataset.s==="c"?"correct":"not yet"} for today`)},
+  addPupils,
+  demo:()=>{loadDemo()},
+  exitDemo:()=>{exitDemo()},
+  amode:(el,e)=>{e.preventDefault();S.ui.assessMode=el.dataset.k},
+  pick:()=>$("#fileIn").click(),
+  retryJob:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j){j.status="queued";runJobs()}},
+  dropJob:el=>{S.ui.jobs=S.ui.jobs.filter(x=>x.id!==el.dataset.j)},
+  clearJobs:()=>{S.ui.jobs=S.ui.jobs.filter(x=>x.status==="reading"||x.status==="saving")},
+  jobMark:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);const b=j.boxes[+el.dataset.k];b.s={c:"x",x:"?","?":"c"}[b.s]},
+  saveJob:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)saveJob(j)},
+  saveAll:async()=>{for(const j of S.ui.jobs.filter(x=>x.status==="done"&&x.pid))await saveJob(j);toast("Saved. Anything unclear is waiting in Review.")},
+  qkind:el=>{S.ui.quick.kind=el.dataset.k},
+  qmark:el=>{const m=S.ui.quick.marks,i=el.dataset.i;m[i]=m[i]==="c"?"x":m[i]==="x"?undefined:"c";if(!m[i])delete m[i]},
+  qAll:()=>{for(let i=0;i<100;i++)if(!S.ui.quick.marks[i])S.ui.quick.marks[i]="c"},
+  qClear:()=>{S.ui.quick.marks={}},
+  saveQuick:()=>{const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
+    for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
+    saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
+    toast(`Saved ${Object.keys(q.marks).length} marks for ${S.pupils[q.pid].name}`);q.marks={}},
+  decide:el=>decide(el.dataset.sid,+el.dataset.i,el.dataset.s),
+  acceptAi:el=>{const ses=S.sessions[el.dataset.sid];if(!ses)return;const words={...ses.words};for(const [k,w] of Object.entries(words))if(w.s==="?")words[k]={...w,s:w.ai||"x",reviewed:true};saveDoc("sessions",el.dataset.sid,{...ses,words})},
+  delSession:el=>{const k="ses"+el.dataset.id;if(S.ui.confirm===k){removeDoc("sessions",el.dataset.id);S.ui.confirm=null}else S.ui.confirm=k},
+  hubPupils:()=>{if(window.hwHub)window.hwHub.openPupils()},
+  delPupil:el=>{const id=el.dataset.id,k="pup"+id;if(S.ui.confirm===k){S.ui.confirm=null;for(const [sid,s] of Object.entries(S.sessions))if(s.pupilId===id)removeDoc("sessions",sid);if(S.practice[id])removeDoc("practice",id);if(S.plans[id])removeDoc("plans",id);removeDoc("pupils",id)}else S.ui.confirm=k},
+  pickKid:el=>{S.ui.practise.pid=el.dataset.id||null;S.ui.act=null},
+  practiseWith:el=>{S.ui.practise.pid=el.dataset.id;S.ui.pupil=null;S.ui.act=null;S.tab="practise"},
+  startAct:el=>startAct(el.dataset.k),
+  endAct:()=>{S.ui.act=null},
+  say:el=>say(WORDS[+el.dataset.i]),
+  saySent:el=>say(SENT[+el.dataset.i]),
+  flash:el=>{nextItem(el.dataset.v==="1");return "skip"},
+  listenPick:el=>{const a=S.ui.act,o=+el.dataset.i,idx=a.items[a.i];if(a.lock)return "skip";if(o===idx){a.lock=true;el.classList.add("right");setTimeout(()=>nextItem(a.first),500);return "skip"}a.first=false;a.wrong=o;say(WORDS[idx])},
+  missPick:el=>{const a=S.ui.act,w=WORDS[a.items[a.i]];if(a.lock)return "skip";if(el.dataset.v===w[a.gap]){a.lock=true;a.phase="right";render();setTimeout(()=>nextItem(a.first),600);return "skip"}a.first=false;a.wrong=el.dataset.v},
+  buildPick:el=>{const a=S.ui.act,w=WORDS[a.items[a.i]];if(a.lock)return "skip";a.picked.push(+el.dataset.k);a.wrong=null;
+    if(a.picked.length===w.length){const got=a.picked.map(k=>a.tiles[k].c).join("");if(got===w){a.lock=true;render();setTimeout(()=>nextItem(a.first),500);return "skip"}a.first=false;a.wrong=true;a.picked=[]}},
+  buildUndo:()=>{const a=S.ui.act;a.picked.pop()},
+  buildPeek:()=>{const a=S.ui.act;a.first=false;toast(WORDS[a.items[a.i]])},
+  lcwc:el=>{S.ui.act.phase=el.dataset.k},
+  lcwcRes:el=>{nextItem(el.dataset.v==="1");return "skip"},
+  cardsFor:el=>{S.ui.print.cardsFor=el.dataset.k},
+  pidsAll:(el,e)=>{e.preventDefault();S.ui.print.pids=pupilIds()},
+  pidsNone:(el,e)=>{e.preventDefault();S.ui.print.pids=[]},
+  pdfSheets:()=>{PDF.sheets();return "skip"},
+  pdfScript:()=>{PDF.script();return "skip"},
+  pdfTargeted:()=>{PDF.targeted(S.ui.print.pids);return "skip"},
+  pdfGrid:()=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}PDF.grid();return "skip"},
+  csv:()=>{PDF.csv();return "skip"},
+  pdfCards:()=>{const P=S.ui.print;
+    if(P.cardsFor==="levels"){const lv=P.levels.slice().sort((a,b)=>a-b);if(!lv.length){toast("Choose at least one level");return "skip"}if(P.cardLayout==="stack"){PDF.stackLevels(lv,"level-flash-cards-stack-and-cut.pdf");return "skip"}PDF.cards(lv.map(l=>({label:"",items:Array.from({length:10},(_,k)=>l*10+k)})),"flash-cards.pdf")}
+    else if(P.cardLayout==="stack"){PDF.stackPupils(P.pids,"flash-cards-stack-and-cut.pdf")}
+    else{const g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name.split(" ")[0],items:childCards(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}PDF.cards(g,"pupil-flash-cards.pdf")}
+    return "skip"},
+  pdfPupilCards:el=>{const id=el.dataset.id;const items=childCards(id);PDF.cards([{label:S.pupils[id].name.split(" ")[0],items}],`flash-cards-${S.pupils[id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  actsFor:el=>{S.ui.print.actsFor=el.dataset.k},
+  testVoice:()=>{say("Let’s practise. said. “Hello,” said Mum. said.");return "skip"},
+  voiceSettings:(el,e)=>{e.preventDefault();S.tab="class";S.ui.act=null},
+  cardLayout:el=>{S.ui.print.cardLayout=el.dataset.k;S.ui.print.stackNote=""},
+  pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
+  pdfActs:()=>{const P=S.ui.print;let g;
+    if(P.actsFor==="levels"){g=P.levels.slice().sort((a,b)=>a-b).map(l=>({label:"",items:Array.from({length:10},(_,k)=>l*10+k)}));if(!g.length){toast("Choose at least one level");return "skip"}}
+    else{g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name,items:planWords(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}}
+    PDF.acts(g,"practice-sheets.pdf");return "skip"},
+  openPlan:(el,e)=>{e.preventDefault();S.ui.plan=el.dataset.id;S.ui.pupil=null;S.tab="plans";window.scrollTo({top:0})},
+  closePlan:()=>{S.ui.plan=null},
+  pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  pdfBook:el=>{PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  pdfAllBooks:()=>{PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
+  pdfBooksSel:()=>{PDF.books(S.ui.print.pids,"practice-books.pdf");return "skip"},
+  pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
+  pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
+  pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
+  aiSummary:()=>{aiSummary();return "skip"},
+};
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-a]");if(!el||el.disabled)return;
+  const f=A[el.dataset.a];if(!f)return;
+  const r=f(el,e);if(r!=="skip")render();
+});
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value;if(el.dataset.bindPlan)S.ui.planDraft[el.dataset.bindPlan]=el.value});
+document.addEventListener("change",e=>{
+  const el=e.target,c=el.dataset.c;if(!c)return;const P=S.ui.print;
+  const toggle=(arr,v)=>el.checked?(arr.includes(v)?arr:[...arr,v]):arr.filter(x=>x!==v);
+  switch(c){
+    case "date":S.ui.date=el.value||localDate();break;
+    case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
+    case "quickPupil":S.ui.quick.pid=el.value;S.ui.quick.marks={};break;
+    case "printPage":P.pages=toggle(P.pages,+el.value);break;
+    case "printLevel":P.levels=toggle(P.levels,+el.value);break;
+    case "printPid":P.pids=toggle(P.pids,el.value);break;
+    case "printNamed":P.named=el.checked;break;
+    case "targetN":P.targetN=+el.value;break;
+    case "bookDays":P.bookDays=+el.value;P.bookNote="";break;
+    case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
+    case "rate":lsSet("hw-rate",el.value);break;
+    case "cardSize":P.cardSize=+el.value;P.stackNote="";break;
+    case "cardsPerChild":saveDoc("settings","main",{...S.settings,cardsPerChild:+el.value});break;
+    case "cardSent":P.cardSent=el.checked;break;
+    case "printAct":P.acts=toggle(P.acts,el.value);break;
+    case "planFocus":savePlan(el.dataset.id,{focusN:el.value?+el.value:null});break;
+    case "planReview":if(el.value)savePlan(el.dataset.id,{reviewDate:el.value});break;
+    case "planNotes":savePlan(el.dataset.id,{notes:el.value.slice(0,2000)});delete S.ui.planDraft[el.dataset.id];break;
+    case "rename":{const p=S.pupils[el.dataset.id];const v=el.value.trim();if(p&&v&&v!==p.name)saveDoc("pupils",el.dataset.id,{...p,name:v.slice(0,60)});break}
+    case "className":saveDoc("settings","main",{...S.settings,className:el.value.trim().slice(0,60)});break;
+    case "strictCaps":case "acceptNoApos":saveDoc("settings","main",{...S.settings,[c]:el.checked});break;
+  }
+  render();
+});
+$("#fileIn").addEventListener("change",e=>{addFiles([...e.target.files]);e.target.value=""});
+document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over")}});
+document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over")});
+document.addEventListener("drop",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.remove("over");addFiles([...e.dataTransfer.files])}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.cell)){S.ui.pupil=null;S.ui.cell=null;render()}});
+
+/* ---------- example class ---------- */
+let saved=null;
+function loadDemo(){
+  saved={pupils:S.pupils,sessions:S.sessions,practice:S.practice,plans:S.plans,settings:S.settings,mode:S.mode};
+  let seed=7;const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  const names=["Ava Smith","Noah Patel","Isla Jones","Leo Brown","Amelia Khan","Oliver Wilson","Freya Taylor","Arthur Davies","Mia Evans","Theo Thomas","Ivy Roberts","Jack Walker","Poppy Wright","Muhammad Ali","Grace Hughes","Harry Green","Zara Hussain","Oscar Hall","Ruby Clarke","Alfie Lewis","Sofia Lopez","Finley Scott","Aisha Begum","Reuben Wood"];
+  const MIS={4:"sed",10:"wos",11:"yoo",12:"thay",32:"wot",33:"thair",36:"hav",40:"sum",43:"wer",45:"littel",51:"wun",53:"thim",64:"dont",65:"cum",59:"its",61:"lookt",70:"childen",74:"askt",80:"abowt",82:"thier",83:"peple",86:"cud",87:"hous",94:"Im",98:"cald"};
+  const pupils={},sessions={},practice={};
+  names.forEach((nm,k)=>{const id="d"+k;pupils[id]={name:nm};const a=.12+rnd()*.85;
+    [["2026-09-08",0],["2026-10-06",1]].forEach(([d,t])=>{const words={};const ab=a+t*(.04+rnd()*.12);
+      for(let i=0;i<100;i++){const p=1/(1+Math.exp(-((ab*115-i)/7)));const ok=rnd()<p;const w=WORDS[i];
+        words[i]={s:ok?"c":"x",r:ok?w:(MIS[i]&&rnd()<.6?MIS[i]:w.length>2?w.slice(0,-1):""),src:"photo"}}
+      if(t===1&&k%7===2){words[5+k]={s:"?",r:WORDS[5+k].replace(/[ae]/,"o"),ai:"x",conf:"low",note:"one letter could be read two ways",src:"photo"}}
+      sessions[id+"_"+d]={pupilId:id,date:d,kind:"spelling",words}});
+    if(k%3===0){const b={};let n=0;for(let i=0;i<100&&n<6;i++){if(sessions[id+"_2026-10-06"].words[i].s!=="c"){b[i]=1+Math.floor(rnd()*3);n++}}practice[id]={boxes:b,log:[]}}
+  });
+  Object.assign(S,{pupils,sessions,practice,plans:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
+  S.ui.jobs=[];S.ui.ai=null;S.tab="tracker";render();
+}
+function exitDemo(){
+  if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,settings:saved.settings,mode:saved.mode});saved=null}
+  S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;S.tab=pupilIds().length?"tracker":"class";render();
+}
+
+/* ---------- boot ---------- */
+(async function boot(){
+  render();
+  if(!window.claude||!window.claude.use){S.mode="offline";render();return}
+  const [d,sa,as,dw]=await Promise.all(["db","sample","assets","downloads"].map(n=>window.claude.use(n).catch(()=>null)));
+  sampleApi=sa;assetsApi=as;dl=dw;
+  if(sampleApi){try{imgLimits=(await sampleApi.limits()).images||null}catch(e){imgLimits=null}}
+  if(!d){if(saved)saved.mode="offline";else S.mode="offline";render();return}
+  db=d;
+  const target=()=>saved||S;
+  const ready={};
+  const markReady=k=>{if(!ready[k]){ready[k]=1;if(Object.keys(ready).length===5){if(saved)saved.mode="live";else S.mode="live"}}render()};
+  const lost=()=>toast("Lost connection to your saved data. Reload to reconnect.");
+  for(const col of ["pupils","sessions","practice","plans"])db.collection(col).onSnapshot(snap=>{const o={};snap.docs.forEach(x=>o[x.id]=x.data());target()[col]=o;markReady(col)},lost);
+  db.doc("settings/main").onSnapshot(snap=>{target().settings={className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10,...(snap.exists?snap.data():{})};markReady("settings")},lost);
+})();
+</script>
+</html>

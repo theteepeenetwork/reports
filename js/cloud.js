@@ -20,7 +20,7 @@
   var SYNC_KEYS = (typeof DATA_KEYS !== 'undefined' && Array.isArray(DATA_KEYS)) ? DATA_KEYS
     : ['tp_roster','tp_starters','tp_star','tp_behaviour','tp_assess','tp_marking','tp_timetable',
        'tp_seating','tp_groups','tp_generator','tp_profile','tp_battler','tp_report_sel','reportBuilderChildren',
-       'tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes'];
+       'tp_picker','tp_starter_cfg','tp_starter_weeks','tp_starter_cleared','tp_classes','tp_hundred_words'];
 
   var CLOUD_VER = 1;   // schema version stamped on every push; readers accept {v,t} and {v,t,ver}
   var CLOUD = { uid:null, email:null, db:null, applying:false, resetting:false, listening:false,
