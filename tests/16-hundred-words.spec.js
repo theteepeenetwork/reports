@@ -104,3 +104,26 @@ test('Quick check saves each tap, so switching pupil and back keeps the marks', 
   await again.locator('#qPupil').selectOption('x1');
   await expect(again.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
 });
+
+test('Groups: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
+  /* x1 has all of words 1–40 → on 41–50; x2 has all 100 HFW → on the 200 list */
+  const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    x1_2026: { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: all(40) },
+    x2_2026: { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: all(100) },
+    x3_2026: { pupilId: 'x3', date: '2026-10-01', kind: 'spelling', words: all(45) }
+  }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  await expect(page.locator('#planApp .nav-link[data-page="hundred-words"]')).toContainText('Spellings');
+  await frame.locator('#nav button', { hasText: 'Groups' }).click();
+  const plan = await page.frameLocator('#hwFrame').locator('body').evaluate(() =>
+    testPlan().tests.map(t => ({ title: t.title, n: t.words.length, target: t.target.length })));
+  /* x1 and x3 are both on 41–50: that is the whole-class test; x2 is tested
+     on the first set of the next 200 */
+  expect(plan[0]).toEqual({ title: 'Whole class · 100 HFW 41–60', n: 20, target: 2 });
+  expect(plan[1]).toEqual({ title: 'Group · 200 HFW 1–10', n: 10, target: 1 });
+  /* 409 words: 100 + 200 + 109 Year 3/4 common exception words */
+  expect(await page.frameLocator('#hwFrame').locator('body').evaluate(() => [WORDS.length, SENT.length, NSETS])).toEqual([409, 409, 41]);
+});

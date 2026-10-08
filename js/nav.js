@@ -46,7 +46,7 @@ function renderPage(page){
   if (page === 'reports' && typeof renderBoard === 'function') renderBoard();
   if (page === 'hundred-words' && !document.getElementById('hwFrame')) {
     const sec = document.getElementById('page-hundred-words');
-    if (sec) sec.innerHTML = '<iframe id="hwFrame" class="hw-frame" title="Hundred Words" src="hundred-words.html"></iframe>';
+    if (sec) sec.innerHTML = '<iframe id="hwFrame" class="hw-frame" title="Spellings" src="hundred-words.html"></iframe>';
   }
 }
 document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => go(b.dataset.page));

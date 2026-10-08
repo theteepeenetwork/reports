@@ -40,7 +40,10 @@ Readers MUST accept both `{v,t}` (legacy) and `{v,t,ver}`. Only ever ADD `ver`.
 `resetSession` clears via an unhooked raw remove (`LS.removeItem` / a `CLOUD.resetting` flag that
 short-circuits the `Storage.prototype.setItem` hook) so a sign-out NEVER wipes the cloud account.
 
-## Hundred Words: `tp_hundred_words` (Oct 2026)
+## Spellings (Hundred Words): `tp_hundred_words` (Oct 2026)
+The sidebar calls it **Spellings**; the file, route (`#hundred-words`) and key keep the old name.
+Word indices are permanent: 0–99 the 100 HFW, 100–299 the next 200 HFW, 300+ the Year 3/4
+common exception words. Append new lists after these; never reorder, or saved marks move word.
 `hundred-words.html` (framed on `#hundred-words`) was written as a claude.ai artifact.
 `js/hundred-words-runtime.js` stands in for its `window.claude.use("db")`: the whole database is
 one JSON value, `{ sessions, practice, plans, settings }`, under the per-class key

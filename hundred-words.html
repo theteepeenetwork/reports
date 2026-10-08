@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hundred Words</title>
+<title>Spellings</title>
 <!-- Classroom Hub: class-key routing, then the storage that stands in for
      the claude.ai runtime this page was written for. Both must load before
      the page script below. -->
@@ -141,10 +141,12 @@ td.score small{display:block;font-size:11px;line-height:1}
 .pill.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
 .pill.no{background:var(--no-soft);border-color:var(--no)}
 .pill.rev{background:var(--rev-soft);border-color:var(--rev)}
+.gtab{width:100%;border-collapse:collapse}.gtab th{text-align:left;white-space:nowrap;padding:8px 12px 8px 0;vertical-align:top;font-weight:700}.gtab td{padding:6px 0;line-height:2.2}.gtab tr+tr{border-top:1px solid var(--line)}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
 .qgrid button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 4px;cursor:pointer;font-family:var(--f-word);font-size:17px;display:grid;line-height:1.1}
 .qgrid button small{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
 .qgrid button.q-c{background:var(--ok-soft);border-color:var(--ok)}
+.qgrid button.q-focus{box-shadow:inset 0 0 0 2px var(--accent)}
 .qgrid button.q-x{background:var(--no-soft);border-color:var(--no)}
 /* review */
 .rv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
@@ -197,7 +199,7 @@ td.score small{display:block;font-size:11px;line-height:1}
 
 <div class="wrap">
   <header class="top">
-    <div class="brand"><h1>Hundred Words</h1><span class="cls" id="cls"></span></div>
+    <div class="brand"><h1>Spellings</h1><span class="cls" id="cls"></span></div>
     <nav class="tabs" id="nav" aria-label="Sections"></nav>
   </header>
   <div class="banner" id="banner"></div>
@@ -212,6 +214,24 @@ td.score small{display:block;font-size:11px;line-height:1}
 <script>
 const WORDS=["the","and","a","to","said","in","he","I","of","it","was","you","they","on","she","is","for","at","his","but","that","with","all","an","so","we","can","are","up","had","my","her","what","there","out","this","have","went","be","like","some","not","then","were","go","little","as","no","saw","make","mum","one","them","do","me","down","dad","big","when","it’s","see","looked","very","look","don’t","come","will","into","back","from","children","him","Mr","off","asked","get","just","now","came","oh","about","got","their","people","your","put","could","house","old","too","by","day","made","time","I’m","if","help","Mrs","called","here"];
 const SENT=["The dog ran to the park.","I like fish and chips.","I can see a red bus.","We went to the shop.","“Hello,” said Mum.","The cat is in the box.","He kicked the ball.","I am six years old.","I ate a bowl of soup.","Pick it up, please.","It was a sunny day.","Can you see the bird?","They are playing outside.","The book is on the table.","She has a new coat.","My bag is red.","This cake is for you.","Look at the moon.","Sam lost his hat.","I ran fast but I fell over.","Is that your pencil?","Come and play with me.","We all sang a song.","I ate an apple.","I was so happy.","We are going to the beach.","I can ride a bike.","You are my friend.","The kite went up high.","We had pizza for tea.","This is my teddy.","Give the ball to her.","What is your name?","There is a frog in the pond.","Let the dog out.","This is fun!","I have two sisters.","We went to the zoo.","I will be good.","I like ice cream.","Can I have some milk?","It is not raining.","We ate lunch, then we played.","We were very tired.","Let’s go home.","A little mouse ran past.","He is as tall as me.","There is no more juice.","I saw a big ship.","Let’s make a cake.","My mum is kind.","I have one brother.","I gave them a sticker.","What do you want?","Can you see me?","Sit down, please.","My dad can swim.","That is a big dog.","When is lunch?","It’s time for bed.","I can see a rainbow.","She looked under the bed.","The snail was very slow.","Look at my picture.","Don’t run in the hall.","Come here, please.","I will help you.","The frog jumped into the pond.","Put it back on the shelf.","I got a card from Gran.","The children ran outside.","I waved at him.","Mr Smith is our teacher.","Turn off the light.","She asked for a drink.","Go and get your coat.","I am just coming.","Tidy up now, please.","My friend came to play.","Oh no, it’s raining!","This book is about dinosaurs.","I got a new bike.","They put on their coats.","Lots of people came to the party.","Is this your bag?","Put your hand up.","Could you open the door?","My house has a red door.","My shoes are old.","I want to come too.","The book is by the bed.","Today is a sunny day.","I made a card for Mum.","What time is it?","I’m going to the park.","You can play if you are good.","Please help me tidy up.","Mrs Jones has a dog.","My cat is called Tom.","Come and sit here."];
+/* Classroom Hub: two more lists follow the first 100, so a child who has
+   all 100 moves straight on. Indices 0–99 are unchanged (saved marks are
+   keyed by index); the next 200 HFW are 100–299 and the Year 3/4 common
+   exception words 300 onwards, both in word-mat (alphabetical) order. */
+WORDS.push(...["across", "after", "again", "air", "along", "am", "animals", "another", "any", "around", "away", "baby", "bad", "bear", "because", "bed", "been", "before", "began", "best", "better", "birds", "boat", "book", "box", "boy", "can’t", "car", "cat", "clothes", "cold", "coming", "couldn’t", "cried", "dark", "did", "didn’t", "different", "dog", "door", "dragon", "duck", "each", "eat", "eggs", "end", "even", "ever", "every", "everyone", "eyes", "fast", "feet", "fell", "find", "first", "fish", "floppy", "fly", "food", "found", "fox", "friends", "fun", "garden", "gave", "giant", "girl", "going", "gone", "good", "gran", "grandad", "great", "green", "grow", "hard", "has", "hat", "he’s", "head", "home", "horse", "hot", "how", "I’ll", "I’ve", "inside", "its", "jumped", "keep", "key", "king", "know", "last", "laughed", "let", "let’s", "liked", "live", "lived", "long", "looking", "looks", "lots", "magic", "man", "many", "may", "miss", "more", "morning", "most", "mother", "mouse", "much", "must", "narrator", "need", "never", "new", "next", "night", "one", "only", "or", "other", "our", "over", "park", "place", "plants", "play", "please", "pulled", "queen", "rabbit", "ran", "really", "red", "right", "river", "room", "round", "run", "sat", "say", "school", "sea", "shouted", "sleep", "small", "snow", "something", "soon", "still", "stop", "stopped", "suddenly", "sun", "take", "tea", "tell", "than", "that’s", "there’s", "these", "thing", "things", "think", "thought", "three", "through", "told", "took", "top", "town", "tree", "trees", "two", "under", "us", "use", "want", "wanted", "water", "way", "well", "we’re", "where", "which", "white", "who", "why", "wind", "window", "wish", "work", "would", "yes"],...["accident", "accidentally", "actual", "actually", "address", "although", "answer", "appear", "arrive", "believe", "bicycle", "breath", "breathe", "build", "business", "busy", "calendar", "caught", "centre", "century", "certain", "circle", "complete", "consider", "continue", "decide", "describe", "different", "difficult", "disappear", "early", "earth", "eight", "eighth", "enough", "exercise", "experience", "experiment", "extreme", "famous", "favourite", "February", "forward", "forwards", "fruit", "grammar", "group", "guard", "guide", "heard", "heart", "height", "history", "imagine", "important", "increase", "interest", "island", "knowledge", "learn", "length", "library", "material", "medicine", "mention", "minute", "natural", "naughty", "notice", "occasion", "occasionally", "often", "opposite", "ordinary", "particular", "peculiar", "perhaps", "popular", "position", "possess", "possession", "possible", "potatoes", "pressure", "probably", "promise", "purpose", "quarter", "question", "recent", "regular", "reign", "remember", "sentence", "separate", "special", "straight", "strange", "strength", "suppose", "surprise", "therefore", "though", "thought", "through", "various", "weight", "woman", "women"]);
+SENT.push(...["We walked across the bridge.", "We went to the park after lunch.", "Can we play that game again?", "The balloon floated up into the air.", "We walked along the beach.", "I am seven years old.", "We saw lots of animals at the farm.", "Can I have another biscuit?", "Have you got any pencils?", "The dog ran around the garden.", "The bird flew away.", "The baby is asleep.", "The milk has gone bad.", "The bear lives in the woods.", "I wore a coat because it was cold.", "I go to bed at seven o’clock.", "I have been to the seaside.", "Wash your hands before lunch.", "It began to rain.", "You are my best friend.", "My cold is better today.", "The birds sang in the tree.", "We sailed in a little boat.", "I am reading a good book.", "The toys are in the box.", "The boy kicked the ball.", "I can’t find my shoe.", "Dad washed the car.", "The cat is asleep on the mat.", "Put your clothes in the drawer.", "It is cold outside today.", "Are you coming to my party?", "I couldn’t reach the top shelf.", "The baby cried all night.", "It is dark at night.", "Did you see the rainbow?", "I didn’t hear the bell.", "Each leaf is a different colour.", "My dog likes to run.", "Please shut the door.", "The dragon breathed fire.", "The duck swam on the pond.", "Each child has a pencil.", "We eat lunch at twelve.", "We had eggs for breakfast.", "That is the end of the story.", "Even the teacher laughed.", "Have you ever seen a whale?", "I brush my teeth every day.", "Everyone sat on the carpet.", "Close your eyes and count to ten.", "A cheetah can run fast.", "My feet are cold.", "The apple fell off the tree.", "Can you find your coat?", "I was first in the line.", "The fish swam in the pond.", "The puppy has floppy ears.", "Birds can fly.", "The dog ate all the food.", "I found a shell in the sand.", "The fox ran into the woods.", "My friends came to play.", "We had fun at the park.", "We planted seeds in the garden.", "Gran gave me a hug.", "The giant was very tall.", "The girl climbed the tree.", "We are going to the zoo.", "The snow has all gone.", "That was a good story.", "My gran makes lovely cakes.", "Grandad took us fishing.", "We had a great day.", "The grass is green.", "Seeds need water to grow.", "This sum is hard.", "She has a pet rabbit.", "Put on your hat.", "He’s my little brother.", "I bumped my head.", "It is time to go home.", "The horse ran across the field.", "The soup is too hot.", "How old are you?", "I’ll help you tidy up.", "I’ve lost my glove.", "We stayed inside because it was raining.", "The dog wagged its tail.", "The frog jumped into the pond.", "Keep your coat on.", "I opened the door with a key.", "The king wore a gold crown.", "I know the answer.", "Tom was last in the race.", "We all laughed at the joke.", "Let me help you.", "Let’s go to the park.", "I liked the story.", "I live in a red house.", "An old man lived by the sea.", "The snake is very long.", "I am looking for my book.", "That cake looks yummy.", "There are lots of shells on the beach.", "The wizard did a magic trick.", "The man waved at us.", "How many sweets are left?", "May I have a drink, please?", "I miss my friend.", "Can I have some more?", "I eat toast in the morning.", "Most of the class like pizza.", "The mother duck swam with her chicks.", "The mouse ate the cheese.", "Thank you very much.", "You must hold my hand.", "The narrator read the story aloud.", "I need a new pencil.", "I have never seen a ghost.", "I have new shoes.", "Who is next in the line?", "The owl hunts at night.", "There is one apple left.", "There is only one cake left.", "Do you want milk or juice?", "Where is my other sock?", "This is our classroom.", "The cow jumped over the moon.", "We played in the park.", "This is a good place to hide.", "The plants need water.", "Can I play with you?", "Please pass the salt.", "He pulled the rope.", "The queen lives in a palace.", "The rabbit hopped away.", "The dog ran after the ball.", "I really like ice cream.", "The bus is red.", "Write with your right hand.", "The river runs to the sea.", "My room is very messy.", "The wheel is round.", "I can run very fast.", "The cat sat on the wall.", "What did you say?", "We walk to school.", "We swam in the sea.", "Dad shouted, “Time for tea!”", "I sleep in a bunk bed.", "The mouse is small.", "The snow is cold and white.", "I have something to tell you.", "We will be home soon.", "Sit still, please.", "The bus will stop here.", "The rain stopped at last.", "Suddenly, the lights went out.", "The sun is hot.", "Take your coat with you.", "We had fish for tea.", "Tell me a story.", "An elephant is bigger than a mouse.", "That’s my bag.", "There’s a spider on the wall.", "These are my shoes.", "What is that thing?", "Put your things in your bag.", "I think it will rain.", "I thought it was Monday.", "I have three pets.", "We walked through the woods.", "Mum told me a story.", "I took my dog for a walk.", "The cat sat on top of the wall.", "We went into town.", "The bird is in the tree.", "The trees lost their leaves.", "I have two hands.", "The cat is under the table.", "Come with us.", "Can I use your rubber?", "I want to play outside.", "I wanted a red balloon.", "Fish live in water.", "Which way is the park?", "I can read well.", "We’re going on holiday.", "Where is my hat?", "Which one do you want?", "Snow is white.", "Who is at the door?", "Why is the sky blue?", "The wind blew my hat off.", "Look out of the window.", "I wish I could fly.", "Dad goes to work by bus.", "Would you like a drink?", "Yes, you can come too."],...["There was an accident on the motorway.", "I accidentally knocked over my drink.", "The actual size of the whale was enormous.", "I actually enjoyed the maths test.", "Write your address on the envelope.", "Although it was raining, we played outside.", "Put your hand up if you know the answer.", "Stars appear in the sky at night.", "The train will arrive at six o’clock.", "I believe you are telling the truth.", "I ride my bicycle to school.", "Take a deep breath before you dive.", "Fish breathe through their gills.", "We will build a den in the woods.", "My aunt runs her own business.", "The shop was very busy on Saturday.", "Mark the date on the calendar.", "The goalkeeper caught the ball.", "The town centre is full of shops.", "The castle was built in the twelfth century.", "Are you certain the door is locked?", "Draw a circle round the answer.", "Complete the sentence with a verb.", "Please consider the question carefully.", "We will continue the story tomorrow.", "You can decide which book to read.", "Describe the monster in your story.", "The twins have different coloured coats.", "The last question was difficult.", "The magician made the rabbit disappear.", "We got up early to see the sunrise.", "The earth travels around the sun.", "A spider has eight legs.", "My birthday is on the eighth of May.", "Have we got enough chairs?", "Exercise keeps your heart healthy.", "Visiting the museum was a great experience.", "We did an experiment with magnets.", "Polar bears live in extreme cold.", "The famous singer waved to the crowd.", "Blue is my favourite colour.", "February is the shortest month.", "Take one step forward.", "The car rolled forwards down the hill.", "An apple is a healthy fruit.", "We practised our grammar in English.", "Work in a group of four.", "A guard stood at the castle gate.", "Our guide showed us round the museum.", "I heard a noise in the night.", "Your heart pumps blood around your body.", "We measured our height in centimetres.", "In history we learnt about the Romans.", "Imagine you could fly.", "It is important to listen carefully.", "The temperature will increase in summer.", "Dinosaurs are a big interest of mine.", "The pirates landed on a desert island.", "She has a great knowledge of space.", "We learn new words every week.", "Measure the length of the table.", "I borrowed a book from the library.", "Wool is a soft material.", "Take your medicine after breakfast.", "Did he mention the school trip?", "Wait a minute, please.", "Wood is a natural material.", "The naughty puppy chewed my shoe.", "Did you notice the new sign?", "A wedding is a special occasion.", "We occasionally have pizza for tea.", "I often walk the dog after school.", "Hot is the opposite of cold.", "It was an ordinary day until the dragon came.", "Is there a particular book you want?", "There was a peculiar smell in the kitchen.", "Perhaps it will snow tomorrow.", "Football is a popular sport.", "Put the chairs back in position.", "Does anyone possess a ruler?", "My bike is my favourite possession.", "Is it possible to touch a cloud?", "We dug up potatoes in the garden.", "Check the pressure in the tyres.", "It will probably rain later.", "I promise to tidy my room.", "What is the purpose of this button?", "It is a quarter past three.", "Can I ask a question?", "Our recent trip was to the zoo.", "Regular exercise keeps you fit.", "The queen had a long reign.", "Remember to bring your PE kit.", "Start every sentence with a capital letter.", "Keep the eggs separate from the flour.", "Today is a special day.", "Draw a straight line with a ruler.", "We heard a strange noise.", "The giant had amazing strength.", "I suppose we could walk.", "We planned a surprise party.", "It was raining, therefore we stayed inside.", "It was cold, even though the sun was out.", "I thought hard about the answer.", "The train went through the tunnel.", "The shop sells various kinds of sweets.", "Check the weight of the parcel.", "The woman read the news.", "The women ran a marathon."]);
+const LISTS=[{name:"100 high frequency words",short:"100 HFW",a:0,b:100},{name:"Next 200 high frequency words",short:"200 HFW",a:100,b:300},{name:"Year 3 and 4 common exception words",short:"Y3/4 CEW",a:300,b:WORDS.length}];
+/* Words go in sets of ten, in list order: set g is words g*10 to g*10+9.
+   Every list starts on a multiple of ten, so a set never spans two lists.
+   A child moves on to the next set only when every word in it is correct. */
+const NSETS=Math.ceil(WORDS.length/10);
+const listIdxOf=i=>LISTS.findIndex(l=>i>=l.a&&i<l.b);
+const listOf=i=>LISTS[listIdxOf(i)];
+const num=i=>i-listOf(i).a+1;
+const setWords=g=>{const out=[];for(let i=g*10;i<Math.min(g*10+10,WORDS.length);i++)out.push(i);return out};
+const setLabel=g=>{const w=setWords(g);return `${listOf(w[0]).short} ${num(w[0])}–${num(w[w.length-1])}`};
+const listWords=l=>{const out=[];for(let i=l.a;i<l.b;i++)out.push(i);return out};
+const listSets=l=>{const out=[];for(let g=l.a/10;g<Math.ceil(l.b/10);g++)out.push(g);return out};
 const BANDS=[{n:"Pink",c:"#f2a7c3"},{n:"Red",c:"#e04b4b"},{n:"Yellow",c:"#f4d13d"},{n:"Blue",c:"#4b8ee0"},{n:"Green",c:"#43b16a"},{n:"Orange",c:"#f28a35"},{n:"Turquoise",c:"#29b3ae"},{n:"Purple",c:"#8d5cc7"},{n:"Gold",c:"#c9a227"},{n:"White",c:"#f4f4f4"}];
 const STLABEL={none:"Not assessed",known:"Correct",secure:"Secure (correct twice)",notyet:"Not yet",slipped:"Slipped (was correct before)",review:"Waiting for your review"};
 const LADDER=["New","Learning","Practising","Ready to check"];
@@ -225,14 +245,14 @@ const fmtShort=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{day:"numeric"
 const uid=()=>Math.random().toString(36).slice(2,10);
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const isKnown=st=>st==="known"||st==="secure";
-const bandOf=i=>BANDS[Math.floor(i/10)];
+const bandOf=i=>BANDS[Math.floor(i/10)%10];
 const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...");
 
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"tracker",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading"},cell:null,pupil:null,confirm:null,
-      print:{cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading",list:null,only:null,group:null},list:null,cell:null,pupil:null,confirm:null,
+      print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
 let memo={};
@@ -262,7 +282,7 @@ function sessionsFor(pid){
   return memo["ss"+pid]=Object.entries(S.sessions).filter(([,s])=>s.pupilId===pid).map(([id,s])=>({id,...s})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 function wordStates(pid,{before,upto}={}){
-  const out=Array.from({length:100},()=>({st:"none",hist:[]}));
+  const out=Array.from({length:WORDS.length},()=>({st:"none",hist:[]}));
   for(const s of sessionsFor(pid)){
     if(before&&s.date>=before)continue;
     if(upto&&s.date>upto)continue;
@@ -284,9 +304,10 @@ function summary(pid){
   const lastDate=ss.length?ss[ss.length-1].date:null;
   let prevKnown=null;
   if(lastDate){const prev=wordStates(pid,{before:lastDate});if(prev.some(w=>w.st!=="none"))prevKnown=count(prev,w=>isKnown(w.st))}
-  let level=10;for(let b=0;b<10;b++){if(ws.slice(b*10,b*10+10).some(w=>!isKnown(w.st))){level=b;break}}
+  let level=NSETS;for(let b=0;b<NSETS;b++){if(setWords(b).some(i=>!isKnown(ws[i].st))){level=b;break}}
+  const knownIn=LISTS.map(l=>listWords(l).filter(i=>isKnown(ws[i].st)).length),setDone=level<NSETS?setWords(level).filter(i=>isKnown(ws[i].st)).length:0;
   const next=ws.map((w,i)=>i).filter(i=>!isKnown(ws[i].st)).slice(0,6);
-  return memo["sum"+pid]={ws,known,secure,review,assessed,lastDate,prevKnown,delta:prevKnown==null?null:known-prevKnown,level,next,sessions:ss};
+  return memo["sum"+pid]={ws,known,secure,review,assessed,lastDate,prevKnown,delta:prevKnown==null?null:known-prevKnown,level,knownIn,setDone,next,sessions:ss};
 }
 function reviewItems(){
   const out=[];
@@ -297,6 +318,8 @@ function reviewItems(){
   }
   return out.sort((a,b)=>a.s.date.localeCompare(b.s.date));
 }
+/* the list a pupil is working in now (their current set's list) */
+function curList(s){return Math.max(0,listIdxOf(Math.min(s.level,NSETS-1)*10))}
 function practiceFor(pid){return S.practice[pid]||{boxes:{},log:[]}}
 
 /* ---------- rendering ---------- */
@@ -308,7 +331,7 @@ function doRender(){
   $("#cls").textContent=S.settings.className?S.settings.className:"";
   /* Classroom Hub: no Practise (games) or Review (the photo-marking queue)
      tabs. Their views are kept, unreachable. */
-  const tabs=[["tracker","Tracker"],["assess","Assess"],["plans","Plans"],["print","Print"],["class","Class"]];
+  const tabs=[["tracker","Tracker"],["groups","Groups"],["assess","Assess"],["plans","Plans"],["print","Print"],["class","Class"]];
   $("#nav").innerHTML=tabs.map(([k,l])=>`<button data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
   $("#banner").innerHTML=bannerHtml();
   $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS.tracker)();
@@ -321,8 +344,12 @@ function bannerHtml(){
   if(S.mode==="offline")return `<b>Viewing only.</b><span>Saving isn’t available in this view. You can explore with the example class.</span><button class="btn sm" data-a="demo">Load example class</button>`;
   return "";
 }
-const bandDot=b=>`<span class="dot" style="--band:${BANDS[Math.min(b,9)].c}"></span>`;
-function levelLabel(sm){if(!sm.sessions.length)return "Not assessed yet";if(sm.level>=10)return "All 100 correct";const b=BANDS[sm.level];return `${b.n} · words ${sm.level*10+1}–${sm.level*10+10}`}
+const bandDot=b=>`<span class="dot" style="--band:${b>=NSETS?"var(--ok)":BANDS[b%10].c}"></span>`;
+function levelLabel(sm){if(!sm.sessions.length)return "Not assessed yet";if(sm.level>=NSETS)return "Every list complete";return `${BANDS[sm.level%10].n} · ${setLabel(sm.level)} (${sm.setDone}/${setWords(sm.level).length})`}
+/* list picker shared by Tracker, Print and Quick check */
+function listSeg(cur,action){return `<div class="seg">${LISTS.map((l,k)=>`<button data-a="${action}" data-k="${k}" aria-pressed="${cur===k}" title="${esc(l.name)}">${esc(l.short)}</button>`).join("")}</div>`}
+/* the list most of the class is working in */
+function classList(){const c=LISTS.map(()=>0);for(const id of pupilIds())c[curList(summary(id))]++;return c.indexOf(Math.max(...c))}
 
 const VIEWS={};
 /* ----- Tracker ----- */
@@ -335,8 +362,10 @@ VIEWS.tracker=function(){
   const deltas=assessed.filter(([,s])=>s.delta!=null);
   const avgDelta=deltas.length?(deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length):null;
   const cell=S.ui.cell;
-  let h=`<div class="stats">
-    <div class="stat"><b>${avg}<small class="muted" style="font-size:15px"> /100</small></b><span>Class average correct</span></div>
+  const li=S.ui.list==null?classList():S.ui.list,L=LISTS[li],LW=listWords(L);
+  const avgL=assessed.length?Math.round(assessed.reduce((n,[,s])=>n+s.knownIn[li],0)/assessed.length):0;
+  let h=`<div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0">${esc(L.name)}</h3>${listSeg(li,"list")}</div><div class="stats">
+    <div class="stat"><b>${avgL}<small class="muted" style="font-size:15px"> /${LW.length}</small></b><span>Class average correct (${esc(L.short)})</span></div>
     <div class="stat"><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>Average change since previous check</span></div>
     <div class="stat"><b>${assessed.length}<small class="muted" style="font-size:15px"> of ${ids.length}</small></b><span>Pupils assessed</span></div>
   </div>
@@ -346,19 +375,19 @@ VIEWS.tracker=function(){
   </div>`;
   if(cell&&S.pupils[cell.p]){
     const st=summary(cell.p).ws[cell.i];
-    h+=`<div class="cellbar"><b>${esc(S.pupils[cell.p].name)}</b><span class="wchip">${esc(WORDS[cell.i])}<small>#${cell.i+1}</small></span><span class="muted">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
+    h+=`<div class="cellbar"><b>${esc(S.pupils[cell.p].name)}</b><span class="wchip">${esc(WORDS[cell.i])}<small>${esc(listOf(cell.i).short)} #${num(cell.i)}</small></span><span class="muted">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
       <span class="row" style="margin-left:auto"><button class="btn sm ok" data-a="setCell" data-s="c">Correct today</button><button class="btn sm no" data-a="setCell" data-s="x">Not yet today</button><button class="btn sm ghost" data-a="closeCell">Close</button></span></div>`;
   }
   h+=`<div class="grid-wrap"><table class="grid"><thead><tr><th class="name-h" rowspan="2">Pupil</th>`;
-  for(let b=0;b<10;b++)h+=`<th class="blk" colspan="10" style="--band:${BANDS[b].c}">${b*10+1}–${b*10+10}</th>`;
-  h+=`<th class="score-h" rowspan="2">Score<br><span class="muted small">/100</span></th></tr><tr>`;
-  for(let i=0;i<100;i++)h+=`<th class="w ${i%10===9?"be":""}"><span>${esc(WORDS[i])}</span></th>`;
+  for(const g of listSets(L)){const w=setWords(g);h+=`<th class="blk" colspan="${w.length}" style="--band:${BANDS[g%10].c}">${num(w[0])}–${num(w[w.length-1])}</th>`}
+  h+=`<th class="score-h" rowspan="2">Score<br><span class="muted small">/${LW.length}</span></th></tr><tr>`;
+  for(const i of LW)h+=`<th class="w ${i%10===9||i===L.b-1?"be":""}"><span>${esc(WORDS[i])}</span></th>`;
   h+=`</tr></thead><tbody>`;
   for(const [id,s] of sums){
     h+=`<tr><th class="pn"><button data-a="openPupil" data-id="${id}" title="${esc(levelLabel(s))}">${s.sessions.length?bandDot(s.level):'<span class="dot" style="--band:transparent"></span>'}<span class="nm">${esc(S.pupils[id].name)}</span></button></th>`;
-    for(let i=0;i<100;i++){const st=s.ws[i].st;const sel=cell&&cell.p===id&&cell.i===i;
-      h+=`<td class="c s-${st}${i%10===9?" be":""}${sel?" sel":""}" data-a="cell" data-p="${id}" data-i="${i}" title="${esc(WORDS[i])}: ${STLABEL[st]}"></td>`}
-    h+=`<td class="score">${s.sessions.length?`<b>${s.known}</b>${s.delta!=null?`<small class="${s.delta>0?"up":s.delta<0?"down":"muted"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`;
+    for(const i of LW){const st=s.ws[i].st;const sel=cell&&cell.p===id&&cell.i===i;
+      h+=`<td class="c s-${st}${i%10===9||i===L.b-1?" be":""}${sel?" sel":""}" data-a="cell" data-p="${id}" data-i="${i}" title="${esc(WORDS[i])}: ${STLABEL[st]}"></td>`}
+    h+=`<td class="score">${s.sessions.length?`<b>${s.knownIn[li]}</b>${s.delta!=null?`<small class="${s.delta>0?"up":s.delta<0?"down":"muted"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`;
   }
   h+=`</tbody></table></div>`;
   h+=insightsHtml(sums);
@@ -375,7 +404,7 @@ function insightsHtml(sums){
   const assessed=sums.filter(([,s])=>s.sessions.length);
   if(!assessed.length)return `<div class="panel"><h3>Insights appear after the first assessment</h3><p class="muted">Print answer sheets from the Print tab, run the check, then enter each child’s results with Quick check in Assess.</p></div>`;
   // most missed
-  const miss=Array(100).fill(0),slip=Array(100).fill(0),mis={};
+  const miss=Array(WORDS.length).fill(0),slip=Array(WORDS.length).fill(0),mis={};
   for(const [,s] of assessed)s.ws.forEach((w,i)=>{
     if(w.st==="notyet"||w.st==="slipped")miss[i]++;
     if(w.st==="slipped")slip[i]++;
@@ -397,8 +426,8 @@ function insightsHtml(sums){
   h+=`<div class="panel ins"><h3>Teach to the whole class</h3><p class="muted small" style="margin-bottom:10px">Words the most pupils still can’t spell.</p>
     <div class="chips">${topMiss.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n} of ${assessed.length}</small></span>`).join("")||'<span class="muted">Every assessed word is correct.</span>'}</div>
     ${slips.length?`<p class="small" style="margin-top:12px"><b>Slipping:</b> ${slips.map(([i,n])=>`${esc(WORDS[i])} (${n})`).join(", ")}. These were correct before and wrong last time.</p>`:""}</div>`;
-  h+=`<div class="panel ins"><h3>Groups by level</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t finished.</p><div class="stack">
-    ${Object.keys(groups).sort((a,b)=>a-b).map(l=>`<div><span class="band">${bandDot(+l)}${+l>=10?"All 100 correct":`${BANDS[l].n} <span class="muted small">(${l*10+1}–${l*10+10})</span>`}</span><div class="small">${groups[l].map(name).join(", ")}</div></div>`).join("")}</div></div>`;
+  h+=`<div class="panel ins"><h3>Groups by set</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t got 10/10 in. The Groups tab plans the tests.</p><div class="stack">
+    ${Object.keys(groups).sort((a,b)=>a-b).map(l=>`<div><span class="band">${bandDot(+l)}${+l>=NSETS?"Every list complete":`${BANDS[l%10].n} <span class="muted small">(${setLabel(+l)})</span>`}</span><div class="small">${groups[l].map(name).join(", ")}</div></div>`).join("")}</div></div>`;
   h+=`<div class="panel ins"><h3>Common misspellings</h3><p class="muted small" style="margin-bottom:10px">What children actually wrote. Useful for spotting phonics gaps.</p>
     ${pats.length?`<ul>${pats.map(([i,r,n])=>`<li><b style="font-family:var(--f-word)">${esc(WORDS[i])}</b> → “${esc(r)}” <span class="muted">×${n}</span></li>`).join("")}</ul>`:'<p class="muted">Misspellings appear once marked sheets are saved.</p>'}</div>`;
   h+=`<div class="panel ins"><h3>Pupils to look at</h3><ul>${[...watch,...lowest].map(([id,why])=>`<li><a href="#" data-a="openPupil" data-id="${id}">${name(id)}</a> <span class="muted">— ${why}</span></li>`).join("")||'<li class="muted">No concerns flagged.</li>'}</ul>
@@ -418,15 +447,57 @@ function drawerHtml(pid){
   let h=`<div class="stack">
   <div class="row" style="justify-content:space-between"><h2>${esc(p.name)}</h2><button class="btn ghost" data-a="closePupil" aria-label="Close">Close</button></div>
   <div class="row"><span class="band">${s.sessions.length?bandDot(s.level):""}${esc(levelLabel(s))}</span></div>
-  <div class="stats"><div class="stat"><b>${s.known}</b><span>correct /100</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous</span></div></div>`;
-  if(pts.length){const max=100;h+=`<div><h3>Progress</h3><div class="hist">${pts.map(([d,n])=>`<div style="height:${Math.max(2,n/max*100)}%"><span>${n}</span></div>`).join("")}</div><div class="histx">${pts.map(([d])=>`<span>${fmtShort(d)}</span>`).join("")}</div></div>`}
-  h+=`<div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${practiseWords(pid).map(i=>{const b=(pr.boxes||{})[i]||0;return `<div class="lw"><span class="small muted">#${i+1} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">All 100 correct.</p>'}</div></div>
+  <div class="stats"><div class="stat"><b>${s.knownIn[curList(s)]}</b><span>correct /${listWords(LISTS[curList(s)]).length} (${esc(LISTS[curList(s)].short)})</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous</span></div></div>`;
+  if(pts.length){const max=Math.max(100,...pts.map(p=>p[1]));h+=`<div><h3>Progress</h3><div class="hist">${pts.map(([d,n])=>`<div style="height:${Math.max(2,n/max*100)}%"><span>${n}</span></div>`).join("")}</div><div class="histx">${pts.map(([d])=>`<span>${fmtShort(d)}</span>`).join("")}</div></div>`}
+  h+=`<div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${practiseWords(pid).map(i=>{const b=(pr.boxes||{})[i]||0;return `<div class="lw"><span class="small muted">${esc(listOf(i).short)} #${num(i)} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">Every word correct.</p>'}</div></div>
   <div class="row"><button class="btn primary" data-a="openPlan" data-id="${pid}">Progression plan</button><button class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards PDF</button><button class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet PDF</button></div>`;
   if(mis.length)h+=`<div><h3>What ${esc(p.name.split(" ")[0])} wrote</h3><div class="chips" style="margin-top:8px">${mis.slice(-24).reverse().map(([i,r])=>`<span class="wchip">${esc(r)}<small>for ${esc(WORDS[i])}</small></span>`).join("")}</div></div>`;
   h+=`<div><h3>Assessments</h3><div class="stack" style="margin-top:8px">${s.sessions.map(x=>{const w=Object.values(x.words||{});const c=w.filter(v=>v.s==="c").length,q=w.filter(v=>v.s==="?").length;const conf=S.ui.confirm==="ses"+x.id;
     return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px"><span><b>${fmtDate(x.date)}</b> <span class="muted small">${x.kind==="reading"?"reading":"spelling"} · ${w.length} words · ${c} correct${q?` · ${q} to review`:""}</span></span><button class="btn sm ${conf?"no":"ghost"}" data-a="delSession" data-id="${x.id}">${conf?"Confirm delete":"Delete"}</button></div>`}).join("")||'<p class="muted">No assessments yet.</p>'}</div></div>`;
   return h+`</div>`;
 }
+
+/* ----- Groups -----
+   Classroom Hub. Each child works on one set of ten at a time and moves on
+   only at 10/10. The test plan covers the class in as few tests as it can:
+   one whole-class test (20 words by default — enough in KS1) placed where
+   the most children are, then the shortest group tests for the rest. A
+   group test is the lowest remaining set, plus the next set when children
+   are waiting on it too, so neighbouring groups share one 20-word test. */
+function setsLabel(gs){const a=setWords(gs[0])[0],b=setWords(gs[gs.length-1]).slice(-1)[0];return listIdxOf(a)===listIdxOf(b)?`${listOf(a).short} ${num(a)}–${num(b)}`:`${setLabel(gs[0])} and ${setLabel(gs[gs.length-1])}`}
+function testPlan(){
+  const ids=pupilIds(),lv={};for(const id of ids)lv[id]=summary(id).level;
+  const active=ids.filter(id=>lv[id]<NSETS),W=Math.max(1,Math.round((+S.settings.wholeN||20)/10));
+  const tests=[];
+  if(!active.length)return {tests,lv,W};
+  let best=-1,bestN=-1;
+  /* windows start on a set someone is on, so the test begins where they are */
+  for(const g of [...new Set(active.map(id=>lv[id]))].sort((a,b)=>a-b)){const n=active.filter(id=>lv[id]>=g&&lv[id]<g+W).length;if(n>bestN){best=g;bestN=n}}
+  const sets=[];for(let g=best;g<Math.min(best+W,NSETS);g++)sets.push(g);
+  const inWhole=active.filter(id=>lv[id]>=best&&lv[id]<best+W);
+  tests.push({whole:true,sets,words:sets.flatMap(setWords),pids:ids,target:inWhole,title:`Whole class · ${setsLabel(sets)}`});
+  let rest=active.filter(id=>!inWhole.includes(id)).sort((a,b)=>lv[a]-lv[b]);
+  while(rest.length){const g=lv[rest[0]];const two=rest.some(id=>lv[id]===g+1)&&g+1<NSETS&&listIdxOf(g*10)===listIdxOf((g+1)*10);
+    const gs=two?[g,g+1]:[g],pids=rest.filter(id=>gs.includes(lv[id]));
+    tests.push({whole:false,sets:gs,words:gs.flatMap(setWords),pids,target:pids,title:`Group · ${setsLabel(gs)}`});
+    rest=rest.filter(id=>!pids.includes(id))}
+  return {tests,lv,W};
+}
+VIEWS.groups=function(){
+  const ids=pupilIds();
+  if(!ids.length)return emptyClass();
+  const {tests,lv}=testPlan(),name=id=>esc(S.pupils[id].name),wn=+S.settings.wholeN||20;
+  let h=`<div class="row" style="justify-content:space-between"><h2>Groups</h2><div class="row small"><label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${wn===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select></div></div>
+  <p class="muted" style="max-width:75ch">Each child works through the words in sets of ten and moves on only when they get 10/10: the 100 high frequency words, then the next 200, then the Year 3 and 4 common exception words. The tests below cover every child in as few tests as possible.</p>`;
+  h+=`<h3>Next tests</h3><div class="cols">${tests.map((t,k)=>`<div class="panel stack"${t.whole?' style="border-top:6px solid var(--accent)"':""}>
+    <div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(t.title)}</h3><span class="pill">${t.words.length} words</span></div>
+    <p class="small">${t.whole?`Everyone sits it. It is the current set for <b>${t.target.length} of ${ids.length}</b>: ${t.target.map(name).join(", ")||"–"}.`:`${t.pids.map(id=>`${name(id)} <span class="muted">(${summary(id).setDone}/${setWords(lv[id]).length})</span>`).join(", ")}`}</p>
+    <div class="chips">${t.words.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}</div>
+    <div class="row"><button class="btn primary" data-a="testEnter" data-k="${k}">Enter results</button><button class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`).join("")||'<div class="panel"><p class="muted">Every child has finished every list.</p></div>'}</div>`;
+  const by={};for(const id of ids)(by[lv[id]]=by[lv[id]]||[]).push(id);
+  h+=`<h3 style="margin-top:18px">Where everyone is</h3><div class="panel"><table class="gtab"><tbody>${Object.keys(by).map(Number).sort((a,b)=>a-b).map(g=>`<tr><th>${bandDot(g)} ${g>=NSETS?"Every list complete":esc(setLabel(g))}</th><td>${by[g].map(id=>{const sm=summary(id);return `<a href="#" class="wchip" data-a="openPupil" data-id="${id}" style="font-family:var(--f-ui);font-size:14px">${name(id)}${g<NSETS?`<small>${sm.sessions.length?sm.setDone+"/"+setWords(g).length:"not assessed"}</small>`:""}</a>`}).join(" ")}</td></tr>`).join("")}</tbody></table></div>`;
+  return h;
+};
 
 /* ----- Assess ----- */
 VIEWS.assess=function(){
@@ -468,6 +539,7 @@ function jobHtml(j){
   }
   return `<div class="job"><img src="${j.url}" alt="Answer sheet photo"><div class="stack">${body}</div></div>`;
 }
+function pickQuick(pid){const q=S.ui.quick;q.pid=pid;q.marks={};q.list=null;S.ui.confirm=null;const ses=S.sessions[quickSid()];if(ses&&ses.kind)q.kind=ses.kind}
 /* Quick check reads and writes the session for (pupil, date) directly. */
 function quickSid(){return S.ui.quick.pid+"_"+S.ui.date}
 function quickWords(){const ses=S.sessions[quickSid()];return {...((ses&&ses.words)||{})}}
@@ -476,6 +548,8 @@ function saveQuickWords(words){
   if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
   saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
 }
+/* the words Quick check is showing: a test's words, or one whole list */
+function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list==null?curList(summary(q.pid)):q.list;return listWords(LISTS[li])}
 function quickView(){
   const q=S.ui.quick,ids=pupilIds();
   const opts=ids.map(id=>`<option value="${id}" ${q.pid===id?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("");
@@ -487,9 +561,12 @@ function quickView(){
     /* Classroom Hub: the grid shows the saved session for this pupil and
        date, and every tap writes to it — no draft to lose by switching
        pupil. "before" is everything up to the day before. */
-    const cur=quickWords(),n=Object.keys(cur).length,before=wordStates(q.pid,{before:S.ui.date});
-    h+=`<div class="qgrid">${WORDS.map((w,i)=>{const m=cur[i]&&cur[i].s;const prev=before[i].st;return `<button class="${m?"q-"+m:""}" data-a="qmark" data-i="${i}"><small>${i+1}${prev!=="none"?" · "+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
-    <div class="row"><span class="muted small">${n?`${n} word${n===1?"":"s"} marked for ${esc(S.pupils[q.pid].name)} on ${fmtShort(S.ui.date)} · saved`:"Nothing marked for this date yet"}</span><button class="btn ghost" data-a="qAll" data-s="c">Mark rest correct</button><button class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button></div>`;
+    const cur=quickWords(),n=Object.keys(cur).length,before=wordStates(q.pid,{before:S.ui.date}),sm=summary(q.pid);
+    const li=q.list==null?curList(sm):q.list,shown=quickShown(),focus=new Set(sm.level<NSETS?setWords(sm.level):[]);
+    if(q.group&&q.group.length)h+=`<div class="chips">${q.group.filter(id=>S.pupils[id]).map(id=>`<button class="wchip" data-a="qPick" data-id="${id}" style="font-family:var(--f-ui);font-size:14px;cursor:pointer;${id===q.pid?"border-color:var(--accent);background:var(--accent-soft)":""}">${esc(S.pupils[id].name)}</button>`).join("")}</div>`;
+    h+=q.only?`<div class="row" style="justify-content:space-between"><span class="small"><b>${esc(q.onlyLabel||"Test words")}</b> · ${q.only.length} words</span><a href="#" class="small" data-a="qWhole">Show the whole list</a></div>`:`<div class="row" style="justify-content:space-between"><span class="small muted">${esc(levelLabel(sm))}. Their current set is outlined.</span>${listSeg(li,"qList")}</div>`;
+    h+=`<div class="qgrid">${shown.map(i=>{const w=WORDS[i],m=cur[i]&&cur[i].s;const prev=before[i].st;return `<button class="${m?"q-"+m:""}${focus.has(i)?" q-focus":""}" data-a="qmark" data-i="${i}"><small>${q.only?"":num(i)}${prev!=="none"?(q.only?"":" · ")+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
+    <div class="row"><span class="muted small">${n?`${n} word${n===1?"":"s"} marked for ${esc(S.pupils[q.pid].name)} on ${fmtShort(S.ui.date)} · saved`:"Nothing marked for this date yet"}</span><button class="btn ghost" data-a="qAll" data-s="c">Mark the rest of these correct</button>${q.group&&q.group.indexOf(q.pid)<q.group.length-1?`<button class="btn primary" data-a="qNext">Next child</button>`:""}<button class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button></div>`;
   }
   return h+`</div>`;
 }
@@ -585,7 +662,7 @@ function voicePanel(){
 const spk=`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
 function startAct(type){
   const pid=S.ui.practise.pid;let items=shuffle(practiseWords(pid));
-  if(!items.length){toast("No words left to practise — all 100 are correct!");return}
+  if(!items.length){toast("No words left to practise — every word is correct!");return}
   if(type==="missing"||type==="build")items=items.filter(i=>WORDS[i].replace(/[’']/g,"").length>=2);
   if(!items.length){toast("These words are too short for that game. Try flash cards.");return}
   const a={type,pid,items,i:0,res:{},first:true,phase:"look",picked:[],wrong:null,done:false};
@@ -594,7 +671,7 @@ function startAct(type){
 }
 function setupItem(a){
   const idx=a.items[a.i];if(idx==null)return;const w=WORDS[idx];a.first=true;a.wrong=null;a.phase="look";a.picked=[];a.lock=false;
-  if(a.type==="listen"){const pool=shuffle([...new Set([...practiseWords(a.pid),...Array.from({length:20},(_,k)=>Math.min(99,Math.max(0,idx-10+k)))])].filter(i=>i!==idx)).slice(0,3);a.opts=shuffle([idx,...pool])}
+  if(a.type==="listen"){const pool=shuffle([...new Set([...practiseWords(a.pid),...Array.from({length:20},(_,k)=>Math.min(WORDS.length-1,Math.max(0,idx-10+k)))])].filter(i=>i!==idx)).slice(0,3);a.opts=shuffle([idx,...pool])}
   if(a.type==="missing"){const pos=[...w].map((c,k)=>/[a-z]/i.test(c)?k:-1).filter(k=>k>=0);a.gap=pos[Math.floor(Math.random()*pos.length)];const right=w[a.gap];const up=right!==right.toLowerCase();const pool=shuffle("aeioustnrhdlmwcy".split("").filter(c=>c!==right.toLowerCase())).slice(0,2).map(c=>up?c.toUpperCase():c);a.opts=shuffle([right,...pool])}
   if(a.type==="build"){let t;const letters=[...w];do{t=shuffle(letters.map((c,k)=>({c,k})))}while(letters.length>1&&t.map(x=>x.c).join("")===w);a.tiles=t}
 }
@@ -637,10 +714,11 @@ VIEWS.print=function(){
   const P=S.ui.print,ids=pupilIds();
   const pupilPick=(key)=>`<div class="chips">${ids.map(id=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPid" value="${id}" ${P.pids.includes(id)?"checked":""}>${esc(S.pupils[id].name)}</label>`).join("")}</div><div class="row small"><a href="#" data-a="pidsAll">Select all</a><a href="#" data-a="pidsNone">Select none</a></div>`;
   const ok=!!dl;
-  return `<h2>Print</h2>${ok?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}
+  const PL=LISTS[P.list||0],pages=Math.ceil((PL.b-PL.a)/20),levelChips=listSets(PL).map(l=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${BANDS[l%10].n} ${esc(setLabel(l).replace(/^.* /,""))}</label>`).join("");
+  return `<div class="row" style="justify-content:space-between"><h2>Print</h2><div class="row small"><b>Word list</b>${listSeg(P.list||0,"printList")}</div></div>${ok?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}
   <div class="cols">
-   <div class="panel stack"><h3>Spelling answer sheets</h3><p class="muted small">20 numbered boxes per A4 page with handwriting lines. Read each word aloud (use the dictation script) and children write it in the matching box.</p>
-    <div class="chips">${[0,1,2,3,4].map(p=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPage" value="${p}" ${P.pages.includes(p)?"checked":""}>Words ${p*20+1}–${p*20+20}</label>`).join("")}</div>
+   <div class="panel stack"><h3>Spelling answer sheets</h3><p class="muted small">For the word list chosen above. 20 numbered boxes per A4 page with handwriting lines. Read each word aloud (use the dictation script) and children write it in the matching box.</p>
+    <div class="chips">${Array.from({length:pages},(_,p)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPage" value="${p}" ${P.pages.includes(p)?"checked":""}>Words ${p*20+1}–${Math.min(p*20+20,PL.b-PL.a)}</label>`).join("")}</div>
     <label class="chk"><input type="checkbox" data-c="printNamed" ${P.named?"checked":""}>Print a set for each pupil with their name on</label>
     ${P.named?pupilPick():""}
     <div class="row"><button class="btn primary" data-a="pdfSheets">Download answer sheets</button><button class="btn" data-a="pdfScript">Download dictation script</button></div></div>
@@ -650,7 +728,7 @@ VIEWS.print=function(){
     <p class="small">${P.cardLayout==="stack"?(P.cardsFor==="levels"?"Each sheet repeats one word in every space. Print, square the stack and cut once: every pile is a complete, identical pack for a group.":"Each space on the sheet belongs to one child, and sheet 1 is their name card. Print, square the stack and cut once: every pile is one child’s complete set with their name on top. Up to "+cardGrid(+P.cardSize).per+" children per stack."):"Cards fill each sheet in order. Best for one child or a single level."} <span class="muted">${cutHelp(+P.cardSize)}</span></p>
     ${P.stackNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(P.stackNote)}</p>`:""}
     <div class="seg"><button data-a="cardsFor" data-k="levels" aria-pressed="${P.cardsFor==="levels"}">By level</button><button data-a="cardsFor" data-k="pupils" aria-pressed="${P.cardsFor==="pupils"}">Each pupil’s next words</button></div>
-    ${P.cardsFor==="levels"?`<div class="chips">${BANDS.map((b,l)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${b.n} ${l*10+1}–${l*10+10}</label>`).join("")}</div>`:pupilPick()}
+    ${P.cardsFor==="levels"?`<div class="chips">${levelChips}</div>`:pupilPick()}
     <div class="row"><label for="cSize" class="small"><b>Size</b></label><select id="cSize" data-c="cardSize"><option value="10" ${P.cardSize==10?"selected":""}>10 per page</option><option value="4" ${P.cardSize==4?"selected":""}>4 large per page</option></select>
     <label class="chk small"><input type="checkbox" data-c="cardSent" ${P.cardSent?"checked":""}>Add the dictation sentence</label></div>
     <button class="btn primary" data-a="pdfCards">Download flash cards</button></div>
@@ -660,13 +738,13 @@ VIEWS.print=function(){
    <div class="panel stack"><h3>Practice sheets</h3><p class="muted small">Printable activities made from each child’s focus words, or from a whole level. The sheets ticked here also go into practice packs.</p>
     <div class="chips">${Object.entries(ACTS).map(([k,a])=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printAct" value="${k}" ${P.acts.includes(k)?"checked":""}>${a.name}</label>`).join("")}</div>
     <div class="seg"><button data-a="actsFor" data-k="pupils" aria-pressed="${P.actsFor==="pupils"}">Each pupil’s focus words</button><button data-a="actsFor" data-k="levels" aria-pressed="${P.actsFor==="levels"}">By level</button></div>
-    ${P.actsFor==="levels"?`<div class="chips">${BANDS.map((b,l)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${b.n} ${l*10+1}–${l*10+10}</label>`).join("")}</div>`:pupilPick()}
+    ${P.actsFor==="levels"?`<div class="chips">${levelChips}</div>`:pupilPick()}
     <button class="btn primary" data-a="pdfActs">Download practice sheets</button></div>
    <div class="panel stack"><h3>Targeted check sheets</h3><p class="muted small">For 1:1 re-checks: one sheet per pupil listing only words they haven’t got yet, plus your script for those words.</p>
     ${P.named?"":pupilPick()}
     <div class="row"><label for="tN" class="small">Words per pupil</label><select id="tN" data-c="targetN"><option value="10" ${P.targetN==10?"selected":""}>10</option><option value="20" ${P.targetN==20?"selected":""}>20</option></select></div>
     <button class="btn primary" data-a="pdfTargeted">Download check sheets</button></div>
-   <div class="panel stack"><h3>Class record</h3><p class="muted small">Your A3 class grid, filled in with the latest results and colour-coded. Or a spreadsheet of the same.</p>
+   <div class="panel stack"><h3>Class record</h3><p class="muted small">Your A3 class grid for the word list chosen above (100 words per sheet), filled in with the latest results and colour-coded. Or a spreadsheet of the same.</p>
     <div class="row"><button class="btn primary" data-a="pdfGrid">Download A3 class grid</button><button class="btn" data-a="csv">Download spreadsheet (CSV)</button></div></div>
   </div>`;
 };
@@ -686,7 +764,7 @@ VIEWS.class=function(){
    <p class="muted small">Other capital letters are always ignored. Settings apply to sheets you mark from now on.</p>
    ${voicePanel()}
    <h3 style="margin-top:8px">How levels work</h3>
-   <p class="small">The 100 words are split into ten levels of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s level is the first set of ten they haven’t fully got. A word is <b>secure</b> once it has been correct in two separate checks.</p>
+   <p class="small">There are three word lists, taken in order: the 100 high frequency words, the next 200 high frequency words, then the Year 3 and 4 common exception words. Each list is split into sets of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s current set is the first set of ten they haven’t got 10/10 in; they move on when they have. A word is <b>secure</b> once it has been correct in two separate checks.</p>
    ${S.mode==="demo"?`<button class="btn" data-a="exitDemo">Leave example class</button>`:S.mode!=="live"?`<button class="btn" data-a="demo">Load example class</button>`:""}
   </div></div>`;
 };
@@ -809,7 +887,7 @@ async function offer(doc,filename){
   catch(e){if(e&&e.code!=="declined")toast(e&&e.code==="rate_limited"?"A download is already waiting for you to confirm.":"The download didn’t start. Try again.")}
 }
 const rgb=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
-function drawSheet(doc,{title,name,range,nums,foot}){
+function drawSheet(doc,{title,name,range,nums,foot,seq}){
   const M=12,PW=210,PH=297;
   doc.setFillColor(0,0,0);[[M,M],[PW-M-5,M],[M,PH-M-5],[PW-M-5,PH-M-5]].forEach(([x,y])=>doc.rect(x,y,5,5,"F"));
   doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text(pdfText(title),M+9,M+4.5);
@@ -821,20 +899,20 @@ function drawSheet(doc,{title,name,range,nums,foot}){
   const top=M+40,rowH=23,colW=(PW-2*M-6)/2;
   nums.forEach((wi,j)=>{const col=j<10?0:1,row=j%10,x=M+col*(colW+6),y=top+row*rowH;
     doc.setDrawColor(0);doc.setLineWidth(.45);doc.roundedRect(x,y,14,19,1.5,1.5);
-    doc.setFont("helvetica","bold");doc.setFontSize(wi+1>=100?13:16);doc.text(String(wi+1),x+7,y+12.3,{align:"center"});
+    const shown=seq?(seq+j):num(wi);doc.setFont("helvetica","bold");doc.setFontSize(shown>=100?13:16);doc.text(String(shown),x+7,y+12.3,{align:"center"});
     doc.roundedRect(x+16,y,colW-16,19,1.5,1.5);
     doc.setDrawColor(150);doc.setLineWidth(.3);doc.line(x+19,y+14.5,x+colW-3,y+14.5);
     doc.setLineDashPattern([1.2,1.2],0);doc.line(x+19,y+8.5,x+colW-3,y+8.5);doc.setLineDashPattern([],0);
   });
   doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(120);doc.text(pdfText(foot||""),PW/2,PH-M-1,{align:"center"});doc.setTextColor(0);
 }
-function scriptPages(doc,indices,heading,first){
+function scriptPages(doc,indices,heading,first,seq){
   const M=16;let y=0,page=first?0:1;
   const header=()=>{doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text(pdfText(heading),M,M+4);doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(90);
     doc.text("Say the word, read the sentence, then say the word again. Children write it in the box with the same number.",M,M+11);doc.setTextColor(0);y=M+22};
   indices.forEach((i,k)=>{
     if(k%42===0){if(page>0)doc.addPage();page++;header()}
-    doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(String(i+1)+".",M+8,y,{align:"right"});
+    doc.setFont("helvetica","bold");doc.setFontSize(11);doc.text(String(seq?k+1:num(i))+".",M+8,y,{align:"right"});
     doc.text(pdfText(WORDS[i]),M+11,y);doc.setFont("helvetica","normal");doc.text(pdfText(SENT[i]),M+42,y);
     doc.setDrawColor(225);doc.setLineWidth(.2);doc.line(M,y+2,210-M,y+2);y+=5.6;
   });
@@ -843,10 +921,17 @@ const PDF={
   sheets(){const J=jsPDFctor();if(!J)return;const P=S.ui.print;const pages=P.pages.slice().sort();if(!pages.length){toast("Choose at least one page");return}
     const names=P.named?P.pids.filter(id=>S.pupils[id]).map(id=>S.pupils[id].name):[null];if(P.named&&!names.length){toast("Choose the pupils to print for");return}
     const doc=new J({unit:"mm",format:"a4"});let first=true;
-    for(const nm of names)for(const p of pages){if(!first)doc.addPage();first=false;
-      drawSheet(doc,{title:"100 high frequency words - spelling",name:nm,range:`Words ${p*20+1}-${p*20+20}`,nums:Array.from({length:20},(_,k)=>p*20+k),foot:`${S.settings.className?S.settings.className+" · ":""}Sheet ${pages.indexOf(p)+1} of ${pages.length}`})}
+    const L=LISTS[P.list||0],LW=listWords(L);
+    for(const nm of names)for(const p of pages){const nums=LW.slice(p*20,p*20+20);if(!nums.length)continue;if(!first)doc.addPage();first=false;
+      drawSheet(doc,{title:L.name+" - spelling",name:nm,range:`Words ${p*20+1}-${p*20+nums.length}`,nums,foot:`${S.settings.className?S.settings.className+" · ":""}Sheet ${pages.indexOf(p)+1} of ${pages.length}`})}
     offer(doc,"answer-sheets.pdf")},
-  script(){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});scriptPages(doc,WORDS.map((_,i)=>i),"Dictation script: 100 high frequency words",true);offer(doc,"dictation-script.pdf")},
+  script(){const J=jsPDFctor();if(!J)return;const L=LISTS[S.ui.print.list||0];const doc=new J({unit:"mm",format:"a4"});scriptPages(doc,listWords(L),"Dictation script: "+L.name,true);offer(doc,"dictation-script.pdf")},
+  /* a Groups test: a named sheet per child, boxes numbered 1..n to match the script */
+  testSheets(t){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});let first=true;
+    for(const id of t.pids){if(!S.pupils[id])continue;for(let p=0;p<t.words.length;p+=20){if(!first)doc.addPage();first=false;
+      drawSheet(doc,{title:"Spelling check",name:S.pupils[id].name,range:`${t.words.length} words`,nums:t.words.slice(p,p+20),seq:p+1,foot:t.title})}}
+    offer(doc,"spelling-test-sheets.pdf")},
+  testScript(t){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});scriptPages(doc,t.words,"Dictation script: "+t.title,true,true);offer(doc,"spelling-test-script.pdf")},
   targeted(pids){const J=jsPDFctor();if(!J)return;const n=+S.ui.print.targetN||10;pids=pids.filter(id=>S.pupils[id]);if(!pids.length){toast("Choose the pupils to print for");return}
     const doc=new J({unit:"mm",format:"a4"});let first=true;
     for(const id of pids){const ws=summary(id).ws;const nums=ws.map((w,i)=>i).filter(i=>!isKnown(ws[i].st)).slice(0,n);if(!nums.length)continue;
@@ -871,7 +956,7 @@ const PDF={
     offer(doc,filename)},
   async stackLevels(levels,filename){const J=jsPDFctor();if(!J)return;if(!levels.length){toast("Choose at least one level");return}
     await fontsReady();const size=+S.ui.print.cardSize,sent=S.ui.print.cardSent,per=cardGrid(size).per,doc=new J({unit:"mm",format:"a4"});
-    const words=levels.flatMap(l=>Array.from({length:10},(_,k)=>l*10+k)).map(i=>({i,label:""}));
+    const words=levels.flatMap(setWords).map(i=>({i,label:""}));
     drawStack(doc,Array.from({length:per},()=>words),{size,sent});
     S.ui.print.stackNote=`${words.length} sheets, one word per sheet. Square the stack and cut to get ${per} identical packs. ${cutHelp(size)}`;render();
     offer(doc,filename)},
@@ -884,39 +969,45 @@ const PDF={
   plans(pids,filename){const J=jsPDFctor();if(!J)return;const doc=new J({unit:"mm",format:"a4"});pids.forEach(id=>drawPlan(doc,id));offer(doc,filename)},
   async packs(pids,filename){const J=jsPDFctor();if(!J)return;toast("Building practice pack"+(pids.length>1?"s":"")+"…");await fontsReady();
     const doc=new J({unit:"mm",format:"a4"});for(const id of pids)await buildPack(doc,id,S.ui.print.acts);offer(doc,filename)},
-  grid(){const J=jsPDFctor();if(!J)return;const ids=pupilIds();
-    const doc=new J({unit:"mm",format:"a3",orientation:"landscape"});const PW=420,PH=297,M=10,nameW=40,scoreW=14,colW=(PW-2*M-nameW-scoreW)/100,blockH=6,wordH=22,rowsTop=M+blockH+wordH;
+  grid(){const J=jsPDFctor();if(!J)return;const ids=pupilIds();const L=LISTS[S.ui.print.list||0],LW=listWords(L);
+    const doc=new J({unit:"mm",format:"a3",orientation:"landscape"});
+    for(let c0=0;c0<LW.length;c0+=100){if(c0)doc.addPage();gridPage(doc,ids,L,LW.slice(c0,c0+100))}
+    offer(doc,"class-grid-a3.pdf")},
+  csv(){if(!dl){toast("Downloads aren’t available in this view.");return}
+    const q=v=>`"${String(v).replace(/"/g,'""')}"`;const rows=[["Pupil","Correct","Secure","Current set","Last assessed",...WORDS.map((w,i)=>`${listOf(i).short} ${num(i)} ${w}`)].map(q).join(",")];
+    for(const id of pupilIds()){const s=summary(id);rows.push([S.pupils[id].name,s.known,s.secure,s.sessions.length?(s.level>=NSETS?"Complete":setLabel(s.level)):"",s.lastDate||"",...s.ws.map(w=>({known:"Y",secure:"Y",notyet:"N",slipped:"N",review:"?"}[w.st]||""))].map(q).join(","))}
+    dl.save({filename:"spellings.csv",data:rows.join("\n")}).then(()=>toast("Saved spellings.csv")).catch(e=>{if(e&&e.code!=="declined")toast("The download didn’t start. Try again.")})}
+};
+
+function gridPage(doc,ids,L,cols){
+    const PW=420,PH=297,M=10,nameW=40,scoreW=14,colW=(PW-2*M-nameW-scoreW)/cols.length,blockH=6,wordH=22,rowsTop=M+blockH+wordH;
     const rowH=Math.min(8,(PH-M-rowsTop-10)/Math.max(ids.length,1));
-    doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text("100 high",M+1.5,M+4);doc.text("frequency words",M+1.5,M+8);
+    doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(pdfText(L.short),M+1.5,M+4);doc.text(`words ${num(cols[0])}-${num(cols[cols.length-1])}`,M+1.5,M+8);
     doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("Class: "+pdfText(S.settings.className||""),M+1.5,M+13);
     doc.text(new Date().toLocaleDateString("en-GB",{month:"long",year:"numeric"}),M+1.5,M+17);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Pupil name",M+1.5,rowsTop-2);
-    for(let b=0;b<10;b++){const x=M+nameW+b*10*colW;doc.setFillColor(...rgb(BANDS[b].c));doc.rect(x,M,10*colW,1.6,"F");doc.setFontSize(9);doc.text(`${b*10+1}-${b*10+10}`,x+5*colW,M+5,{align:"center"})}
+    for(let k=0;k<cols.length;k+=10){const x=M+nameW+k*colW,n=Math.min(10,cols.length-k),g=Math.floor(cols[k]/10);doc.setFillColor(...rgb(BANDS[g%10].c));doc.rect(x,M,n*colW,1.6,"F");doc.setFontSize(9);doc.text(`${num(cols[k])}-${num(cols[k+n-1])}`,x+n*colW/2,M+5,{align:"center"})}
     doc.setFont("helvetica","normal");doc.setFontSize(7);
-    for(let i=0;i<100;i++){const x=M+nameW+i*colW;doc.text(pdfText(WORDS[i]),x+colW/2+1.1,rowsTop-1.2,{angle:90})}
-    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Score",PW-M-scoreW/2,M+9,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("/ 100",PW-M-scoreW/2,M+13,{align:"center"});
+    cols.forEach((i,k)=>{const x=M+nameW+k*colW;doc.text(pdfText(WORDS[i]),x+colW/2+1.1,rowsTop-1.2,{angle:90})});
+    doc.setFont("helvetica","bold");doc.setFontSize(10);doc.text("Score",PW-M-scoreW/2,M+9,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("/ "+(L.b-L.a),PW-M-scoreW/2,M+13,{align:"center"});
     const fills={known:"#9fdcb4",secure:"#2f9e5b",notyet:"#f6c9c5",slipped:"#f6c9c5",review:"#f3d68a"};
     ids.forEach((id,r)=>{const y=rowsTop+r*rowH,s=summary(id);
       if(r%2)doc.setFillColor(246,246,246),doc.rect(M,y,PW-2*M,rowH,"F");
       doc.setFont("helvetica","normal");doc.setFontSize(Math.min(9,rowH*1.4));doc.setTextColor(0);doc.text(pdfText(S.pupils[id].name).slice(0,24),M+1.5,y+rowH*.68);
-      s.ws.forEach((w,i)=>{const f=fills[w.st];if(!f)return;const x=M+nameW+i*colW;doc.setFillColor(...rgb(f));doc.rect(x+.25,y+.25,colW-.5,rowH-.5,"F");
+      cols.forEach((i,k)=>{const w=s.ws[i],f=fills[w.st];if(!f)return;const x=M+nameW+k*colW;doc.setFillColor(...rgb(f));doc.rect(x+.25,y+.25,colW-.5,rowH-.5,"F");
         if(w.st==="slipped"){doc.setFillColor(207,75,69);doc.circle(x+colW/2,y+rowH/2,Math.min(colW,rowH)*.18,"F")}});
-      if(s.sessions.length){doc.setFont("helvetica","bold");doc.text(String(s.known),PW-M-scoreW/2,y+rowH*.68,{align:"center"})}
+      if(s.sessions.length){doc.setFont("helvetica","bold");doc.text(String(s.knownIn[LISTS.indexOf(L)]),PW-M-scoreW/2,y+rowH*.68,{align:"center"})}
     });
     const bottom=rowsTop+ids.length*rowH;
     doc.setDrawColor(200);doc.setLineWidth(.15);
-    for(let i=0;i<=100;i++){const x=M+nameW+i*colW;doc.line(x,M+blockH,x,bottom)}
+    for(let k=0;k<=cols.length;k++){const x=M+nameW+k*colW;doc.line(x,M+blockH,x,bottom)}
     for(let r=0;r<=ids.length;r++){const y=rowsTop+r*rowH;doc.line(M,y,PW-M,y)}
     doc.setDrawColor(90);doc.setLineWidth(.45);
-    for(let b=0;b<=10;b++){const x=M+nameW+b*10*colW;doc.line(x,M,x,bottom)}
+    for(let k=0;k<=cols.length;k+=10){const x=M+nameW+k*colW;doc.line(x,M,x,bottom)}doc.line(M+nameW+cols.length*colW,M,M+nameW+cols.length*colW,bottom);
     doc.rect(M,M,PW-2*M,bottom-M);doc.line(PW-M-scoreW,M,PW-M-scoreW,bottom);doc.line(M,rowsTop,PW-M,rowsTop);
     const ly=Math.min(PH-6,bottom+7);let lx=M;doc.setFont("helvetica","normal");doc.setFontSize(8);
     [["known","Correct"],["secure","Secure (correct twice)"],["notyet","Not yet"],["slipped","Slipped (dot)"],["review","Needs review"]].forEach(([k,l])=>{doc.setFillColor(...rgb(fills[k]));doc.rect(lx,ly-3,4,4,"F");if(k==="slipped"){doc.setFillColor(207,75,69);doc.circle(lx+2,ly-1,.7,"F")}doc.text(l,lx+5.5,ly);lx+=doc.getTextWidth(l)+14});
-    offer(doc,"class-grid-a3.pdf")},
-  csv(){if(!dl){toast("Downloads aren’t available in this view.");return}
-    const q=v=>`"${String(v).replace(/"/g,'""')}"`;const rows=[["Pupil","Correct","Secure","Level","Last assessed",...WORDS].map(q).join(",")];
-    for(const id of pupilIds()){const s=summary(id);rows.push([S.pupils[id].name,s.known,s.secure,s.sessions.length?(s.level>=10?"Complete":BANDS[s.level].n):"",s.lastDate||"",...s.ws.map(w=>({known:"Y",secure:"Y",notyet:"N",slipped:"N",review:"?"}[w.st]||""))].map(q).join(","))}
-    dl.save({filename:"hundred-words.csv",data:rows.join("\n")}).then(()=>toast("Saved hundred-words.csv")).catch(e=>{if(e&&e.code!=="declined")toast("The download didn’t start. Try again.")})}
-};
+    }
+
 
 /* ---------- progression plans ---------- */
 const ERR={blank:"Left blank",sounded:"Sounded out or another attempt",vowel:"Vowel mix-up",missing:"Missed a letter",extra:"Added a letter",order:"Letters in the wrong order",apostrophe:"Missed the apostrophe",caps:"Capital letter",reversal:"Reversed letters (b/d, p/q)"};
@@ -964,14 +1055,14 @@ function buildPlan(pid){
   if(gains)recs.push({t:"Keep the pace",f:"Ongoing",d:`Strong progress (+${s.delta}) since the last check, so the focus set is ${focusN} words.`});
   if(focus.length)recs.push({t:"Practice sheets and sentences",f:"2–3 times a week",d:"Practice sheets from the Print tab, plus dictating the sentence for each focus word (Print > Dictation script)."});
   const reviewDate=pl.reviewDate||addDays(s.lastDate||localDate(),14);
-  const criteria=focus.length||revisit.length?`${first} spells ${wl([...focus,...revisit])} correctly in two separate checks.`:`${first} keeps all 100 words secure.`;
+  const criteria=focus.length||revisit.length?`${first} spells ${wl([...focus,...revisit])} correctly in two separate checks.`:`${first} keeps every word secure.`;
   const log=pr.log||[];
   return memo["plan"+pid]={s,pl,first,focusN,autoN,focus,nextUp,revisit,pats,recs,ready,reviewDate,criteria,plateau,gains,assessed,sessions:log.length,lastPractice:log.length?log[log.length-1].date:null,boxes};
 }
 function planWords(pid){const p=buildPlan(pid);let ws=[...p.focus,...p.revisit];if(ws.length<4)ws=[...ws,...p.nextUp].slice(0,Math.max(4,ws.length));return ws.slice(0,10)}
 function savePlan(pid,patch){saveDoc("plans",pid,{...(S.plans[pid]||{}),...patch,updated:Date.now()})}
 function patternList(p){return Object.entries(p.pats).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>({k,label:ERR[k],n:v.n,ex:v.ex}))}
-function wordMap(s){return `<div class="wmap">${s.ws.map((w,i)=>`<i class="s-${w.st}" style="${i%10===0?`box-shadow:inset 3px 0 0 ${BANDS[i/10].c}`:""}" title="${i+1}. ${esc(WORDS[i])}: ${STLABEL[w.st]}"></i>`).join("")}</div>`}
+function wordMap(s){return `<div class="wmap">${listWords(LISTS[curList(s)]).map(i=>{const w=s.ws[i];return `<i class="s-${w.st}" style="${i%10===0?`box-shadow:inset 3px 0 0 ${BANDS[(i/10)%10].c}`:""}" title="${num(i)}. ${esc(WORDS[i])}: ${STLABEL[w.st]}"></i>`}).join("")}</div>`}
 
 VIEWS.plans=function(){
   if(S.ui.plan&&S.pupils[S.ui.plan])return planView(S.ui.plan);
@@ -984,7 +1075,7 @@ VIEWS.plans=function(){
   <p class="muted" style="max-width:75ch">Each plan is built from the child’s checks, what they actually wrote, and their practice. The focus set gets smaller when progress stalls and bigger when it speeds up. Open a plan to change the focus size, review date or notes. A practice pack is the plan plus flash cards and the practice sheets ticked in the Print tab.</p>
   <div class="cols">${ids.map(id=>{const p=buildPlan(id),s=p.s,top=patternList(p)[0];const due=p.reviewDate<=today;
     return `<div class="panel stack"><div class="row" style="justify-content:space-between"><h3 class="band">${s.sessions.length?bandDot(s.level):""}${esc(S.pupils[id].name)}</h3><span class="pill ${due?"rev":""}">${due?"Review due":"Review "+fmtShort(p.reviewDate)}</span></div>
-    <p class="small muted">${esc(levelLabel(s))}${s.sessions.length?` · ${s.known}/100${s.delta!=null?` (${s.delta>0?"+":""}${s.delta})`:""}`:""}</p>
+    <p class="small muted">${esc(levelLabel(s))}${s.sessions.length?` · ${s.knownIn[curList(s)]}/${listWords(LISTS[curList(s)]).length}${s.delta!=null?` (${s.delta>0?"+":""}${s.delta})`:""}`:""}</p>
     <div class="chips">${p.focus.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${p.revisit.map(i=>`<span class="wchip" style="border-color:var(--no)">${esc(WORDS[i])}<small>revisit</small></span>`).join("")||(p.focus.length?"":'<span class="muted small">All words secure</span>')}</div>
     ${top?`<p class="small">Most common: <b>${esc(top.label.toLowerCase())}</b> (${top.n})</p>`:""}
     <div class="row"><button class="btn sm primary" data-a="openPlan" data-id="${id}">Open plan</button><button class="btn sm" data-a="pdfPlan" data-id="${id}">Plan PDF</button><button class="btn sm" data-a="pdfBook" data-id="${id}">Practice book</button><button class="btn sm" data-a="pdfPack" data-id="${id}">Practice pack</button></div></div>`}).join("")}</div>`;
@@ -994,17 +1085,17 @@ function planView(pid){
   const pats=patternList(p);
   const ladder=[0,1,2,3].map(b=>[b,[...p.focus,...p.revisit].filter(i=>(p.boxes[i]||0)===b).length]);
   return `<div class="row" style="justify-content:space-between"><button class="btn ghost" data-a="closePlan">← All plans</button><div class="row"><button class="btn" data-a="pdfPlan" data-id="${pid}">Plan PDF</button><button class="btn" data-a="pdfBook" data-id="${pid}">Practice book</button><button class="btn primary" data-a="pdfPack" data-id="${pid}">Practice pack PDF</button></div></div>
-  <div class="panel stack" style="border-top:6px solid ${s.sessions.length?BANDS[Math.min(s.level,9)].c:"var(--line)"}">
+  <div class="panel stack" style="border-top:6px solid ${s.sessions.length&&s.level<NSETS?BANDS[s.level%10].c:"var(--line)"}">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><div><span class="muted small">Spelling plan</span><h2 style="font-size:28px">${esc(name)}</h2><p class="muted">${esc(levelLabel(s))}</p></div>
       <div class="row small"><label for="pf${pid}"><b>Focus size</b></label><select id="pf${pid}" data-c="planFocus" data-id="${pid}"><option value="">Automatic (${p.autoN})</option>${[3,5,8,10].map(v=>`<option value="${v}" ${p.pl.focusN==v?"selected":""}>${v} words</option>`).join("")}</select>
       <label for="pr${pid}"><b>Review by</b></label><input type="date" id="pr${pid}" data-c="planReview" data-id="${pid}" value="${p.reviewDate}"></div></div>
     <div class="cols">
       <div class="stack"><h3>Where ${esc(p.first)} is now</h3>
-        <div class="stats"><div class="stat"><b>${s.known}</b><span>correct /100</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous check</span></div></div>
+        <div class="stats"><div class="stat"><b>${s.knownIn[curList(s)]}</b><span>correct /${listWords(LISTS[curList(s)]).length} (${esc(LISTS[curList(s)].short)})</span></div><div class="stat"><b>${s.secure}</b><span>secure</span></div><div class="stat"><b class="${s.delta>0?"up":s.delta<0?"down":""}">${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since previous check</span></div></div>
         <p class="small muted">${s.lastDate?`Last checked ${fmtDate(s.lastDate)}.`:"Not checked yet."} ${p.sessions?`${p.sessions} practice session${p.sessions>1?"s":""}, last on ${fmtDate(p.lastPractice)}.`:"No practice recorded yet."}</p></div>
-      <div class="stack"><h3>All 100 words</h3>${wordMap(s)}<p class="small muted">Read across, ten words per row. Each row is one level.</p></div>
+      <div class="stack"><h3>${esc(LISTS[curList(s)].name)}</h3>${wordMap(s)}<p class="small muted">Read across, ten words per row. Each row is one level.</p></div>
     </div>
-    <div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${p.focus.map(i=>{const b=p.boxes[i]||0;return `<div class="lw"><span class="small muted">#${i+1} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">No new words. All 100 are correct.</p>'}</div>
+    <div><h3>Focus words</h3><div class="ladder" style="margin-top:8px">${p.focus.map(i=>{const b=p.boxes[i]||0;return `<div class="lw"><span class="small muted">${esc(listOf(i).short)} #${num(i)} · ${bandOf(i).n}</span><span class="word">${esc(WORDS[i])}</span><div class="steps">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</div><span class="small muted">${LADDER[b]}</span></div>`}).join("")||'<p class="muted">No new words. Every word is correct.</p>'}</div>
       ${p.revisit.length?`<p class="small" style="margin-top:10px"><b>Revisit</b> (correct before, wrong last time): ${esc(wl(p.revisit))}</p>`:""}
       ${p.nextUp.length?`<p class="small" style="margin-top:6px"><b>Next up</b> when these are secure: ${esc(wl(p.nextUp))}</p>`:""}
       <p class="small muted" style="margin-top:6px">Practice ladder: ${ladder.map(([b,c])=>`${LADDER[b]} ${c}`).join(" · ")}</p></div>
@@ -1084,7 +1175,7 @@ const ACTS={
       c.fillText(before,x,base);x+=c.measureText(before).width+6;c.strokeStyle="#7d879b";c.lineWidth=2.5;c.beginPath();c.moveTo(x,base+6);c.lineTo(x+230,base+6);c.stroke();x+=236;c.fillText(after,x,base)});}},
   bingo:{name:"Bingo boards",per:12,draw(c,ws,label){
     sheetHead(c,"Word bingo","Cut out the boards. Cross off each word when the caller reads it. Shout ‘Bingo!’ when your board is full.",label);
-    let pool=[...ws];for(let j=ws[ws.length-1]+1;pool.length<9&&j<100;j++)if(!pool.includes(j))pool.push(j);for(let j=ws[0]-1;pool.length<9&&j>=0;j--)if(!pool.includes(j))pool.push(j);
+    let pool=[...ws];for(let j=ws[ws.length-1]+1;pool.length<9&&j<WORDS.length;j++)if(!pool.includes(j))pool.push(j);for(let j=ws[0]-1;pool.length<9&&j>=0;j--)if(!pool.includes(j))pool.push(j);
     const r=rngFrom(ws.reduce((a,b)=>a*17+b,3)),bw=520,bh=430,gx=(CW-2*bw)/3,top=210;
     for(let b=0;b<6;b++){const x=gx+(b%2)*(bw+gx),y=top+Math.floor(b/2)*(bh+40);const pick=pool.map(v=>[r(),v]).sort((p,q)=>p[0]-q[0]).slice(0,9).map(p=>p[1]);
       c.strokeStyle="#333";c.lineWidth=3;c.strokeRect(x,y,bw,bh);c.lineWidth=1.5;c.strokeStyle="#7d879b";
@@ -1113,7 +1204,7 @@ function drawCardCell(c,x,y,cw,ch,spec,size,sent){
   const i=spec.i,b=bandOf(i),bw=size===4?48:34;
   c.fillStyle=b.c;c.fillRect(x+18,y+18,bw,ch-36);if(b.n==="White"){c.strokeStyle="#bbb";c.lineWidth=2;c.strokeRect(x+18,y+18,bw,ch-36)}
   c.fillStyle="#111";c.textAlign="center";c.textBaseline="middle";fitFont(c,WORDS[i],700,size===4?230:150,40,cw-160);c.fillText(WORDS[i],x+cw/2+18,y+ch/2-(sent?ch*.06:0));
-  c.textBaseline="alphabetic";c.font=`700 ${size===4?26:20}px ${FU}`;c.fillStyle="#777";c.textAlign="right";c.fillText(`${spec.label?spec.label+" · ":""}${b.n} · #${i+1}`,x+cw-26,y+(size===4?60:46));
+  c.textBaseline="alphabetic";c.font=`700 ${size===4?26:20}px ${FU}`;c.fillStyle="#777";c.textAlign="right";c.fillText(`${spec.label?spec.label+" · ":""}${b.n} · ${listOf(i).short} #${num(i)}`,x+cw-26,y+(size===4?60:46));
   if(sent){c.textAlign="center";c.fillStyle="#444";fitFont(c,SENT[i],400,size===4?34:24,16,cw-110,FU);c.fillText(SENT[i],x+cw/2+18,y+ch-(size===4?60:34))}
 }
 function drawCards(doc,groups,{size=10,sent=false}={}){
@@ -1140,7 +1231,7 @@ function drawPlan(doc,pid){
   const para=(t,x=M,w=W-2*M,lh=4.7)=>{const lines=doc.splitTextToSize(pdfText(t),w);ensure(lines.length*lh);lines.forEach(l=>{doc.text(l,x,y);y+=lh})};
   const bullet=(b,t)=>{doc.setFont("helvetica","bold");const bw=b?doc.getTextWidth(pdfText(b)+"  "):0;ensure(5);if(b)T(b,M+4,y);doc.setFont("helvetica","normal");
     const lines=doc.splitTextToSize(pdfText(t),W-2*M-4-bw);ensure(lines.length*4.7);lines.forEach((l,k)=>{doc.text(l,M+4+(k===0?bw:0),y);y+=4.7})};
-  doc.setFillColor(...rgb(p.assessed?BANDS[Math.min(s.level,9)].c:"#cccccc"));doc.rect(0,0,W,5,"F");
+  doc.setFillColor(...rgb(p.assessed&&s.level<NSETS?BANDS[s.level%10].c:"#cccccc"));doc.rect(0,0,W,5,"F");
   doc.setTextColor(0);doc.setFont("helvetica","bold");doc.setFontSize(20);T("Spelling plan",M,y+9);doc.setFontSize(15);T(name,M,y+17);
   doc.setFont("helvetica","normal");doc.setFontSize(9.5);doc.setTextColor(80);
   T(S.settings.className||"",W-M,y+7,{align:"right"});T("Made "+fmtDate(localDate()),W-M,y+12,{align:"right"});doc.setFont("helvetica","bold");doc.setTextColor(0);T("Review by "+fmtDate(p.reviewDate),W-M,y+17,{align:"right"});
@@ -1148,19 +1239,20 @@ function drawPlan(doc,pid){
   head(`Where ${p.first} is now`);
   const cell=4.3,mx=W-M-10*cell,my=y-3.5;
   const fills={known:"#9fdcb4",secure:"#2f9e5b",notyet:"#f6c9c5",slipped:"#e58a84",review:"#f3d68a"};
-  s.ws.forEach((w,i)=>{doc.setFillColor(...rgb(fills[w.st]||"#ffffff"));doc.setDrawColor(190);doc.setLineWidth(.15);doc.rect(mx+(i%10)*cell,my+Math.floor(i/10)*cell,cell,cell,"FD")});
-  for(let b=0;b<10;b++){doc.setFillColor(...rgb(BANDS[b].c));doc.rect(mx-2.6,my+b*cell,1.8,cell,"F")}
-  doc.setFontSize(7);doc.setTextColor(110);T("All 100 words, read across. Green = correct.",mx+5*cell,my+10*cell+3.2,{align:"center"});doc.setTextColor(0);doc.setFontSize(10);
-  const facts=[["Level",p.assessed?(s.level>=10?"All 100 correct":`${BANDS[s.level].n} (words ${s.level*10+1}-${s.level*10+10})`):"Not checked yet"],
-    ["Correct",p.assessed?`${s.known} / 100${s.delta!=null?`  (${s.delta>0?"+":""}${s.delta} since previous check)`:""}`:"-"],
+  const PLi=curList(s),PL=LISTS[PLi],PW_=listWords(PL),rows=Math.ceil(PW_.length/10);
+  PW_.forEach((i,k)=>{const w=s.ws[i];doc.setFillColor(...rgb(fills[w.st]||"#ffffff"));doc.setDrawColor(190);doc.setLineWidth(.15);doc.rect(mx+(k%10)*cell,my+Math.floor(k/10)*cell,cell,cell,"FD")});
+  for(let b=0;b<rows;b++){doc.setFillColor(...rgb(BANDS[b%10].c));doc.rect(mx-2.6,my+b*cell,1.8,cell,"F")}
+  doc.setFontSize(7);doc.setTextColor(110);T(`${PL.short}, read across. Green = correct.`,mx+5*cell,my+rows*cell+3.2,{align:"center"});doc.setTextColor(0);doc.setFontSize(10);
+  const facts=[["Set",p.assessed?(s.level>=NSETS?"Every list complete":`${BANDS[s.level%10].n} (${setLabel(s.level)}, ${s.setDone}/${setWords(s.level).length})`):"Not checked yet"],
+    ["Correct",p.assessed?`${s.knownIn[PLi]} / ${PW_.length} ${PL.short}${s.delta!=null?`  (${s.delta>0?"+":""}${s.delta} since previous check)`:""}`:"-"],
     ["Secure",p.assessed?`${s.secure} (correct in two separate checks)`:"-"],["Last checked",s.lastDate?fmtDate(s.lastDate):"-"],
     ["Practice",p.sessions?`${p.sessions} session${p.sessions>1?"s":""}, last ${fmtDate(p.lastPractice)}`:"None recorded yet"]];
   facts.forEach(([k,v])=>{doc.setFont("helvetica","bold");T(k,M,y);doc.setFont("helvetica","normal");T(v,M+26,y);y+=5.4});
-  y=Math.max(y,my+10*cell+6);
+  y=Math.max(y,my+rows*cell+6);
   head("Focus words");
   if(p.focus.length){let x=M;doc.setFont("helvetica","bold");doc.setFontSize(17);ensure(12);
-    p.focus.forEach(i=>{const t=pdfText(WORDS[i]),tw=doc.getTextWidth(t)+9;if(x+tw>W-M){x=M;y+=12;ensure(12)}doc.setDrawColor(...rgb(BANDS[Math.floor(i/10)].c==="#f4f4f4"?"#999999":BANDS[Math.floor(i/10)].c));doc.setLineWidth(.8);doc.roundedRect(x,y-6.8,tw,10,2,2,"S");doc.text(t,x+4.5,y);x+=tw+3});
-    y+=9;doc.setFontSize(10);doc.setFont("helvetica","normal")}else para("No new words: all 100 are correct.");
+    p.focus.forEach(i=>{const t=pdfText(WORDS[i]),tw=doc.getTextWidth(t)+9;if(x+tw>W-M){x=M;y+=12;ensure(12)}doc.setDrawColor(...rgb(bandOf(i).c==="#f4f4f4"?"#999999":bandOf(i).c));doc.setLineWidth(.8);doc.roundedRect(x,y-6.8,tw,10,2,2,"S");doc.text(t,x+4.5,y);x+=tw+3});
+    y+=9;doc.setFontSize(10);doc.setFont("helvetica","normal")}else para("No new words: every word is correct.");
   if(p.revisit.length)bullet("Revisit:",`${wl(p.revisit)} (correct before, wrong last time)`);
   if(p.nextUp.length)bullet("Next up:",`${wl(p.nextUp)} (once the focus words are secure)`);
   head("What we noticed");
@@ -1221,13 +1313,13 @@ function drawDayPage(c,name,words,sub){
   c.textAlign="left";c.font=`400 19px ${FU}`;c.fillStyle="#666";c.fillText("Look at each word and say it. Fold along the dashed line to cover it. Write it, unfold and check. Tick when it’s right.",x0,HH-58,x1-x0);
 }
 function drawCover(c,pid,words,days){
-  const p=buildPlan(pid),x0=90,x1=HW-72,band=p.assessed?BANDS[Math.min(p.s.level,9)].c:"#cccccc";
+  const p=buildPlan(pid),x0=90,x1=HW-72,band=p.assessed&&p.s.level<NSETS?BANDS[p.s.level%10].c:"#cccccc";
   c.fillStyle=band;rr(c,40,40,30,HH-80,12);c.fill();
   c.textAlign="left";c.fillStyle="#111";c.font=`700 54px ${FW}`;c.fillText(`${p.first}’s spelling book`,x0,112);
   c.font=`400 22px ${FU}`;c.fillStyle="#555";c.fillText([S.settings.className,`Started ____________`,`Check by ${fmtDate(p.reviewDate)}`].filter(Boolean).join("     ·     "),x0,150);
   c.font=`700 22px ${FU}`;c.fillStyle="#333";c.fillText("My words",x0,200);
   let x=x0,y=258;c.font=`700 44px ${FW}`;
-  words.forEach(i=>{const t=WORDS[i],tw=c.measureText(t).width+40;if(x+tw>x1){x=x0;y+=74}c.strokeStyle=BANDS[Math.floor(i/10)].c==="#f4f4f4"?"#999":BANDS[Math.floor(i/10)].c;c.lineWidth=4;rr(c,x,y-48,tw,64,14);c.stroke();c.fillStyle="#111";c.fillText(t,x+20,y);x+=tw+14});
+  words.forEach(i=>{const t=WORDS[i],tw=c.measureText(t).width+40;if(x+tw>x1){x=x0;y+=74}c.strokeStyle=bandOf(i).c==="#f4f4f4"?"#999":bandOf(i).c;c.lineWidth=4;rr(c,x,y-48,tw,64,14);c.stroke();c.fillStyle="#111";c.fillText(t,x+20,y);x+=tw+14});
   y+=52;c.font=`400 21px ${FU}`;c.fillStyle="#333";y=wrapText(c,"My target: "+p.criteria,x0,y,x1-x0,28)+8;
   const n=words.length,cols=days,ww=220,cell=Math.min(66,(x1-x0-ww)/cols),rh=Math.min(44,(HH-80-y-40)/(n+1));
   c.font=`700 18px ${FU}`;c.fillStyle="#333";c.textAlign="center";
@@ -1316,7 +1408,16 @@ const A={
   saveAll:async()=>{for(const j of S.ui.jobs.filter(x=>x.status==="done"&&x.pid))await saveJob(j);toast("Saved. Anything unclear is waiting in Review.")},
   qkind:el=>{S.ui.quick.kind=el.dataset.k;const cur=quickWords();if(Object.keys(cur).length)saveQuickWords(cur)},
   qmark:el=>{const cur=quickWords(),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveQuickWords(cur)},
-  qAll:()=>{const cur=quickWords();for(let i=0;i<100;i++)if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
+  qAll:()=>{const cur=quickWords();for(const i of quickShown())if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
+  qList:el=>{S.ui.quick.list=+el.dataset.k},
+  qWhole:(el,e)=>{e.preventDefault();Object.assign(S.ui.quick,{only:null,onlyLabel:"",group:null})},
+  qPick:el=>{pickQuick(el.dataset.id)},
+  qNext:()=>{const q=S.ui.quick,k=q.group.indexOf(q.pid);if(k>=0&&k<q.group.length-1)pickQuick(q.group[k+1])},
+  list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null},
+  printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
+  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;Object.assign(S.ui.quick,{only:t.words,onlyLabel:t.title,group:t.pids,kind:"spelling",list:null});pickQuick(t.pids[0]);S.tab="assess";window.scrollTo({top:0})},
+  testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
+  testScript:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testScript(t);return "skip"},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
@@ -1351,7 +1452,7 @@ const A={
   pdfGrid:()=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}PDF.grid();return "skip"},
   csv:()=>{PDF.csv();return "skip"},
   pdfCards:()=>{const P=S.ui.print;
-    if(P.cardsFor==="levels"){const lv=P.levels.slice().sort((a,b)=>a-b);if(!lv.length){toast("Choose at least one level");return "skip"}if(P.cardLayout==="stack"){PDF.stackLevels(lv,"level-flash-cards-stack-and-cut.pdf");return "skip"}PDF.cards(lv.map(l=>({label:"",items:Array.from({length:10},(_,k)=>l*10+k)})),"flash-cards.pdf")}
+    if(P.cardsFor==="levels"){const lv=P.levels.slice().sort((a,b)=>a-b);if(!lv.length){toast("Choose at least one level");return "skip"}if(P.cardLayout==="stack"){PDF.stackLevels(lv,"level-flash-cards-stack-and-cut.pdf");return "skip"}PDF.cards(lv.map(l=>({label:"",items:setWords(l)})),"flash-cards.pdf")}
     else if(P.cardLayout==="stack"){PDF.stackPupils(P.pids,"flash-cards-stack-and-cut.pdf")}
     else{const g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name.split(" ")[0],items:childCards(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}PDF.cards(g,"pupil-flash-cards.pdf")}
     return "skip"},
@@ -1362,7 +1463,7 @@ const A={
   cardLayout:el=>{S.ui.print.cardLayout=el.dataset.k;S.ui.print.stackNote=""},
   pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
   pdfActs:()=>{const P=S.ui.print;let g;
-    if(P.actsFor==="levels"){g=P.levels.slice().sort((a,b)=>a-b).map(l=>({label:"",items:Array.from({length:10},(_,k)=>l*10+k)}));if(!g.length){toast("Choose at least one level");return "skip"}}
+    if(P.actsFor==="levels"){g=P.levels.slice().sort((a,b)=>a-b).map(l=>({label:"",items:setWords(l)}));if(!g.length){toast("Choose at least one level");return "skip"}}
     else{g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name,items:planWords(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}}
     PDF.acts(g,"practice-sheets.pdf");return "skip"},
   openPlan:(el,e)=>{e.preventDefault();S.ui.plan=el.dataset.id;S.ui.pupil=null;S.tab="plans";window.scrollTo({top:0})},
@@ -1389,7 +1490,7 @@ document.addEventListener("change",e=>{
   switch(c){
     case "date":S.ui.date=el.value||localDate();break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "quickPupil":{S.ui.quick.pid=el.value;S.ui.quick.marks={};S.ui.confirm=null;const ses=S.sessions[quickSid()];if(ses&&ses.kind)S.ui.quick.kind=ses.kind;break}
+    case "quickPupil":pickQuick(el.value);break;
     case "printPage":P.pages=toggle(P.pages,+el.value);break;
     case "printLevel":P.levels=toggle(P.levels,+el.value);break;
     case "printPid":P.pids=toggle(P.pids,el.value);break;
@@ -1406,6 +1507,7 @@ document.addEventListener("change",e=>{
     case "planReview":if(el.value)savePlan(el.dataset.id,{reviewDate:el.value});break;
     case "planNotes":savePlan(el.dataset.id,{notes:el.value.slice(0,2000)});delete S.ui.planDraft[el.dataset.id];break;
     case "rename":{const p=S.pupils[el.dataset.id];const v=el.value.trim();if(p&&v&&v!==p.name)saveDoc("pupils",el.dataset.id,{...p,name:v.slice(0,60)});break}
+    case "wholeN":saveDoc("settings","main",{...S.settings,wholeN:+el.value});break;
     case "className":saveDoc("settings","main",{...S.settings,className:el.value.trim().slice(0,60)});break;
     case "strictCaps":case "acceptNoApos":saveDoc("settings","main",{...S.settings,[c]:el.checked});break;
   }
