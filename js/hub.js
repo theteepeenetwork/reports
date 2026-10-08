@@ -1509,7 +1509,7 @@
     { page: 'class-context', label: 'Class Context', icon: 'clipboard-list' },
     { section: 'Assess' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
-    { page: 'hundred-words', label: 'Hundred Words', icon: 'type' },
+    { page: 'hundred-words', label: 'Spellings', icon: 'type' },
     { page: 'reports', label: 'Reports', icon: 'file-text' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -1592,7 +1592,7 @@
     instant.innerHTML =
       '<div class="page-header"><h1>Instant Groups</h1><p>Make fair random groups in a click — by number of groups or by group size. Reshuffle as often as you like.</p></div>' +
       '<div id="ig-root"></div>';
-    /* Hundred Words is its own app (hundred-words.html), framed so it keeps
+    /* Spellings (Hundred Words) is its own app (hundred-words.html), framed so it keeps
        its own styles and script scope. It reads this class's pupils and
        stores its marks in tp_hundred_words — see js/hundred-words-runtime.js.
        The frame is made on first visit (nav.js), not at boot. */
