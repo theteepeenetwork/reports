@@ -19,7 +19,7 @@ const DATA_KEYS = [
   'tp_roster', 'tp_starters', 'tp_star', 'tp_behaviour', 'tp_assess', 'tp_marking',
   'tp_timetable', 'tp_seating', 'tp_groups', 'tp_generator', 'tp_profile', 'tp_battler',
   'tp_report_sel', 'reportBuilderChildren', 'tp_picker', 'tp_starter_cfg',
-  'tp_starter_weeks', 'tp_starter_cleared', 'tp_classes'
+  'tp_starter_weeks', 'tp_starter_cleared', 'tp_classes', 'tp_hundred_words'
 ];
 
 const ROSTER = [
@@ -115,6 +115,7 @@ async function fakeFirebase(page, { remote = {} } = {}) {
 /** Seed this "device" with a class before the app boots. */
 async function seedDevice(page, { roster = ROSTER, owner = null, extra = {} } = {}) {
   await page.addInitScript(({ roster, owner, extra }) => {
+    if (window !== window.top) return;   // init scripts run in frames too (#hundred-words)
     localStorage.setItem('tp_roster', JSON.stringify(roster));
     if (owner) { localStorage.setItem('tp_owner_uid', owner); localStorage.setItem('tp_owner_email', owner + '@example.school'); }
     Object.keys(extra).forEach(k => localStorage.setItem(k, typeof extra[k] === 'string' ? extra[k] : JSON.stringify(extra[k])));

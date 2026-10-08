@@ -39,6 +39,7 @@
       external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
       /* Instant Groups is the random one — zap now belongs to Glow Getters */
       shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
+      type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
       ruler: '<path d="M3 15l6-6 3 3 3-3 3 3 3-3"/><path d="M3 15v4h18v-4"/><path d="M7 15v-2M11 15v-2M15 15v-2"/>'
     };
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (P[name] || '') + '</svg>';
@@ -1508,6 +1509,7 @@
     { page: 'class-context', label: 'Class Context', icon: 'clipboard-list' },
     { section: 'Assess' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
+    { page: 'hundred-words', label: 'Hundred Words', icon: 'type' },
     { page: 'reports', label: 'Reports', icon: 'file-text' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -1590,6 +1592,11 @@
     instant.innerHTML =
       '<div class="page-header"><h1>Instant Groups</h1><p>Make fair random groups in a click — by number of groups or by group size. Reshuffle as often as you like.</p></div>' +
       '<div id="ig-root"></div>';
+    /* Hundred Words is its own app (hundred-words.html), framed so it keeps
+       its own styles and script scope. It reads this class's pupils and
+       stores its marks in tp_hundred_words — see js/hundred-words-runtime.js.
+       The frame is made on first visit (nav.js), not at boot. */
+    section('hundred-words');
     /* Settings */
     var settings = section('settings');
     settings.innerHTML = '<div class="page-header"><h1>Settings</h1><p>Your profile, plus backup &amp; data.</p></div><div id="settings-profile"></div><div id="settings-data"></div>';
