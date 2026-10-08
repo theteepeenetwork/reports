@@ -469,17 +469,28 @@ function jobHtml(j){
   }
   return `<div class="job"><img src="${j.url}" alt="Answer sheet photo"><div class="stack">${body}</div></div>`;
 }
+/* Quick check reads and writes the session for (pupil, date) directly. */
+function quickSid(){return S.ui.quick.pid+"_"+S.ui.date}
+function quickWords(){const ses=S.sessions[quickSid()];return {...((ses&&ses.words)||{})}}
+function saveQuickWords(words){
+  const q=S.ui.quick;if(!q.pid)return;const sid=quickSid(),old=S.sessions[sid];
+  if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
+  saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
+}
 function quickView(){
   const q=S.ui.quick,ids=pupilIds();
   const opts=ids.map(id=>`<option value="${id}" ${q.pid===id?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("");
-  let h=`<div class="panel stack"><p class="muted">Use this for a reading check (the child reads each word aloud) or to type in marks from a paper grid. Tap once for correct, twice for not yet, three times to clear.</p>
+  let h=`<div class="panel stack"><p class="muted">Use this for a reading check (the child reads each word aloud) or to type in marks from a paper grid. Tap once for correct, twice for not yet, three times to clear. Every tap is saved straight away.</p>
   <div class="row"><select id="qPupil" data-c="quickPupil"><option value="">Choose pupil…</option>${opts}</select>
   <input type="date" id="qDate" data-c="date" value="${S.ui.date}">
   <div class="seg"><button data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button><button data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button></div></div>`;
-  if(q.pid){
-    const s=summary(q.pid);const n=Object.keys(q.marks).length;
-    h+=`<div class="qgrid">${WORDS.map((w,i)=>{const m=q.marks[i];const prev=s.ws[i].st;return `<button class="${m?"q-"+m:""}" data-a="qmark" data-i="${i}"><small>${i+1}${prev!=="none"?" · "+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
-    <div class="row"><button class="btn primary" data-a="saveQuick" ${n?"":"disabled"}>Save ${n} mark${n===1?"":"s"}</button><button class="btn ghost" data-a="qAll" data-s="c">Mark rest correct</button><button class="btn ghost" data-a="qClear">Clear</button></div>`;
+  if(q.pid&&S.pupils[q.pid]){
+    /* Classroom Hub: the grid shows the saved session for this pupil and
+       date, and every tap writes to it — no draft to lose by switching
+       pupil. "before" is everything up to the day before. */
+    const cur=quickWords(),n=Object.keys(cur).length,before=wordStates(q.pid,{before:S.ui.date});
+    h+=`<div class="qgrid">${WORDS.map((w,i)=>{const m=cur[i]&&cur[i].s;const prev=before[i].st;return `<button class="${m?"q-"+m:""}" data-a="qmark" data-i="${i}"><small>${i+1}${prev!=="none"?" · "+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
+    <div class="row"><span class="muted small">${n?`${n} word${n===1?"":"s"} marked for ${esc(S.pupils[q.pid].name)} on ${fmtShort(S.ui.date)} · saved`:"Nothing marked for this date yet"}</span><button class="btn ghost" data-a="qAll" data-s="c">Mark rest correct</button><button class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button></div>`;
   }
   return h+`</div>`;
 }
@@ -1301,11 +1312,11 @@ const A={
   jobMark:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);const b=j.boxes[+el.dataset.k];b.s={c:"x",x:"?","?":"c"}[b.s]},
   saveJob:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)saveJob(j)},
   saveAll:async()=>{for(const j of S.ui.jobs.filter(x=>x.status==="done"&&x.pid))await saveJob(j);toast("Saved. Anything unclear is waiting in Review.")},
-  qkind:el=>{S.ui.quick.kind=el.dataset.k},
-  qmark:el=>{const m=S.ui.quick.marks,i=el.dataset.i;m[i]=m[i]==="c"?"x":m[i]==="x"?undefined:"c";if(!m[i])delete m[i]},
-  qAll:()=>{for(let i=0;i<100;i++)if(!S.ui.quick.marks[i])S.ui.quick.marks[i]="c"},
-  qClear:()=>{S.ui.quick.marks={}},
-  saveQuick:()=>{const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
+  qkind:el=>{S.ui.quick.kind=el.dataset.k;const cur=quickWords();if(Object.keys(cur).length)saveQuickWords(cur)},
+  qmark:el=>{const cur=quickWords(),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveQuickWords(cur)},
+  qAll:()=>{const cur=quickWords();for(let i=0;i<100;i++)if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
+  qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
+  saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
     saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
     toast(`Saved ${Object.keys(q.marks).length} marks for ${S.pupils[q.pid].name}`);q.marks={}},
@@ -1376,7 +1387,7 @@ document.addEventListener("change",e=>{
   switch(c){
     case "date":S.ui.date=el.value||localDate();break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "quickPupil":S.ui.quick.pid=el.value;S.ui.quick.marks={};break;
+    case "quickPupil":{S.ui.quick.pid=el.value;S.ui.quick.marks={};S.ui.confirm=null;const ses=S.sessions[quickSid()];if(ses&&ses.kind)S.ui.quick.kind=ses.kind;break}
     case "printPage":P.pages=toggle(P.pages,+el.value);break;
     case "printLevel":P.levels=toggle(P.levels,+el.value);break;
     case "printPid":P.pids=toggle(P.pids,el.value);break;

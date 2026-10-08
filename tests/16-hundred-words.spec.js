@@ -73,3 +73,32 @@ test('Hundred Words on the default class reads the un-suffixed roster', async ({
   await expect(frame.locator('#main')).toContainText('Ava Bell');
   await expect(frame.locator('#main')).not.toContainText('Kit Marlow');
 });
+
+test('Quick check saves each tap, so switching pupil and back keeps the marks', async ({ page }) => {
+  const frame = await openHW(page, twoClasses('b'));
+  await frame.locator('#nav button', { hasText: 'Assess' }).click();
+  await frame.locator('#qPupil').selectOption('x1');
+  const said = frame.locator('.qgrid button[data-i="4"]');
+  await said.click();
+  await expect(said).toHaveClass(/q-c/);
+  await frame.locator('.qgrid button[data-i="5"]').click();
+  await frame.locator('.qgrid button[data-i="5"]').click();     // twice = not yet
+
+  await frame.locator('#qPupil').selectOption('x2');
+  await expect(frame.locator('.qgrid button[data-i="4"]')).not.toHaveClass(/q-c/);
+  await frame.locator('#qPupil').selectOption('x1');
+  await expect(frame.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
+  await expect(frame.locator('.qgrid button[data-i="5"]')).toHaveClass(/q-x/);
+
+  const doc = JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  const ses = Object.values(doc.sessions).find(x => x.pupilId === 'x1');
+  expect(ses.words['4'].s).toBe('c');
+  expect(ses.words['5'].s).toBe('x');
+
+  /* and it survives a reload */
+  await page.reload();
+  const again = page.frameLocator('#hwFrame');
+  await again.locator('#nav button', { hasText: 'Assess' }).click();
+  await again.locator('#qPupil').selectOption('x1');
+  await expect(again.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
+});
