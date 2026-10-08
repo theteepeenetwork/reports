@@ -41,6 +41,8 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   /* Assess is Quick check only: no photo marking in the hub for now */
   await frame.locator('#nav button', { hasText: 'Assess' }).click();
   await expect(frame.locator('#main')).not.toContainText('Mark photos');
+  await expect(frame.locator('#nav button', { hasText: 'Practise' }), 'no practice games in the hub').toHaveCount(0);
+  await expect(frame.locator('#nav button', { hasText: 'Review' }), 'no photo review queue in the hub').toHaveCount(0);
   await expect(frame.locator('#qPupil option', { hasText: 'Kit Marlow' })).toHaveCount(1);
   await frame.locator('#nav button', { hasText: 'Tracker' }).click();
   await expect(frame.locator('#main')).toContainText('Kit Marlow');
