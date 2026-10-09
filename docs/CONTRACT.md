@@ -74,3 +74,12 @@ Back-compat shims (delete no earlier than the end of the 2026/27 school year):
   Sep 2026 navigation redesign removed Teach mode; there is one whitelist now, and the shim is
   unchanged. `tp_mode` went with Teach — it was per-device and never in `DATA_KEYS`, so nothing
   synced and no migration is owed.
+
+## Focus Remote's account link: `users/{uid}/focus` (Oct 2026)
+`{ room: <16–64 url-safe chars>, t: <ms> }` — the one link an account's Apple Watch shortcuts
+use (`/api/focus/<room>/…`). Written only by `focus.html`: once, by a transaction (the first
+screen offers the link that device already had), and afterwards only when the teacher changes
+it in ⚙. Every signed-in screen follows it live. It sits beside `keys`, not inside it, so it is
+not a `tp_*` key: cloud.js never pulls or pushes it, it is not in backups, and the sign-out reset
+leaves it alone. No pupil data. The device-local `focus_*` localStorage keys stay outside
+`DATA_KEYS`.

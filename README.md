@@ -56,8 +56,9 @@ printable starter sheet.
 > The page's ⚙ panel has the links to paste and the steps. It needs `server.js` (Railway, or
 > `npm start` locally), not the static Python server. The room key is the only credential; no pupil
 > data goes through it, and its storage keys (`focus_*`) are device-local, outside `DATA_KEYS`.
-> The link never changes by itself: a new device asks for one (paste any watch URL) and keeps it
-> in the address as `?room=`. Screens listen on an event stream and fall back to long-polling
+> Signed in to the Hub, the link belongs to the account (`users/{uid}/focus`, see CONTRACT) and
+> every screen on that account uses it. It never changes by itself; without an account a new device
+> asks for one (paste any watch URL) and keeps it in the address as `?room=`. Screens listen on an event stream and fall back to long-polling
 > when a school filter cuts the stream.
 
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
