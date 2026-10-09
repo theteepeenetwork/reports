@@ -199,3 +199,27 @@ test('signed out on a new device, it asks you to sign in rather than making a li
   await expect(page.locator('#joinBox')).toBeVisible();
   expect(await page.evaluate(() => window.__focusWrites.length)).toBe(0);
 });
+
+test('a countdown from the watch fills the screen and ends with "time\'s up"', async ({ page }) => {
+  const room = 'cd_' + Date.now() + '_abcdefghijkl';
+  await blockExternal(page);
+  await page.goto(`http://127.0.0.1:${port}/focus.html?room=${room}`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  expect((await call(`/api/focus/${room}/countdown?m=2`)).body).toBe('2:00 countdown started');
+  await expect(page.locator('#kicker')).toHaveText('Countdown');
+  await expect(page.locator('#big')).toHaveText(/^(2:00|1:5\d)$/);
+  expect((await call(`/api/focus/${room}/state`)).body).toMatch(/countdown 1:5\d|countdown 2:00/);
+  /* the off-task timer takes the screen; the countdown carries on in a chip */
+  await call(`/api/focus/${room}/toggle`);
+  await expect(page.locator('#kicker')).toHaveText('Back to learning');
+  await expect(page.locator('#cdChip')).toBeVisible();
+  await call(`/api/focus/${room}/toggle`);
+  expect((await call(`/api/focus/${room}/cancel`)).body).toBe('Countdown cancelled');
+  await expect(page.locator('#kicker')).toHaveText('Class points');
+  /* a short one, from the on-screen buttons' endpoint, runs out */
+  await call(`/api/focus/${room}/countdown?s=5`);
+  await expect(page.locator('#kicker')).toHaveText('Countdown');
+  await expect(page.locator('#kicker')).toHaveText('Time’s up', { timeout: 8000 });
+  expect((await call(`/api/focus/${room}/countdown?m=500`)).body).toMatch(/^Give a time/);
+});
