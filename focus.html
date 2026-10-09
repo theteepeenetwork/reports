@@ -37,6 +37,7 @@
     --r: 22px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; height: 100%; }
   body {
     font-family: 'Manrope', system-ui, -apple-system, sans-serif; color: var(--ink);
@@ -78,7 +79,8 @@
 
   /* the stage */
   .stage { flex: 1; display: grid; place-items: center; position: relative; }
-  .ring { position: relative; width: min(58vh, 70vw); aspect-ratio: 1; display: grid; place-items: center; }
+  /* as big as the screen allows: the ring fills the stage's height */
+  .ring { position: relative; width: min(calc(100vh - 150px), 94vw); aspect-ratio: 1; display: grid; place-items: center; }
   .ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
     background: radial-gradient(circle, var(--calm-glow), transparent 68%); transition: background .8s; }
   .ring svg.arc { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
@@ -86,12 +88,21 @@
   .arc .fill { stroke: var(--calm); transition: stroke .6s; filter: drop-shadow(0 0 8px var(--calm)); }
   body.alert .ring::before { background: radial-gradient(circle, var(--warm-glow), transparent 68%); animation: breathe 2.4s ease-in-out infinite; }
   body.alert .arc .fill { stroke: var(--warm); filter: drop-shadow(0 0 10px var(--warm-2)); }
+  /* countdown: a cool violet, and the ring empties as time runs out */
+  body.count .ring::before { background: radial-gradient(circle, rgba(167,139,250,.24), transparent 68%); }
+  body.count .arc .fill { stroke: #a78bfa; filter: drop-shadow(0 0 10px #8b5cf6); transition: stroke-dashoffset .25s linear; }
+  body.count .face .kicker { color: #c4b5fd; }
+  body.done .ring::before { animation: breathe 1.6s ease-in-out infinite; }
+  body.done .face .big { color: #ddd6fe; }
   @keyframes breathe { 0%,100% { transform: scale(1); opacity: .85 } 50% { transform: scale(1.06); opacity: 1 } }
 
   .face { position: relative; text-align: center; }
-  .face .kicker { font-size: clamp(14px, 2.2vh, 20px); font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
-  .face .big { font-size: clamp(90px, 20vh, 220px); font-weight: 800; line-height: 1; letter-spacing: -.04em; margin: 8px 0 4px; }
-  .face .sub { font-size: clamp(15px, 2.4vh, 22px); color: var(--muted); font-weight: 500; min-height: 1.4em; }
+  .face .kicker { font-size: clamp(15px, 3vh, 28px); font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+  /* points: up to three digits, so very large; a time (m:ss / mm:ss) is wider */
+  .face .big { font-size: min(44vh, 36vw); font-weight: 800; line-height: .9; letter-spacing: -.05em; margin: .5vh 0; }
+  .face .big.time { font-size: min(30vh, 21vw); line-height: 1; }
+  .face .big.time.long { font-size: min(26vh, 18vw); }   /* 10:00 and up: stay inside the ring */
+  .face .sub { font-size: clamp(15px, 3vh, 28px); color: var(--muted); font-weight: 500; min-height: 1.4em; }
   body.alert .face .kicker { color: var(--warm); }
   .big.bump { animation: bump .5s cubic-bezier(.3,1.6,.5,1); }
   .big.dip { animation: dip .45s ease; }
@@ -111,6 +122,13 @@
   .chip.points { display: none; }
   body.alert .chip.points { display: flex; }
   .ctl { display: flex; gap: 10px; margin-left: auto; }
+  .cd { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+  .cd span { color: var(--muted); font-weight: 600; font-size: 15px; margin-right: 4px; }
+  .cd button { height: 44px; min-width: 50px; padding: 0 12px; border-radius: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.05); font-size: 16px; font-weight: 800; }
+  .cd button:hover { background: rgba(167,139,250,.18); }
+  .cd .cancel { color: var(--down); display: none; }
+  body.counting .cd .cancel { display: inline-block; }
+  body.alert .cd { display: none; }   /* one thing at a time while the off-task timer runs */
   .ctl button { height: 52px; min-width: 52px; padding: 0 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); font-size: 20px; font-weight: 700; }
   .ctl button:hover { background: rgba(255,255,255,.1); }
   .ctl .go { background: linear-gradient(180deg, #fcd34d, #f59e0b); color: #2a1406; border: 0; font-size: 16px; padding: 0 22px; box-shadow: 0 6px 22px rgba(245,158,11,.35); }
@@ -161,7 +179,11 @@
   /* ---------- #remote: the on-screen remote (iPhone, or testing) ---------- */
   body.remote .stage, body.remote .bottom, body.remote .curtain { display: none; }
   .pad { display: none; }
-  body.remote .pad { display: grid; flex: 1; gap: 14px; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1.6fr 1fr 1fr; padding-top: 18px; }
+  body.remote .pad { display: grid; flex: 1; gap: 14px; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1.5fr 1fr 1fr auto; padding-top: 18px; }
+  .pad .cdrow { grid-column: 1 / -1; display: flex; gap: 8px; }
+  .pad .cdrow button { flex: 1; height: 64px; font-size: 20px; border-radius: 20px; color: #c4b5fd; }
+  .pad .cdrow .cancel { color: var(--down); display: none; }
+  body.counting .pad .cdrow .cancel { display: block; }
   .pad .status { grid-column: 1 / -1; text-align: center; padding: 8px 0; }
   .pad .status .big { font-size: 64px; font-weight: 800; letter-spacing: -.03em; }
   .pad .status .sub { color: var(--muted); font-weight: 600; }
@@ -211,11 +233,23 @@
     <button class="plus" data-cmd="plus">+1</button>
     <button data-cmd="prev">‹ Back</button>
     <button data-cmd="next">Next ›</button>
+    <div class="cdrow">
+      <button data-cmd="countdown?m=1">1m</button><button data-cmd="countdown?m=2">2m</button>
+      <button data-cmd="countdown?m=5">5m</button><button data-cmd="countdown?m=10">10m</button>
+      <button class="cancel" data-cmd="cancel">✕</button>
+    </div>
   </section>
 
   <footer class="bottom">
     <div class="chip points">Class points <strong id="chipPoints">0</strong></div>
     <div class="chip" id="tally">No time lost today</div>
+    <div class="chip" id="cdChip" hidden>Countdown <strong id="cdChipTime"></strong></div>
+    <div class="cd" aria-label="Countdown">
+      <span>Countdown</span>
+      <button data-cmd="countdown?m=1">1m</button><button data-cmd="countdown?m=2">2m</button>
+      <button data-cmd="countdown?m=5">5m</button><button data-cmd="countdown?m=10">10m</button>
+      <button class="cancel" data-cmd="cancel" aria-label="Cancel the countdown">✕</button>
+    </div>
     <div class="ctl">
       <button data-cmd="minus" aria-label="Take away a class point">−</button>
       <button data-cmd="plus" aria-label="Add a class point">+</button>
@@ -277,7 +311,8 @@
       <li>On the watch, add the <b>Shortcuts</b> complication to your face and choose it — one tap starts or stops the timer. On an Ultra, set the <b>Action button</b> to it.</li>
     </ol>
     <div id="urls"></div>
-    <p>Want everything in one shortcut? Use <b>Choose from Menu</b> with five items, each holding its own <b>Get Contents of URL</b>.</p>
+    <p>Want everything in one shortcut? Use <b>Choose from Menu</b> with an item for each button, each holding its own <b>Get Contents of URL</b>.</p>
+    <p>Any countdown length works: change the number after <code>m=</code> (minutes, e.g. <code>m=3</code> or <code>m=0.5</code>) — up to 90 minutes.</p>
 
     <h3>iPhone remote</h3>
     <p>Open this on your phone for big buttons — handy if the watch is out of reach.</p>
@@ -296,6 +331,7 @@
       <button class="btn" data-test="stop">▶ All clear</button>
       <button class="btn" data-test="plus">▶ Point up</button>
       <button class="btn" data-test="minus">▶ Point down</button>
+      <button class="btn" data-test="timesup">▶ Time’s up</button>
     </div>
     <p>If you hear nothing, check the iPad isn’t muted in Control Centre.</p>
 
@@ -403,6 +439,14 @@
     stop:  function () { bell(493.88, 0, 1.0, 0.4); bell(659.25, 0.16, 1.5, 0.45, true); }, // B4 → E5: lifts, all clear
     plus:  function () { bell(783.99, 0, 0.5, 0.35, true); bell(1046.5, 0.09, 0.8, 0.38, true); }, // G5 → C6
     minus: function () { bell(392, 0, 0.45, 0.4); bell(293.66, 0.11, 0.7, 0.42); },         // G4 → D4
+    countdown: function () { bell(880, 0, 0.9, 0.3, true); },                                  // A5: a light "go"
+    cancel: function () { bell(587.33, 0, 0.6, 0.3); },
+    timesup: function () {                                                                         // C5 E5 G5 C6, twice, gently
+      [0, 1.3].forEach(function (o) {
+        bell(523.25, o, 1.2, 0.42, true); bell(659.25, o + 0.16, 1.2, 0.42, true);
+        bell(783.99, o + 0.32, 1.2, 0.42, true); bell(1046.5, o + 0.5, 1.8, 0.45, true);
+      });
+    },
     next: function () { if (prefs.slideSound) tick(); },
     prev: function () { if (prefs.slideSound) tick(); }
   };
@@ -428,35 +472,61 @@
   }
 
   /* ---------- state from the server ---------- */
-  var S = { alert: false, since: 0, points: load('focus_points', 0), seq: -1, last: null }, skew = 0, linked = false, firstState = true;
+  var S = { alert: false, since: 0, points: load('focus_points', 0), cd: null, seq: -1, last: null }, skew = 0, linked = false, firstState = true;
+  var rang = 0;   // the countdown whose "time's up" this screen has already played
   function $(id) { return document.getElementById(id); }
 
+  /* What the big number shows, most urgent first: the off-task timer, then a
+     countdown (and "time's up" for 15 s after it ends), then class points. */
+  function cdLeft() { return S.cd ? S.cd.until - (Date.now() + skew) : 0; }
+  function view() {
+    if (S.alert) return 'alert';
+    if (S.cd) { var left = cdLeft(); if (left > 0) return 'count'; if (left > -15000) return 'done'; }
+    return 'points';
+  }
+  function cdClock(ms) { return clock(Math.ceil(Math.max(0, ms) / 1000) * 1000); }
   function render() {
-    document.body.classList.toggle('alert', S.alert);
-    var pts = S.points == null ? 0 : S.points;
+    var v = view(), b = document.body, pts = S.points == null ? 0 : S.points;
+    var counting = !!S.cd && cdLeft() > 0;
+    b.classList.toggle('alert', v === 'alert');
+    b.classList.toggle('count', v === 'count' || v === 'done');
+    b.classList.toggle('done', v === 'done');
+    b.classList.toggle('counting', counting);
     $('chipPoints').textContent = pts;
     $('goBtn').textContent = S.alert ? 'All clear' : 'Start timer';
     $('padToggle').textContent = S.alert ? 'All clear' : 'Start timer';
-    if (S.alert) {
-      $('kicker').textContent = 'Back to learning';
-      $('sub').textContent = 'Time off task';
+    /* a countdown still running behind the off-task timer keeps a chip */
+    $('cdChip').hidden = !(counting && v === 'alert');
+    if (counting) $('cdChipTime').textContent = cdClock(cdLeft());
+
+    var big, kicker, sub = '', arc = 590.6, padSub;
+    if (v === 'alert') {
+      var ms = Date.now() + skew - S.since;
+      big = clock(ms); kicker = 'Back to learning'; sub = 'Time off task'; padSub = 'Timer running';
+      arc = 590.6 * (1 - (ms % 60000) / 60000);           // a one-minute sweep
+    } else if (v === 'count') {
+      big = cdClock(cdLeft()); kicker = 'Countdown'; sub = 'of ' + clock(S.cd.total); padSub = 'Countdown';
+      arc = 590.6 * (1 - cdLeft() / S.cd.total);           // empties as time runs out
+    } else if (v === 'done') {
+      big = '0:00'; kicker = 'Time’s up'; padSub = 'Time’s up';
     } else {
-      $('kicker').textContent = 'Class points';
-      $('big').textContent = pts;
-      $('arc').style.strokeDashoffset = 590.6;
+      big = String(pts); kicker = 'Class points'; padSub = pts + ' class point' + (pts === 1 ? '' : 's');
     }
-    $('padSub').textContent = S.alert ? 'Timer running' : pts + ' class point' + (pts === 1 ? '' : 's');
-    if (!S.alert) $('padBig').textContent = pts;
-    frame();
+    var el = $('big');
+    if (el.textContent !== big) el.textContent = big;
+    el.classList.toggle('time', v !== 'points');
+    el.classList.toggle('long', big.length >= 5);
+    $('kicker').textContent = kicker; $('sub').textContent = sub || '\u00a0';
+    $('arc').style.strokeDashoffset = arc;
+    $('padBig').textContent = big; $('padSub').textContent = padSub;
+
+    /* the chime, once per countdown, and only if this screen saw it end */
+    if (S.cd && v !== 'count' && rang !== S.cd.until) {
+      rang = S.cd.until;
+      if (!REMOTE && cdLeft() > -3000) play('timesup');
+    }
   }
-  /* the running timer, and a one-minute sweep around the ring */
-  function frame() {
-    if (!S.alert) return;
-    var ms = Date.now() + skew - S.since;
-    $('big').textContent = clock(ms);
-    $('padBig').textContent = clock(ms);
-    $('arc').style.strokeDashoffset = 590.6 * (1 - (ms % 60000) / 60000);
-  }
+  function frame() { render(); }
   setInterval(function () {
     frame();
     $('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -478,6 +548,7 @@
     var fresh = !firstState && st.seq > S.seq && st.last && Math.abs(st.now - st.last.at) < 15000;
     var last = st.last;
     S.alert = st.alert; S.since = st.since; S.seq = st.seq; S.last = last;
+    S.cd = st.cd || null;
     S.clickers = st.clickers;
     if (st.points == null) {
       /* the server forgot (a redeploy) — this iPad still knows */
@@ -493,6 +564,8 @@
     if (!REMOTE) play(last.cmd);
     if (last.cmd === 'plus') { pop($('big'), 'bump'); floatNum('+' + last.n, 'up'); pop($('chipPoints'), 'bump'); }
     if (last.cmd === 'minus') { pop($('big'), 'dip'); floatNum('−' + last.n, 'down'); }
+    if (last.cmd === 'countdown') toast(clock(last.secs * 1000) + ' countdown');
+    if (last.cmd === 'cancel') toast('Countdown cancelled');
     if (last.cmd === 'next') toast('Next slide ›');
     if (last.cmd === 'prev') toast('‹ Previous slide');
     if (last.cmd === 'stop') {
@@ -600,7 +673,10 @@
   /* ---------- settings drawer ---------- */
   var LINKS = [
     ['Start / stop', 'toggle'], ['+1 point', 'plus'], ['−1 point', 'minus'],
-    ['Next slide', 'next'], ['Previous slide', 'prev']
+    ['Next slide', 'next'], ['Previous slide', 'prev'],
+    ['1 min countdown', 'countdown?m=1'], ['2 min countdown', 'countdown?m=2'],
+    ['5 min countdown', 'countdown?m=5'], ['10 min countdown', 'countdown?m=10'],
+    ['Cancel countdown', 'cancel']
   ];
   function remoteUrl() { return location.origin + location.pathname + '?room=' + room + '#remote'; }
   function screenUrl() { return location.origin + location.pathname + '?room=' + room; }

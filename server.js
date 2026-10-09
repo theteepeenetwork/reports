@@ -347,6 +347,8 @@ async function handleDictate(req, res) {
      GET|POST …/<room>/toggle|start|stop       off-task timer
      GET|POST …/<room>/plus|minus[?n=3]        class points
      GET|POST …/<room>/next|prev               slides
+     GET|POST …/<room>/countdown?m=5 (or ?s=30) a countdown, up to 90 min
+     GET|POST …/<room>/cancel                  stop the countdown
      GET|POST …/<room>/state                   no change; a status line
      GET|POST …/<room>/set?points=N[&ifEmpty=1] the iPad seeding its count
      GET      …/<room>/events[?role=screen|clicker|remote]   SSE stream
@@ -367,7 +369,7 @@ async function handleDictate(req, res) {
    the points in its own storage and puts them back (`set … ifEmpty`).
    ===================================================================== */
 const FOCUS_ROOM = /^[A-Za-z0-9_-]{16,64}$/;
-const FOCUS_CMDS = ['state', 'toggle', 'start', 'stop', 'plus', 'minus', 'next', 'prev', 'set'];
+const FOCUS_CMDS = ['state', 'toggle', 'start', 'stop', 'plus', 'minus', 'next', 'prev', 'set', 'countdown', 'cancel'];
 const focusRooms = new Map();
 const focusHits = new Map();
 
@@ -377,7 +379,7 @@ function focusRoom(id) {
     if (focusRooms.size >= 1000) {
       for (const [k, v] of focusRooms) if (!v.clients.size) { focusRooms.delete(k); break; }
     }
-    r = { alert: false, since: 0, points: null, seq: 0, last: null, clients: new Set(), waiters: new Set(), pollers: new Map() };
+    r = { alert: false, since: 0, points: null, cd: null, seq: 0, last: null, clients: new Set(), waiters: new Set(), pollers: new Map() };
     focusRooms.set(id, r);
   }
   r.touched = Date.now();
@@ -391,7 +393,9 @@ function focusCount(r, role) {
   return n;
 }
 function focusPublic(r) {
-  return { alert: r.alert, since: r.since, points: r.points, seq: r.seq, last: r.last, now: Date.now(),
+  /* a countdown is forgotten a minute after it ends; screens show "time's up" themselves */
+  if (r.cd && r.cd.until < Date.now() - 60e3) r.cd = null;
+  return { alert: r.alert, since: r.since, points: r.points, cd: r.cd, seq: r.seq, last: r.last, now: Date.now(),
     screens: focusCount(r, 'screen'), clickers: focusCount(r, 'clicker') };
 }
 function focusBroadcast(r) {
@@ -414,7 +418,20 @@ function focusApply(r, cmd, q) {
   if (cmd === 'toggle') cmd = r.alert ? 'stop' : 'start';
   switch (cmd) {
     case 'state':
-      return r.alert ? 'Timer running · ' + focusClock(now - r.since) : 'Calm · ' + focusPointsLine(r);
+      return (r.alert ? 'Timer running · ' + focusClock(now - r.since) : 'Calm · ' + focusPointsLine(r)) +
+        (r.cd && r.cd.until > now ? ' · countdown ' + focusClock(r.cd.until - now) : '');
+    case 'countdown': {
+      const m = parseFloat(q.get('m')), sec = parseInt(q.get('s'), 10);
+      const secs = Math.round(m > 0 ? m * 60 : sec > 0 ? sec : 0);
+      if (!(secs >= 5 && secs <= 5400)) return 'Give a time: countdown?m=5 (up to 90 minutes)';
+      r.cd = { until: now + secs * 1000, total: secs * 1000 };
+      r.last = { cmd: 'countdown', at: now, secs: secs };
+      msg = focusClock(secs * 1000) + ' countdown started'; break;
+    }
+    case 'cancel':
+      if (!r.cd || r.cd.until <= now) return 'No countdown running';
+      r.cd = null; r.last = { cmd: 'cancel', at: now };
+      msg = 'Countdown cancelled'; break;
     case 'start':
       if (r.alert) return 'Already running · ' + focusClock(now - r.since);
       r.alert = true; r.since = now; r.last = { cmd: 'start', at: now };
