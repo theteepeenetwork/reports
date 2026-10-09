@@ -350,6 +350,15 @@ async function handleDictate(req, res) {
      GET|POST …/<room>/state                   no change; a status line
      GET|POST …/<room>/set?points=N[&ifEmpty=1] the iPad seeding its count
      GET      …/<room>/events[?role=screen|clicker|remote]   SSE stream
+     GET      …/<room>/wait?seq=N&id=…&role=…   long-poll: JSON state as soon
+                                                as seq ≠ N, or after 20 s
+
+   Two ways to listen because school networks differ. Some web filters cut
+   or buffer a long-lived stream, so a screen whose stream goes quiet falls
+   back to long-polling, which looks like ordinary short requests. Every
+   20 s the stream also repeats the state as a heartbeat (same seq, so no
+   listener treats it as a new press), which is how a screen notices a
+   stream that has silently died.
 
    Replies are one short line of plain text, because that is what a Shortcut
    shows on the watch. The room key (16–64 url-safe characters, made by the
@@ -368,22 +377,28 @@ function focusRoom(id) {
     if (focusRooms.size >= 1000) {
       for (const [k, v] of focusRooms) if (!v.clients.size) { focusRooms.delete(k); break; }
     }
-    r = { alert: false, since: 0, points: null, seq: 0, last: null, clients: new Set() };
+    r = { alert: false, since: 0, points: null, seq: 0, last: null, clients: new Set(), waiters: new Set(), pollers: new Map() };
     focusRooms.set(id, r);
   }
   r.touched = Date.now();
   return r;
 }
+/* stream listeners, plus long-pollers seen in the last 30 s */
 function focusCount(r, role) {
-  let n = 0; r.clients.forEach(function (c) { if (c.role === role) n++; }); return n;
+  let n = 0; const fresh = Date.now() - 30e3;
+  r.clients.forEach(function (c) { if (c.role === role) n++; });
+  r.pollers.forEach(function (p, id) { if (p.at < fresh) r.pollers.delete(id); else if (p.role === role) n++; });
+  return n;
 }
 function focusPublic(r) {
   return { alert: r.alert, since: r.since, points: r.points, seq: r.seq, last: r.last, now: Date.now(),
     screens: focusCount(r, 'screen'), clickers: focusCount(r, 'clicker') };
 }
 function focusBroadcast(r) {
-  const msg = 'data: ' + JSON.stringify(focusPublic(r)) + '\n\n';
-  r.clients.forEach(function (c) { c.res.write(msg); });
+  const state = JSON.stringify(focusPublic(r));
+  r.clients.forEach(function (c) { c.res.write('data: ' + state + '\n\n'); });
+  const waiting = Array.from(r.waiters); r.waiters.clear();
+  waiting.forEach(function (w) { w(state); });
 }
 function focusClock(ms) {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -431,7 +446,7 @@ function focusApply(r, cmd, q) {
   }
   r.seq++;
   focusBroadcast(r);
-  if (!focusCount(r, 'screen') && cmd !== 'next' && cmd !== 'prev' && cmd !== 'set') msg += ' (iPad not connected)';
+  if (!focusCount(r, 'screen') && cmd !== 'next' && cmd !== 'prev' && cmd !== 'set') msg += ' — but no screen is open on this link';
   return msg;
 }
 
@@ -465,24 +480,44 @@ function handleFocus(req, res) {
       'X-Accel-Buffering': 'no',
       'X-Content-Type-Options': 'nosniff'
     });
-    res.write('retry: 2000\n\n');
+    /* 2 KB of padding first: some proxies hold a response until that much arrives */
+    res.write(':' + ' '.repeat(2048) + '\nretry: 2000\n\n');
     const client = { res: res, role: role };
     r.clients.add(client);
     focusBroadcast(r);                               // the newcomer's first state, and everyone's new counts
     req.on('close', function () { r.clients.delete(client); r.touched = Date.now(); focusBroadcast(r); });
     return;
   }
+  if (cmd === 'wait') {
+    const role = ['screen', 'clicker', 'remote'].indexOf(url.searchParams.get('role')) >= 0 ? url.searchParams.get('role') : 'screen';
+    const id = String(url.searchParams.get('id') || ip).slice(0, 40);
+    const seen = !r.pollers.has(id);
+    r.pollers.set(id, { role: role, at: now });
+    if (seen) focusBroadcast(r);                   // a new listener changes the counts
+    const reply = function (state) {
+      clearTimeout(timer); r.waiters.delete(reply);
+      sendJSON(res, 200, JSON.parse(state));
+    };
+    const timer = setTimeout(function () { reply(JSON.stringify(focusPublic(r))); }, 20000);
+    req.on('close', function () { clearTimeout(timer); r.waiters.delete(reply); });
+    if (String(r.seq) !== url.searchParams.get('seq')) return reply(JSON.stringify(focusPublic(r)));
+    r.waiters.add(reply);
+    return;
+  }
   if (FOCUS_CMDS.indexOf(cmd) < 0) return text(404, 'Unknown command');
   return text(200, focusApply(r, cmd, url.searchParams));
 }
-/* keep SSE streams open through proxies, and forget rooms idle for a fortnight */
+/* the heartbeat: repeat the state down every stream (see above), and forget
+   rooms idle for a fortnight */
 setInterval(function () {
   const stale = Date.now() - 14 * 86400e3;
   focusRooms.forEach(function (r, id) {
-    if (!r.clients.size && r.touched < stale) { focusRooms.delete(id); return; }
-    r.clients.forEach(function (c) { c.res.write(': ping\n\n'); });
+    if (!r.clients.size && !r.waiters.size && r.touched < stale) { focusRooms.delete(id); return; }
+    if (!r.clients.size) return;
+    const state = JSON.stringify(focusPublic(r));
+    r.clients.forEach(function (c) { c.res.write('data: ' + state + '\n\n'); });
   });
-}, 25000).unref();
+}, 20000).unref();
 
 const server = http.createServer(function (req, res) {
   if (req.url.indexOf('/api/focus/') === 0) return handleFocus(req, res);

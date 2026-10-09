@@ -127,6 +127,13 @@
   .curtain.gone { opacity: 0; pointer-events: none; }
   .curtain h1 { font-size: 64px; font-weight: 800; letter-spacing: -.03em; margin: 0 0 6px; }
   .curtain p { color: var(--muted); font-size: 18px; margin: 0 0 32px; }
+  .curtain .join { max-width: 560px; padding: 0 20px; }
+  .join-row { display: flex; gap: 10px; margin: 0 0 14px; }
+  .join-row input { flex: 1; min-width: 0; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--ink); font: inherit; font-size: 16px; outline: none; }
+  .join-row button { padding: 0 24px !important; font-size: 17px !important; }
+  .curtain .hint { font-size: 14px; margin: 0 0 22px; }
+  .curtain button.plain { background: none; box-shadow: none; color: var(--muted); font-size: 15px; font-weight: 600; padding: 8px; text-decoration: underline; }
+  body.remote .curtain.need { display: grid; }
   .curtain button { font-size: 20px; font-weight: 800; padding: 18px 40px; border-radius: 99px; border: 0;
     background: linear-gradient(180deg, #99f6e4, #2dd4bf); color: #062320; box-shadow: 0 10px 40px rgba(45,212,191,.35); }
 
@@ -220,10 +227,17 @@
 <div class="toast" id="toast"></div>
 
 <div class="curtain" id="curtain">
-  <div>
+  <div id="beginBox">
     <h1>Focus</h1>
     <p>Tap once so this iPad can play sounds and stay awake.</p>
     <button id="begin">Begin</button>
+  </div>
+  <div id="joinBox" class="join" hidden>
+    <h1>Focus</h1>
+    <p>Which link should this device use?</p>
+    <div class="join-row"><input id="firstInput" placeholder="Paste one of your watch links" autocomplete="off" /><button id="firstJoin">Use it</button></div>
+    <p class="hint" id="firstMsg">Copy a watch link from your Shortcuts app (or from Focus › ⚙ on a device that already works) and paste it here. Your shortcuts keep working.</p>
+    <button class="plain" id="firstNew">First time? Make a new link</button>
   </div>
 </div>
 
@@ -236,12 +250,19 @@
     </div>
     <p>Your watch talks to this iPad through a private link. Anyone with the link can press the buttons, so keep it to yourself.</p>
 
+    <h3>This screen’s link · <span id="roomId"></span></h3>
+    <p>The four letters after “Ready for your watch” name the link. <b>The watch shortcuts and the class iPad must show the same four letters.</b> Each new device (or a Home Screen icon, which has its own storage) starts with its own link, so set the others up from this one:</p>
+    <div class="row"><span class="lab">Screen link</span><span class="url" id="screenUrl"></span><button class="btn" data-copy="screen">Copy</button></div>
+    <p>Open the screen link on the class iPad (AirDrop or email it to yourself). Or, on the class iPad, paste any of your watch links here:</p>
+    <div class="row"><input id="joinInput" placeholder="Paste a Focus link" style="flex:1;min-width:0;background:transparent;border:0;color:var(--ink);font:inherit;font-size:14px;outline:none" /><button class="btn" id="joinBtn">Use this link</button></div>
+    <p id="joinMsg"></p>
+
     <h3>Apple Watch</h3>
     <p>Make one Shortcut for each button you want, on your iPhone:</p>
     <ol>
       <li>Shortcuts app → <b>+</b> → add the action <b>Get Contents of URL</b>.</li>
       <li>Paste a link from below into it (Copy, then tap the URL field).</li>
-      <li>Optional: add <b>Show Result</b> so the watch tells you what happened.</li>
+      <li>Add <b>Show Result</b> so the watch tells you what happened — it says if no screen is listening.</li>
       <li>Name it (e.g. “Focus”), then in its <b>ⓘ Details</b> turn on <b>Show on Apple Watch</b>.</li>
       <li>On the watch, add the <b>Shortcuts</b> complication to your face and choose it — one tap starts or stops the timer. On an Ultra, set the <b>Action button</b> to it.</li>
     </ol>
@@ -293,11 +314,28 @@
     var a = new Uint8Array(18); crypto.getRandomValues(a);
     return btoa(String.fromCharCode.apply(null, a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
-  /* a link that carries ?room= wins, so the phone remote opens on the iPad's room */
+  /* The link must never change by itself: the watch shortcuts are pasted
+     once and point at it for good. A link that carries ?room= wins; then
+     what this device remembers; otherwise the page ASKS (paste an existing
+     link, or deliberately make a new one). The first version (Oct 2026)
+     quietly made a fresh link on every new device or Home Screen icon, which
+     left the class iPad on a different link from the watch. Once known, the
+     key is written into the address too, so a bookmark or a Home Screen icon
+     carries it even if Safari clears this site's storage. */
   var room = params.get('room');
   if (!ROOM_RE.test(room || '')) room = load('focus_room', '');
-  if (!ROOM_RE.test(room || '')) room = newKey();
-  save('focus_room', room);
+  if (!ROOM_RE.test(room || '')) room = '';
+  if (room) save('focus_room', room);
+  function roomFrom(text) {
+    var v = String(text || '').trim();
+    var m = /(?:room=|\/api\/focus\/)([A-Za-z0-9_-]{16,64})/.exec(v) || /^([A-Za-z0-9_-]{16,64})$/.exec(v);
+    return m ? m[1] : '';
+  }
+  function pinAddress() {
+    if (!room || !history.replaceState) return;
+    var q = new URLSearchParams(location.search); q.set('room', room);
+    history.replaceState(null, '', location.pathname + '?' + q.toString() + location.hash);
+  }
 
   var prefs = Object.assign({ vol: 0.7, slideSound: false }, load('focus_prefs', {}));
   function api(cmd) { return location.origin + '/api/focus/' + room + '/' + cmd; }
@@ -447,21 +485,87 @@
     }
   }
 
-  /* ---------- the stream ---------- */
-  var es = null;
+  /* ---------- listening ----------
+     A stream first. School web filters often cut a long-lived stream, or
+     hold it so nothing arrives, and a sleeping iPad drops it — and a stream
+     that failed with an error status never reopens by itself. So: the server
+     repeats the state every 20 s; if nothing arrives for 45 s, or the stream
+     dies, reopen it. A stream that twice fails to deliver anything switches
+     this screen to long-polling (ordinary short requests, which filters let
+     through), for the rest of the session. ?poll=1 forces polling. */
+  var es = null, gen = 0, lastMsg = 0, gotOne = false, silentFails = 0, aborter = null;
+  var mode = params.get('poll') === '1' ? 'poll' : 'stream';
+  var cid = Math.random().toString(36).slice(2, 12);
+  var role = REMOTE ? 'remote' : 'screen';
   function setLink(state, text) {
-    var l = $('link'); l.className = 'link ' + state; l.querySelector('span').textContent = text;
+    var l = $('link'); l.className = 'link ' + state;
+    l.querySelector('span').textContent = text + (state === 'on' ? ' · ' + room.slice(0, 4) : '');
+  }
+  function linkUp() {
+    linked = true; lastMsg = Date.now();
+    setLink('on', REMOTE ? 'Connected' : 'Ready for your watch');
+  }
+  function linkDown() {
+    linked = false;
+    setLink('off', location.protocol === 'file:' ? 'Open through the Hub server' : 'Reconnecting…');
+  }
+  function stop() {
+    gen++;
+    if (es) { es.close(); es = null; }
+    if (aborter) { try { aborter.abort(); } catch (e) {} aborter = null; }
   }
   function connect() {
-    if (es) es.close();
-    es = new EventSource(api('events') + '?role=' + (REMOTE ? 'remote' : 'screen'));
-    es.onopen = function () { linked = true; setLink('on', REMOTE ? 'Connected to iPad link' : 'Ready for your watch'); };
-    es.onmessage = function (e) { try { onState(JSON.parse(e.data)); } catch (x) {} };
+    stop();
+    if (!room) return;
+    lastMsg = Date.now();
+    if (mode === 'poll') return poll(gen);
+    var my = gen;
+    gotOne = false;
+    es = new EventSource(api('events') + '?role=' + role);
+    es.onmessage = function (e) {
+      if (my !== gen) return;
+      gotOne = true; silentFails = 0; linkUp();
+      try { onState(JSON.parse(e.data)); } catch (x) {}
+    };
     es.onerror = function () {
-      linked = false;
-      setLink('off', location.protocol === 'file:' ? 'Open through the Hub server' : 'Reconnecting…');
+      if (my !== gen) return;
+      linkDown();
+      /* CLOSED means the browser has given up (an error status); retry ourselves */
+      if (es && es.readyState === 2) retry(my);
     };
   }
+  function retry(my) {
+    if (!gotOne && ++silentFails >= 2 && mode === 'stream') mode = 'poll';
+    setTimeout(function () { if (my === gen) connect(); }, 2000);
+  }
+  function poll(my) {
+    if (my !== gen) return;
+    aborter = window.AbortController ? new AbortController() : null;
+    fetch(api('wait') + '?seq=' + S.seq + '&role=' + role + '&id=' + cid + '&t=' + Date.now(),
+      { cache: 'no-store', signal: aborter ? aborter.signal : undefined })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (st) {
+        if (my !== gen) return;
+        linkUp(); onState(st); poll(my);
+      })
+      .catch(function () {
+        if (my !== gen) return;
+        linkDown(); setTimeout(function () { poll(my); }, 2000);
+      });
+  }
+  /* the watchdog: a stream (or a poll) that has gone quiet is dead */
+  setInterval(function () {
+    if (Date.now() - lastMsg < 45000) return;
+    linkDown();
+    if (mode === 'stream') retry(gen); else connect();
+    lastMsg = Date.now();
+  }, 5000);
+  /* back from sleep or another app: don't wait for the watchdog */
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && Date.now() - lastMsg > 5000) connect();
+  });
+  window.addEventListener('online', function () { connect(); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) connect(); });
 
   function cmd(c) {
     return fetch(api(c), { method: 'POST' }).then(function (r) {
@@ -483,6 +587,7 @@
     ['Next slide', 'next'], ['Previous slide', 'prev']
   ];
   function remoteUrl() { return location.origin + location.pathname + '?room=' + room + '#remote'; }
+  function screenUrl() { return location.origin + location.pathname + '?room=' + room; }
   function clickerCmd() { return 'node focus-clicker.js ' + location.origin + '/api/focus/' + room; }
   function fillSettings() {
     $('urls').innerHTML = LINKS.map(function (l) {
@@ -490,6 +595,8 @@
         '</span><button class="btn" data-copy="' + l[1] + '">Copy</button></div>';
     }).join('');
     $('remoteUrl').textContent = remoteUrl();
+    $('screenUrl').textContent = screenUrl();
+    $('roomId').textContent = room.slice(0, 4);
     $('clickerCmd').innerHTML = '<code>' + clickerCmd() + '</code>';
     $('vol').value = prefs.vol;
     $('slideSound').checked = !!prefs.slideSound;
@@ -504,7 +611,7 @@
     if (t.dataset.close !== undefined) return $('drawer').classList.remove('open');
     if (t.dataset.test) return play(t.dataset.test);
     var k = t.dataset.copy;
-    copy(k === 'remote' ? remoteUrl() : k === 'clicker' ? clickerCmd() : api(k), t);
+    copy(k === 'remote' ? remoteUrl() : k === 'screen' ? screenUrl() : k === 'clicker' ? clickerCmd() : api(k), t);
   });
   $('openSettings').onclick = function () { fillSettings(); $('drawer').classList.add('open'); };
   $('vol').oninput = function () { prefs.vol = +this.value; save('focus_prefs', prefs); if (master) master.gain.value = prefs.vol; };
@@ -512,10 +619,21 @@
   $('slideSound').onchange = function () { prefs.slideSound = this.checked; save('focus_prefs', prefs); };
   $('resetPoints').onclick = function () { if (confirm('Set class points back to 0?')) cmd('set?points=0'); };
   $('resetTally').onclick = function () { save('focus_log', null); showTally(); };
+  function useRoom(key, seed) {
+    room = key; save('focus_room', room); pinAddress(); S.seq = -1; firstState = true;
+    connect(); if (seed) cmd('set?points=' + (S.points || 0)); fillSettings();
+  }
   $('newRoom').onclick = function () {
     if (!confirm('Make a new link? Your existing watch shortcuts will stop working until you update them.')) return;
-    room = newKey(); save('focus_room', room); S.seq = -1; firstState = true;
-    connect(); cmd('set?points=' + (S.points || 0)); fillSettings();
+    useRoom(newKey(), true);
+  };
+  /* paste any Focus link (a watch URL, the screen link, the remote link) or
+     just its key, and this device joins that link */
+  $('joinBtn').onclick = function () {
+    var k = roomFrom($('joinInput').value);
+    if (!k) { $('joinMsg').textContent = 'That doesn’t look like a Focus link.'; return; }
+    $('joinInput').value = ''; $('joinMsg').textContent = 'Now using link ' + k.slice(0, 4) + '.';
+    useRoom(k, false);
   };
 
   /* ---------- begin ---------- */
@@ -531,9 +649,30 @@
     wake();
     $('curtain').classList.add('gone');
   };
+  /* first time on this device: ask which link, never invent one */
+  function needRoom() {
+    $('beginBox').hidden = true; $('joinBox').hidden = false;
+    $('curtain').classList.add('need');
+    setLink('off', 'No link yet');
+  }
+  function haveRoom() {
+    $('joinBox').hidden = true; $('beginBox').hidden = false;
+    $('curtain').classList.remove('need');
+  }
+  $('firstJoin').onclick = function () {
+    var k = roomFrom($('firstInput').value);
+    if (!k) { $('firstMsg').textContent = 'That doesn’t look like a Focus link — it should contain /api/focus/ followed by a long code.'; return; }
+    useRoom(k, false); haveRoom();
+  };
+  $('firstNew').onclick = function () {
+    if (!confirm('Make a brand-new link? Only do this the first time — watch shortcuts made for another link won’t reach this screen.')) return;
+    useRoom(newKey(), true); haveRoom();
+    if (!REMOTE) { fillSettings(); $('drawer').classList.add('open'); }
+  };
+
   showTally();
   render();
-  connect();
+  if (room) { pinAddress(); connect(); } else needRoom();
 })();
 </script>
 </body>
