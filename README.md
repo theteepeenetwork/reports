@@ -48,6 +48,15 @@ printable starter sheet.
 > numerals tricky" group; "neat" and "not as neat" never do), awards, and individual notes. It
 > prints on its own page. The server logs at start-up whether smart mode is on, and why not.
 
+> **Focus Remote** (`focus.html`, sidebar › Board) is driven from an Apple Watch. Each watch button
+> is an iOS Shortcut that fetches `…/api/focus/<room>/<command>` on `server.js`; the iPad showing
+> the page hears it at once and plays a soft chime and starts an off-task timer (`toggle`), or moves
+> the class points (`plus` / `minus`). `next` / `prev` turn it into a slide clicker: run
+> `tools/focus-clicker.js` on the computer showing PowerPoint and it presses Page Down / Page Up.
+> The page's ⚙ panel has the links to paste and the steps. It needs `server.js` (Railway, or
+> `npm start` locally), not the static Python server. The room key is the only credential; no pupil
+> data goes through it, and its storage keys (`focus_*`) are device-local, outside `DATA_KEYS`.
+
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).
 

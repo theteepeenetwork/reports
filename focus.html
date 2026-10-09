@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0d1024" />
+<title>Focus Remote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<!--
+  Focus Remote — the iPad screen for the Apple Watch classroom remote.
+  Owner: Board (docs/OWNERSHIP.md)
+
+  The watch runs Shortcuts that fetch /api/focus/<room>/<command> on server.js;
+  this page listens on /api/focus/<room>/events and reacts:
+    toggle/start/stop  → firm two-note chime, a count-up "off task" timer
+    plus/minus         → class points, a soft up/down sound
+    next/prev          → handled by tools/focus-clicker.js on the computer
+                         running PowerPoint; this page just shows a note.
+  #remote turns the page into an on-screen remote (iPhone, or for testing).
+
+  Storage is device-local and outside the tp_* contract on purpose — nothing
+  here is pupil data and nothing syncs:
+    focus_room   the remote link's key      focus_points  class points
+    focus_log    { date, ms, count } today  focus_prefs   { vol, slideSound }
+-->
+<style>
+  :root {
+    --bg: #0d1024; --bg-2: #151a36; --card: rgba(255,255,255,.05); --line: rgba(255,255,255,.09);
+    --ink: #eef1ff; --muted: #9aa3c7; --faint: #646d93;
+    --calm: #5eead4; --calm-glow: rgba(94,234,212,.22);
+    --warm: #fbbf24; --warm-2: #f97316; --warm-glow: rgba(251,146,60,.28);
+    --up: #4ade80; --down: #fb7185;
+    --r: 22px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif; color: var(--ink);
+    background: var(--bg); overflow: hidden; -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums; user-select: none; -webkit-user-select: none;
+  }
+  button { font-family: inherit; color: inherit; cursor: pointer; }
+
+  /* the backdrop: two soft light pools that change colour with the state */
+  .sky { position: fixed; inset: 0; z-index: 0; transition: opacity .9s ease; }
+  .sky.calm { background:
+      radial-gradient(80% 70% at 18% 8%, rgba(94,234,212,.14), transparent 60%),
+      radial-gradient(70% 60% at 90% 100%, rgba(129,140,248,.16), transparent 60%),
+      linear-gradient(180deg, #10142c, #0b0d1f); }
+  .sky.warm { opacity: 0; background:
+      radial-gradient(80% 70% at 50% 40%, rgba(251,146,60,.30), transparent 65%),
+      radial-gradient(60% 50% at 10% 100%, rgba(244,63,94,.18), transparent 60%),
+      linear-gradient(180deg, #2a1410, #170b0c); }
+  body.alert .sky.warm { opacity: 1; }
+  body.alert .sky.calm { opacity: 0; }
+
+  .app { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;
+    padding: max(18px, env(safe-area-inset-top)) max(26px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(26px, env(safe-area-inset-left)); }
+
+  /* top bar */
+  .top { display: flex; align-items: center; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -.01em; }
+  .brand i { width: 12px; height: 12px; border-radius: 50%; background: var(--calm); box-shadow: 0 0 14px var(--calm); transition: background .6s, box-shadow .6s; }
+  body.alert .brand i { background: var(--warm); box-shadow: 0 0 14px var(--warm); }
+  .link { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); }
+  .link b { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .link.on b { background: var(--up); box-shadow: 0 0 8px var(--up); }
+  .link.off b { background: var(--down); }
+  .spacer { flex: 1; }
+  .clock { font-size: 20px; font-weight: 600; color: var(--muted); }
+  .icon-btn { width: 44px; height: 44px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); display: grid; place-items: center; }
+  .icon-btn:hover { background: rgba(255,255,255,.1); }
+  .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* the stage */
+  .stage { flex: 1; display: grid; place-items: center; position: relative; }
+  .ring { position: relative; width: min(58vh, 70vw); aspect-ratio: 1; display: grid; place-items: center; }
+  .ring::before { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle, var(--calm-glow), transparent 68%); transition: background .8s; }
+  .ring svg.arc { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+  .arc .track { stroke: rgba(255,255,255,.07); }
+  .arc .fill { stroke: var(--calm); transition: stroke .6s; filter: drop-shadow(0 0 8px var(--calm)); }
+  body.alert .ring::before { background: radial-gradient(circle, var(--warm-glow), transparent 68%); animation: breathe 2.4s ease-in-out infinite; }
+  body.alert .arc .fill { stroke: var(--warm); filter: drop-shadow(0 0 10px var(--warm-2)); }
+  @keyframes breathe { 0%,100% { transform: scale(1); opacity: .85 } 50% { transform: scale(1.06); opacity: 1 } }
+
+  .face { position: relative; text-align: center; }
+  .face .kicker { font-size: clamp(14px, 2.2vh, 20px); font-weight: 700; letter-spacing: .22em; text-transform: uppercase; color: var(--muted); }
+  .face .big { font-size: clamp(90px, 20vh, 220px); font-weight: 800; line-height: 1; letter-spacing: -.04em; margin: 8px 0 4px; }
+  .face .sub { font-size: clamp(15px, 2.4vh, 22px); color: var(--muted); font-weight: 500; min-height: 1.4em; }
+  body.alert .face .kicker { color: var(--warm); }
+  .big.bump { animation: bump .5s cubic-bezier(.3,1.6,.5,1); }
+  .big.dip { animation: dip .45s ease; }
+  @keyframes bump { 0% { transform: scale(1) } 35% { transform: scale(1.12) } 100% { transform: scale(1) } }
+  @keyframes dip { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-10px) } 60% { transform: translateX(8px) } }
+
+  .float { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); font-size: 54px; font-weight: 800; pointer-events: none; animation: floatUp 1.1s ease-out forwards; }
+  .float.up { color: var(--up); text-shadow: 0 0 22px rgba(74,222,128,.6); }
+  .float.down { color: var(--down); text-shadow: 0 0 22px rgba(251,113,133,.6); animation-name: floatDown; }
+  @keyframes floatUp { from { opacity: 0; transform: translate(-50%, 20px) } 20% { opacity: 1 } to { opacity: 0; transform: translate(-50%, -60px) } }
+  @keyframes floatDown { from { opacity: 0; transform: translate(-50%, -20px) } 20% { opacity: 1 } to { opacity: 0; transform: translate(-50%, 50px) } }
+
+  /* bottom strip: points chip while the timer runs, today's tally, controls */
+  .bottom { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .chip { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); font-weight: 600; color: var(--muted); font-size: 15px; }
+  .chip strong { color: var(--ink); font-size: 22px; font-weight: 800; }
+  .chip.points { display: none; }
+  body.alert .chip.points { display: flex; }
+  .ctl { display: flex; gap: 10px; margin-left: auto; }
+  .ctl button { height: 52px; min-width: 52px; padding: 0 18px; border-radius: 16px; border: 1px solid var(--line); background: var(--card); font-size: 20px; font-weight: 700; }
+  .ctl button:hover { background: rgba(255,255,255,.1); }
+  .ctl .go { background: linear-gradient(180deg, #fcd34d, #f59e0b); color: #2a1406; border: 0; font-size: 16px; padding: 0 22px; box-shadow: 0 6px 22px rgba(245,158,11,.35); }
+  body.alert .ctl .go { background: linear-gradient(180deg, #6ee7b7, #2dd4bf); color: #062320; box-shadow: 0 6px 22px rgba(45,212,191,.35); }
+
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translate(-50%, 20px); opacity: 0; z-index: 5;
+    padding: 12px 22px; border-radius: 99px; background: rgba(20,24,48,.88); border: 1px solid var(--line);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font-weight: 700; transition: opacity .25s, transform .25s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* the start curtain: one tap unlocks sound and keeps the screen awake */
+  .curtain { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; text-align: center;
+    background: radial-gradient(70% 60% at 50% 40%, #1b2150, #0b0d1f); transition: opacity .5s; }
+  .curtain.gone { opacity: 0; pointer-events: none; }
+  .curtain h1 { font-size: 64px; font-weight: 800; letter-spacing: -.03em; margin: 0 0 6px; }
+  .curtain p { color: var(--muted); font-size: 18px; margin: 0 0 32px; }
+  .curtain button { font-size: 20px; font-weight: 800; padding: 18px 40px; border-radius: 99px; border: 0;
+    background: linear-gradient(180deg, #99f6e4, #2dd4bf); color: #062320; box-shadow: 0 10px 40px rgba(45,212,191,.35); }
+
+  /* settings drawer */
+  .drawer { position: fixed; inset: 0; z-index: 30; display: none; }
+  .drawer.open { display: block; }
+  .drawer .shade { position: absolute; inset: 0; background: rgba(4,6,16,.6); }
+  .drawer .panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100%); overflow-y: auto;
+    background: #12162f; border-left: 1px solid var(--line); padding: 26px 26px 60px; user-select: text; -webkit-user-select: text; }
+  .panel h2 { margin: 0 0 4px; font-size: 26px; }
+  .panel h3 { margin: 28px 0 8px; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--calm); }
+  .panel p, .panel li { color: var(--muted); font-size: 15px; line-height: 1.55; }
+  .panel ol { padding-left: 20px; margin: 6px 0; }
+  .panel code { background: rgba(255,255,255,.07); padding: 2px 6px; border-radius: 6px; font-size: 13px; color: var(--ink); word-break: break-all; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); margin: 8px 0; }
+  .row .lab { font-weight: 700; min-width: 108px; font-size: 14px; }
+  .row .url { flex: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, Menlo, monospace; }
+  .btn { padding: 9px 14px; border-radius: 11px; border: 1px solid var(--line); background: rgba(255,255,255,.07); font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .btn:hover { background: rgba(255,255,255,.13); }
+  .btn.warn { color: var(--down); }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  input[type=range] { width: 100%; accent-color: var(--calm); }
+  label.tick { display: flex; gap: 10px; align-items: center; color: var(--ink); font-size: 15px; margin: 8px 0; }
+
+  /* ---------- #remote: the on-screen remote (iPhone, or testing) ---------- */
+  body.remote .stage, body.remote .bottom, body.remote .curtain { display: none; }
+  .pad { display: none; }
+  body.remote .pad { display: grid; flex: 1; gap: 14px; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1.6fr 1fr 1fr; padding-top: 18px; }
+  .pad .status { grid-column: 1 / -1; text-align: center; padding: 8px 0; }
+  .pad .status .big { font-size: 64px; font-weight: 800; letter-spacing: -.03em; }
+  .pad .status .sub { color: var(--muted); font-weight: 600; }
+  .pad button { border-radius: 26px; border: 1px solid var(--line); background: var(--card); font-size: 26px; font-weight: 800; }
+  .pad button:active { transform: scale(.97); background: rgba(255,255,255,.12); }
+  .pad .toggle { grid-column: 1 / -1; background: linear-gradient(180deg, #fcd34d, #f59e0b); color: #2a1406; border: 0; font-size: 30px; }
+  body.alert .pad .toggle { background: linear-gradient(180deg, #6ee7b7, #2dd4bf); color: #062320; }
+  .pad .plus { color: var(--up); } .pad .minus { color: var(--down); }
+
+  @media (max-width: 700px) {
+    .clock { display: none; }
+    .ctl { margin-left: 0; width: 100%; }
+    .ctl .go { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="sky calm"></div><div class="sky warm"></div>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><i></i>Focus</div>
+    <div class="link" id="link"><b></b><span>Connecting…</span></div>
+    <div class="spacer"></div>
+    <div class="clock" id="clock"></div>
+    <button class="icon-btn" id="openSettings" aria-label="Set up the watch">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="stage">
+    <div class="ring">
+      <svg class="arc" viewBox="0 0 200 200"><circle class="track" cx="100" cy="100" r="94" fill="none" stroke-width="3"/>
+        <circle class="fill" id="arc" cx="100" cy="100" r="94" fill="none" stroke-width="4" stroke-linecap="round" stroke-dasharray="590.6" stroke-dashoffset="590.6"/></svg>
+      <div class="face">
+        <div class="kicker" id="kicker">Class points</div>
+        <div class="big" id="big">0</div>
+        <div class="sub" id="sub">&nbsp;</div>
+      </div>
+    </div>
+  </main>
+
+  <section class="pad" aria-label="Remote">
+    <div class="status"><div class="big" id="padBig">–</div><div class="sub" id="padSub">Connecting…</div></div>
+    <button class="toggle" data-cmd="toggle" id="padToggle">Start timer</button>
+    <button class="minus" data-cmd="minus">−1</button>
+    <button class="plus" data-cmd="plus">+1</button>
+    <button data-cmd="prev">‹ Back</button>
+    <button data-cmd="next">Next ›</button>
+  </section>
+
+  <footer class="bottom">
+    <div class="chip points">Class points <strong id="chipPoints">0</strong></div>
+    <div class="chip" id="tally">No time lost today</div>
+    <div class="ctl">
+      <button data-cmd="minus" aria-label="Take away a class point">−</button>
+      <button data-cmd="plus" aria-label="Add a class point">+</button>
+      <button class="go" data-cmd="toggle" id="goBtn">Start timer</button>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="curtain" id="curtain">
+  <div>
+    <h1>Focus</h1>
+    <p>Tap once so this iPad can play sounds and stay awake.</p>
+    <button id="begin">Begin</button>
+  </div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="shade" data-close></div>
+  <div class="panel">
+    <div style="display:flex;align-items:center;gap:12px">
+      <h2 style="flex:1">Set up</h2>
+      <button class="btn" data-close>Done</button>
+    </div>
+    <p>Your watch talks to this iPad through a private link. Anyone with the link can press the buttons, so keep it to yourself.</p>
+
+    <h3>Apple Watch</h3>
+    <p>Make one Shortcut for each button you want, on your iPhone:</p>
+    <ol>
+      <li>Shortcuts app → <b>+</b> → add the action <b>Get Contents of URL</b>.</li>
+      <li>Paste a link from below into it (Copy, then tap the URL field).</li>
+      <li>Optional: add <b>Show Result</b> so the watch tells you what happened.</li>
+      <li>Name it (e.g. “Focus”), then in its <b>ⓘ Details</b> turn on <b>Show on Apple Watch</b>.</li>
+      <li>On the watch, add the <b>Shortcuts</b> complication to your face and choose it — one tap starts or stops the timer. On an Ultra, set the <b>Action button</b> to it.</li>
+    </ol>
+    <div id="urls"></div>
+    <p>Want everything in one shortcut? Use <b>Choose from Menu</b> with five items, each holding its own <b>Get Contents of URL</b>.</p>
+
+    <h3>iPhone remote</h3>
+    <p>Open this on your phone for big buttons — handy if the watch is out of reach.</p>
+    <div class="row"><span class="lab">Remote</span><span class="url" id="remoteUrl"></span><button class="btn" data-copy="remote">Copy</button></div>
+
+    <h3>PowerPoint clicker</h3>
+    <p>On the computer running the slides, with <a href="https://nodejs.org" style="color:var(--calm)">Node.js</a> installed, save <a href="tools/focus-clicker.js" download style="color:var(--calm)">focus-clicker.js</a> and run:</p>
+    <div class="row"><span class="url" id="clickerCmd" style="white-space:normal"></span><button class="btn" data-copy="clicker">Copy</button></div>
+    <p>It presses Page Down / Page Up, which PowerPoint, Keynote and Google Slides all treat as next / previous. Keep the slideshow window in front. A Mac will ask once to allow Terminal under <b>Accessibility</b>. <span id="clickerState"></span></p>
+
+    <h3>Sounds</h3>
+    <label>Volume<input type="range" id="vol" min="0" max="1" step="0.05" /></label>
+    <label class="tick"><input type="checkbox" id="slideSound" /> Soft tick on each slide change</label>
+    <div class="btns">
+      <button class="btn" data-test="start">▶ Alert</button>
+      <button class="btn" data-test="stop">▶ All clear</button>
+      <button class="btn" data-test="plus">▶ Point up</button>
+      <button class="btn" data-test="minus">▶ Point down</button>
+    </div>
+    <p>If you hear nothing, check the iPad isn’t muted in Control Centre.</p>
+
+    <h3>Class points &amp; link</h3>
+    <div class="btns">
+      <button class="btn warn" id="resetPoints">Reset points to 0</button>
+      <button class="btn warn" id="resetTally">Clear today’s lost time</button>
+      <button class="btn warn" id="newRoom">Make a new link</button>
+    </div>
+    <p>A new link stops the old shortcuts working — you’ll need to paste the new ones in.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- storage (device-local; see the note at the top) ---------- */
+  function load(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  var params = new URLSearchParams(location.search);
+  var REMOTE = location.hash === '#remote' || params.get('remote') === '1';
+  var ROOM_RE = /^[A-Za-z0-9_-]{16,64}$/;
+  function newKey() {
+    var a = new Uint8Array(18); crypto.getRandomValues(a);
+    return btoa(String.fromCharCode.apply(null, a)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  /* a link that carries ?room= wins, so the phone remote opens on the iPad's room */
+  var room = params.get('room');
+  if (!ROOM_RE.test(room || '')) room = load('focus_room', '');
+  if (!ROOM_RE.test(room || '')) room = newKey();
+  save('focus_room', room);
+
+  var prefs = Object.assign({ vol: 0.7, slideSound: false }, load('focus_prefs', {}));
+  function api(cmd) { return location.origin + '/api/focus/' + room + '/' + cmd; }
+
+  /* ---------- sound: synthesised, so nothing to download ----------
+     Subtle but firm: a warm bell (fundamental + a quiet inharmonic partial +
+     a low body) with a fast attack and a long soft tail. No buzzers. */
+  var ctx = null, master = null;
+  function audio() {
+    if (!ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      ctx = new AC();
+      var comp = ctx.createDynamicsCompressor();
+      master = ctx.createGain();
+      master.connect(comp); comp.connect(ctx.destination);
+    }
+    master.gain.value = prefs.vol;
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function bell(freq, at, dur, level, bright) {
+    var c = audio(); if (!c) return;
+    var t = c.currentTime + at;
+    var out = c.createGain();
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(level, t + 0.008);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = bright ? 6000 : 2600;
+    out.connect(lp); lp.connect(master);
+    [[1, 'sine', 1], [2.76, 'sine', bright ? 0.22 : 0.12], [0.5, 'triangle', 0.35], [4.07, 'sine', bright ? 0.08 : 0.03]].forEach(function (p) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = p[1]; o.frequency.value = freq * p[0]; g.gain.value = p[2];
+      /* upper partials die first, like a real bell */
+      if (p[0] > 1) { g.gain.setValueAtTime(p[2], t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.45); }
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.05);
+    });
+  }
+  function tick() {
+    var c = audio(); if (!c) return;
+    var t = c.currentTime, n = Math.floor(c.sampleRate * 0.03);
+    var buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+    var s = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain();
+    bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 2; g.gain.value = 0.35;
+    s.buffer = buf; s.connect(bp); bp.connect(g); g.connect(master); s.start(t);
+  }
+  var SOUNDS = {
+    start: function () { bell(659.25, 0, 1.6, 0.55); bell(493.88, 0.22, 2.0, 0.6); },      // E5 → B4: firm, settling
+    stop:  function () { bell(493.88, 0, 1.0, 0.4); bell(659.25, 0.16, 1.5, 0.45, true); }, // B4 → E5: lifts, all clear
+    plus:  function () { bell(783.99, 0, 0.5, 0.35, true); bell(1046.5, 0.09, 0.8, 0.38, true); }, // G5 → C6
+    minus: function () { bell(392, 0, 0.45, 0.4); bell(293.66, 0.11, 0.7, 0.42); },         // G4 → D4
+    next: function () { if (prefs.slideSound) tick(); },
+    prev: function () { if (prefs.slideSound) tick(); }
+  };
+  function play(cmd) { if (SOUNDS[cmd]) SOUNDS[cmd](); }
+
+  /* ---------- screen wake lock (iPadOS 16.4+) ---------- */
+  var lock = null;
+  function wake() {
+    if (REMOTE || !('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+    navigator.wakeLock.request('screen').then(function (l) { lock = l; }).catch(function () {});
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') { wake(); if (ctx) ctx.resume(); }
+  });
+
+  /* ---------- today's lost time ---------- */
+  function today() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function tally() { var t = load('focus_log', null); return t && t.date === today() ? t : { date: today(), ms: 0, count: 0 }; }
+  function clock(ms) { var s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  function showTally() {
+    var t = tally();
+    $('tally').innerHTML = t.count ? 'Today <strong>' + clock(t.ms) + '</strong> lost · ' + t.count + ' time' + (t.count === 1 ? '' : 's') : 'No time lost today';
+  }
+
+  /* ---------- state from the server ---------- */
+  var S = { alert: false, since: 0, points: load('focus_points', 0), seq: -1, last: null }, skew = 0, linked = false, firstState = true;
+  function $(id) { return document.getElementById(id); }
+
+  function render() {
+    document.body.classList.toggle('alert', S.alert);
+    var pts = S.points == null ? 0 : S.points;
+    $('chipPoints').textContent = pts;
+    $('goBtn').textContent = S.alert ? 'All clear' : 'Start timer';
+    $('padToggle').textContent = S.alert ? 'All clear' : 'Start timer';
+    if (S.alert) {
+      $('kicker').textContent = 'Back to learning';
+      $('sub').textContent = 'Time off task';
+    } else {
+      $('kicker').textContent = 'Class points';
+      $('big').textContent = pts;
+      $('arc').style.strokeDashoffset = 590.6;
+    }
+    $('padSub').textContent = S.alert ? 'Timer running' : pts + ' class point' + (pts === 1 ? '' : 's');
+    if (!S.alert) $('padBig').textContent = pts;
+    frame();
+  }
+  /* the running timer, and a one-minute sweep around the ring */
+  function frame() {
+    if (!S.alert) return;
+    var ms = Date.now() + skew - S.since;
+    $('big').textContent = clock(ms);
+    $('padBig').textContent = clock(ms);
+    $('arc').style.strokeDashoffset = 590.6 * (1 - (ms % 60000) / 60000);
+  }
+  setInterval(function () {
+    frame();
+    $('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }, 250);
+
+  function pop(el, cls) { el.classList.remove('bump', 'dip'); void el.offsetWidth; el.classList.add(cls); }
+  function floatNum(text, cls) {
+    var f = document.createElement('div'); f.className = 'float ' + cls; f.textContent = text;
+    document.querySelector('.ring').appendChild(f); setTimeout(function () { f.remove(); }, 1200);
+  }
+  var toastT;
+  function toast(text) {
+    var t = $('toast'); t.textContent = text; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+
+  function onState(st) {
+    skew = st.now - Date.now();
+    var fresh = !firstState && st.seq > S.seq && st.last && Math.abs(st.now - st.last.at) < 15000;
+    var last = st.last;
+    S.alert = st.alert; S.since = st.since; S.seq = st.seq; S.last = last;
+    S.clickers = st.clickers;
+    if (st.points == null) {
+      /* the server forgot (a redeploy) — this iPad still knows */
+      if (!REMOTE) cmd('set?ifEmpty=1&points=' + (load('focus_points', 0) || 0));
+    } else {
+      S.points = st.points;
+      if (!REMOTE) save('focus_points', st.points);
+    }
+    firstState = false;
+    render();
+    $('clickerState').textContent = st.clickers ? '● Clicker connected.' : '';
+    if (!fresh) return;
+    if (!REMOTE) play(last.cmd);
+    if (last.cmd === 'plus') { pop($('big'), 'bump'); floatNum('+' + last.n, 'up'); pop($('chipPoints'), 'bump'); }
+    if (last.cmd === 'minus') { pop($('big'), 'dip'); floatNum('−' + last.n, 'down'); }
+    if (last.cmd === 'next') toast('Next slide ›');
+    if (last.cmd === 'prev') toast('‹ Previous slide');
+    if (last.cmd === 'stop') {
+      if (!REMOTE) { var t = tally(); t.ms += last.ms; t.count++; save('focus_log', t); showTally(); }
+      toast('All clear · ' + clock(last.ms));
+    }
+  }
+
+  /* ---------- the stream ---------- */
+  var es = null;
+  function setLink(state, text) {
+    var l = $('link'); l.className = 'link ' + state; l.querySelector('span').textContent = text;
+  }
+  function connect() {
+    if (es) es.close();
+    es = new EventSource(api('events') + '?role=' + (REMOTE ? 'remote' : 'screen'));
+    es.onopen = function () { linked = true; setLink('on', REMOTE ? 'Connected to iPad link' : 'Ready for your watch'); };
+    es.onmessage = function (e) { try { onState(JSON.parse(e.data)); } catch (x) {} };
+    es.onerror = function () {
+      linked = false;
+      setLink('off', location.protocol === 'file:' ? 'Open through the Hub server' : 'Reconnecting…');
+    };
+  }
+
+  function cmd(c) {
+    return fetch(api(c), { method: 'POST' }).then(function (r) {
+      if (r.status === 404 && !linked) toast('This needs the Classroom Hub server (npm start)');
+      return r.text();
+    }).catch(function () { toast('Not connected'); });
+  }
+  document.querySelectorAll('[data-cmd]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      audio();
+      if (REMOTE && navigator.vibrate) navigator.vibrate(15);
+      cmd(b.dataset.cmd);
+    });
+  });
+
+  /* ---------- settings drawer ---------- */
+  var LINKS = [
+    ['Start / stop', 'toggle'], ['+1 point', 'plus'], ['−1 point', 'minus'],
+    ['Next slide', 'next'], ['Previous slide', 'prev']
+  ];
+  function remoteUrl() { return location.origin + location.pathname + '?room=' + room + '#remote'; }
+  function clickerCmd() { return 'node focus-clicker.js ' + location.origin + '/api/focus/' + room; }
+  function fillSettings() {
+    $('urls').innerHTML = LINKS.map(function (l) {
+      return '<div class="row"><span class="lab">' + l[0] + '</span><span class="url">' + api(l[1]) +
+        '</span><button class="btn" data-copy="' + l[1] + '">Copy</button></div>';
+    }).join('');
+    $('remoteUrl').textContent = remoteUrl();
+    $('clickerCmd').innerHTML = '<code>' + clickerCmd() + '</code>';
+    $('vol').value = prefs.vol;
+    $('slideSound').checked = !!prefs.slideSound;
+  }
+  function copy(text, btn) {
+    var done = function () { var was = btn.textContent; btn.textContent = 'Copied ✓'; setTimeout(function () { btn.textContent = was; }, 1400); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { prompt('Copy this:', text); });
+    else prompt('Copy this:', text);
+  }
+  $('drawer').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-copy],[data-test],[data-close]'); if (!t) return;
+    if (t.dataset.close !== undefined) return $('drawer').classList.remove('open');
+    if (t.dataset.test) return play(t.dataset.test);
+    var k = t.dataset.copy;
+    copy(k === 'remote' ? remoteUrl() : k === 'clicker' ? clickerCmd() : api(k), t);
+  });
+  $('openSettings').onclick = function () { fillSettings(); $('drawer').classList.add('open'); };
+  $('vol').oninput = function () { prefs.vol = +this.value; save('focus_prefs', prefs); if (master) master.gain.value = prefs.vol; };
+  $('vol').onchange = function () { play('plus'); };
+  $('slideSound').onchange = function () { prefs.slideSound = this.checked; save('focus_prefs', prefs); };
+  $('resetPoints').onclick = function () { if (confirm('Set class points back to 0?')) cmd('set?points=0'); };
+  $('resetTally').onclick = function () { save('focus_log', null); showTally(); };
+  $('newRoom').onclick = function () {
+    if (!confirm('Make a new link? Your existing watch shortcuts will stop working until you update them.')) return;
+    room = newKey(); save('focus_room', room); S.seq = -1; firstState = true;
+    connect(); cmd('set?points=' + (S.points || 0)); fillSettings();
+  };
+
+  /* ---------- begin ---------- */
+  if (REMOTE) {
+    document.body.classList.add('remote');
+    $('openSettings').style.display = 'none';
+    document.title = 'Focus · Remote';
+  }
+  $('begin').onclick = function () {
+    audio();
+    /* a silent blip finishes unlocking iOS audio inside the tap */
+    var c = audio(); if (c) { var o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.0001; o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.05); }
+    wake();
+    $('curtain').classList.add('gone');
+  };
+  showTally();
+  render();
+  connect();
+})();
+</script>
+</body>
+</html>

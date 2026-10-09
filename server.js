@@ -336,7 +336,156 @@ async function handleDictate(req, res) {
   }
 }
 
+/* =====================================================================
+   /api/focus/<room>/<command> — the relay behind Focus Remote (focus.html)
+
+   The teacher's Apple Watch runs a Shortcut that fetches a URL here; the
+   iPad showing focus.html is listening on /events and reacts (sound, timer,
+   class points); a slide-clicker helper on the classroom computer listens
+   on the same stream and presses Page Down / Page Up.
+
+     GET|POST …/<room>/toggle|start|stop       off-task timer
+     GET|POST …/<room>/plus|minus[?n=3]        class points
+     GET|POST …/<room>/next|prev               slides
+     GET|POST …/<room>/state                   no change; a status line
+     GET|POST …/<room>/set?points=N[&ifEmpty=1] the iPad seeding its count
+     GET      …/<room>/events[?role=screen|clicker|remote]   SSE stream
+
+   Replies are one short line of plain text, because that is what a Shortcut
+   shows on the watch. The room key (16–64 url-safe characters, made by the
+   iPad) is the only credential: there is no pupil data here, only a timer and
+   a number. State lives in memory, so a redeploy forgets it — the iPad keeps
+   the points in its own storage and puts them back (`set … ifEmpty`).
+   ===================================================================== */
+const FOCUS_ROOM = /^[A-Za-z0-9_-]{16,64}$/;
+const FOCUS_CMDS = ['state', 'toggle', 'start', 'stop', 'plus', 'minus', 'next', 'prev', 'set'];
+const focusRooms = new Map();
+const focusHits = new Map();
+
+function focusRoom(id) {
+  let r = focusRooms.get(id);
+  if (!r) {
+    if (focusRooms.size >= 1000) {
+      for (const [k, v] of focusRooms) if (!v.clients.size) { focusRooms.delete(k); break; }
+    }
+    r = { alert: false, since: 0, points: null, seq: 0, last: null, clients: new Set() };
+    focusRooms.set(id, r);
+  }
+  r.touched = Date.now();
+  return r;
+}
+function focusCount(r, role) {
+  let n = 0; r.clients.forEach(function (c) { if (c.role === role) n++; }); return n;
+}
+function focusPublic(r) {
+  return { alert: r.alert, since: r.since, points: r.points, seq: r.seq, last: r.last, now: Date.now(),
+    screens: focusCount(r, 'screen'), clickers: focusCount(r, 'clicker') };
+}
+function focusBroadcast(r) {
+  const msg = 'data: ' + JSON.stringify(focusPublic(r)) + '\n\n';
+  r.clients.forEach(function (c) { c.res.write(msg); });
+}
+function focusClock(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+}
+function focusPointsLine(r) { return (r.points || 0) + ' class point' + (r.points === 1 ? '' : 's'); }
+
+/* → the reply line. Mutates the room and broadcasts when anything changed. */
+function focusApply(r, cmd, q) {
+  const now = Date.now();
+  const n = Math.min(Math.max(parseInt(q.get('n'), 10) || 1, 1), 50);
+  let msg;
+  if (cmd === 'toggle') cmd = r.alert ? 'stop' : 'start';
+  switch (cmd) {
+    case 'state':
+      return r.alert ? 'Timer running · ' + focusClock(now - r.since) : 'Calm · ' + focusPointsLine(r);
+    case 'start':
+      if (r.alert) return 'Already running · ' + focusClock(now - r.since);
+      r.alert = true; r.since = now; r.last = { cmd: 'start', at: now };
+      msg = 'Timer started'; break;
+    case 'stop': {
+      if (!r.alert) return 'Timer is not running';
+      const ms = now - r.since;
+      r.alert = false; r.last = { cmd: 'stop', at: now, ms: ms };
+      msg = 'Stopped · ' + focusClock(ms); break;
+    }
+    case 'plus':
+      r.points = (r.points || 0) + n; r.last = { cmd: 'plus', at: now, n: n };
+      msg = '+' + n + ' · ' + focusPointsLine(r); break;
+    case 'minus':
+      r.points = Math.max(0, (r.points || 0) - n); r.last = { cmd: 'minus', at: now, n: n };
+      msg = '−' + n + ' · ' + focusPointsLine(r); break;
+    case 'next': case 'prev':
+      r.last = { cmd: cmd, at: now };
+      msg = cmd === 'next' ? 'Next slide' : 'Back a slide';
+      if (!focusCount(r, 'clicker')) msg += ' (no clicker connected)';
+      break;
+    case 'set': {
+      const p = parseInt(q.get('points'), 10);
+      if (!(p >= 0 && p <= 99999)) return 'Bad points value';
+      if (q.get('ifEmpty') && r.points !== null) return focusPointsLine(r);
+      r.points = p; r.last = { cmd: 'set', at: now };
+      msg = focusPointsLine(r); break;
+    }
+  }
+  r.seq++;
+  focusBroadcast(r);
+  if (!focusCount(r, 'screen') && cmd !== 'next' && cmd !== 'prev' && cmd !== 'set') msg += ' (iPad not connected)';
+  return msg;
+}
+
+function handleFocus(req, res) {
+  let url;
+  try { url = new URL(req.url, 'http://localhost'); } catch (e) { return send(res, 400, 'Bad request'); }
+  const parts = url.pathname.split('/');            // ['', 'api', 'focus', room, cmd]
+  const room = parts[3], cmd = parts[4];
+  const text = function (code, body) {
+    send(res, code, body, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+  };
+  if (parts.length !== 5 || !FOCUS_ROOM.test(room || '')) return text(404, 'Unknown remote link');
+  if (req.method !== 'GET' && req.method !== 'POST') return text(405, 'Method not allowed');
+
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const now = Date.now();
+  const hits = (focusHits.get(ip) || []).filter(function (t) { return now - t < 60e3; });
+  hits.push(now); focusHits.set(ip, hits);
+  if (focusHits.size > 5000) focusHits.clear();
+  if (hits.length > 240) return text(429, 'Too many presses — wait a moment');
+
+  const r = focusRoom(room);
+  if (cmd === 'events') {
+    if (req.method !== 'GET') return text(405, 'Method not allowed');
+    if (r.clients.size >= 30) return text(429, 'Too many screens on this link');
+    const role = ['screen', 'clicker', 'remote'].indexOf(url.searchParams.get('role')) >= 0 ? url.searchParams.get('role') : 'screen';
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.write('retry: 2000\n\n');
+    const client = { res: res, role: role };
+    r.clients.add(client);
+    focusBroadcast(r);                               // the newcomer's first state, and everyone's new counts
+    req.on('close', function () { r.clients.delete(client); r.touched = Date.now(); focusBroadcast(r); });
+    return;
+  }
+  if (FOCUS_CMDS.indexOf(cmd) < 0) return text(404, 'Unknown command');
+  return text(200, focusApply(r, cmd, url.searchParams));
+}
+/* keep SSE streams open through proxies, and forget rooms idle for a fortnight */
+setInterval(function () {
+  const stale = Date.now() - 14 * 86400e3;
+  focusRooms.forEach(function (r, id) {
+    if (!r.clients.size && r.touched < stale) { focusRooms.delete(id); return; }
+    r.clients.forEach(function (c) { c.res.write(': ping\n\n'); });
+  });
+}, 25000).unref();
+
 const server = http.createServer(function (req, res) {
+  if (req.url.indexOf('/api/focus/') === 0) return handleFocus(req, res);
   if (req.url === '/api/dictate' || req.url.indexOf('/api/dictate?') === 0) {
     handleDictate(req, res).catch(function () { try { sendJSON(res, 500, { error: 'Server error.' }); } catch (e) {} });
     return;

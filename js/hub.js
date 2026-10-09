@@ -39,6 +39,7 @@
       external: '<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/>',
       /* Instant Groups is the random one — zap now belongs to Glow Getters */
       shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
+      bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
       type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
       ruler: '<path d="M3 15l6-6 3 3 3-3 3 3 3-3"/><path d="M3 15v4h18v-4"/><path d="M7 15v-2M11 15v-2M15 15v-2"/>'
     };
@@ -1502,6 +1503,8 @@
     { page: 'today', label: 'Today', icon: 'home' },
     { section: 'Board' },
     { page: 'glow', label: 'Glow Getters', icon: 'zap', external: true, title: 'Opens in its own window' },
+    /* the Apple Watch remote's iPad screen — its own page, not a route */
+    { page: 'focus', label: 'Focus Remote', icon: 'bell', external: true, href: 'focus.html', title: 'Off-task timer, class points and slide clicker for your Apple Watch' },
     { page: 'mental-starters', label: 'Mental Starters', icon: 'calculator' },
     { page: 'name-picker', label: 'Name Picker', icon: 'target' },
     { section: 'Pupils' },
@@ -1525,7 +1528,7 @@
      `generator` is the retired Question Generator page — both are bookmarks
      teachers already have, and showPage() maps them onto what replaced them.
      `pupil` and `settings` have no nav row by design. */
-  var PLAN_HASHES = PLAN_NAV.filter(function (n) { return n.page; }).map(function (n) { return n.page; })
+  var PLAN_HASHES = PLAN_NAV.filter(function (n) { return n.page && !n.href; }).map(function (n) { return n.page; })
     .concat(['pupil', 'settings', 'battler', 'generator']);
 
   function move(fromSel, to) {
@@ -1544,7 +1547,7 @@
       PLAN_NAV.map(function (n) {
         if (n.section) return '<div class="nav-section">' + n.section + '</div>';
         return '<button class="nav-link" data-page="' + n.page + '"' +
-          (n.external ? ' data-external="1"' : '') + (n.title ? ' title="' + esc(n.title) + '"' : '') + '>' +
+          (n.external ? ' data-external="1"' : '') + (n.href ? ' data-href="' + esc(n.href) + '"' : '') + (n.title ? ' title="' + esc(n.title) + '"' : '') + '>' +
           '<span class="ico">' + svg(n.icon, 18) + '</span> <span>' + esc(n.label) + '</span>' +
           (n.page === 'pupils' ? '<span class="count" id="navClassCount"></span>' : '') +
           (n.external ? '<span class="ext">' + svg('external', 14) + '</span>' : '') + '</button>';
@@ -1635,6 +1638,7 @@
     /* rebind nav clicks (replaced DOM) */
     document.querySelectorAll('#planApp .nav-link').forEach(function (b) {
       b.onclick = function () {
+        if (b.dataset.href) { window.open(b.dataset.href, b.dataset.page); return; }
         if (b.dataset.external) { if (typeof openGlowGetters === 'function') openGlowGetters(); return; }
         go(b.dataset.page);
       };
