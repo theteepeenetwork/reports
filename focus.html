@@ -232,6 +232,15 @@
     <p>Tap once so this iPad can play sounds and stay awake.</p>
     <button id="begin">Begin</button>
   </div>
+  <div id="acctBox" class="join" hidden>
+    <h1>Focus</h1>
+    <p id="acctMsg">Finding your account’s link…</p>
+    <div id="acctActions" hidden>
+      <button id="openHub">Open Classroom Hub</button>
+      <p class="hint" style="margin-top:18px">Sign in there once on this device, then come back — Focus picks up your link by itself.</p>
+      <button class="plain" id="useLinkInstead">No account? Paste a link instead</button>
+    </div>
+  </div>
   <div id="joinBox" class="join" hidden>
     <h1>Focus</h1>
     <p>Which link should this device use?</p>
@@ -250,12 +259,13 @@
     </div>
     <p>Your watch talks to this iPad through a private link. Anyone with the link can press the buttons, so keep it to yourself.</p>
 
-    <h3>This screen’s link · <span id="roomId"></span></h3>
-    <p>The four letters after “Ready for your watch” name the link. <b>The watch shortcuts and the class iPad must show the same four letters.</b> Each new device (or a Home Screen icon, which has its own storage) starts with its own link, so set the others up from this one:</p>
-    <div class="row"><span class="lab">Screen link</span><span class="url" id="screenUrl"></span><button class="btn" data-copy="screen">Copy</button></div>
-    <p>Open the screen link on the class iPad (AirDrop or email it to yourself). Or, on the class iPad, paste any of your watch links here:</p>
+    <h3><span id="linkTitle">This screen’s link</span> · <span id="roomId"></span></h3>
+    <p id="linkWho"></p>
+    <p>The four letters after “Ready for your watch” name the link; your watch shortcuts contain the same code after <code>/api/focus/</code>.</p>
+    <p id="linkSwitchHint">Already have watch shortcuts on a different link? Paste one of them here and it becomes the link:</p>
     <div class="row"><input id="joinInput" placeholder="Paste a Focus link" style="flex:1;min-width:0;background:transparent;border:0;color:var(--ink);font:inherit;font-size:14px;outline:none" /><button class="btn" id="joinBtn">Use this link</button></div>
     <p id="joinMsg"></p>
+    <div class="row" id="screenRow"><span class="lab">Screen link</span><span class="url" id="screenUrl"></span><button class="btn" data-copy="screen">Copy</button></div>
 
     <h3>Apple Watch</h3>
     <p>Make one Shortcut for each button you want, on your iPhone:</p>
@@ -299,6 +309,12 @@
   </div>
 </div>
 
+<!-- Your Hub account holds the one link (users/{uid}/focus). Same SDK as
+     glow-getters.html; no cloud.js here, so no tp_* key is ever touched. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js?v=1"></script>
 <script>
 (function () {
   'use strict';
@@ -597,6 +613,11 @@
     $('remoteUrl').textContent = remoteUrl();
     $('screenUrl').textContent = screenUrl();
     $('roomId').textContent = room.slice(0, 4);
+    $('linkTitle').textContent = ACCOUNT.uid ? 'Your account’s link' : 'This screen’s link';
+    $('linkWho').innerHTML = ACCOUNT.uid
+      ? 'Belongs to <b>' + esc(ACCOUNT.email || 'your Hub account') + '</b>. Every screen signed in to this account uses it automatically, and it never changes unless you change it here.'
+      : 'Not signed in, so this link lives only on this device. Sign in to Classroom Hub on this device and Focus will use your account’s link instead — the same on every screen.';
+    $('screenRow').hidden = !!ACCOUNT.uid;
     $('clickerCmd').innerHTML = '<code>' + clickerCmd() + '</code>';
     $('vol').value = prefs.vol;
     $('slideSound').checked = !!prefs.slideSound;
@@ -623,17 +644,92 @@
     room = key; save('focus_room', room); pinAddress(); S.seq = -1; firstState = true;
     connect(); if (seed) cmd('set?points=' + (S.points || 0)); fillSettings();
   }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ---------- the account's link ----------
+     Signed in to Classroom Hub on this device (the sign-in is shared by every
+     page on the site), the link lives in the account at users/{uid}/focus =
+     { room, t } and every screen follows it live. It is made once, by a
+     transaction so two screens opening at the same moment can't each make
+     their own; the first one in offers the link this device already had, so
+     existing watch shortcuts carry on working. It only ever changes when
+     someone changes it in ⚙. Outside users/{uid}/keys, so cloud.js, backups
+     and the sign-out reset never see it (docs/CONTRACT.md). */
+  var ACCOUNT = { uid: null, email: null, ref: null };
+  function firebaseReady() {
+    return typeof firebase !== 'undefined' && firebase.auth && firebase.database &&
+      typeof firebaseConfig !== 'undefined' && firebaseConfig && firebaseConfig.apiKey &&
+      String(firebaseConfig.apiKey).indexOf('PASTE_') !== 0;
+  }
+  function startAccount() {
+    if (!firebaseReady()) return false;
+    try { if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig); } catch (e) { return false; }
+    firebase.auth().onAuthStateChanged(function (user) {
+      if (ACCOUNT.ref) { try { ACCOUNT.ref.off(); } catch (e) {} ACCOUNT.ref = null; }
+      if (!user) {
+        ACCOUNT.uid = ACCOUNT.email = null;
+        if (!room) askSignIn();
+        return;
+      }
+      ACCOUNT.uid = user.uid; ACCOUNT.email = user.email;
+      var ref = ACCOUNT.ref = firebase.database().ref('users/' + user.uid + '/focus');
+      var offer = room || newKey();
+      ref.transaction(function (cur) {
+        if (cur && ROOM_RE.test(cur.room || '')) return;          // already set: keep it
+        return { room: offer, t: Date.now() };
+      }).catch(function () {});
+      /* can't reach the account (offline, or refused): carry on with this
+         device's own link rather than wait on "Finding your link…" forever */
+      var gaveUp = false;
+      var fallback = function () {
+        if (gaveUp || ACCOUNT.ref !== ref) return; gaveUp = true;
+        try { ref.off(); } catch (e) {}
+        ACCOUNT.ref = null;
+        if (!room) needRoom();
+      };
+      var wait = setTimeout(fallback, 8000);
+      ref.on('value', function (snap) {
+        var v = snap && snap.val();
+        if (!v || !ROOM_RE.test(v.room || '')) return;
+        clearTimeout(wait);
+        if (gaveUp) { gaveUp = false; ACCOUNT.ref = ref; }
+        if (v.room !== room) useRoom(v.room, false);
+        haveRoom();
+      }, function () { clearTimeout(wait); fallback(); });
+    });
+    return true;
+  }
+  /* every way of picking a link goes through here: signed in, it becomes the
+     account's link (and the listener above moves every screen onto it) */
+  function chooseRoom(k) {
+    if (ACCOUNT.ref) { ACCOUNT.ref.set({ room: k, t: Date.now() }); return; }
+    useRoom(k, false); haveRoom();
+  }
+  function askSignIn() {
+    $('beginBox').hidden = true; $('joinBox').hidden = true; $('acctBox').hidden = false;
+    $('acctMsg').textContent = 'Use your Classroom Hub account, and every screen you sign in on gets the same link — set up your watch once.';
+    $('acctActions').hidden = false;
+    $('curtain').classList.add('need');
+    setLink('off', 'Not signed in');
+  }
+  $('openHub').onclick = function () { window.open('index.html', '_blank'); };
+  $('useLinkInstead').onclick = function () { $('acctBox').hidden = true; needRoom(); };
+  /* signing in on the Hub in another tab lands here without a reload */
+  window.addEventListener('focus', function () { if (!room && !ACCOUNT.uid && firebaseReady()) try { firebase.auth().currentUser && location.reload(); } catch (e) {} });
+
   $('newRoom').onclick = function () {
     if (!confirm('Make a new link? Your existing watch shortcuts will stop working until you update them.')) return;
-    useRoom(newKey(), true);
+    chooseRoom(newKey());
   };
   /* paste any Focus link (a watch URL, the screen link, the remote link) or
      just its key, and this device joins that link */
   $('joinBtn').onclick = function () {
     var k = roomFrom($('joinInput').value);
     if (!k) { $('joinMsg').textContent = 'That doesn’t look like a Focus link.'; return; }
+    if (k === room) { $('joinMsg').textContent = 'That’s already the link.'; return; }
+    if (ACCOUNT.uid && !confirm('Make ' + k.slice(0, 4) + '… your account’s link? Every screen signed in to this account will switch to it.')) return;
     $('joinInput').value = ''; $('joinMsg').textContent = 'Now using link ' + k.slice(0, 4) + '.';
-    useRoom(k, false);
+    chooseRoom(k);
   };
 
   /* ---------- begin ---------- */
@@ -656,23 +752,26 @@
     setLink('off', 'No link yet');
   }
   function haveRoom() {
-    $('joinBox').hidden = true; $('beginBox').hidden = false;
+    $('joinBox').hidden = true; $('acctBox').hidden = true; $('beginBox').hidden = false;
     $('curtain').classList.remove('need');
   }
   $('firstJoin').onclick = function () {
     var k = roomFrom($('firstInput').value);
     if (!k) { $('firstMsg').textContent = 'That doesn’t look like a Focus link — it should contain /api/focus/ followed by a long code.'; return; }
-    useRoom(k, false); haveRoom();
+    chooseRoom(k);
   };
   $('firstNew').onclick = function () {
     if (!confirm('Make a brand-new link? Only do this the first time — watch shortcuts made for another link won’t reach this screen.')) return;
-    useRoom(newKey(), true); haveRoom();
+    chooseRoom(newKey());
     if (!REMOTE) { fillSettings(); $('drawer').classList.add('open'); }
   };
 
   showTally();
   render();
-  if (room) { pinAddress(); connect(); } else needRoom();
+  var hasAccount = startAccount();
+  if (room) { pinAddress(); connect(); }
+  else if (hasAccount) { $('beginBox').hidden = true; $('acctBox').hidden = false; $('curtain').classList.add('need'); setLink('off', 'Finding your link…'); }
+  else needRoom();
 })();
 </script>
 </body>
