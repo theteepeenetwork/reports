@@ -328,3 +328,48 @@ test('settings list a + and − watch link for every group', async ({ page }) =>
   await expect(page.locator('#groupUrls')).toContainText(`/api/focus/${room}/group?id=gPurple&n=1`);
   await expect(page.locator('#groupUrls')).toContainText(`/api/focus/${room}/group?id=gPurple&n=-1`);
 });
+
+test('only the class open in the Hub on this device is shown and listed', async ({ page }) => {
+  const room = 'active_' + Date.now() + '_abcdefghij';
+  const tree = glowTree(room);
+  tree[K + 'tp_classes'] = blob([{ id: 'default', name: 'Year 2' }, { id: 'c3', name: 'Year 3' }]);
+  tree[K + 'tp_roster::c3'] = blob([{ id: 'q1', name: 'Dev Patel' }]);
+  tree[K + 'tp_battler::c3'] = blob({ step: 1, points: { q1: 10 }, tables: [{ id: 'gGreen', name: 'Green table', pupilIds: ['q1'] }] });
+  await page.addInitScript(() => localStorage.setItem('tp_active_class', JSON.stringify('c3')));
+  await glowAccount(page, tree);
+  await page.goto(`http://127.0.0.1:${port}/focus.html`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  await page.waitForTimeout(300);
+  const bump = (key, points) => page.evaluate(([k, points]) => {
+    const s = JSON.parse(window.__acct.store[k].v); s.points = points;
+    window.__acct.put(k, { v: JSON.stringify(s), t: Date.now() });
+  }, [key, points]);
+  await bump(K + 'tp_battler', { p1: 13, p2: 10, p3: 7 });    // Year 2: not the open class
+  await page.waitForTimeout(600);
+  await expect(page.locator('#kicker')).toHaveText('Class points');
+  await bump(K + 'tp_battler::c3', { q1: 11 });                // Year 3: shown
+  await expect(page.locator('#kicker')).toHaveText('Dev Patel');
+  await page.click('#openSettings');
+  await expect(page.locator('#groupUrls .row')).toHaveCount(2);
+  await expect(page.locator('#groupUrls')).toContainText('Green table');
+  await expect(page.locator('#groupUrls')).not.toContainText('Purple group');
+});
+
+test('a watch link for another class\'s group gives nothing', async ({ page }) => {
+  const room = 'indep_' + Date.now() + '_abcdefghij';
+  const tree = glowTree(room);
+  tree[K + 'tp_classes'] = blob([{ id: 'default', name: 'Year 2' }, { id: 'c3', name: 'Year 3' }]);
+  tree[K + 'tp_battler::c3'] = blob({ step: 1, points: { q1: 10 }, tables: [{ id: 'gGreen', name: 'Green table', pupilIds: ['q1'] }] });
+  await page.addInitScript(() => localStorage.setItem('tp_active_class', JSON.stringify('c3')));
+  await glowAccount(page, tree);
+  await page.goto(`http://127.0.0.1:${port}/focus.html`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  await expect.poll(async () => (await call(`/api/focus/${room}/group?id=gPurple&n=1`)).body, { timeout: 5000 })
+    .toBe('Not in the class open on the Focus screen — no points given');
+  await page.waitForTimeout(800);
+  expect((await battler(page)).points).toEqual({ p1: 12, p2: 10, p3: 7 });
+  expect((await call(`/api/focus/${room}/group?id=gGreen&n=1`)).body).toBe('+ Green table');
+  await expect(page.locator('#kicker')).toHaveText('Green table');
+});
