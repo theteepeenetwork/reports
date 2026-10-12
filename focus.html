@@ -708,12 +708,12 @@
     var groups = glowGroups();
     $('groupUrls').innerHTML = !ACCOUNT.uid
       ? '<p>Sign in to Classroom Hub on this device to award Glow Getters groups from your watch.</p>'
-      : !groups.length ? '<p>No groups yet. Make them in Glow Getters › Groups and they appear here.</p>'
-      : '<p>A point goes to everyone in the group, using the Glow Getters step (+1, +2 or +5). This screen shows the group’s name; it has to be open for the watch to award.</p>' +
+      : !groups.length ? '<p>No groups in ' + esc(GLOW.classes[activeClass()] || 'this class') + ' yet. Make them in Glow Getters › Groups and they appear here.</p>'
+      : '<p>Groups in <b>' + esc(GLOW.classes[activeClass()] || 'this class') + '</b>, the class open in the Hub on this device. A point goes to everyone in the group, using the Glow Getters step (+1, +2 or +5). This screen shows the group’s name; it has to be open for the watch to award.</p>' +
         groups.map(function (g) {
           return [[1, '+ ' + g.name], [-1, '− ' + g.name]].map(function (x) {
             var k = 'group?id=' + encodeURIComponent(g.id) + '&n=' + x[0];
-            return '<div class="row"><span class="lab">' + esc(x[1]) + (g.cls ? ' <small style="color:var(--faint)">' + esc(g.cls) + '</small>' : '') +
+            return '<div class="row"><span class="lab">' + esc(x[1]) +
               '</span><span class="url">' + esc(api(k)) + '</span><button class="btn" data-copy="' + esc(k) + '">Copy</button></div>';
           }).join('');
         }).join('');
@@ -822,6 +822,17 @@
      a board that is open replays it with its usual animation. */
   var GLOW = { refs: [], classes: {}, data: {}, names: {}, hint: {}, seen: {}, busy: Promise.resolve(), sent: '' };
   var FL = { q: [], cur: null, t: null };
+  /* Only the class this device has open in the Hub (tp_active_class, which
+     is per device and never synced) is shown or listed. */
+  function activeClass() {
+    try { var id = JSON.parse(localStorage.getItem('tp_active_class')); return typeof id === 'string' && id ? id : 'default'; }
+    catch (e) { return 'default'; }
+  }
+  window.addEventListener('storage', function (e) {
+    if (e.key !== 'tp_active_class') return;
+    GLOW.sent = ''; sendGroups();
+    if ($('drawer').classList.contains('open')) fillSettings();
+  });
   function glowKey(base, cls) { return base + (!cls || cls === 'default' ? '' : '::' + cls); }
   function parseV(rec) { try { return rec && rec.v ? JSON.parse(rec.v) : null; } catch (e) { return null; } }
   function gOr(v, d) { return v === undefined || v === null ? d : v; }
@@ -856,21 +867,16 @@
         br.on('value', function (snap) {
           var had = GLOW.data.hasOwnProperty(c.id), old = GLOW.data[c.id], now = parseV(snap && snap.val());
           GLOW.data[c.id] = now;
-          if (had && old && now) glowDiff(old, now);     // the first value is where we start, not news
+          if (had && old && now && c.id === activeClass()) glowDiff(old, now);   // the first value is where we start, not news
           sendGroups(); glowApply();
         });
       });
     });
   }
   function glowGroups() {
-    var out = [], multi = Object.keys(GLOW.data).filter(function (k) { return GLOW.data[k] && (GLOW.data[k].tables || []).length; }).length > 1;
-    Object.keys(GLOW.data).forEach(function (cls) {
-      var s = GLOW.data[cls];
-      (s && Array.isArray(s.tables) ? s.tables : []).forEach(function (t) {
-        if (t && t.id) out.push({ id: t.id, name: t.name || 'Group', cls: multi ? (GLOW.classes[cls] || '') : '' });
-      });
-    });
-    return out;
+    var s = GLOW.data[activeClass()];
+    return (s && Array.isArray(s.tables) ? s.tables : []).filter(function (t) { return t && t.id; })
+      .map(function (t) { return { id: t.id, name: t.name || 'Group' }; });
   }
   /* the watch's reply can then say "+ Purple group" */
   function sendGroups() {
@@ -929,10 +935,10 @@
       .filter(function (a) { return !a.done; })
       .sort(function (a, b) { return a.key - b.key; })
       .forEach(function (a) {
-        var cls = Object.keys(GLOW.data).filter(function (c) {
-          var s = GLOW.data[c]; return s && (s.tables || []).some(function (t) { return t.id === a.id; });
-        })[0];
-        if (cls === undefined) return;                    // its class hasn't loaded yet; try again when it does
+        /* classes are independent: only a group in the class open on this device */
+        var cls = activeClass(), s = GLOW.data[cls];
+        if (s === undefined) return;                      // not loaded yet; try again when it is
+        if (!(s && (s.tables || []).some(function (t) { return t.id === a.id; }))) { a.done = true; return; }
         a.done = true;
         GLOW.hint[a.id] = Date.now();
         GLOW.busy = GLOW.busy.then(function () { return glowApplyOne(cls, a); });

@@ -445,6 +445,8 @@ function focusApply(r, cmd, q) {
       const id = q.get('id') || '';
       const sign = parseInt(q.get('n'), 10) < 0 ? -1 : 1;
       if (!FOCUS_GROUP_ID.test(id)) return 'Unknown group — copy the link again from Focus › ⚙';
+      /* the screen lists only the class open on it; another class's group is refused */
+      if (Object.keys(r.groups).length && !r.groups[id]) return 'Not in the class open on the Focus screen — no points given';
       r.awardKey = Math.max(now, r.awardKey + 1);
       r.awards.push({ key: r.awardKey, id: id, sign: sign, at: now });
       if (r.awards.length > 20) r.awards.shift();

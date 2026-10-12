@@ -63,7 +63,8 @@ printable starter sheet.
 > Signed in, it also follows **Glow Getters**: any point given anywhere shows on the screen for five
 > seconds (a group's name when a whole group moved, otherwise the child's), and the watch can give
 > group points (`…/group?id=<group id>&n=1` or `-1`; the links are in ⚙). No watch links for
-> individual children, by design.
+> individual children, by design. Classes are independent: only the class open in the Hub on that
+> device (`tp_active_class`) is shown, listed in ⚙, or can be given points from the watch.
 
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).
