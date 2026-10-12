@@ -83,3 +83,12 @@ it in ⚙. Every signed-in screen follows it live. It sits beside `keys`, not in
 not a `tp_*` key: cloud.js never pulls or pushes it, it is not in backups, and the sign-out reset
 leaves it alone. No pupil data. The device-local `focus_*` localStorage keys stay outside
 `DATA_KEYS`.
+
+## Focus Remote and Glow Getters: `focusApplied` in `tp_battler` (Oct 2026)
+`focus.html` reads every class's `tp_battler` and `tp_roster` from the account (read only) to show
+who just got a point. The one thing it writes is a Glow Getters **group** point sent from the
+watch: it applies it to that class's `tp_battler` blob in a Realtime DB transaction, the way
+`award()` in `js/glow.js` would (step, min/start/max clamp, `daily`, `recent`), and sets a new
+top-level number **`focusApplied`**, the key of the last watch event applied, so several open
+screens apply each event once. It is additive: `ggLoad()` keeps unknown fields, and Glow Getters
+never reads it. Boards pick the change up through cloud.js like any other remote edit.

@@ -60,6 +60,10 @@ printable starter sheet.
 > every screen on that account uses it. It never changes by itself; without an account a new device
 > asks for one (paste any watch URL) and keeps it in the address as `?room=`. Screens listen on an event stream and fall back to long-polling
 > when a school filter cuts the stream.
+> Signed in, it also follows **Glow Getters**: any point given anywhere shows on the screen for five
+> seconds (a group's name when a whole group moved, otherwise the child's), and the watch can give
+> group points (`…/group?id=<group id>&n=1` or `-1`; the links are in ⚙). No watch links for
+> individual children, by design.
 
 > Glow Getters is called `glow` in the code. It was `battler` until September 2026 —
 > see [docs/GLOSSARY.md](docs/GLOSSARY.md).

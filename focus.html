@@ -94,6 +94,14 @@
   body.count .face .kicker { color: #c4b5fd; }
   body.done .ring::before { animation: breathe 1.6s ease-in-out infinite; }
   body.done .face .big { color: #ddd6fe; }
+  /* a Glow Getters award: the name, big, and +1 / −1 in green or red */
+  body.award .face .kicker { font-size: min(11vh, 7.5vw); letter-spacing: -.01em; text-transform: none; color: var(--ink); font-weight: 800; line-height: 1.05; max-width: 86vw; }
+  body.award.up .face .big { color: var(--up); text-shadow: 0 0 40px rgba(74,222,128,.45); }
+  body.award.down .face .big { color: var(--down); text-shadow: 0 0 40px rgba(251,113,133,.45); }
+  body.award.up .ring::before { background: radial-gradient(circle, rgba(74,222,128,.22), transparent 68%); }
+  body.award.down .ring::before { background: radial-gradient(circle, rgba(251,113,133,.22), transparent 68%); }
+  body.award .face { animation: arrive .45s cubic-bezier(.3,1.5,.5,1); }
+  @keyframes arrive { from { transform: scale(.82); opacity: 0 } to { transform: scale(1); opacity: 1 } }
   @keyframes breathe { 0%,100% { transform: scale(1); opacity: .85 } 50% { transform: scale(1.06); opacity: 1 } }
 
   .face { position: relative; text-align: center; }
@@ -311,6 +319,8 @@
       <li>On the watch, add the <b>Shortcuts</b> complication to your face and choose it — one tap starts or stops the timer. On an Ultra, set the <b>Action button</b> to it.</li>
     </ol>
     <div id="urls"></div>
+    <h3>Glow Getters groups</h3>
+    <div id="groupUrls"></div>
     <p>Want everything in one shortcut? Use <b>Choose from Menu</b> with an item for each button, each holding its own <b>Get Contents of URL</b>.</p>
     <p>Any countdown length works: change the number after <code>m=</code> (minutes, e.g. <code>m=3</code> or <code>m=0.5</code>) — up to 90 minutes.</p>
 
@@ -481,6 +491,7 @@
   function cdLeft() { return S.cd ? S.cd.until - (Date.now() + skew) : 0; }
   function view() {
     if (S.alert) return 'alert';
+    if (FL.cur && Date.now() < FL.cur.until) return 'award';
     if (S.cd) { var left = cdLeft(); if (left > 0) return 'count'; if (left > -15000) return 'done'; }
     return 'points';
   }
@@ -492,11 +503,14 @@
     b.classList.toggle('count', v === 'count' || v === 'done');
     b.classList.toggle('done', v === 'done');
     b.classList.toggle('counting', counting);
+    b.classList.toggle('award', v === 'award');
+    b.classList.toggle('up', v === 'award' && FL.cur.d > 0);
+    b.classList.toggle('down', v === 'award' && FL.cur.d < 0);
     $('chipPoints').textContent = pts;
     $('goBtn').textContent = S.alert ? 'All clear' : 'Start timer';
     $('padToggle').textContent = S.alert ? 'All clear' : 'Start timer';
     /* a countdown still running behind the off-task timer keeps a chip */
-    $('cdChip').hidden = !(counting && v === 'alert');
+    $('cdChip').hidden = !(counting && (v === 'alert' || v === 'award'));
     if (counting) $('cdChipTime').textContent = cdClock(cdLeft());
 
     var big, kicker, sub = '', arc = 590.6, padSub;
@@ -507,6 +521,8 @@
     } else if (v === 'count') {
       big = cdClock(cdLeft()); kicker = 'Countdown'; sub = 'of ' + clock(S.cd.total); padSub = 'Countdown';
       arc = 590.6 * (1 - cdLeft() / S.cd.total);           // empties as time runs out
+    } else if (v === 'award') {
+      big = (FL.cur.d > 0 ? '+' : '−') + Math.abs(FL.cur.d); kicker = FL.cur.name; padSub = FL.cur.name;
     } else if (v === 'done') {
       big = '0:00'; kicker = 'Time’s up'; padSub = 'Time’s up';
     } else {
@@ -514,7 +530,7 @@
     }
     var el = $('big');
     if (el.textContent !== big) el.textContent = big;
-    el.classList.toggle('time', v !== 'points');
+    el.classList.toggle('time', v !== 'points' && v !== 'award');
     el.classList.toggle('long', big.length >= 5);
     $('kicker').textContent = kicker; $('sub').textContent = sub || '\u00a0';
     $('arc').style.strokeDashoffset = arc;
@@ -558,14 +574,16 @@
       if (!REMOTE) save('focus_points', st.points);
     }
     firstState = false;
+    glowAwards(st.awards || []);
     render();
     $('clickerState').textContent = st.clickers ? '● Clicker connected.' : '';
     if (!fresh) return;
-    if (!REMOTE) play(last.cmd);
+    if (!REMOTE && last.cmd !== 'group') play(last.cmd);
     if (last.cmd === 'plus') { pop($('big'), 'bump'); floatNum('+' + last.n, 'up'); pop($('chipPoints'), 'bump'); }
     if (last.cmd === 'minus') { pop($('big'), 'dip'); floatNum('−' + last.n, 'down'); }
     if (last.cmd === 'countdown') toast(clock(last.secs * 1000) + ' countdown');
     if (last.cmd === 'cancel') toast('Countdown cancelled');
+    if (last.cmd === 'group') GLOW.hint[last.id] = Date.now();
     if (last.cmd === 'next') toast('Next slide ›');
     if (last.cmd === 'prev') toast('‹ Previous slide');
     if (last.cmd === 'stop') {
@@ -606,6 +624,7 @@
   function connect() {
     stop();
     if (!room) return;
+    GLOW.sent = ''; setTimeout(sendGroups, 1500);
     lastMsg = Date.now();
     if (mode === 'poll') return poll(gen);
     var my = gen;
@@ -686,6 +705,18 @@
       return '<div class="row"><span class="lab">' + l[0] + '</span><span class="url">' + api(l[1]) +
         '</span><button class="btn" data-copy="' + l[1] + '">Copy</button></div>';
     }).join('');
+    var groups = glowGroups();
+    $('groupUrls').innerHTML = !ACCOUNT.uid
+      ? '<p>Sign in to Classroom Hub on this device to award Glow Getters groups from your watch.</p>'
+      : !groups.length ? '<p>No groups yet. Make them in Glow Getters › Groups and they appear here.</p>'
+      : '<p>A point goes to everyone in the group, using the Glow Getters step (+1, +2 or +5). This screen shows the group’s name; it has to be open for the watch to award.</p>' +
+        groups.map(function (g) {
+          return [[1, '+ ' + g.name], [-1, '− ' + g.name]].map(function (x) {
+            var k = 'group?id=' + encodeURIComponent(g.id) + '&n=' + x[0];
+            return '<div class="row"><span class="lab">' + esc(x[1]) + (g.cls ? ' <small style="color:var(--faint)">' + esc(g.cls) + '</small>' : '') +
+              '</span><span class="url">' + esc(api(k)) + '</span><button class="btn" data-copy="' + esc(k) + '">Copy</button></div>';
+          }).join('');
+        }).join('');
     $('remoteUrl').textContent = remoteUrl();
     $('screenUrl').textContent = screenUrl();
     $('roomId').textContent = room.slice(0, 4);
@@ -744,10 +775,12 @@
       if (ACCOUNT.ref) { try { ACCOUNT.ref.off(); } catch (e) {} ACCOUNT.ref = null; }
       if (!user) {
         ACCOUNT.uid = ACCOUNT.email = null;
+        glowStop();
         if (!room) askSignIn();
         return;
       }
       ACCOUNT.uid = user.uid; ACCOUNT.email = user.email;
+      if (!REMOTE) glowStart(user.uid);
       var ref = ACCOUNT.ref = firebase.database().ref('users/' + user.uid + '/focus');
       var offer = room || newKey();
       ref.transaction(function (cur) {
@@ -775,6 +808,162 @@
     });
     return true;
   }
+  /* ---------- Glow Getters ----------
+     Glow Getters keeps each class's points in the account at
+     users/{uid}/keys/tp_battler(::classId), names in tp_roster(::classId)
+     (docs/CONTRACT.md; the first class has no suffix). This screen listens to
+     them and, whenever points change — on the board, the Hub, anywhere —
+     shows who for five seconds: a group's name when the change matches one of
+     its groups, otherwise each child's. A group point from the watch arrives
+     as an event (see server.js) and is applied here in a transaction that
+     records the event's key in the blob (`focusApplied`), so with several
+     screens open it still lands once. It follows award() in js/glow.js:
+     the step, the min/start/max clamp, the daily log and the recent feed;
+     a board that is open replays it with its usual animation. */
+  var GLOW = { refs: [], classes: {}, data: {}, names: {}, hint: {}, seen: {}, busy: Promise.resolve(), sent: '' };
+  var FL = { q: [], cur: null, t: null };
+  function glowKey(base, cls) { return base + (!cls || cls === 'default' ? '' : '::' + cls); }
+  function parseV(rec) { try { return rec && rec.v ? JSON.parse(rec.v) : null; } catch (e) { return null; } }
+  function gOr(v, d) { return v === undefined || v === null ? d : v; }
+  function gClamp(s, v) {
+    var min = +gOr(s.minPoints, 5) || 0, max = (s.maxPoints === '' || s.maxPoints == null) ? Infinity : +s.maxPoints;
+    return Math.min(max, Math.max(min, v));
+  }
+  function gPts(s, pid) { var v = s.points ? s.points[pid] : undefined; if (v === undefined) v = +gOr(s.startPoints, 10) || 0; return gClamp(s, +v); }
+  function glowStop() {
+    GLOW.refs.forEach(function (r) { try { r.off(); } catch (e) {} });
+    GLOW.refs = []; GLOW.classes = {}; GLOW.data = {};
+  }
+  function glowStart(uid) {
+    glowStop();
+    var db = firebase.database(), base = 'users/' + uid + '/keys/';
+    var cref = db.ref(base + 'tp_classes'); GLOW.refs.push(cref);
+    cref.on('value', function (snap) {
+      var list = parseV(snap && snap.val()), found = [{ id: 'default', name: '' }];
+      (Array.isArray(list) ? list : []).forEach(function (c) {
+        if (!c || !c.id) return;
+        if (c.id === 'default') found[0].name = c.name || ''; else found.push({ id: c.id, name: c.name || '' });
+      });
+      found.forEach(function (c) {
+        if (GLOW.classes[c.id] !== undefined) { GLOW.classes[c.id] = c.name; return; }
+        GLOW.classes[c.id] = c.name;
+        var rr = db.ref(base + glowKey('tp_roster', c.id)), br = db.ref(base + glowKey('tp_battler', c.id));
+        GLOW.refs.push(rr, br);
+        rr.on('value', function (snap) {
+          var a = parseV(snap && snap.val());
+          (Array.isArray(a) ? a : []).forEach(function (p) { if (p && p.id) GLOW.names[p.id] = p.name; });
+        });
+        br.on('value', function (snap) {
+          var had = GLOW.data.hasOwnProperty(c.id), old = GLOW.data[c.id], now = parseV(snap && snap.val());
+          GLOW.data[c.id] = now;
+          if (had && old && now) glowDiff(old, now);     // the first value is where we start, not news
+          sendGroups(); glowApply();
+        });
+      });
+    });
+  }
+  function glowGroups() {
+    var out = [], multi = Object.keys(GLOW.data).filter(function (k) { return GLOW.data[k] && (GLOW.data[k].tables || []).length; }).length > 1;
+    Object.keys(GLOW.data).forEach(function (cls) {
+      var s = GLOW.data[cls];
+      (s && Array.isArray(s.tables) ? s.tables : []).forEach(function (t) {
+        if (t && t.id) out.push({ id: t.id, name: t.name || 'Group', cls: multi ? (GLOW.classes[cls] || '') : '' });
+      });
+    });
+    return out;
+  }
+  /* the watch's reply can then say "+ Purple group" */
+  function sendGroups() {
+    if (REMOTE || !room) return;
+    var body = JSON.stringify(glowGroups().map(function (g) { return { id: g.id, name: g.name }; }));
+    if (body === GLOW.sent) return;
+    GLOW.sent = body;
+    fetch(api('groups'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body }).catch(function () { GLOW.sent = ''; });
+  }
+  function glowDiff(old, now) {
+    var ids = {}, changes = [];
+    Object.keys(old.points || {}).concat(Object.keys(now.points || {})).forEach(function (k) { ids[k] = 1; });
+    Object.keys(ids).forEach(function (pid) { var d = gPts(now, pid) - gPts(old, pid); if (d) changes.push({ pid: pid, d: d }); });
+    if (!changes.length) return;
+    var used = {}, tables = (now.tables || []).slice().sort(function (a, b) { return (b.pupilIds || []).length - (a.pupilIds || []).length; });
+    tables.forEach(function (t) {
+      var mem = changes.filter(function (c) { return !used[c.pid] && (t.pupilIds || []).indexOf(c.pid) >= 0; });
+      if (!mem.length || mem.some(function (c) { return c.d !== mem[0].d; })) return;
+      var fromWatch = GLOW.hint[t.id] && Date.now() - GLOW.hint[t.id] < 15000;
+      /* a group award moves most of the group by the same amount (a few may sit at the floor or the cap) */
+      if (fromWatch || (mem.length >= 2 && mem.length * 2 >= t.pupilIds.length)) {
+        mem.forEach(function (c) { used[c.pid] = 1; });
+        delete GLOW.hint[t.id];
+        flash(t.name || 'Group', mem[0].d);
+      }
+    });
+    var rest = changes.filter(function (c) { return !used[c.pid]; });
+    if (rest.length > 6) return;                          // a reset or a settings change, not awards
+    rest.forEach(function (c) { flash(GLOW.names[c.pid] || 'A pupil', c.d); });
+  }
+  /* five seconds each; a queue moves along faster */
+  function flash(name, d) {
+    FL.q.push({ name: name, d: d });
+    if (!FL.cur) nextFlash();
+  }
+  function nextFlash() {
+    clearTimeout(FL.t);
+    FL.cur = FL.q.shift() || null;
+    if (FL.cur) {
+      var dur = FL.q.length ? 2500 : 5000;
+      FL.cur.until = Date.now() + dur;
+      if (!REMOTE) play(FL.cur.d > 0 ? 'plus' : 'minus');
+      if (S.alert) toast(FL.cur.name + ' ' + (FL.cur.d > 0 ? '+' : '−') + Math.abs(FL.cur.d));
+      FL.t = setTimeout(nextFlash, dur);
+    }
+    render();
+  }
+  /* group points from the watch: apply each once, in order */
+  function glowAwards(list) {
+    list.forEach(function (a) { if (!GLOW.seen[a.key]) GLOW.seen[a.key] = { key: a.key, id: a.id, sign: a.sign, done: false }; });
+    glowApply();
+  }
+  function glowApply() {
+    if (REMOTE || !ACCOUNT.uid) return;
+    Object.keys(GLOW.seen).map(function (k) { return GLOW.seen[k]; })
+      .filter(function (a) { return !a.done; })
+      .sort(function (a, b) { return a.key - b.key; })
+      .forEach(function (a) {
+        var cls = Object.keys(GLOW.data).filter(function (c) {
+          var s = GLOW.data[c]; return s && (s.tables || []).some(function (t) { return t.id === a.id; });
+        })[0];
+        if (cls === undefined) return;                    // its class hasn't loaded yet; try again when it does
+        a.done = true;
+        GLOW.hint[a.id] = Date.now();
+        GLOW.busy = GLOW.busy.then(function () { return glowApplyOne(cls, a); });
+      });
+  }
+  function glowApplyOne(cls, a) {
+    var ref = firebase.database().ref('users/' + ACCOUNT.uid + '/keys/' + glowKey('tp_battler', cls));
+    return ref.transaction(function (cur) {
+      var s = parseV(cur);
+      if (!s || (+s.focusApplied || 0) >= a.key) return;          // gone, or another screen did it
+      s.focusApplied = a.key;
+      var t = (s.tables || []).filter(function (x) { return x.id === a.id; })[0];
+      if (t) {
+        var step = [1, 2, 5].indexOf(s.step) >= 0 ? s.step : 1, n = a.sign * step;
+        var day = new Date().toISOString().slice(0, 10);               // glow.js's ggDayKey
+        if (!s.points || typeof s.points !== 'object') s.points = {};
+        if (!s.daily || typeof s.daily !== 'object') s.daily = {};
+        if (!Array.isArray(s.recent)) s.recent = [];
+        (t.pupilIds || []).forEach(function (pid) {
+          var before = gPts(s, pid), after = gClamp(s, before + n);
+          if (after === before) return;
+          s.points[pid] = after;
+          if (!s.daily[day]) s.daily[day] = {};
+          s.daily[day][pid] = (s.daily[day][pid] || 0) + (after - before);
+          if (after > before) { s.recent.unshift({ pid: pid, n: after - before, ts: Date.now() }); if (s.recent.length > 20) s.recent.length = 20; }
+        });
+      }
+      return { v: JSON.stringify(s), t: Date.now(), ver: 1 };
+    }).catch(function () { a.done = false; });
+  }
+
   /* every way of picking a link goes through here: signed in, it becomes the
      account's link (and the listener above moves every screen onto it) */
   function chooseRoom(k) {

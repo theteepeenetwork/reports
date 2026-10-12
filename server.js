@@ -349,6 +349,16 @@ async function handleDictate(req, res) {
      GET|POST …/<room>/next|prev               slides
      GET|POST …/<room>/countdown?m=5 (or ?s=30) a countdown, up to 90 min
      GET|POST …/<room>/cancel                  stop the countdown
+     GET|POST …/<room>/group?id=<group id>&n=1|-1   a Glow Getters group point
+     POST     …/<room>/groups                  a screen telling us the group
+                                                names, so the watch's reply can
+                                                say which group it was
+
+   Glow Getters points live in the teacher's Hub account, which this server
+   cannot write. So a group point is an event: it rides in `awards` (the last
+   few, each with a unique increasing `key`) and a signed-in Focus screen
+   applies it to the account. The account remembers the last key it applied,
+   so with several screens open it still happens exactly once.
      GET|POST …/<room>/state                   no change; a status line
      GET|POST …/<room>/set?points=N[&ifEmpty=1] the iPad seeding its count
      GET      …/<room>/events[?role=screen|clicker|remote]   SSE stream
@@ -369,7 +379,8 @@ async function handleDictate(req, res) {
    the points in its own storage and puts them back (`set … ifEmpty`).
    ===================================================================== */
 const FOCUS_ROOM = /^[A-Za-z0-9_-]{16,64}$/;
-const FOCUS_CMDS = ['state', 'toggle', 'start', 'stop', 'plus', 'minus', 'next', 'prev', 'set', 'countdown', 'cancel'];
+const FOCUS_CMDS = ['state', 'toggle', 'start', 'stop', 'plus', 'minus', 'next', 'prev', 'set', 'countdown', 'cancel', 'group'];
+const FOCUS_GROUP_ID = /^[A-Za-z0-9_-]{1,40}$/;
 const focusRooms = new Map();
 const focusHits = new Map();
 
@@ -379,7 +390,7 @@ function focusRoom(id) {
     if (focusRooms.size >= 1000) {
       for (const [k, v] of focusRooms) if (!v.clients.size) { focusRooms.delete(k); break; }
     }
-    r = { alert: false, since: 0, points: null, cd: null, seq: 0, last: null, clients: new Set(), waiters: new Set(), pollers: new Map() };
+    r = { alert: false, since: 0, points: null, cd: null, awards: [], awardKey: 0, groups: {}, seq: 0, last: null, clients: new Set(), waiters: new Set(), pollers: new Map() };
     focusRooms.set(id, r);
   }
   r.touched = Date.now();
@@ -395,7 +406,9 @@ function focusCount(r, role) {
 function focusPublic(r) {
   /* a countdown is forgotten a minute after it ends; screens show "time's up" themselves */
   if (r.cd && r.cd.until < Date.now() - 60e3) r.cd = null;
-  return { alert: r.alert, since: r.since, points: r.points, cd: r.cd, seq: r.seq, last: r.last, now: Date.now(),
+  const fresh = Date.now() - 120e3;     // an award no screen picked up in two minutes is dropped
+  r.awards = r.awards.filter(function (a) { return a.at > fresh; });
+  return { alert: r.alert, since: r.since, points: r.points, cd: r.cd, awards: r.awards, seq: r.seq, last: r.last, now: Date.now(),
     screens: focusCount(r, 'screen'), clickers: focusCount(r, 'clicker') };
 }
 function focusBroadcast(r) {
@@ -427,6 +440,16 @@ function focusApply(r, cmd, q) {
       r.cd = { until: now + secs * 1000, total: secs * 1000 };
       r.last = { cmd: 'countdown', at: now, secs: secs };
       msg = focusClock(secs * 1000) + ' countdown started'; break;
+    }
+    case 'group': {
+      const id = q.get('id') || '';
+      const sign = parseInt(q.get('n'), 10) < 0 ? -1 : 1;
+      if (!FOCUS_GROUP_ID.test(id)) return 'Unknown group — copy the link again from Focus › ⚙';
+      r.awardKey = Math.max(now, r.awardKey + 1);
+      r.awards.push({ key: r.awardKey, id: id, sign: sign, at: now });
+      if (r.awards.length > 20) r.awards.shift();
+      r.last = { cmd: 'group', at: now, id: id, sign: sign };
+      msg = (sign > 0 ? '+' : '−') + ' ' + (r.groups[id] || 'Group point'); break;
     }
     case 'cancel':
       if (!r.cd || r.cd.until <= now) return 'No countdown running';
@@ -519,6 +542,20 @@ function handleFocus(req, res) {
     req.on('close', function () { clearTimeout(timer); r.waiters.delete(reply); });
     if (String(r.seq) !== url.searchParams.get('seq')) return reply(JSON.stringify(focusPublic(r)));
     r.waiters.add(reply);
+    return;
+  }
+  if (cmd === 'groups') {
+    if (req.method !== 'POST') return text(405, 'Method not allowed');
+    readBody(req, 16 * 1024).then(function (body) {
+      const list = JSON.parse(body);
+      if (!Array.isArray(list)) throw new Error('not a list');
+      const g = {};
+      list.slice(0, 60).forEach(function (x) {
+        if (x && FOCUS_GROUP_ID.test(String(x.id))) g[x.id] = String(x.name || '').slice(0, 40);
+      });
+      r.groups = g;
+      text(200, 'ok');
+    }).catch(function () { text(400, 'Bad group list'); });
     return;
   }
   if (FOCUS_CMDS.indexOf(cmd) < 0) return text(404, 'Unknown command');
