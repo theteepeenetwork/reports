@@ -223,3 +223,108 @@ test('a countdown from the watch fills the screen and ends with "time\'s up"', a
   await expect(page.locator('#kicker')).toHaveText('Time’s up', { timeout: 8000 });
   expect((await call(`/api/focus/${room}/countdown?m=500`)).body).toMatch(/^Give a time/);
 });
+
+/* ---------- Glow Getters ----------
+   A stand-in for the account with a whole path tree, so Focus can read the
+   class list, a roster and the Glow Getters blob, and write group points. */
+async function glowAccount(page, tree) {
+  await blockExternal(page);
+  await page.addInitScript(tree => {
+    /* kept in sessionStorage so a reload is a second screen on the same account */
+    let saved = null; try { saved = JSON.parse(sessionStorage.getItem('__acct')); } catch (e) {}
+    const store = saved || tree, watchers = {}, writes = [];
+    const keep = () => { try { sessionStorage.setItem('__acct', JSON.stringify(store)); } catch (e) {} };
+    const fire = path => (watchers[path] || []).forEach(cb => cb({ val: () => store[path] === undefined ? null : store[path] }));
+    window.firebaseConfig = { apiKey: 'test', databaseURL: 'https://x', projectId: 'p' };
+    Object.defineProperty(window, 'firebaseConfig', { value: window.firebaseConfig, writable: false });
+    window.firebase = {
+      apps: [{}], initializeApp() {},
+      auth: () => ({ onAuthStateChanged(cb) { setTimeout(() => cb({ uid: 'u1', email: 'u1@school.org' }), 0); }, currentUser: { uid: 'u1' } }),
+      database: () => ({ ref(path) {
+        return {
+          on(_, cb) { (watchers[path] = watchers[path] || []).push(cb); setTimeout(() => cb({ val: () => store[path] === undefined ? null : store[path] }), 0); },
+          off() { delete watchers[path]; },
+          transaction(fn) {
+            const v = fn(store[path] === undefined ? null : store[path]);
+            if (v !== undefined) { store[path] = v; writes.push({ path, v }); keep(); setTimeout(() => fire(path), 0); }
+            return Promise.resolve({ committed: v !== undefined });
+          },
+          set(v) { store[path] = v; writes.push({ path, v }); setTimeout(() => fire(path), 0); return Promise.resolve(); }
+        };
+      } })
+    };
+    /* another device (the board) changing the account */
+    window.__acct = { store, writes, put(path, v) { store[path] = v; fire(path); } };
+  }, tree);
+}
+const K = 'users/u1/keys/';
+const blob = s => ({ v: JSON.stringify(s), t: 1 });
+function glowTree(room) {
+  return {
+    'users/u1/focus': { room, t: 1 },
+    [K + 'tp_classes']: blob([{ id: 'default', name: 'Year 2' }]),
+    [K + 'tp_roster']: blob([{ id: 'p1', name: 'Ava Bell' }, { id: 'p2', name: 'Ben Cross' }, { id: 'p3', name: 'Cleo Dunn' }]),
+    [K + 'tp_battler']: blob({ step: 1, minPoints: 5, startPoints: 10, maxPoints: '', points: { p1: 12, p2: 10, p3: 7 },
+      tables: [{ id: 'gPurple', name: 'Purple group', pupilIds: ['p1', 'p2'] }], daily: {}, recent: [] })
+  };
+}
+const battler = page => page.evaluate(k => JSON.parse(window.__acct.store[k].v), K + 'tp_battler');
+
+test('a group point from the watch lands once in Glow Getters and shows the group', async ({ page }) => {
+  const room = 'glow_' + Date.now() + '_abcdefghij';
+  await glowAccount(page, glowTree(room));
+  await page.goto(`http://127.0.0.1:${port}/focus.html`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  /* the screen told the server the names, so the watch hears which group */
+  await expect.poll(async () => (await call(`/api/focus/${room}/group?id=gPurple&n=1`)).body, { timeout: 5000 })
+    .toBe('+ Purple group');
+  await expect(page.locator('#kicker')).toHaveText('Purple group');
+  await expect(page.locator('#big')).toHaveText('+1');
+  await expect(page.locator('body')).toHaveClass(/award/);
+  await expect.poll(async () => (await battler(page)).points).toEqual({ p1: 13, p2: 11, p3: 7 });
+  const s = await battler(page);
+  expect(s.recent.map(r => r.pid).sort()).toEqual(['p1', 'p2']);
+  expect(Object.values(s.daily)[0]).toEqual({ p1: 1, p2: 1 });
+  /* back to class points after about five seconds */
+  await expect(page.locator('#kicker')).toHaveText('Class points', { timeout: 8000 });
+  /* a second screen on the same account, seeing the same event, never applies it again */
+  await page.reload();
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  await page.waitForTimeout(1500);
+  expect((await battler(page)).points).toEqual({ p1: 13, p2: 11, p3: 7 });
+  expect((await battler(page)).focusApplied).toBeGreaterThan(0);
+});
+
+test('a point given on the board shows the child or the group for five seconds', async ({ page }) => {
+  const room = 'board_' + Date.now() + '_abcdefghij';
+  await glowAccount(page, glowTree(room));
+  await page.goto(`http://127.0.0.1:${port}/focus.html`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  await page.waitForTimeout(300);
+  const put = points => page.evaluate(([k, points]) => {
+    const s = JSON.parse(window.__acct.store[k].v); s.points = points;
+    window.__acct.put(k, { v: JSON.stringify(s), t: Date.now() });
+  }, [K + 'tp_battler', points]);
+  await put({ p1: 12, p2: 10, p3: 6 });                       // Cleo −1
+  await expect(page.locator('#kicker')).toHaveText('Cleo Dunn');
+  await expect(page.locator('#big')).toHaveText('−1');
+  await expect(page.locator('body')).toHaveClass(/down/);
+  await put({ p1: 14, p2: 12, p3: 6 });                       // the group, +2 each
+  await expect(page.locator('#kicker')).toHaveText('Purple group', { timeout: 8000 });
+  await expect(page.locator('#big')).toHaveText('+2');
+});
+
+test('settings list a + and − watch link for every group', async ({ page }) => {
+  const room = 'links_' + Date.now() + '_abcdefghij';
+  await glowAccount(page, glowTree(room));
+  await page.goto(`http://127.0.0.1:${port}/focus.html`);
+  await page.click('#begin');
+  await expect(page.locator('#link')).toContainText('Ready for your watch');
+  await page.click('#openSettings');
+  await expect(page.locator('#groupUrls .row')).toHaveCount(2);
+  await expect(page.locator('#groupUrls')).toContainText(`/api/focus/${room}/group?id=gPurple&n=1`);
+  await expect(page.locator('#groupUrls')).toContainText(`/api/focus/${room}/group?id=gPurple&n=-1`);
+});
