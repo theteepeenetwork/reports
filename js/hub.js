@@ -1729,6 +1729,30 @@
     });
   }
 
+  /* ── note follow-ups ──
+     A Note in the behaviour log can be flagged for follow-up, with an
+     optional by-date and an actioned tick. Outstanding ones show in a
+     Follow-up card on Class at a glance; past the date they turn red. */
+  function fuOverdue(e) { return !!(e.followUpBy && !e.actioned && e.followUpBy < todayISO()); }
+  function fuRowHTML(e, attr) {
+    var od = fuOverdue(e);
+    var col = e.actioned ? 'var(--success)' : (od ? 'var(--coral-600)' : 'var(--muted)');
+    var when = e.followUpBy ? (od ? 'overdue · was due ' : 'by ') + recFmtDate(e.followUpBy) : 'no date set';
+    return '<label style="display:flex;align-items:center;gap:7px;margin-top:7px;font-size:12px;font-weight:700;color:' + col + ';cursor:pointer">' +
+      '<input type="checkbox" data-' + attr + '="' + e.id + '"' + (e.actioned ? ' checked' : '') + ' style="width:15px;height:15px" />' +
+      (e.actioned ? 'Followed up ✓' : 'Follow up ' + esc(when)) + '</label>';
+  }
+  function fuSetActioned(id, on) {
+    var e = (bhData || []).find(function (x) { return x.id === id; }); if (!e) return;
+    e.actioned = !!on;
+    try { window.bhData = bhData; } catch (err) {}
+    if (typeof bhSave === 'function') bhSave();
+    flashSaved();
+    window.dispatchEvent(new CustomEvent('tp:sync', { detail: { key: 'tp_behaviour', source: 'local' } }));
+    if (document.getElementById('pupil-root') && openPid === e.pupilId) renderRecord();
+    renderPupils();
+  }
+
   /* ── Plan › Pupils ── */
   function pupilSub(p) {
     var bits = [];
@@ -1761,6 +1785,21 @@
     var ppN = list.filter(function (p) { return p.pp; }).length;
     var alN = list.filter(function (p) { return p.allergies; }).length;
     var heN = list.filter(function (p) { return p.medical; }).length;
+    var inClass = {}; list.forEach(function (p) { inClass[p.id] = p; });
+    var fuList = (bhData || []).filter(function (e) { return e.type === 'note' && e.followUp && !e.actioned && inClass[e.pupilId]; })
+      .sort(function (a, b) {
+        var ad = a.followUpBy || '9999', bd = b.followUpBy || '9999';
+        return ad === bd ? String(a.date).localeCompare(String(b.date)) : ad.localeCompare(bd);
+      });
+    var fuN = fuList.length, fuOd = fuList.filter(fuOverdue).length;
+    var followUps = fuList.map(function (e) {
+      var od = fuOverdue(e);
+      return '<div class="gl-row gl-fu' + (od ? ' overdue' : '') + '">' +
+        '<input type="checkbox" data-glfu="' + e.id + '" title="Mark as actioned" />' +
+        '<div class="fu-body"><span class="nm" data-pid="' + e.pupilId + '">' + esc(inClass[e.pupilId].name) + '</span>' +
+          '<span class="fu-txt">' + esc(e.note || 'Note') + '</span></div>' +
+        '<span class="det">' + (e.followUpBy ? (od ? 'overdue · ' : 'by ') + esc(recFmtDate(e.followUpBy)) : '—') + '</span></div>';
+    }).join('');
 
     root.innerHTML =
       '<div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">' +
@@ -1774,8 +1813,15 @@
         glCard('Pupil Premium', 'pp', ppN, 'pp', pp) +
         glCard('Allergies', 'allergy', alN, 'allergy', allergy) +
         glCard('Health', 'health', heN, 'health', health) +
+        glCard('Follow-up', 'followup' + (fuOd ? ' overdue' : ''), fuN, 'followup', followUps) +
       '</div>';
     root.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { openRecord(b.dataset.pid); }; });
+    root.querySelectorAll('[data-glfu]').forEach(function (c) {
+      c.onchange = function () {
+        var id = c.dataset.glfu; fuSetActioned(id, true);
+        toast('✓ Marked as followed up', function () { fuSetActioned(id, false); });
+      };
+    });
     document.getElementById('manageBtn').onclick = function () {
       var m = document.getElementById('manageClass'); m.style.display = 'block';
       if (typeof rosRender === 'function') rosRender();
@@ -1839,7 +1885,8 @@
          Drop it and a term of glow points silently reclassify as ordinary praise. */
       var glow = e.note && /Battler|Glow|Quick log/i.test(e.note) && e.type === 'positive';
       var type = glow ? 'glow' : (e.type === 'positive' ? 'praise' : (e.type === 'concern' ? 'concern' : 'note'));
-      items.push({ id: e.id, store: 'bh', type: type, date: e.date, text: e.note || '', pinned: !!e.pinned });
+      items.push({ id: e.id, store: 'bh', type: type, date: e.date, text: e.note || '', pinned: !!e.pinned,
+        followUp: !!e.followUp, followUpBy: e.followUpBy || '', actioned: !!e.actioned });
     });
     (spData || []).filter(function (e) { return e.pupilId === pid; }).forEach(function (e) {
       items.push({ id: e.id, store: 'sp', type: 'star', date: e.date, text: e.reason || '', pinned: !!e.pinned });
@@ -1910,7 +1957,7 @@
     });
   }
   /* create / update an entry from the compose sheet */
-  function recApplyEntry(editId, type, text, date, pinned) {
+  function recApplyEntry(editId, type, text, date, pinned, fu) {
     if (editId) { bhData = bhData.filter(function (e) { return e.id !== editId; }); spData = spData.filter(function (e) { return e.id !== editId; }); }
     if (type === 'star') {
       spData.push({ id: editId || uid(), date: date, pupilId: openPid, reason: text, pinned: !!pinned });
@@ -1919,7 +1966,9 @@
       else if (typeof window.ggAward === 'function') window.ggAward(openPid, 1, { silent: true, label: 'Quick log' });
     } else {
       var bt = type === 'praise' ? 'positive' : (type === 'concern' ? 'concern' : 'note');
-      bhData.push({ id: editId || uid(), date: date, pupilId: openPid, type: bt, note: text, pinned: !!pinned });
+      var entry = { id: editId || uid(), date: date, pupilId: openPid, type: bt, note: text, pinned: !!pinned };
+      if (bt === 'note' && fu && fu.followUp) { entry.followUp = true; entry.followUpBy = fu.followUpBy || ''; entry.actioned = !!fu.actioned; }
+      bhData.push(entry);
     }
   }
 
@@ -1930,7 +1979,10 @@
       type: entry ? entry.type : REC_DEFAULT_TYPE,
       editId: entry ? entry.id : null,
       note: entry ? (entry.text || '') : '',
-      date: entry ? entry.date : todayISO()
+      date: entry ? entry.date : todayISO(),
+      followUp: entry ? !!entry.followUp : false,
+      followUpBy: entry ? (entry.followUpBy || '') : '',
+      actioned: entry ? !!entry.actioned : false
     };
     renderRecord();
   }
@@ -1938,15 +1990,22 @@
   function recSetSheetType(t) {
     var n = document.getElementById('recNote'); if (n) recSheet.note = n.value;
     var d = document.getElementById('recDate'); if (d) recSheet.date = d.value;
+    recSheetReadFollowUp();
     recSheet.type = t; renderRecord();
   }
+  function recSheetReadFollowUp() {
+    var c = document.getElementById('recFollowUp'); if (c) recSheet.followUp = c.checked;
+    var b = document.getElementById('recFollowUpBy'); if (b) recSheet.followUpBy = b.value;
+  }
   function recSubmitSheet() {
+    recSheetReadFollowUp();
     var n = document.getElementById('recNote'), d = document.getElementById('recDate');
     var text = ((n && n.value) || '').trim();
     var date = (d && d.value) || todayISO();
     var sh = recSheet, pinned = false;
     if (sh.mode === 'edit') { var f = recFindEntry(sh.editId); if (f) pinned = !!f.e.pinned; }
-    recApplyEntry(sh.mode === 'edit' ? sh.editId : null, sh.type, text, date, pinned);
+    recApplyEntry(sh.mode === 'edit' ? sh.editId : null, sh.type, text, date, pinned,
+      { followUp: sh.followUp, followUpBy: sh.followUpBy, actioned: sh.actioned });
     recSheet.open = false;
     recPersistLogs();
     toast(sh.mode === 'edit' ? '✓ Entry updated' : '✓ ' + recMeta(sh.type).label + ' added to log');
@@ -2032,13 +2091,16 @@
     var visible = (recFilter === 'all') ? sorted : sorted.filter(function (e) { return e.type === recFilter; });
     var entriesHTML = visible.length ? visible.map(function (e) {
       var m = recMeta(e.type);
-      return '<div style="border-left:3px solid ' + m.color + ';padding:11px 0 13px 15px;margin-bottom:5px">' +
+      var fu = (e.type === 'note' && e.followUp) ? fuRowHTML(e, 'recfu') : '';
+      var od = fu && fuOverdue(e);
+      return '<div style="border-left:3px solid ' + (od ? 'var(--coral-600)' : m.color) + ';padding:11px 0 13px 15px;margin-bottom:5px' + (od ? ';background:var(--coral-50);border-radius:0 10px 10px 0' : '') + '">' +
         '<div style="display:flex;align-items:center;gap:8px">' +
           '<span style="font-size:12.5px;font-weight:700;color:' + m.color + '">' + m.icon + ' ' + m.label + '</span>' +
           (e.pinned ? '<span style="font-size:9.5px;font-weight:800;letter-spacing:.05em;color:#8a6209;background:var(--gold-50);padding:1px 7px;border-radius:999px">PINNED</span>' : '') +
           '<span style="margin-left:auto;font-size:11px;color:var(--faint);font-weight:600">' + recFmtDate(e.date) + '</span>' +
         '</div>' +
-        '<div style="font-size:13.5px;color:#414851;margin-top:4px;line-height:1.55">' + (e.text ? esc(e.text) : '<span style="color:var(--faint)">No note added.</span>') + '</div>' +
+        '<div style="font-size:13.5px;color:' + (od ? 'var(--coral-600)' : '#414851') + ';margin-top:4px;line-height:1.55">' + (e.text ? esc(e.text) : '<span style="color:var(--faint)">No note added.</span>') + '</div>' +
+        fu +
         '<div style="display:flex;gap:16px;margin-top:9px">' +
           '<button data-pin="' + e.id + '" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer">' + (e.pinned ? 'Unpin' : 'Pin') + '</button>' +
           '<button data-edit="' + e.id + '" style="background:none;border:0;padding:0;font-size:11.5px;font-weight:700;color:var(--muted);cursor:pointer">Edit</button>' +
@@ -2158,6 +2220,14 @@
         '<div style="display:flex;gap:7px;flex-wrap:wrap">' + typeChips + '</div>' +
         '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:16px 0 5px">Note <span style="color:var(--faint);font-weight:500">(optional)</span></label>' +
         '<textarea id="recNote" data-autosize="1" placeholder="What happened? Add the detail you\'ll want when you look back…" style="' + fieldStyle + ';min-height:96px;line-height:1.5;resize:vertical">' + esc(sh.note || '') + '</textarea>' +
+        (sh.type === 'note'
+          ? '<label style="display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">' +
+              '<input id="recFollowUp" type="checkbox"' + (sh.followUp ? ' checked' : '') + ' style="width:16px;height:16px" /> Needs follow-up</label>' +
+            (sh.followUp
+              ? '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:10px 0 5px">Follow up by <span style="color:var(--faint);font-weight:500">(optional)</span></label>' +
+                '<input id="recFollowUpBy" type="date" value="' + esc(sh.followUpBy || '') + '" style="' + fieldStyle + '" />'
+              : '')
+          : '') +
         '<label style="display:block;font-weight:600;font-size:12px;color:var(--muted);margin:14px 0 5px">Date</label>' +
         '<input id="recDate" type="date" value="' + esc(sh.date || todayISO()) + '" style="' + fieldStyle + '" />' +
         '<button data-rec="sheetSave" style="background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:20px">' + (sh.mode === 'add' ? 'Add to log' : 'Save changes') + '</button>' +
@@ -2215,6 +2285,14 @@
     var note = document.getElementById('recNote');
     if (note) { note.oninput = function () { recSheet.note = note.value; note.style.height = 'auto'; note.style.height = (note.scrollHeight + 2) + 'px'; }; try { note.focus(); } catch (e) {} }
     var dt = document.getElementById('recDate'); if (dt) dt.onchange = function () { recSheet.date = dt.value; };
+    var fuc = document.getElementById('recFollowUp');
+    if (fuc) fuc.onchange = function () {
+      var n2 = document.getElementById('recNote'); if (n2) recSheet.note = n2.value;
+      var d2 = document.getElementById('recDate'); if (d2) recSheet.date = d2.value;
+      recSheetReadFollowUp(); renderRecord();
+    };
+    var fub = document.getElementById('recFollowUpBy'); if (fub) fub.onchange = function () { recSheet.followUpBy = fub.value; };
+    on('[data-recfu]', 'change', function () { fuSetActioned(this.getAttribute('data-recfu'), this.checked); });
   }
 
   /* ===================================================================

@@ -431,6 +431,14 @@
 .gl-row .nm { font-size: 12.5px; font-weight: 700; color: var(--teal-600); cursor: pointer; }
 .gl-row .nm:hover { text-decoration: underline; }
 .gl-row .det { margin-left: auto; font-size: 11.5px; color: var(--muted); text-align: right; }
+.gl-badge.followup { background: #f0f2f5; color: var(--muted); }
+.gl-badge.followup.overdue { background: var(--coral-50); color: var(--coral-600); }
+.gl-fu { align-items: flex-start; }
+.gl-fu input[type=checkbox] { width: 15px; height: 15px; margin: 1px 0 0; flex: 0 0 auto; cursor: pointer; }
+.gl-fu .fu-body { display: flex; flex-direction: column; min-width: 0; }
+.gl-fu .fu-txt { font-size: 11.5px; color: var(--muted); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.gl-fu .det { white-space: nowrap; }
+.gl-fu.overdue .nm, .gl-fu.overdue .fu-txt, .gl-fu.overdue .det { color: var(--coral-600); }
 
 /* Plan › Pupil record */
 .rec-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
