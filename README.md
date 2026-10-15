@@ -31,13 +31,15 @@ printable starter sheet.
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
 
 > **Mental Starter (CBM)** (`js/cbm.js`, `#cbm`) is a separate starter built on curriculum-based
-> measurement; Mental Starters is unchanged. The same 20 questions for everyone, each slot a fixed
-> skill with new numbers daily. Children self-mark and call out the numbers they got wrong; the
-> teacher live-marks two app-chosen questions in every book to check that self-marking. Each child's
-> sheet ends with four practice questions picked from their results: questions they got wrong (kept
-> until right on two separate later days), then what the class is weak on, then anything not secure,
-> then a challenge step. *Progress* shows the class reteach list and a child-by-skill grid. The
-> reasoning and research are in the page's *Set up › How it decides* and at the top of the file.
+> measurement; Mental Starters is unchanged. The same 20 questions for most of the class, each slot a
+> fixed skill with new numbers daily. The teacher live-marks two app-chosen questions in every book
+> (one from each half); at the register each child calls their score and those two marks, typed
+> `17 yn` (`b` = blank). A different two each day builds a skill-by-skill picture over a fortnight;
+> skills not yet checked for a child are estimated from how hard the class finds them and how that
+> child compares. A child who is under half right, or blank in the second half, on two of three
+> sheets gets a shorter sheet of simple calculations that grows back as they succeed. Each sheet ends
+> with practice questions chosen for that child. The reasoning and research are in the page's
+> *Set up › How it decides* and at the top of the file.
 
 > **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice. Tap Record and
 > talk through the set — *"new maths activity called partitioning on 25/9 … Aurora … not met …

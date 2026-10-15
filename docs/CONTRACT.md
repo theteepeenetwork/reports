@@ -55,12 +55,15 @@ active class's `tp_roster`, and every record is keyed by roster pupil id.
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
 or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg.slots` when the teacher asks.
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], days:{ [iso]:{ qs, audit:[i,j], marks:{ [pid]: {w,a} | {x:1} | {a} }, tg } } }`.
-`w` is the 1-based questions the child got wrong; `a` the teacher's two marks (1/0/null) for the slots
-in `audit`; `{x:1}` absent; `{a}` alone is a teacher's mark waiting for the child's score and is not
-a result. Every question carries `k`, its skill key — a White Rose step id, or `pre:<set>:<slot>`.
-Step ids are already permanent (`js/wrsteps.js`); `pre:` keys depend on the order of the half-term
-sets in `js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
+`{ ht, slots:(stepId|null)[20], support:{ [pid]:{ mode, rung?, rungAt? } }, days:{ [iso]:{ qs, audit:[i,j], sheets:{ [pid]:{ qs, audit, rung, why } }, marks:{ [pid]: {s,a} | {x:1} | {a} }, tg } } }`.
+`s` is the child's score; `a` the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for
+the slots in `audit`; `{x:1}` absent; `{a}` alone is marks waiting for the score and is not a result.
+A child on a shorter sheet has `sheets[pid]`, and their `s` and `a` refer to it. Marks from the first
+version carry `w` (wrong questions) instead of `s`; readers treat them as `s = length − w.length`.
+Every question carries `k`, its skill key — a White Rose step id, `pre:<set>:<slot>`, or `fd:<name>`
+(the foundation ladder in `js/cbm.js`). Step ids are already permanent (`js/wrsteps.js`); `fd:` ids
+are permanent too (append, never reorder); `pre:` keys depend on the order of the half-term sets in
+`js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
 stored here, only roster ids.
 
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)

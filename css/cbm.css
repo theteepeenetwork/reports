@@ -39,7 +39,14 @@
 .cbm-mark:hover { transform: none; background: var(--line-2); }
 .cbm-mark.yes { background: var(--success-50); color: var(--success); border-color: var(--success); }
 .cbm-mark.no { background: var(--coral-50); color: var(--coral-600); border-color: var(--coral-500); }
+.cbm-mark.blank { background: var(--line-2); color: var(--ink); border-color: var(--muted); }
 .cbm-mark:disabled { opacity: .35; }
+.cbm-markcell { white-space: nowrap; }
+.cbm-markq { font-size: 11px; font-weight: 700; color: var(--gold-600); margin-left: 4px; }
+.cbm-flag-blank { background: var(--line-2); color: var(--ink); }
+.cbm-sup { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--gold-50); color: var(--gold-600); border: 1px solid var(--gold-100); vertical-align: middle; }
+.cbm-supq { margin-top: 10px; font-size: 13.5px; display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+.cbm-supq b { color: var(--ink); }
 .cbm-score { white-space: nowrap; }
 .cbm-flag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--coral-50); color: var(--coral-600); }
 
@@ -83,11 +90,23 @@
 .b-mid { background: #fbe3ae; color: #6d4b05; }
 .b-ok  { background: #d6e8f7; color: #1d4a74; }
 .b-sec { background: #bfe6cf; color: #145c35; }
+.cbm-cell.is-guess { opacity: .55; font-style: italic; }
 .cbm-cell.is-open { box-shadow: inset 0 0 0 1.5px var(--ink); }
 .cbm-trust { white-space: nowrap; font-size: 13px; }
 .cbm-legend { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .cbm-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-left: 6px; }
 .cbm-legend i.is-open { box-shadow: inset 0 0 0 2px var(--ink); }
+
+/* Not finishing, or finding it hard */
+.cbm-support { margin-bottom: 16px; border-top: 3px solid var(--gold-500); }
+.cbm-suptable td { vertical-align: middle; }
+.cbm-sess { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 7px; margin: 1px 3px 1px 0; border-radius: 6px; background: var(--line-2); }
+.cbm-sess.hard { background: #f9c9d2; color: #8a1030; }
+.cbm-sess.good { background: #bfe6cf; color: #145c35; }
+.cbm-sess i { font-style: normal; font-weight: 800; margin-left: 2px; }
+.cbm-why1 { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.cbm-supctl { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cbm-supctl select { width: auto; }
 
 /* Answers on the board */
 #cbmAnswers { display: none; position: fixed; inset: 0; z-index: 9000; background: #fff; flex-direction: column; padding: 24px 32px; }
@@ -100,7 +119,13 @@
 .cbm-pbox { margin-top: 1rem; border: 2px dashed var(--teal-500); border-radius: 12px; padding: .7rem; }
 .cbm-pbox-h { font-weight: 800; margin-bottom: .5rem; }
 .cbm-pbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.cbm-ansslips { display: block; }
+.cbm-ansslip { display: inline-block; vertical-align: top; width: 31%; margin: 0 2% 12px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.cbm-ansslip ol { margin: 6px 0 0; padding-left: 22px; columns: 2; font-size: 13px; }
+.cbm-ansslip li.is-audit { font-weight: 800; }
 @media print {
+  .cbm-sheet-short .gen-q { font-size: 15pt; padding: 2.5mm 4mm; }
+  .cbm-ansslip { break-inside: avoid; page-break-inside: avoid; }
   #cbmAnswers { display: none !important; }
   .cbm-sheet .gen-heading { font-size: 12pt; margin: 0 0 3mm; }
   .cbm-sheet .gen-grid { gap: 2mm !important; }
