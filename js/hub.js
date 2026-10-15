@@ -1506,6 +1506,8 @@
     /* the Apple Watch remote's iPad screen — its own page, not a route */
     { page: 'focus', label: 'Focus Remote', icon: 'bell', external: true, href: 'focus.html', title: 'Off-task timer, class points and slide clicker for your Apple Watch' },
     { page: 'mental-starters', label: 'Mental Starters', icon: 'calculator' },
+    /* a separate, CBM-based starter (js/cbm.js) — Mental Starters is unchanged */
+    { page: 'cbm', label: 'Mental Starter (CBM)', icon: 'trending-up' },
     { page: 'name-picker', label: 'Name Picker', icon: 'target' },
     { section: 'Pupils' },
     { page: 'pupils', label: 'Pupils', icon: 'users' },
@@ -2306,6 +2308,7 @@
     else if (page === 'markbook') { var h = document.getElementById('mbTabs'); if (h) { var sub = h.querySelector('.tab.active'); showSub('mbTabs', sub ? sub.dataset.sub : 'mb-assessments'); } }
     /* timetable / seating / instant / groups are rendered by the base renderPage */
     else if (page === 'settings') { if (typeof renderProfile === 'function') renderProfile(); }
+    else if (page === 'cbm' && typeof window.cbmRender === 'function') window.cbmRender();
   }
 
   /* ===================================================================

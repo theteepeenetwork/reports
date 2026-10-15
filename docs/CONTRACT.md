@@ -51,6 +51,18 @@ one JSON value, `{ sessions, practice, plans, settings }`, under the per-class k
 `localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are read from the
 active class's `tp_roster`, and every record is keyed by roster pupil id.
 
+## Mental Starter (CBM): `tp_cbm` (Oct 2026)
+A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
+or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg.slots` when the teacher asks.
+One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
+`{ ht, slots:(stepId|null)[20], days:{ [iso]:{ qs, audit:[i,j], marks:{ [pid]: {w,a} | {x:1} | {a} }, tg } } }`.
+`w` is the 1-based questions the child got wrong; `a` the teacher's two marks (1/0/null) for the slots
+in `audit`; `{x:1}` absent; `{a}` alone is a teacher's mark waiting for the child's score and is not
+a result. Every question carries `k`, its skill key — a White Rose step id, or `pre:<set>:<slot>`.
+Step ids are already permanent (`js/wrsteps.js`); `pre:` keys depend on the order of the half-term
+sets in `js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
+stored here, only roster ids.
+
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)
 Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes
 and routes (`js/glow.js`, `gg*`, `.gg-*`, `#glow`) — it does NOT cover storage. The key stays
