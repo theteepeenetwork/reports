@@ -11,7 +11,7 @@ it has to work at 8:50am on a smartboard with thirty children arriving.
 
 ## What's in it
 
-**The app** — one sidebar, grouped by what you are doing. *Board*: Glow Getters, Mental Starters,
+**The app** — one sidebar, grouped by what you are doing. *Board*: Glow Getters, Mental Starters, Mental Starter (CBM),
 Name Picker. *Pupils*: Pupils, Class Context (SEND / EHCP / Pupil Premium).
 *Assess*: Markbook (assessments, starter scores, charts, marking), Reports. *Organise*: Timetable,
 Seating, Groups, Instant Groups. **Quick log** sits above them all — a star, praise, concern or glow
@@ -29,6 +29,15 @@ printable starter sheet.
 > sheet (print it, put it on the whiteboard, enter the scores). The middle step was the standalone
 > **Question Generator** until September 2026; it wrote to its own store, so the questions a
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
+
+> **Mental Starter (CBM)** (`js/cbm.js`, `#cbm`) is a separate starter built on curriculum-based
+> measurement; Mental Starters is unchanged. The same 20 questions for everyone, each slot a fixed
+> skill with new numbers daily. Children self-mark and call out the numbers they got wrong; the
+> teacher live-marks two app-chosen questions in every book to check that self-marking. Each child's
+> sheet ends with four practice questions picked from their results: questions they got wrong (kept
+> until right on two separate later days), then what the class is weak on, then anything not secure,
+> then a challenge step. *Progress* shows the class reteach list and a child-by-skill grid. The
+> reasoning and research are in the page's *Set up › How it decides* and at the top of the file.
 
 > **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice. Tap Record and
 > talk through the set — *"new maths activity called partitioning on 25/9 … Aurora … not met …
