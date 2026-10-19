@@ -213,9 +213,10 @@
     return null;
   }
 
-  function buildDay(state, iso) {
+  function seedOf(iso, v) { return 'cbm:' + iso + (v ? '#' + v : ''); }   // v: how many times the day has been remade
+  function buildDay(state, iso, v) {
     var ht = htOf(state, iso), set = setName(ht);
-    return withSeed('cbm:' + iso, function () {
+    return withSeed(seedOf(iso, v), function () {
       var base = window.genBuild ? window.genBuild(ht, 'preset', N) : [];
       var out = [];
       for (var i = 0; i < N; i++) {
@@ -400,7 +401,7 @@
      lately; never the same slot twice in a week. */
   function pickAudit(state, iso) {
     var day = state.days[iso], keys = (day ? day.qs : buildDay(state, iso)).map(function (q) { return q.k; });
-    var an = analyse(state, addDays(iso, -1), 14), mon = mondayOf(iso), rnd = seeded('audit:' + iso);
+    var an = analyse(state, addDays(iso, -1), 14), mon = mondayOf(iso), rnd = seeded('audit:' + iso + (day && day.v ? '#' + day.v : ''));
     var thisWeek = {}, lately = {};
     Object.keys(state.days).forEach(function (d) {
       if (d >= iso) return;
@@ -473,7 +474,7 @@
     var seen = {}, idx = 0;
     function fd(k) {
       var q, tries = 0;
-      do { q = buildKey(k, 'cbm:' + iso + ':' + pid + ':' + idx + ':' + tries); tries++; } while (seen[JSON.stringify(q)] && tries < 8);
+      do { q = buildKey(k, seedOf(iso, day.v) + ':' + pid + ':' + idx + ':' + tries); tries++; } while (seen[JSON.stringify(q)] && tries < 8);
       seen[JSON.stringify(q)] = 1; idx++;
       q.k = k; return q;
     }
@@ -503,8 +504,9 @@
     });
   }
 
-  function makeDay(state, iso) {
-    var day = { qs: buildDay(state, iso), audit: [], sheets: {}, marks: {}, tg: {} };
+  function makeDay(state, iso, v) {
+    var day = { qs: buildDay(state, iso, v), audit: [], sheets: {}, marks: {}, tg: {} };
+    if (v) day.v = v;
     state.days[iso] = day;
     day.audit = pickAudit(state, iso);
     planSheets(state, iso, false);
@@ -587,6 +589,7 @@
       '<details class="card cbm-qlist"><summary>Today\'s 20 questions and answers</summary><ol>' +
         day.qs.map(function (q, i) { return '<li' + (a.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '><span class="cbm-qtext">' + GRQ(q) + '</span><span class="cbm-qans">' + esc(ans(q, curDay)) + '</span><span class="cbm-qskill" title="' + esc(keyTitle(q.k)) + '">' + esc(keyLabel(q.k)) + '</span></li>'; }).join('') +
       '</ol><div class="cbm-qtools"><button type="button" class="secondary small" id="cbmRetarget" title="For children with nothing entered yet">Rebuild shorter sheets and practice boxes</button>' +
+        '<button type="button" class="secondary small" id="cbmRegen">Make a new set of questions</button>' +
         '<button type="button" class="danger small" id="cbmDelete">Delete this sheet</button></div></details>';
     wireNav(body);
     wireRows(body);
@@ -599,6 +602,11 @@
       planSheets(s, curDay, true);
       Object.keys(d.tg || {}).forEach(function (pid) { if (!d.marks[pid]) delete d.tg[pid]; });
       save(s); renderToday();
+    };
+    document.getElementById('cbmRegen').onclick = function () {
+      var has = enteredCount(day);
+      if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The ' + has + ' scores entered for this sheet will be cleared.' : '?'))) return;
+      var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); renderToday();
     };
     document.getElementById('cbmDelete').onclick = function () {
       var has = enteredCount(day);
