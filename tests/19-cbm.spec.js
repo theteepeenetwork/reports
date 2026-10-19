@@ -222,3 +222,21 @@ test('progress: the support table lists the child and the setting sticks', async
   expect(await page.evaluate(() => window.CBM.load().support.p2.mode)).toBe('full');
   expect(errors).toEqual([]);
 });
+
+test('a made sheet can be swapped for a fresh set of questions; scores entered for it are cleared', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await page.locator('tr[data-pid="p1"] .cbm-in').fill('17 yn');
+  await page.locator('tr[data-pid="p1"] .cbm-in').press('Enter');
+  const before = await page.evaluate(() => { const s = window.CBM.load(), d = Object.keys(s.days)[0]; return JSON.stringify(s.days[d].qs); });
+  page.once('dialog', d => d.accept());
+  await page.locator('.cbm-qlist summary').click();
+  await page.getByRole('button', { name: 'Make a new set of questions' }).click();
+  const after = await page.evaluate(() => { const s = window.CBM.load(), d = Object.keys(s.days)[0]; return { qs: s.days[d].qs, v: s.days[d].v, marks: s.days[d].marks }; });
+  expect(after.v).toBe(1);
+  expect(after.qs).toHaveLength(20);
+  expect(JSON.stringify(after.qs)).not.toBe(before);
+  expect(after.qs.map(q => q.k)).toEqual(JSON.parse(before).map(q => q.k));   // same skills, new numbers
+  expect(after.marks).toEqual({});
+  await expect(page.locator('tr[data-pid="p1"] .cbm-in')).toHaveValue('');
+});
