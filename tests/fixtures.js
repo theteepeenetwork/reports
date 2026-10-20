@@ -70,20 +70,56 @@ async function fakeFirebase(page, { remote = {} } = {}) {
 
     const pathOf = p => String(p).replace(/^\/+|\/+$/g, '');
     const keyOf = p => pathOf(p).split('/').pop();
+    const isKeyPath = p => /\/keys\/[^/]+$/.test(pathOf(p));
+    const clone = v => (v == null ? null : JSON.parse(JSON.stringify(v)));
+    // Anything outside users/{uid}/keys (snapshots, focus) lives here, by full path.
+    const other = {};
+    // child_* listeners on users/{uid}/keys, so tests can play "another device".
+    const listeners = { child_added: [], child_changed: [], child_removed: [] };
+    const snap = (key, val) => ({ key, val: () => clone(val), exists: () => val != null });
+    const held = [];
+    function emit(ev, key, val) {
+      if (window.__fb && window.__fb.hold) { held.push([ev, key, clone(val)]); return; }
+      listeners[ev].slice().forEach(cb => { try { cb(snap(key, val)); } catch (e) { console.error(e); } });
+    }
+    function storeSet(path, val) {
+      if (isKeyPath(path)) {
+        const k = keyOf(path), had = k in store;
+        if (val == null) { delete store[k]; if (had) emit('child_removed', k, null); }
+        else { store[k] = clone(val); emit(had ? 'child_changed' : 'child_added', k, val); }
+      } else if (val == null) delete other[pathOf(path)];
+      else other[pathOf(path)] = clone(val);
+    }
+    function storeGet(path) {
+      if (/\/keys$/.test(pathOf(path))) return Object.keys(store).length ? store : null;
+      if (isKeyPath(path)) return store[keyOf(path)] || null;
+      const p = pathOf(path), out = {};
+      if (p in other) return other[p];
+      Object.keys(other).forEach(full => { if (full.indexOf(p + '/') === 0) out[full.slice(p.length + 1).split('/')[0]] = other[full]; });
+      return Object.keys(out).length ? out : null;
+    }
 
     function makeRef(path) {
       return {
         path,
-        set(val) { writes.push({ op: 'set', path: pathOf(path), key: keyOf(path), val }); store[keyOf(path)] = val; return Promise.resolve(); },
+        set(val) { writes.push({ op: 'set', path: pathOf(path), key: keyOf(path), val }); storeSet(path, val); return Promise.resolve(); },
         update(val) { writes.push({ op: 'update', path: pathOf(path), key: keyOf(path), val }); return Promise.resolve(); },
-        remove() { writes.push({ op: 'remove', path: pathOf(path), key: keyOf(path) }); delete store[keyOf(path)]; return Promise.resolve(); },
+        remove() { writes.push({ op: 'remove', path: pathOf(path), key: keyOf(path) }); storeSet(path, null); return Promise.resolve(); },
+        transaction(fn) {
+          const next = fn(clone(storeGet(path)));
+          if (next === undefined) return Promise.resolve({ committed: false, snapshot: snap(keyOf(path), storeGet(path)) });
+          writes.push({ op: 'set', path: pathOf(path), key: keyOf(path), val: next, tx: true });
+          storeSet(path, next);
+          return Promise.resolve({ committed: true, snapshot: snap(keyOf(path), next) });
+        },
         child(sub) { return makeRef(pathOf(path) + '/' + sub); },
-        on() {}, off() {},
-        once() {
-          const isKeysRoot = /\/keys$/.test(pathOf(path));
-          const val = isKeysRoot ? (Object.keys(store).length ? store : null) : (store[keyOf(path)] || null);
-          return Promise.resolve({ val: () => val, key: keyOf(path) });
-        }
+        on(ev, cb) {
+          if (!listeners[ev]) return;
+          listeners[ev].push(cb);
+          if (ev === 'child_added') Object.keys(store).forEach(k => setTimeout(() => cb(snap(k, store[k])), 0));
+        },
+        off() { Object.keys(listeners).forEach(ev => { listeners[ev].length = 0; }); },
+        once() { return Promise.resolve(snap(keyOf(path), storeGet(path))); }
       };
     }
 
@@ -107,7 +143,14 @@ async function fakeFirebase(page, { remote = {} } = {}) {
       remote: store,
       signIn(user) { if (authCb) authCb({ uid: user.uid, email: user.email || (user.uid + '@example.school') }); },
       signOut() { if (authCb) authCb(null); },
-      clearWrites() { writes.length = 0; }
+      clearWrites() { writes.length = 0; },
+      // Another device writes to the account (envelope, or null to delete).
+      remoteSet(key, val) { storeSet('users/x/keys/' + key, val); },
+      // Hold listener events (a slow connection), then deliver them in order.
+      hold: false,
+      flush() { this.hold = false; held.splice(0).forEach(e => emit(e[0], e[1], e[2])); },
+      other
+
     };
   }, { remote });
 }
