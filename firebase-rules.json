@@ -8,7 +8,7 @@
           "$key": {
             ".validate": "newData.hasChildren(['v', 't'])",
             "v": {
-              ".validate": "newData.isString() && newData.val().length < 262144"
+              ".validate": "newData.isString() && newData.val().length < 4194304"
             },
             "t": {
               ".validate": "newData.isNumber()"

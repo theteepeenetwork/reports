@@ -6,10 +6,39 @@ The single shared interface every agent codes against. Do not change without the
 - `tp_owner_uid`   — uid that owns the local data (stamped on adopt + first signed-in write)
 - `tp_owner_email` — email for the active-account banner / picker
 - `tp_known_emails`— JSON array of remembered emails for the device-local account picker
+- `tp_sync_meta`   — `{ uid, t:{ key: account t last seen }, dirty:{ key: 1 } }`. Written by cloud.js only.
+                     `dirty` = this device has an edit the account has not got (survives a closed tab or
+                     a day offline); cleared once the account holds it. Wiped with the rest on reset.
 
 ## Cloud envelope (Realtime DB)
 `users/{uid}/keys/{key} = { v: <string>, t: <number> , ver?: <number> }`
 Readers MUST accept both `{v,t}` (legacy) and `{v,t,ver}`. Only ever ADD `ver`.
+`v` may be up to 4 MB (rules; was 256 KB — a key over the limit could never sync).
+
+## Writes never overwrite blind (Oct 2026)
+A sign-in on an iPad once wiped a laptop: the iPad's reset re-seeded a one-class `tp_classes` while
+signed in and the write hook pushed it over the account. Since then:
+- **Hydrating.** From sign-in until the account has been pulled onto the device, cloud.js pushes
+  nothing. `resetting` stays raised through `appResetState()`, so re-seeded defaults are never
+  marked as edits.
+- **Every push is a transaction.** If the key's `t` in the account differs from `tp_sync_meta.t[key]`,
+  another device wrote it since: the two values are merged, not overwritten. Objects merge per
+  field, arrays of `{id}` records merge by id, arrays of plain values are unioned, anything else
+  takes this device's value. A record deleted on one device while the other edited the same key can
+  come back; a record is never silently dropped.
+- An incoming change for a key this device has an unsent edit to is merged into it, not applied over it.
+- `child_removed` is applied: a key removed on one device is removed on the others.
+- In-memory copies refreshed after a remote change: `roster, msData, spData, bhData, asData`
+  (replaced) and `profile, seatState` (updated in place). A module that caches a key's data in
+  memory must be added to `cloudRefreshMirrors` or re-read on `tp:sync` — a stale copy saved later
+  overwrites what other devices wrote.
+
+## Daily copies: `users/{uid}/snapshots/{id}` and `users/{uid}/snapIndex/{id}` (Oct 2026)
+On the first sign-in of the day, cloud.js copies the account it just pulled to
+`snapshots/{YYYY-MM-DD} = { t, keys }` (the `keys` tree as-is) and indexes it at `snapIndex/{id} = t`,
+so listing never downloads a copy. 14 are kept. Restoring (the cloud chip) first saves the current
+account as `{date}-{HHMM}-before-restore`, then rewrites `keys` to the copy. Beside `keys`, not in it:
+never pulled or pushed as data, not in backups, untouched by sign-out.
 
 ## DOM events
 - `tp:sync`  (exists)  — a data key changed; pages refresh mirrors + re-render.
@@ -32,6 +61,7 @@ Readers MUST accept both `{v,t}` (legacy) and `{v,t,ver}`. Only ever ADD `ver`.
 
 ## Owner-stamp decision (cloud.js `cloudOnSignedIn`)
 1. remote NON-empty → pull (account is source of truth); stamp owner = uid. (never seed)
+   If `tp_owner_uid === uid`, this device's unsent edits (`tp_sync_meta.dirty`) are kept and merged.
 2. remote empty AND `tp_owner_uid === uid` → silent `cloudAdoptLocal()` (resuming own device).
 3. remote empty AND local data exists AND owner unset/≠uid → `appPromptAdopt(...)`. NEVER auto-seed.
 4. remote empty AND no local data → start empty; stamp owner = uid.
