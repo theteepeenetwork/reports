@@ -46,10 +46,18 @@ function importAll(ev){
   const r = new FileReader();
   r.onload = e => {
     try {
-      applyBackup(JSON.parse(e.target.result));
-      alert('Backup restored. Reloading.');
+      if (!applyBackup(JSON.parse(e.target.result))) throw new Error('not a backup');
+    } catch { alert('That does not look like a valid backup file.'); return; }
+    /* Signed in: put the backup into the account BEFORE reloading. Otherwise the
+       reload pulls the account straight back over what was just restored. */
+    const up = (typeof window.cloudUploadAll === 'function') ? window.cloudUploadAll() : Promise.resolve(false);
+    const slow = new Promise(res => setTimeout(() => res('slow'), 20000));
+    Promise.race([up, slow]).catch(() => false).then(ok => {
+      alert(ok === true ? 'Backup restored to this device and your account — your other devices will update too. Reloading.'
+          : ok === 'slow' ? 'Backup restored on this device. It is still uploading to your account — leave this device online and it will finish after the reload.'
+          : 'Backup restored. Reloading.');
       location.reload();
-    } catch { alert('That does not look like a valid backup file.'); }
+    });
   };
   r.readAsText(file);
 }

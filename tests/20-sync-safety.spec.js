@@ -180,3 +180,33 @@ test('the cloud chip lists the daily copies and restores one', async ({ page }) 
   expect(JSON.parse(after.keys.tp_roster.v).length).toBe(2);
   expect(after.other.some(p => /before-restore/.test(p))).toBe(true);
 });
+
+test('restoring a backup while signed in puts every class into the account before reloading', async ({ page }) => {
+  await blockExternal(page);
+  await fakeFirebase(page, { remote: ACCOUNT });
+  await page.goto('/index.html');
+  await ready(page);
+  await page.evaluate(() => window.__fb.signIn({ uid: 'teacherA' }));
+  await page.waitForTimeout(800);
+
+  const backup = {
+    tp_classes: [{ id: 'default', name: '3H' }, { id: 'c2', name: '4P' }, { id: 'c3', name: 'Year 2' }],
+    tp_roster: [{ id: 'r1', name: 'Remote Child' }, { id: 'r2', name: 'Second Child' }, { id: 'r9', name: 'Back From Backup' }],
+    'tp_roster::c3': [{ id: 'y1', name: 'Year Two Child' }],
+    _meta: { ver: 2, activeClass: 'c3' }
+  };
+  await page.evaluate(() => addEventListener('beforeunload', () =>
+    sessionStorage.setItem('fbAfter', JSON.stringify({ keys: window.__fb.remote, other: Object.keys(window.__fb.other) }))));
+  page.on('dialog', d => d.accept());
+  await page.setInputFiles('#importFile', {
+    name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup))
+  }).catch(async () => {
+    await page.evaluate(b => importAll({ target: { files: [new File([JSON.stringify(b)], 'backup.json')] } }), backup);
+  });
+  await page.waitForEvent('load');
+  const after = await page.evaluate(() => JSON.parse(sessionStorage.getItem('fbAfter')));
+  expect(JSON.parse(after.keys.tp_classes.v).map(c => c.id)).toEqual(['default', 'c2', 'c3']);
+  expect(JSON.parse(after.keys['tp_roster::c3'].v)[0].name).toBe('Year Two Child');
+  expect(JSON.parse(after.keys.tp_roster.v).map(p => p.id)).toContain('r9');
+  expect(after.other.some(p => /before-backup-restore/.test(p))).toBe(true);
+});
