@@ -334,6 +334,27 @@
     cloudStampOwner();
     if (!CLOUD.hydrating) cloudPushDirty();
   };
+  /* Restoring a backup: make the account exactly this device's data, key by key
+     (no merge — the teacher chose this version). The account as it was is
+     saved first as a cloud copy, so the restore can be undone. Keys only in
+     the account are left alone. Resolves true once the account has it. */
+  window.cloudUploadAll = function (){
+    if (!CLOUD.uid || !CLOUD.db || CLOUD.hydrating) return Promise.resolve(false);
+    var root = CLOUD.db.ref('users/' + CLOUD.uid), d = new Date();
+    var pre = todayStamp() + '-' + ('0' + d.getHours()).slice(-2) + ('0' + d.getMinutes()).slice(-2) + '-before-backup-restore';
+    return root.child('keys').once('value').then(function (s){
+      return cloudSnapshot(s.val() || {}, pre);
+    }).then(function (){
+      var t = Date.now(), jobs = [];
+      syncPhysKeys().forEach(function (k){
+        var raw = LS.getItem(k); if (raw == null) return;
+        clearTimeout(CLOUD.timers[k]); delete CLOUD.timers[k];
+        CLOUD.lastSeen[k] = raw;
+        jobs.push(keyRef(k).set({ v: raw, t: t, ver: CLOUD_VER }).then(function (){ META.t[k] = t; delete META.dirty[k]; }));
+      });
+      return Promise.all(jobs);
+    }).then(function (){ saveMeta(); cloudSetStatus('synced'); return true; });
+  };
   function cloudPushDirty (){ Object.keys(META.dirty).forEach(function (k){ if (isSyncKey(k)) cloudPush(k); }); }
   // Remove a single physical key from the cloud (used when a class is deleted).
   window.cloudRemoveKey = function (k){
