@@ -893,7 +893,7 @@
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
     document.getElementById('cbmCopy').onclick = function () {
       var cfg = Store.get('tp_starter_cfg', null) || {};
-      var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : s.yr; save(s); renderSetup();
+      var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : null;   // null: follow the class, as the starter does save(s); renderSetup();
     };
     body.querySelectorAll('[data-slot]').forEach(function (sel) {
       sel.onchange = function () { var s = load(); s.slots[+sel.dataset.slot] = sel.value || null; save(s); renderSetup(); };
