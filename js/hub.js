@@ -166,7 +166,7 @@
       '<div class="ql-head"><span class="ql-title">Who?</span><span class="spacer"></span>' +
         '<button class="ql-x" id="qlClose">✕ close</button></div>' +
       (roster.length ? '<div class="ql-special">' + special + '</div><div class="ql-grid">' + chips + '</div>'
-                     : '<p class="empty">Add pupils in Plan › Pupils › Manage class first.</p>');
+                     : '<p class="empty">Add pupils in Settings › Classes first.</p>');
     document.getElementById('qlClose').onclick = closeQuickLog;
     sheet.querySelectorAll('[data-pid]').forEach(function (b) { b.onclick = function () { qlWhat(b.dataset.pid); }; });
     sheet.querySelectorAll('[data-special]').forEach(function (b) { b.onclick = function () { qlWhat('__class__'); }; });
@@ -1581,8 +1581,7 @@
     var today = section('today'); today.innerHTML = '<div id="today-root"></div>';
     /* Pupils */
     var pupils = section('pupils');
-    pupils.innerHTML = '<div id="pupils-root"></div>' +
-      '<div id="manageClass" class="card" style="display:none;margin-top:18px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Manage class</h2><button class="secondary small" id="closeManage">Close</button></div><div id="manageBody"></div></div>';
+    pupils.innerHTML = '<div id="pupils-root"></div>';
     /* Pupil record */
     var pupil = section('pupil'); pupil.innerHTML = '<div id="pupil-root"></div>';
     /* Markbook */
@@ -1608,7 +1607,7 @@
     section('hundred-words');
     /* Settings */
     var settings = section('settings');
-    settings.innerHTML = '<div class="page-header"><h1>Settings</h1><p>Your profile, plus backup &amp; data.</p></div><div id="settings-profile"></div><div id="settings-data"></div>';
+    settings.innerHTML = '<div class="page-header"><h1>Settings</h1><p>Your classes and pupils, your profile, plus backup &amp; data.</p></div><div id="settings-classes"></div><div id="settings-profile"></div><div id="settings-data"></div>';
 
     /* relocate existing content into the aggregators */
     move('#page-assessments', document.getElementById('mb-assessments'));
@@ -1626,7 +1625,6 @@
       ms.insertAdjacentHTML('beforeend', msFlowHTML());
     })();
     move('#page-charts', document.getElementById('mb-charts'));
-    move('#page-class-list', document.getElementById('manageBody'));
     move('#page-profile', document.getElementById('settings-profile'));
     move('#page-data', document.getElementById('settings-data'));
 
@@ -1637,9 +1635,6 @@
       if (id === 'mb-charts' && typeof chRender === 'function') chRender();
       if (id === 'mb-marking' && typeof mkRender === 'function') mkRender();
     });
-
-    /* manage-class panel toggle */
-    document.getElementById('closeManage').onclick = function () { document.getElementById('manageClass').style.display = 'none'; };
 
     /* rebind nav clicks (replaced DOM) */
     document.querySelectorAll('#planApp .nav-link').forEach(function (b) {
@@ -1828,11 +1823,8 @@
         toast('✓ Marked as followed up', function () { fuSetActioned(id, false); });
       };
     });
-    document.getElementById('manageBtn').onclick = function () {
-      var m = document.getElementById('manageClass'); m.style.display = 'block';
-      if (typeof rosRender === 'function') rosRender();
-      m.scrollIntoView({ behavior: 'smooth' });
-    };
+    /* pupils are managed in Settings › Classes, alongside the classes themselves */
+    document.getElementById('manageBtn').onclick = function () { if (typeof openClassManager === 'function') openClassManager(); };
     var el = document.getElementById('navClassCount'); if (el) el.textContent = list.length || '';
   }
 
@@ -2311,7 +2303,7 @@
     else if (page === 'pupil') renderRecord();
     else if (page === 'markbook') { var h = document.getElementById('mbTabs'); if (h) { var sub = h.querySelector('.tab.active'); showSub('mbTabs', sub ? sub.dataset.sub : 'mb-assessments'); } }
     /* timetable / seating / instant / groups are rendered by the base renderPage */
-    else if (page === 'settings') { if (typeof renderProfile === 'function') renderProfile(); }
+    else if (page === 'settings') { if (typeof renderClassManager === 'function') renderClassManager(); if (typeof renderProfile === 'function') renderProfile(); }
     else if (page === 'cbm' && typeof window.cbmRender === 'function') window.cbmRender();
   }
 

@@ -201,3 +201,70 @@ test('the switcher can be reached without knowing the logo is a button', async (
   await expect(page.locator('#tpClassSwitch')).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+/* Settings › Classes is where classes and pupils are managed now; the corner
+   switcher only switches. */
+test('the corner switcher only switches, and points to Settings for the rest', async ({ page }) => {
+  await open(page, twoClasses());
+  await page.evaluate(() => window.openClassSwitcher());
+  const panel = page.locator('#tpClassSwitch');
+  await expect(panel.locator('input')).toHaveCount(0);
+  await expect(panel.locator('.tpcs-del')).toHaveCount(0);
+  await panel.locator('#tpcsManage').click();
+  await expect(page.locator('#settings-classes .cm-class')).toHaveCount(2);
+});
+
+test('settings creates a class with pupils without switching to it', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page, twoClasses());
+  await page.evaluate(() => go('settings'));
+  await page.locator('#cmAddBtn').click();
+  await page.fill('#cmNewName', 'Year 4');
+  await page.fill('#cmNewPupils', 'Ada\nBo');
+  await page.uncheck('#cmNewSwitch');
+  await page.locator('#cmNewSave').click();
+
+  const state = await page.evaluate(() => {
+    const c = getClasses().find(x => x.name === 'Year 4');
+    return { active: activeClassId(), names: JSON.parse(localStorage.getItem('tp_roster::' + c.id)).map(p => p.name) };
+  });
+  expect(state.active).toBe('b');
+  expect(state.names).toEqual(['Ada', 'Bo']);
+  expect(errors).toEqual([]);
+});
+
+test('settings manages pupils in a class you are not in, and moves them between classes', async ({ page }) => {
+  await open(page, Object.assign(twoClasses(), { tp_roster: J([]) }));
+  await page.evaluate(() => go('settings'));
+  const def = page.locator('.cm-class[data-id="default"]');
+  await def.locator('.cm-pupils').click();
+  await def.locator('.cm-addone').fill('Zed');
+  await def.locator('.cm-addone-btn').click();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tp_roster')).map(p => p.name))).toEqual(['Zed']);
+  expect(await page.evaluate(() => roster.map(p => p.name)), 'the active class was touched').toEqual(['Kit Marlow', 'Nell Gwyn']);
+
+  page.once('dialog', d => d.accept());
+  await page.locator('.cm-class[data-id="default"] .cm-pmove').selectOption('b');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tp_roster')))).toEqual([]);
+  expect(await page.evaluate(() => roster.map(p => p.name).sort())).toEqual(['Kit Marlow', 'Nell Gwyn', 'Zed']);
+});
+
+test('deleting a class from settings needs its name typed', async ({ page }) => {
+  await open(page, {
+    tp_classes: J([{ id: 'default', name: 'Year 2', createdAt: 1 }, { id: 'b', name: 'Year 3', createdAt: 2 }, { id: 'c', name: 'Year 4', createdAt: 3 }]),
+    tp_active_class: J('b'), 'tp_roster::b': J(OTHER), 'tp_roster::c': J([{ id: 'z', name: 'Zed' }])
+  });
+  await page.evaluate(() => go('settings'));
+  await expect(page.locator('.cm-class[data-id="default"] .cm-del'), 'the first class offered deletion').toHaveCount(0);
+
+  const answers = ['wrong', undefined];          // the prompt, then the "didn't match" alert
+  page.on('dialog', d => d.accept(answers.shift()));
+  await page.locator('.cm-class[data-id="c"] .cm-del').click();
+  expect(await page.evaluate(() => getClasses().map(c => c.id))).toContain('c');
+
+  answers.push('year 4');
+  await page.locator('.cm-class[data-id="c"] .cm-del').click();
+  expect(await page.evaluate(() => getClasses().map(c => c.id))).toEqual(['default', 'b']);
+  expect(await page.evaluate(() => localStorage.getItem('tp_roster::c'))).toBeNull();
+  expect(await page.evaluate(() => activeClassId())).toBe('b');
+});
