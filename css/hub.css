@@ -1045,3 +1045,23 @@
    column down to the bottom of the window. */
 .hw-frame { display: block; width: 100%; height: calc(100vh - 140px); min-height: 520px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
 @media (max-width: 900px) { .hw-frame { height: calc(100vh - 110px); } }
+
+/* ── Settings › Classes (js/class-manager.js) ─────────────────────── */
+.cm-card { max-width: 920px; }
+.cm-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.cm-class { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: var(--card); }
+.cm-class.active { border-color: var(--teal-600); background: var(--teal-50); }
+.cm-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cm-fields { flex: 1; min-width: 240px; display: flex; gap: 8px; flex-wrap: wrap; }
+.cm-fields input { flex: 1 1 120px; min-width: 0; }
+.cm-fields .cm-name, .cm-fields #cmNewName { flex: 2 1 180px; font-weight: 700; }
+.cm-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cm-badge { font-size: 11px; font-weight: 700; color: var(--teal-700); background: var(--card); border: 1px solid var(--teal-600); border-radius: 999px; padding: 5px 10px; }
+.cm-actions button[disabled] { opacity: .45; cursor: not-allowed; transform: none; }
+.cm-pupils-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cm-bulk { margin: 8px 0 10px; }
+.cm-bulk summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); }
+.cm-table input, .cm-table select { width: 100%; min-width: 90px; }
+.cm-new { border: 1.5px dashed var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+.cm-check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-weight: 600; }
+.cm-check input { width: auto; }

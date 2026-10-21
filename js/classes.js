@@ -184,7 +184,9 @@ function ensureClassOpener(){
   host.appendChild(b);
 }
 
-/* ── Class switcher / manager (self-contained overlay) ── */
+/* ── Class switcher (self-contained overlay) ──
+   Switching only. Creating, renaming, deleting and filling classes lives in
+   Settings › Classes (js/class-manager.js); this links there. */
 function openClassSwitcher(){
   const old = document.getElementById('tpClassSwitch'); if (old) old.remove();
   const ov = document.createElement('div'); ov.id = 'tpClassSwitch';
@@ -195,50 +197,31 @@ function openClassSwitcher(){
   const active = activeClassIsSet() ? activeClassId() : null;
   const rows = getClasses().map(c => {
     const isActive = c.id === active;
-    return `<div class="tpcs-row" data-id="${esc(c.id)}" style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid ${isActive ? 'var(--teal-600)' : 'var(--line)'};border-radius:12px;margin-bottom:8px;background:${isActive ? 'var(--teal-50)' : 'var(--card)'}">
-      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
-        <input class="tpcs-name" value="${esc(c.name || '')}" placeholder="Class name" style="font-weight:700;font-size:14px;border:1px solid transparent;border-radius:8px;padding:3px 6px;background:none" />
-        <div style="display:flex;gap:6px">
-          <input class="tpcs-year" value="${esc(c.year || '')}" placeholder="Year group" style="flex:1;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 6px" />
-          <input class="tpcs-room" value="${esc(c.room || '')}" placeholder="Room" style="width:90px;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:3px 6px" />
-        </div>
-      </div>
+    const sub = [c.year, c.room].filter(Boolean).join(' · ');
+    return `<div class="tpcs-row" data-id="${esc(c.id)}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ${isActive ? 'var(--teal-600)' : 'var(--line)'};border-radius:12px;margin-bottom:8px;background:${isActive ? 'var(--teal-50)' : 'var(--card)'}">
+      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(c.name || 'Class')}</div>${sub ? `<div style="font-size:12px;color:var(--muted)">${esc(sub)}</div>` : ''}</div>
       ${isActive
-        ? '<span class="pill" style="background:var(--teal-50);color:var(--teal-700);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px">Active</span>'
-        : '<button class="tpcs-use" style="font-size:12px;font-weight:700;color:var(--ink);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer">Use ▸</button>'}
-      ${(c.id !== 'default' && getClasses().length > 1)
-        ? '<button class="tpcs-del" title="Delete class" style="width:28px;height:28px;border:none;background:none;color:#c4cad2;font-size:14px;cursor:pointer;border-radius:8px">✕</button>'
-        : ''}
+        ? '<span class="pill" style="background:var(--teal-50);color:var(--teal-700);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px">Current</span>'
+        : '<button class="tpcs-use" style="font-size:12px;font-weight:700;color:var(--ink);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer">Switch ▸</button>'}
     </div>`;
   }).join('');
-  ov.innerHTML = `<div style="background:var(--card);border-radius:18px;max-width:460px;width:100%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(20,24,29,.3)">
-    <div style="display:flex;align-items:center;margin-bottom:4px"><h3 style="margin:0;font-size:18px;font-weight:800">Your classes</h3><span style="flex:1"></span><button id="tpcsClose" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">✕ close</button></div>
-    <p class="muted" style="font-size:12.5px;margin:0 0 14px">Switch class on this device. Pupils, scores, behaviour, groups and reports are per class; your timetable and name are shared.</p>
+  ov.innerHTML = `<div style="background:var(--card);border-radius:18px;max-width:420px;width:100%;max-height:85vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(20,24,29,.3)">
+    <div style="display:flex;align-items:center;margin-bottom:12px"><h3 style="margin:0;font-size:18px;font-weight:800">Switch class</h3><span style="flex:1"></span><button id="tpcsClose" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer">✕ close</button></div>
     ${rows}
-    <button id="tpcsAdd" style="width:100%;border:1.5px dashed #c4cad2;background:none;color:var(--muted);font-size:13px;font-weight:700;border-radius:12px;padding:11px;cursor:pointer;margin-top:4px">＋ Add a class</button>
+    <button id="tpcsManage" style="width:100%;border:1px solid var(--line);background:none;color:var(--ink);font-size:13px;font-weight:700;border-radius:12px;padding:10px;cursor:pointer;margin-top:4px">Add, edit or delete classes in Settings ›</button>
   </div>`;
   document.body.appendChild(ov);
   document.getElementById('tpcsClose').onclick = () => ov.remove();
-  document.getElementById('tpcsAdd').onclick = () => { const id = createClass({ name:'New class' }); setActiveClass(id); setTimeout(() => location.reload(), 650); };  // let the cloud push (debounced 250ms) land
+  document.getElementById('tpcsManage').onclick = () => { ov.remove(); if (typeof openClassManager === 'function') openClassManager(); };
   ov.querySelectorAll('.tpcs-row').forEach(row => {
-    const id = row.dataset.id;
-    const nameEl = row.querySelector('.tpcs-name'), yearEl = row.querySelector('.tpcs-year'), roomEl = row.querySelector('.tpcs-room');
-    const commit = () => { renameClass(id, { name:nameEl.value.trim() || 'Class', year:yearEl.value.trim(), room:roomEl.value.trim() }); applyClass(); };
-    [nameEl, yearEl, roomEl].forEach(el => el.addEventListener('change', commit));
-    const use = row.querySelector('.tpcs-use'); if (use) use.onclick = () => { setActiveClass(id); location.reload(); };
-    const del = row.querySelector('.tpcs-del'); if (del) del.onclick = () => {
-      if (!confirm('Delete this class and all its pupils, scores and notes? This cannot be undone.')) return;
-      const wasActive = activeClassId() === id;
-      deleteClass(id);
-      if (wasActive) setTimeout(() => location.reload(), 400); else openClassSwitcher();
-    };
+    const use = row.querySelector('.tpcs-use'); if (use) use.onclick = () => { setActiveClass(row.dataset.id); location.reload(); };
   });
 }
 window.openClassSwitcher = openClassSwitcher;
 window.orphanedClassIds = orphanedClassIds;
 window.recoverOrphanedClasses = recoverOrphanedClasses;
 window.activeClassIsSet = activeClassIsSet;
-/* Year group & room now live on each class (Switch class ▾), not the teacher profile. */
+/* Year group & room now live on each class (Settings › Classes), not the teacher profile. */
 const PROFILE_FIELDS = [
   { k:'name',      label:'Name',               ph:'e.g. Miss Hart' },
   { k:'title',     label:'Role / job title',   ph:'e.g. Class teacher' },

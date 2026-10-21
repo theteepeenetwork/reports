@@ -299,7 +299,7 @@
             '<div class="mk-thead"><span class="mk-ava"></span><span class="mk-name">Pupil</span>' +
               '<span class="mk-last">Last</span><span class="mk-mark">Mark</span>' +
               '<span class="mk-met">Met?</span><span class="mk-comment">Comment</span></div>' +
-            (P.length ? rowsHTML : '<div class="mk-empty">No pupils yet. Add your class in Plan › Pupils › Manage class.</div>') +
+            (P.length ? rowsHTML : '<div class="mk-empty">No pupils yet. Add your class in Settings › Classes.</div>') +
           '</div>' +
         '</div>';
     } else {
