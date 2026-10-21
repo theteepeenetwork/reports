@@ -134,6 +134,7 @@
   function load() {
     var s = Store.get(KEY, null) || {};
     return { ht: typeof s.ht === 'string' ? s.ht : null, slots: normSlots(s.slots),
+             yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              support: s.support && typeof s.support === 'object' ? s.support : {},
              days: s.days && typeof s.days === 'object' ? s.days : {} };
   }
@@ -871,7 +872,7 @@
   /* ── Set up ───────────────────────────────────────────── */
   function renderSetup() {
     var state = load(), body = document.getElementById('cbmBody'), ht = htOf(state);
-    var picker = typeof window.genStepPicker === 'function' ? window.genStepPicker(state.slots, ht) : '';
+    var picker = typeof window.genStepPicker === 'function' ? window.genStepPicker(state.slots, ht, state.yr) : '';
     body.innerHTML =
       '<div class="card"><div class="cbm-setrow"><div><label for="cbmHT">Half term</label><select id="cbmHT">' +
         '<option value="">Work it out from the date (' + esc(halfTermFor(todayISO())) + ')</option>' +
@@ -892,13 +893,15 @@
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
     document.getElementById('cbmCopy').onclick = function () {
       var cfg = Store.get('tp_starter_cfg', null) || {};
-      var s = load(); s.slots = normSlots(cfg.slots); save(s); renderSetup();
+      var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : s.yr; save(s); renderSetup();
     };
     body.querySelectorAll('[data-slot]').forEach(function (sel) {
       sel.onchange = function () { var s = load(); s.slots[+sel.dataset.slot] = sel.value || null; save(s); renderSetup(); };
     });
     var clr = body.querySelector('[data-gen-clear]');
     if (clr) clr.onclick = function () { var s = load(); s.slots = normSlots([]); save(s); renderSetup(); };
+    var yr = body.querySelector('[data-gen-year]');
+    if (yr) yr.onchange = function () { var s = load(); s.yr = +yr.value; save(s); renderSetup(); };
   }
 
   window.addEventListener('tp:sync', function () { var h = host(); if (h && h.classList.contains('active')) render(); });
