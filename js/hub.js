@@ -364,7 +364,9 @@
       /* normalised against the live scheme, so a step that leaves White Rose
          degrades to "use the preset question" rather than printing a blank */
       slots: (typeof window.genNormaliseSlots === 'function') ? window.genNormaliseSlots(c.slots) : [],
-      xtPick: ['2', '5', '10', 'all'].indexOf(c.xtPick) >= 0 ? c.xtPick : 'all'
+      xtPick: ['2', '5', '10', 'all'].indexOf(c.xtPick) >= 0 ? c.xtPick : 'all',
+      /* the White Rose year the step picker shows; null = the class's year group */
+      wrYear: c.wrYear >= 1 && c.wrYear <= 6 ? c.wrYear : null
     };
   }
   function stSaveCfg(c) { Store.set('tp_starter_cfg', c); }
@@ -886,7 +888,7 @@
         ? 'Each slot below is a White Rose small step. Anything you leave alone falls back to the ' + esc(setName) + ' question for that position.'
         : 'The ' + esc(setName) + ' question set, as taught this half term. <b>Choose steps</b> swaps any slot for a White Rose small step.') + '</p>';
 
-    var picker = steps && typeof window.genStepPicker === 'function' ? window.genStepPicker(cfg.slots, ht) : '';
+    var picker = steps && typeof window.genStepPicker === 'function' ? window.genStepPicker(cfg.slots, ht, cfg.wrYear) : '';
 
     var counts = [10, 15, 20].map(function (n){
       return chip(cfg.qCount === n, String(n), 'data-count="' + n + '"');
@@ -963,6 +965,8 @@
     });
     var clr = v.querySelector('[data-gen-clear]');
     if (clr) clr.onclick = function (){ var c = stCfg(); c.slots = c.slots.map(function (){ return null; }); stSaveCfg(c); renderDesign(); };
+    var yr = v.querySelector('[data-gen-year]');
+    if (yr) yr.onchange = function (){ var c = stCfg(); c.wrYear = +yr.value; stSaveCfg(c); renderDesign(); };
     document.getElementById('xtbToggle').onclick = function (){ var c = stCfg(); c.xtb = !c.xtb; stSaveCfg(c); renderDesign(); };
     var xp = document.getElementById('xtPick'); if (xp) xp.onchange = function (){ var c = stCfg(); c.xtPick = xp.value; stSaveCfg(c); renderDesign(); };
     var xc = document.getElementById('xtCount'); if (xc) xc.onchange = function (){ var c = stCfg(); c.xtCount = +xc.value; stSaveCfg(c); renderDesign(); };

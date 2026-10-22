@@ -523,44 +523,76 @@
      "2. Quarter past and quarter to" with no clue which block that is. */
   function genBlockCode(b){ return b.term.slice(0, 3) + b.n; }
 
-  function genStepOptions(chosen, setName){
+  function genStepOption(st, chosen, code){
+    var usable = typeof st.gen === 'function';
+    return '<option value="' + esc(st.id) + '"' +
+      (st.id === chosen ? ' selected' : '') +
+      (usable ? '' : ' disabled') + '>' +
+      esc(code + ' · ' + st.n + '. ' + st.title + (usable ? '' : '  (needs apparatus)')) + '</option>';
+  }
+
+  /* Only the chosen year's blocks are offered -- six years in one <select> is
+     over 700 options. A slot already set to a step from another year is kept
+     and shown at the top, so changing the year never silently drops a choice. */
+  function genStepOptions(chosen, setName, year){
     var out = ['<option value="">— use the ' + esc(setName) + ' question —</option>'];
-    (window.WR_BLOCKS || []).forEach(function (b){
+    var blocks = window.wrBlocksForYear ? window.wrBlocksForYear(year) : (window.WR_BLOCKS || []);
+    var cs = chosen && window.wrStep ? window.wrStep(chosen) : null;
+    var cb = cs && window.wrBlock ? window.wrBlock(cs.block) : null;
+    if (cb && cb.year !== year){
+      out.push('<optgroup label="' + esc('Year ' + cb.year + ' · ' + cb.term + ' ' + cb.n + ' · ' + cb.title) + '">' +
+        genStepOption(cs, chosen, 'Y' + cb.year + ' ' + genBlockCode(cb)) + '</optgroup>');
+    }
+    blocks.forEach(function (b){
       var steps = (window.WR_STEPS || []).filter(function (st){ return st.block === b.id; });
       if (!steps.length) return;
       out.push('<optgroup label="' + esc(b.term + ' ' + b.n + ' · ' + b.title) + '">');
-      steps.forEach(function (st){
-        var usable = typeof st.gen === 'function';
-        out.push('<option value="' + esc(st.id) + '"' +
-          (st.id === chosen ? ' selected' : '') +
-          (usable ? '' : ' disabled') + '>' +
-          esc(genBlockCode(b) + ' · ' + st.n + '. ' + st.title + (usable ? '' : '  (needs apparatus)')) + '</option>');
-      });
+      steps.forEach(function (st){ out.push(genStepOption(st, chosen, genBlockCode(b))); });
       out.push('</optgroup>');
     });
     return out.join('');
   }
 
+  /* The year the picker opens on: the one the teacher chose, else the active
+     class's year group, else Year 2 (the year the app was built for). */
+  function genStepYear(year){
+    year = +year;
+    if (year >= 1 && year <= 6) return year;
+    try {
+      var m = typeof window.tpActiveClassMeta === 'function' ? window.tpActiveClassMeta() : null;
+      var y = m && window.wrYearFromText ? window.wrYearFromText(m.year) : null;
+      if (y) return y;
+    } catch (e) {}
+    return 2;
+  }
+
   /* The step picker, re-hosted. It used to sit on the generator page and call
      genSetSlot/genClearSlots directly; it is now rendered inside Mental
-     Starters' design step, so it emits hooks (data-slot, data-gen-clear) and
-     the screen that shows it does the wiring. Markup only — no state. */
-  function genStepPicker(slots, halfTerm){
+     Starters' design step, so it emits hooks (data-slot, data-gen-clear,
+     data-gen-year) and the screen that shows it does the wiring. Markup only
+     — no state. */
+  function genStepPicker(slots, halfTerm, year){
     var setName = genSetName(halfTerm);
+    year = genStepYear(year);
     slots = genNormaliseSlots(slots);
     var rows = [], i;
     for (i = 0; i < GEN_SLOTS; i++){
       rows.push('<div class="gen-slot"><span class="gen-slot-n">' + (i + 1) + ')</span>' +
-        '<select class="gen-slot-pick" data-slot="' + i + '">' + genStepOptions(slots[i], setName) + '</select>' +
+        '<select class="gen-slot-pick" data-slot="' + i + '">' + genStepOptions(slots[i], setName, year) + '</select>' +
       '</div>');
     }
+    var years = (window.WR_YEARS || [1, 2, 3, 4, 5, 6]).map(function (y){
+      return '<option value="' + y + '"' + (y === year ? ' selected' : '') + '>Year ' + y + '</option>';
+    }).join('');
     var chosen = slots.filter(Boolean).length;
     return '<div class="ms-steps">' +
-      '<div class="ms-steps-head"><b>Question by question</b><span class="grow"></span>' +
+      '<div class="ms-steps-head"><b>Question by question</b>' +
+        '<select class="ms-sel gen-year-pick" data-gen-year aria-label="White Rose year group">' + years + '</select>' +
+        '<span class="grow"></span>' +
         '<span class="ms-count">' + chosen + ' of ' + GEN_SLOTS + ' set</span>' +
         '<button type="button" class="ms-link" data-gen-clear>Clear all</button></div>' +
       '<div class="gen-slots">' + rows.join('') + '</div>' +
-      '<p class="ms-hint">White Rose Year 2 small steps. Any slot left alone uses the <b>' +
+      '<p class="ms-hint">White Rose Year ' + year + ' small steps. Any slot left alone uses the <b>' +
         esc(setName) + '</b> question for that position. Choices are kept for the next week you design.</p>' +
     '</div>';
   }
@@ -573,6 +605,7 @@
   window.genBasesFor = genBasesFor;
   window.genTablesLabel = genTablesLabel;
   window.genStepPicker = genStepPicker;
+  window.genStepYear = genStepYear;
   window.genRenderQuestion = genRenderQuestion;
   window.genAnswer = genAnswer;
   window.genHourAngle = genHourAngle;

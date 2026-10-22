@@ -85,7 +85,7 @@ active class's `tp_roster`, and every record is keyed by roster pupil id.
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
 or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg.slots` when the teacher asks.
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], support:{ [pid]:{ mode, rung?, rungAt? } }, days:{ [iso]:{ qs, audit:[i,j], sheets:{ [pid]:{ qs, audit, rung, why } }, marks:{ [pid]: {s,a} | {x:1} | {a} }, tg } } }`.
+`{ ht, slots:(stepId|null)[20], yr?:1-6, support:{ [pid]:{ mode, rung?, rungAt? } }, days:{ [iso]:{ qs, audit:[i,j], sheets:{ [pid]:{ qs, audit, rung, why } }, marks:{ [pid]: {s,a} | {x:1} | {a} }, tg } } }`.
 `s` is the child's score; `a` the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for
 the slots in `audit`; `{x:1}` absent; `{a}` alone is marks waiting for the score and is not a result.
 A child on a shorter sheet has `sheets[pid]`, and their `s` and `a` refer to it. Marks from the first
@@ -108,7 +108,8 @@ The Question Generator became Mental Starters' *design* step. No code reads or w
 `tp_generator` any more, but it stays in `DATA_KEYS`: every synced account still holds a copy, and
 dropping it from the list would stop that copy syncing and quietly leave it out of backups. It is
 inert, not renamed — the questions a teacher designs now live in `tp_starter_cfg`
-(`mode`, `slots`, `xtPick` were added, additively) and reach `tp_starter_weeks`. Retire the key
+(`mode`, `slots`, `xtPick` and, Oct 2026, `wrYear` were added, additively; `wrYear`/`yr` is the
+White Rose year the step picker shows, absent = the class's year group) and reach `tp_starter_weeks`. Retire the key
 with the shims below.
 
 Back-compat shims (delete no earlier than the end of the 2026/27 school year):
