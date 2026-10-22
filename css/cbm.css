@@ -136,3 +136,4 @@
   .cbm-pbox-h { font-size: 11pt; margin-bottom: 1.5mm; }
   .cbm-pbox-grid { gap: 2mm; }
 }
+.cbm-xton { display: flex; align-items: center; gap: 8px; font-weight: 600; align-self: center; }

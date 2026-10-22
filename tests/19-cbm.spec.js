@@ -240,3 +240,33 @@ test('a made sheet can be swapped for a fresh set of questions; scores entered f
   expect(after.marks).toEqual({});
   await expect(page.locator('tr[data-pid="p1"] .cbm-in')).toHaveValue('');
 });
+
+test('×tables on the back: off by default, turned on in Set up, one page after each child, same tables for everyone', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', count: 50 });
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.getByLabel('×tables on the back').check();
+  await page.locator('#cbmXtPick').selectOption('5');
+  await page.locator('#cbmXtCount').selectOption('30');
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: true, pick: '5', count: 30 });
+
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  const tables = page.locator('#starterPrint .gen-grid-tables');
+  await expect(tables).toHaveCount(ROSTER.length);
+  await expect(page.locator('#starterPrint > .gen-day')).toHaveCount(ROSTER.length * 2);
+  // each child's tables page comes straight after their sheet, so it lands on the back
+  await expect(page.locator('#starterPrint > .gen-day').nth(1)).toContainText(ROSTER[0].name);
+  await expect(page.locator('#starterPrint > .gen-day').nth(1)).toContainText('Times tables — 5×');
+  await expect(tables.first().locator('.gen-q')).toHaveCount(30);
+  const grids = await tables.evaluateAll(els => els.map(e => e.innerHTML));
+  expect(new Set(grids).size).toBe(1);
+
+  await page.getByRole('button', { name: 'Print ×tables only' }).click();
+  await expect(page.locator('#starterPrint .gen-grid-tables')).toHaveCount(1);
+  expect(await page.locator('#starterPrint .gen-grid-tables').innerHTML()).toBe(grids[0]);
+  expect(errors).toEqual([]);
+});

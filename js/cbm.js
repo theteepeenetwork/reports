@@ -55,6 +55,7 @@
    STORE  tp_cbm  (per class; in DATA_KEYS; see docs/CONTRACT.md)
      { ht: null | 'Autumn 1' … ,                // null = work it out from the date
        slots: (stepId|null)[20],                 // the probe's blueprint
+       xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number },  // ×tables back page
        support: { [pid]: { mode:'auto'|'full'|'support', rung?, rungAt? } },
        days: { [iso]: {
          qs:     Question[20],                   // each with k (skill key)
@@ -119,6 +120,15 @@
     var orig = Math.random; Math.random = seeded(seed);
     try { return fn(); } finally { Math.random = orig; }
   }
+  /* Seeded on the day, so every child's back page — and a reprint — is the same. */
+  function tablesFor(iso, xt) {
+    var bases = typeof window.genBasesFor === 'function' ? window.genBasesFor(xt.pick) : [2, 5, 10];
+    if (!bases.length) bases = [2, 5, 10];
+    var rnd = seeded('cbm:' + iso + ':xt:' + xt.pick), out = [];
+    for (var i = 0; i < xt.count; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 12) });
+    return out;
+  }
+  function tablesLabel(pick) { return typeof window.genTablesLabel === 'function' ? window.genTablesLabel(pick) : pick; }
   function logit(p) { p = Math.min(0.97, Math.max(0.03, p)); return Math.log(p / (1 - p)); }
   function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
 
@@ -131,10 +141,19 @@
     }
     return out;
   }
+  /* The ×tables back page, as Mental Starters has it: off unless the teacher
+     turns it on, so sheets printed before it existed are unchanged. */
+  var XT_PICKS = ['2', '5', '10', 'all'], XT_COUNTS = [20, 30, 40, 50, 60, 80, 100];
+  function normXt(x) {
+    x = x && typeof x === 'object' ? x : {};
+    return { on: x.on === true, pick: XT_PICKS.indexOf(x.pick) >= 0 ? x.pick : 'all',
+             count: XT_COUNTS.indexOf(x.count) >= 0 ? x.count : 50 };
+  }
   function load() {
     var s = Store.get(KEY, null) || {};
     return { ht: typeof s.ht === 'string' ? s.ht : null, slots: normSlots(s.slots),
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
+             xt: normXt(s.xt),
              support: s.support && typeof s.support === 'object' ? s.support : {},
              days: s.days && typeof s.days === 'object' ? s.days : {} };
   }
@@ -580,6 +599,7 @@
           '<button type="button" id="cbmPrintAll">Print class set</button>' +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
           '<button type="button" class="secondary" id="cbmBoard">Answers on the board</button>' +
+          (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
           (sup.length ? '<button type="button" class="secondary" id="cbmPrintAns">Answers for shorter sheets</button>' : '') +
         '</div></div>' +
       '<div class="card"><div class="cbm-entryhead"><h3>Scores</h3><span class="cbm-count" id="cbmCount">' + enteredCount(day) + ' of ' + roster.length + ' entered</span></div>' +
@@ -598,6 +618,7 @@
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
     document.getElementById('cbmBoard').onclick = showAnswers;
     var pa = document.getElementById('cbmPrintAns'); if (pa) pa.onclick = printSupportAnswers;
+    var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = function () { toPrint(tablesHTML(curDay, load().xt, '')); };
     document.getElementById('cbmRetarget').onclick = function () {
       var s = load(), d = s.days[curDay];
       planSheets(s, curDay, true);
@@ -744,6 +765,12 @@
     return '<div class="card gen-sheet gen-day cbm-sheet' + (short ? ' cbm-sheet-short' : '') + '"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
       esc(fullDate(iso)) + ' · Mental Starter</h2><div class="gen-grid">' + cells + '</div>' + box + '</div>';
   }
+  function tablesHTML(iso, xt, name) {
+    var cells = tablesFor(iso, xt).map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
+    // the Mental Starters back page exactly: no cbm-sheet sizing, which would crowd 100 questions
+    return '<div class="card gen-sheet gen-day"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
+      esc(fullDate(iso)) + ' · Times tables — ' + esc(tablesLabel(xt.pick)) + '</h2><div class="gen-grid gen-grid-tables">' + cells + '</div></div>';
+  }
   function toPrint(html) {
     var c = document.getElementById('starterPrint');
     if (!c) { c = document.createElement('div'); c.id = 'starterPrint'; document.body.appendChild(c); }
@@ -752,15 +779,16 @@
   }
   function printSheets(personal) {
     var s = load(), day = s.days[curDay]; if (!day) return;
-    var html = '';
+    // each child's ×tables page follows their sheet, so it prints double-sided onto the back
+    var html = '', back = function (name) { return s.xt.on ? tablesHTML(curDay, s.xt, name) : ''; };
     if (personal) {
       if (!day.tg || !Object.keys(day.tg).length) freezeTargets(s, curDay);
       sortedRoster().forEach(function (p) {
         if (!day.tg[p.id]) day.tg[p.id] = targetsForDay(s, curDay, p.id);
-        html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id);
+        html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id) + back(p.name);
       });
       save(s);
-    } else html = sheetHTML(day, curDay, '', null, '');
+    } else html = sheetHTML(day, curDay, '', null, '') + back('');
     toPrint(html);
     if (view === 'today') renderToday();
   }
@@ -880,6 +908,14 @@
       '</select></div><div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy the questions from Mental Starters</button></div>' +
       '<p class="cbm-hint">Each slot stays the same skill every day, with new numbers, so your marks build up skill by skill. Changes apply to sheets made from now on.</p>' +
       picker + '</div>' +
+      '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmXt"' + (state.xt.on ? ' checked' : '') + '> ×tables on the back</label>' +
+        (state.xt.on
+          ? '<div><label for="cbmXtPick">Tables</label><select id="cbmXtPick">' + XT_PICKS.map(function (v) {
+              return '<option value="' + v + '"' + (state.xt.pick === v ? ' selected' : '') + '>' + esc(v === 'all' ? '2, 5, 10' : v + '×') + '</option>'; }).join('') + '</select></div>' +
+            '<div><label for="cbmXtCount">Questions</label><select id="cbmXtCount">' + XT_COUNTS.map(function (n) {
+              return '<option value="' + n + '"' + (state.xt.count === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>'
+          : '') +
+      '</div><p class="cbm-hint">A page of times tables printed after each child\'s sheet, so it goes on the back when you print double-sided. Not marked or scored here. Applies to any sheet you print, including ones already made.</p></div>' +
       '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
         '<ul>' +
         '<li><b>The sheet is a CBM probe:</b> short, mixed and frequent (Deno, 1985; Fuchs &amp; Fuchs, 1986).</li>' +
@@ -893,7 +929,9 @@
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
     document.getElementById('cbmCopy').onclick = function () {
       var cfg = Store.get('tp_starter_cfg', null) || {};
-      var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : null;   // null: follow the class, as the starter does save(s); renderSetup();
+      var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : null;   // null: follow the class, as the starter does
+      s.xt = normXt({ on: cfg.xtb !== false, pick: cfg.xtPick, count: cfg.xtCount });   // its back page too (on unless turned off, as there)
+      save(s); renderSetup();
     };
     body.querySelectorAll('[data-slot]').forEach(function (sel) {
       sel.onchange = function () { var s = load(); s.slots[+sel.dataset.slot] = sel.value || null; save(s); renderSetup(); };
@@ -902,6 +940,9 @@
     if (clr) clr.onclick = function () { var s = load(); s.slots = normSlots([]); save(s); renderSetup(); };
     var yr = body.querySelector('[data-gen-year]');
     if (yr) yr.onchange = function () { var s = load(); s.yr = +yr.value; save(s); renderSetup(); };
+    document.getElementById('cbmXt').onchange = function (e) { var s = load(); s.xt.on = e.target.checked; save(s); renderSetup(); };
+    var xp = document.getElementById('cbmXtPick'); if (xp) xp.onchange = function () { var s = load(); s.xt.pick = xp.value; save(s); renderSetup(); };
+    var xc = document.getElementById('cbmXtCount'); if (xc) xc.onchange = function () { var s = load(); s.xt.count = +xc.value; save(s); renderSetup(); };
   }
 
   window.addEventListener('tp:sync', function () { var h = host(); if (h && h.classList.contains('active')) render(); });
@@ -912,6 +953,6 @@
     parseEntry: parseEntry, buildDay: buildDay, makeDay: makeDay, pickAudit: pickAudit,
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, supportPlan: supportPlan, planSheets: planSheets,
-    keyLabel: keyLabel, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD
+    keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD
   };
 })();
