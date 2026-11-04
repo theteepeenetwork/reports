@@ -1,0 +1,56 @@
+/* handwriting.css — Handwriting checker, js/handwriting.js. Owner: Desk.
+   Green/red are always paired with ✓ / ✗ (or a date), never colour alone. */
+
+.hw-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.hw-bar .cbm-tabs { margin-bottom: 0; }
+.hw-date { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: var(--muted); }
+.hw-date input { width: 165px; }
+.hw-secs { margin-top: 12px; }
+.hw-secs small { font-weight: 600; color: var(--faint); margin-left: 3px; }
+.hw-key { display: inline-block; padding: 0 7px; border-radius: 6px; border: 1px solid; font-weight: 700; }
+
+.hw-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hw-who select { width: auto; min-width: 200px; font-size: 16px; font-weight: 700; }
+.hw-tally { font-size: 13.5px; color: var(--muted); margin-left: 6px; }
+.hw-ok-t { color: var(--success); }
+.hw-no-t { color: var(--coral-600); }
+
+.hw-group { margin-top: 16px; }
+.hw-gtitle { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.hw-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.hw-tile { width: 78px; min-height: 74px; padding: 6px 4px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+  display: grid; justify-items: center; align-content: center; gap: 2px; cursor: pointer; }
+.hw-tile:hover { transform: none; border-color: var(--muted); background: var(--card); }
+.hw-tile b { font-family: 'Andika', 'Comic Sans MS', 'Trebuchet MS', sans-serif; font-size: 30px; line-height: 1.05; font-weight: 400; }
+.hw-tile small { font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.hw-tile.wide { width: auto; padding: 8px 16px; }
+.hw-tile.wide b { font-size: 16px; font-family: inherit; font-weight: 700; }
+
+.hw-ok, .hw-key.hw-ok { background: var(--success-50); border-color: var(--success); color: var(--success); }
+.hw-no, .hw-key.hw-no { background: var(--coral-50); border-color: var(--coral-500); color: var(--coral-600); }
+.hw-tile.hw-ok:hover { background: var(--success-50); border-color: var(--success); }
+.hw-tile.hw-no:hover { background: var(--coral-50); border-color: var(--coral-500); }
+.hw-tile.hw-ok b, .hw-tile.hw-no b { color: var(--ink); }
+.hw-tile.hw-ok small { color: var(--success); }
+.hw-tile.hw-no small { color: var(--coral-600); }
+
+.hw-showd { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+.hw-table { border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+.hw-table th { text-transform: none; letter-spacing: 0; color: var(--muted); }
+.hw-table th, .hw-table td { padding: 2px; text-align: center; border-bottom: 1px solid var(--line-2); }
+.hw-table th.name, .hw-table td.name { text-align: left; padding-right: 10px; white-space: nowrap; position: sticky; left: 0; background: var(--card); z-index: 1; }
+.hw-table .hw-gh { font-size: 11px; font-weight: 700; color: var(--muted); text-align: left; padding: 4px 6px; white-space: nowrap; border-left: 2px solid var(--line); }
+.hw-table .hw-gh:first-of-type { border-left: 0; }
+.hw-table .hw-ch { font-family: 'Andika', 'Comic Sans MS', sans-serif; font-size: 16px; font-weight: 400; min-width: 34px; }
+.hw-table .gstart { border-left: 2px solid var(--line); }
+.hw-table .num { white-space: nowrap; padding: 0 8px; }
+.hw-name { background: none; border: 0; padding: 4px 0; color: var(--ink); font-weight: 700; cursor: pointer; }
+.hw-name:hover { background: none; transform: none; text-decoration: underline; }
+.hw-cell { width: 34px; height: 30px; padding: 0; border-radius: 7px; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  font-size: 13px; font-weight: 800; cursor: pointer; }
+.hw-cell:hover { transform: none; background: var(--line-2); }
+.hw-table .hw-cell.hw-ok, .hw-table .hw-cell.hw-ok:hover { background: var(--success-50); border-color: var(--success); color: var(--success); }
+.hw-table .hw-cell.hw-no, .hw-table .hw-cell.hw-no:hover { background: var(--coral-50); border-color: var(--coral-500); color: var(--coral-600); }
+.hw-table.hw-dates .hw-cell { width: 40px; font-size: 10.5px; font-weight: 700; }
+.hw-foot td { font-weight: 700; color: var(--muted); padding-top: 6px; }
+.hw-foot td.hw-foot-no { color: var(--coral-600); }

@@ -662,6 +662,7 @@
         '</div><div class="cbm-actions">' +
           '<button type="button" id="cbmPrintAll">Print class set</button>' +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
+          (typeof window.hubOpenBoard === 'function' ? '<button type="button" class="secondary" id="cbmWb">Go through on the board</button>' : '') +
           '<button type="button" class="secondary" id="cbmBoard">Answers on the board</button>' +
           (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
           (sup.length ? '<button type="button" class="secondary" id="cbmPrintAns">Answers for shorter sheets</button>' : '') +
@@ -681,6 +682,11 @@
     document.getElementById('cbmPrintAll').onclick = function () { printSheets(true); };
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
     document.getElementById('cbmBoard').onclick = showAnswers;
+    var wb = document.getElementById('cbmWb'); if (wb) wb.onclick = function () {
+      /* The Mental Starters whiteboard: all 20 or one at a time on squared paper, pen and
+         rubber, then the answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'). */
+      window.hubOpenBoard({ qs: day.qs, iso: curDay, title: 'Mental Starter (CBM) · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
+    };
     var pa = document.getElementById('cbmPrintAns'); if (pa) pa.onclick = printSupportAnswers;
     var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = function () { toPrint(tablesHTML(curDay, load().xt, '')); };
     document.getElementById('cbmRetarget').onclick = function () {
