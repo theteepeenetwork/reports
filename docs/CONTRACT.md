@@ -92,7 +92,9 @@ A child on a shorter sheet has `sheets[pid]`, and their `s` and `a` refer to it.
 version carry `w` (wrong questions) instead of `s`; readers treat them as `s = length − w.length`.
 Every question carries `k`, its skill key — a White Rose step id, `pre:<set>:<slot>`, or `fd:<name>`
 (the foundation ladder in `js/cbm.js`). Step ids are already permanent (`js/wrsteps.js`); `fd:` ids
-are permanent too (append, never reorder); `pre:` keys depend on the order of the half-term sets in
+are permanent too (append, never reorder). A shorter sheet's `rung` (and `support[pid].rung`) is an index
+into `LADDER` when it carries `lv: 2`; without `lv` it indexes the first ladder (`OLD_LADDER`), and
+readers map it through `rungOf`. Shorter sheets hold only `fd:` questions (numbers and symbols, no words); `pre:` keys depend on the order of the half-term sets in
 `js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
 stored here, only roster ids.
 

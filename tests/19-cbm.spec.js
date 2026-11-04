@@ -270,3 +270,42 @@ test('×tables on the back: off by default, turned on in Set up, one page after 
   expect(await page.locator('#starterPrint .gen-grid-tables').innerHTML()).toBe(grids[0]);
   expect(errors).toEqual([]);
 });
+
+test('shorter sheets: numbers and symbols only, known facts first, missing numbers only on known rungs, low scorers start smaller', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  const r = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(3);
+    // p1 gets 6/20 (a little behind); p2 gets 3/20 (a long way behind)
+    [0, 1].forEach(n => { const day = C.makeDay(s, days[n]); roster.forEach(p => {
+      day.marks[p.id] = p.id === 'p1' ? { s: 6, a: [1, -1] } : p.id === 'p2' ? { s: 3, a: [0, -1] } : { s: 17, a: [1, 1] }; }); });
+    const d = C.makeDay(s, days[2]), a = d.sheets.p1, b = d.sheets.p2;
+    const html = sh => sh.qs.map(q => window.genRenderQuestion(q)).join(' | ');
+    const newK = sh => C.LADDER[sh.rung];
+    return {
+      aRung: newK(a), bRung: newK(b), aLv: a.lv,
+      aKeys: a.qs.map(q => q.k), bKeys: b.qs.map(q => q.k),
+      aHtml: html(a), bHtml: html(b),
+      newMissing: [a, b].some(sh => sh.qs.some(q => q.k === newK(sh) && q.k !== 'fd:bond10' && (q.t === 'missing' || q.t === 'prompt'))),
+      knownMissing: a.qs.filter(q => q.k !== newK(a) && (q.t === 'missing' || q.t === 'prompt')).length,
+      firstThreeKnown: a.qs.slice(0, 3).every(q => q.k !== newK(a)),
+      auditNew: a.audit.some(i => a.qs[i].k === newK(a)),
+      // a rung saved by the first ladder (no lv) still means the same skill
+      old: C.rungOf({ rung: 1 }), oldTen: C.rungOf({ rung: 7 })
+    };
+  }, PAST_DAYS);
+  expect(r.aRung).toBe('fd:add10');
+  expect(r.bRung).toBe('fd:add5');
+  expect(r.aLv).toBe(2);
+  expect(r.aKeys.every(k => k.startsWith('fd:'))).toBe(true);   // no class questions
+  expect(r.bKeys.every(k => k.startsWith('fd:'))).toBe(true);
+  // nothing to read: digits, symbols and the blank box only
+  for (const h of [r.aHtml, r.bHtml]) expect(h.replace(/<span class="gen-blank">\?<\/span>/g, '?')).toMatch(/^[\d\s+\-=?,|×÷]+$/);
+  expect(r.newMissing).toBe(false);
+  expect(r.knownMissing).toBeGreaterThan(0);
+  expect(r.firstThreeKnown).toBe(true);
+  expect(r.auditNew).toBe(true);
+  expect(r.old).toBe(4);      // old rung 1 = adding within 10
+  expect(r.oldTen).toBe(10);  // old rung 7 = add or take away 10
+  expect(errors).toEqual([]);
+});

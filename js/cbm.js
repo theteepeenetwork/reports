@@ -34,12 +34,14 @@
      Struggling on a sheet: under half right, or a BLANK on the teacher's
      second-half question (they did not get that far). Two of the last three
      sheets like that moves the child to a SUPPORTED sheet of their own:
-     fewer questions, mostly simple calculations from the foundation ladder
-     below, plus the class questions they are most likely to get right. It is
-     rebuilt every day from how they did: two good sheets running (85%+, no
-     blanks) adds two questions and moves them up a rung; two hard ones takes
-     two away and moves them down. Past 18 questions they rejoin the full
-     sheet.
+     fewer questions, and ONLY numbers and symbols — no words to read, no
+     class questions. It works up the number-facts ladder below, smallest
+     numbers first. About a third is the rung they are learning, in the plain
+     form (4 + 3 = ?); the rest is the rungs just below it, which they know,
+     half of them as missing numbers (? + 3 = 7, 9 - ? = 5). It is rebuilt
+     every day from how they did: two good sheets running (85%+, no blanks)
+     adds two questions and moves them up a rung; two hard ones takes two
+     away and moves them down. Past 18 questions they rejoin the full sheet.
 
    THE RESEARCH (also in the Set up tab)
      CBM — Deno (1985); Fuchs & Fuchs (1986). Skills analysis — Fuchs,
@@ -50,17 +52,24 @@
      vs frustration level — Gickling & Armstrong (1978); Burns (2004);
      VanDerHeyden & Burns (2005). Easy items mixed in raise completion —
      Skinner (2002). Contingent, fading support — Wood, Bruner & Ross (1976);
-     van de Pol, Volman & Beishuizen (2010).
+     van de Pol, Volman & Beishuizen (2010). Supported sheets: reading
+     difficulty depresses maths scores — Fuchs, Fuchs & Prentice (2004);
+     number facts as the priority for children behind, in this order — DfE
+     (2020) ready-to-progress criteria, EEF (2017) KS1 guidance; strategy
+     order (+1, small sums, bonds, doubles, then across 10) — Baroody (2006);
+     acquisition → fluency → generalisation — Haring & Eaton (1978); mostly
+     known items with a few new — Burns (2004); Codding, Burns & Lukito
+     (2011).
 
    STORE  tp_cbm  (per class; in DATA_KEYS; see docs/CONTRACT.md)
      { ht: null | 'Autumn 1' … ,                // null = work it out from the date
        slots: (stepId|null)[20],                 // the probe's blueprint
        xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number },  // ×tables back page
-       support: { [pid]: { mode:'auto'|'full'|'support', rung?, rungAt? } },
+       support: { [pid]: { mode:'auto'|'full'|'support', rung?, rungAt?, lv? } },
        days: { [iso]: {
          qs:     Question[20],                   // each with k (skill key)
          audit:  [i, j],                         // 0-based slots the teacher marks
-         sheets: { [pid]: { qs, audit, rung, why } },   // a supported child's own sheet
+         sheets: { [pid]: { qs, audit, rung, lv?, why } },   // a supported child's own sheet
          marks:  { [pid]: { s, a:[m, m] } | { x:1 } | { a } },
          tg:     { [pid]: [{ k, y }] }           // the practice box printed that day
        } } }
@@ -72,6 +81,8 @@
    the half-term set, or 'fd:<name>' for a foundation calculation. Practice
    questions are rebuilt from a seed, so a reprint is identical and nothing
    extra is stored.
+   A rung is an index into LADDER when lv is 2, and into the first ladder
+   (OLD_LADDER) when lv is missing.
    ============================================================ */
 (function () {
   'use strict';
@@ -162,28 +173,72 @@
   function supportOf(state, pid) { var o = state.support[pid]; return o && typeof o === 'object' ? o : { mode: 'auto' }; }
 
   /* ── foundation ladder ────────────────────────────────── */
-  /* Simple calculations, easiest first, for a child the full sheet is too
-     much for. Descriptors use the generator's own types, so they render and
-     answer like every other question. Ids are persisted: append, never
-     reorder or rename. */
+  /* The number facts a child below age-related expectations works up, for
+     when the full sheet is too much. Every question is numbers and symbols
+     only, so a child who cannot yet read the class questions can still show
+     what they know (Fuchs, Fuchs & Prentice, 2004). The order follows the
+     DfE ready-to-progress criteria for Years 1–2 and the order children
+     learn the facts in (Baroody, 2006): counting, add or take 1, facts
+     within 5, within 10, bonds to 10, doubles, teen numbers, add or take
+     10, then across 10.
+
+     Each rung gives the numbers of one calculation; fdQ turns it into a
+     question. 'std' is the plain form (4 + 3 = ?), 'miss' a missing number
+     (? + 3 = 7). A rung is first met in the plain form and only turns up as
+     missing numbers once it is below the one being learned — acquisition
+     before generalisation (Haring & Eaton, 1978).
+
+     Ids are persisted: append to FD, never reorder or rename. The ORDER is
+     LADDER; a rung saved before LADDER (no lv) is read through OLD_LADDER. */
   function R(lo, hi) { return lo + Math.floor(Math.random() * (hi - lo + 1)); }
   function P(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function add(a, b) { return { a: a, op: '+', b: b }; }
+  function sub(a, b) { return { a: a, op: '-', b: b }; }
   var FD = [
-    { id: 'fd:more1', label: 'One more, one less', gen: function () { return { t: 'step', n: R(2, 19), by: 1, dir: P(['more', 'less']) }; } },
-    { id: 'fd:add10', label: 'Adding within 10', gen: function () { var a = R(1, 8); return { t: 'arith', a: a, b: R(1, 10 - a), op: '+' }; } },
-    { id: 'fd:sub10', label: 'Taking away within 10', gen: function () { var a = R(3, 10); return { t: 'arith', a: a, b: R(1, a - 1), op: '-' }; } },
-    { id: 'fd:bond10', label: 'Number bonds to 10', gen: function () { var a = R(1, 9); return { t: 'missing', a: a, b: 10 - a, sum: 10, blank: P(['a', 'b']) }; } },
-    { id: 'fd:double', label: 'Doubles', gen: function () { var a = R(1, 10); return { t: 'arith', a: a, b: a, op: '+' }; } },
-    { id: 'fd:add20', label: 'Adding to a teen number', gen: function () { var o = R(1, 7); return { t: 'arith', a: 10 + o, b: R(1, 9 - o), op: '+' }; } },
-    { id: 'fd:sub20', label: 'Taking away from a teen number', gen: function () { var o = R(2, 9); return { t: 'arith', a: 10 + o, b: R(1, o - 1), op: '-' }; } },
-    { id: 'fd:ten', label: '10 more, 10 less', gen: function () { return { t: 'step', n: R(11, 89), by: 10, dir: P(['more', 'less']) }; } },
-    { id: 'fd:addx', label: 'Adding across 10', gen: function () { var a = R(5, 9); return { t: 'arith', a: a, b: R(11 - a, 9), op: '+' }; } },
-    { id: 'fd:subx', label: 'Taking away across 10', gen: function () { var b = R(3, 9); return { t: 'arith', a: R(11, 9 + b), b: b, op: '-' }; } }
+    { id: 'fd:more1', label: 'Add or take away 1', gen: function () { return P([0, 1]) ? add(R(1, 9), 1) : sub(R(2, 10), 1); } },
+    { id: 'fd:add10', label: 'Adding within 10', gen: function () { var a = R(1, 8); return add(a, R(1, 10 - a)); } },
+    { id: 'fd:sub10', label: 'Taking away within 10', gen: function () { var a = R(3, 10); return sub(a, R(1, a - 1)); } },
+    { id: 'fd:bond10', label: 'Number bonds to 10', miss: true, gen: function () { var a = R(1, 9); return add(a, 10 - a); } },
+    { id: 'fd:double', label: 'Doubles', gen: function () { var a = R(1, 10); return add(a, a); } },
+    { id: 'fd:add20', label: 'Adding to a teen number', gen: function () { var o = R(1, 7); return add(10 + o, R(1, 9 - o)); } },
+    { id: 'fd:sub20', label: 'Taking away from a teen number', gen: function () { var o = R(2, 9); return sub(10 + o, R(1, o - 1)); } },
+    { id: 'fd:ten', label: 'Add or take away 10', gen: function () { return P([0, 1]) ? add(R(1, 89), 10) : sub(R(11, 99), 10); } },
+    { id: 'fd:addx', label: 'Adding across 10', gen: function () { var a = R(5, 9); return add(a, R(11 - a, 9)); } },
+    { id: 'fd:subx', label: 'Taking away across 10', gen: function () { var b = R(3, 9); return sub(R(11, 9 + b), b); } },
+    { id: 'fd:count', label: 'Counting on and back', seq: true, gen: function () {
+        return P([0, 1]) ? { t: 'seq', start: R(0, 16), step: 1, len: 4, blank: R(1, 3) } : { t: 'seq', start: R(4, 20), step: -1, len: 4, blank: R(1, 3) }; } },
+    { id: 'fd:add5', label: 'Adding within 5', gen: function () { var a = R(1, 4); return add(a, R(1, 5 - a)); } },
+    { id: 'fd:sub5', label: 'Taking away within 5', gen: function () { var a = R(2, 5); return sub(a, R(1, a - 1)); } }
   ];
-  var START_RUNG = 1;      // adding within 10: most Year 2 children can, which makes a first supported sheet finishable
-  function fdIndex(k) { for (var i = 0; i < FD.length; i++) if (FD[i].id === k) return i; return -1; }
+  var FD_BY = {}; FD.forEach(function (f) { FD_BY[f.id] = f; });
+  var LADDER = ['fd:count', 'fd:more1', 'fd:add5', 'fd:sub5', 'fd:add10', 'fd:sub10', 'fd:bond10', 'fd:double',
+                'fd:add20', 'fd:sub20', 'fd:ten', 'fd:addx', 'fd:subx'];
+  var OLD_LADDER = ['fd:more1', 'fd:add10', 'fd:sub10', 'fd:bond10', 'fd:double', 'fd:add20', 'fd:sub20', 'fd:ten', 'fd:addx', 'fd:subx'];
+  var LV = 2;
+  var START_RUNG = LADDER.indexOf('fd:add10');   // most children a little behind can add within 10: a first sheet they finish
+  var LOW_START = LADDER.indexOf('fd:add5');     // ...and one a long way behind starts on facts within 5
+  function fdIndex(k) { return LADDER.indexOf(k); }
   function isFd(k) { return String(k).indexOf('fd:') === 0; }
-  function clampRung(r) { return Math.max(0, Math.min(FD.length - 1, r | 0)); }
+  function clampRung(r) { return Math.max(0, Math.min(LADDER.length - 1, r | 0)); }
+  /* a saved rung, on today's ladder */
+  function rungOf(o) {
+    if (!o || o.rung == null) return null;
+    if (o.lv === LV) return clampRung(o.rung);
+    return LADDER.indexOf(OLD_LADDER[Math.max(0, Math.min(OLD_LADDER.length - 1, o.rung | 0))]);
+  }
+  function rungLabel(r) { return r == null ? '' : FD_BY[LADDER[clampRung(r)]].label; }
+  /* one question for a foundation skill, in the plain or the missing-number form */
+  var BOX = '<span class="gen-blank">?</span>';
+  function fdQ(k, form) {
+    var f = FD_BY[k]; if (!f) return { t: 'prompt', s: '', ans: '' };
+    var c = f.gen();
+    if (f.seq) return c;
+    if (!(f.miss || form === 'miss')) return { t: 'arith', a: c.a, op: c.op, b: c.b };
+    var r = c.op === '+' ? c.a + c.b : c.a - c.b, left = P([0, 1]);
+    if (c.op === '+') return { t: 'missing', a: c.a, b: c.b, sum: r, blank: left ? 'a' : 'b' };
+    return left ? { t: 'prompt', s: BOX + ' - ' + c.b + ' = ' + r, ans: String(c.a) }
+                : { t: 'prompt', s: c.a + ' - ' + BOX + ' = ' + r, ans: String(c.b) };
+  }
 
   /* ── skills ───────────────────────────────────────────── */
   function setName(ht) { return typeof window.genSetName === 'function' ? window.genSetName(ht) : ht; }
@@ -196,7 +251,7 @@
   function buildKey(k, seed) {
     return withSeed(seed, function () {
       if (k.indexOf('pre:') === 0) { var p = k.split(':'); return presetQ(p[1], +p[2]); }
-      if (isFd(k)) { var f = FD[fdIndex(k)]; return f ? f.gen() : { t: 'prompt', s: '', ans: '' }; }
+      if (isFd(k)) return fdQ(k, 'std');
       return (window.wrBuild && window.wrBuild(k)) || { t: 'prompt', s: '', ans: '' };
     });
   }
@@ -211,7 +266,7 @@
   function keyLabel(k) {
     if (labelCache[k]) return labelCache[k];
     var out;
-    if (isFd(k)) out = fdIndex(k) >= 0 ? FD[fdIndex(k)].label : k;
+    if (isFd(k)) out = FD_BY[k] ? FD_BY[k].label : k;
     else if (k.indexOf('pre:') === 0) {
       var p = k.split(':'), q = withSeed('label', function () { return presetQ(p[1], +p[2]); });
       var t = q.t === 'arith' ? (q.op === '-' ? 'Subtraction' : 'Addition') : (TYPE_LABEL[q.t] || 'Question');
@@ -226,7 +281,7 @@
     return k.indexOf('pre:') === 0 ? keyLabel(k) + ' — ' + k.split(':')[1] + ' set' : (window.wrLabel ? window.wrLabel(k) : k);
   }
   function nextStep(k) {
-    if (isFd(k)) { var f = fdIndex(k); return f >= 0 && f < FD.length - 1 ? FD[f + 1].id : null; }
+    if (isFd(k)) { var f = fdIndex(k); return f >= 0 && f < LADDER.length - 1 ? LADDER[f + 1] : null; }
     var steps = window.WR_STEPS || [], i;
     for (i = 0; i < steps.length; i++) if (steps[i].id === k) break;
     for (i = i + 1; i < steps.length; i++) if (typeof steps[i].gen === 'function') return steps[i].id;
@@ -307,7 +362,7 @@
       var sc = scoreOf(m, len); if (sc === null) return;
       var a = m.a || [], blank = (sh.audit || []).some(function (i, j) { return a[j] === -1; });
       var blankLate = (sh.audit || []).some(function (i, j) { return a[j] === -1 && i >= len / 2; });
-      out.push({ d: d, len: len, s: sc, rate: sc / len, blank: blank, blankLate: blankLate, sup: sh !== day, rung: sh.rung });
+      out.push({ d: d, len: len, s: sc, rate: sc / len, blank: blank, blankLate: blankLate, sup: sh !== day, rung: sh !== day ? rungOf(sh) : null });
     });
     return out;
   }
@@ -389,7 +444,8 @@
     if (!kd.aN && !kd.sN && !kd.sheets.length) return [];
     var uniq = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
     var est = {}; uniq.forEach(function (k) { est[k] = estimate(an, pid, k); });
-    Object.keys(an.byPid[pid] || {}).forEach(function (k) { if (!est[k]) est[k] = estimate(an, pid, k); });
+    // a supported child's box stays on the ladder: no class questions to read
+    Object.keys(an.byPid[pid] || {}).forEach(function (k) { if (!est[k] && (!supported || isFd(k))) est[k] = estimate(an, pid, k); });
     var out = [], have = {};
     function add(k, y) { if (out.length < max && !have[k]) { have[k] = 1; out.push({ k: k, y: y }); } }
 
@@ -456,6 +512,7 @@
     var recent = sessions(state, pid, iso, 3), last = recent[0];
     var cur = last && last.sup ? last.len : N;
     var rung = last && last.sup && last.rung != null ? last.rung : START_RUNG;
+    var start = START_RUNG;
     var plan;
     if (cur >= N) {
       var hard = recent.filter(struggled).length;
@@ -464,7 +521,9 @@
       var got = recent.map(function (x) { return x.s; }).sort(function (a, b) { return a - b; });
       var med = got.length ? got[Math.floor((got.length - 1) / 2)] : 10;
       var n0 = med + 2; n0 -= n0 % 2;
-      plan = { on: true, n: Math.max(SUP_MIN, Math.min(SUP_START_MAX, n0)), rung: START_RUNG,
+      // a quarter of the full sheet or less right: start on facts within 5
+      if (got.length && med <= N / 4) start = LOW_START;
+      plan = { on: true, n: Math.max(SUP_MIN, Math.min(SUP_START_MAX, n0)), rung: start,
                why: mode === 'support' ? 'You set a shorter sheet' : 'Under half right, or not reaching the second half, on ' + hard + ' of the last ' + recent.length + ' sheets' };
     } else {
       var two = recent.slice(0, 2).filter(function (x) { return x.sup && x.len === cur && x.rung === rung; });
@@ -477,40 +536,45 @@
       }
     }
     // the teacher's Easier / Harder wins until a sheet is made after it
-    if (sup.rung != null && sup.rungAt && (!last || !last.sup || sup.rungAt >= last.d)) { plan.rung = sup.rung; plan.why += ' · ladder set by you'; }
+    if (sup.rung != null && sup.rungAt && (!last || !last.sup || sup.rungAt >= last.d)) { plan.rung = rungOf(sup); plan.why += ' · ladder set by you'; }
     plan.rung = clampRung(plan.rung);
     return plan;
   }
 
-  /* A supported child's own sheet: easy known calculations first (momentum),
-     then the rung they are learning interleaved with the class questions they
-     are most likely to get right. Roughly 40% known · 30% new · 30% class. */
+  /* A supported child's own sheet: numbers and symbols only. About 70% known
+     facts from the rungs just below (half as missing numbers), 30% the rung
+     being learned in its plain form. Known facts open the sheet, so it starts
+     with success (Skinner, 2002), and the new ones are spread through the
+     rest rather than bunched (Burns, 2004). At the bottom rung there is
+     nothing below, so it is all counting. */
   function buildSupportSheet(day, iso, pid, plan, an) {
-    var n = plan.n, rung = plan.rung;
-    var nKnown = rung ? Math.round(n * 0.4) : 0, nReach = Math.round(n * 0.3), nNew = n - nKnown - nReach;
-    var reach = day.qs.map(function (q, i) { return { i: i, k: q.k, p: estimate(an, pid, q.k).p }; })
-      .filter(function (x, j, arr) { return arr.findIndex(function (y) { return y.k === x.k; }) === j; })
-      .sort(function (x, y) { return y.p - x.p || x.i - y.i; }).slice(0, nReach);
+    var n = plan.n, rung = plan.rung, newK = LADDER[rung];
+    var nNew = rung ? Math.max(2, Math.round(n * 0.3)) : n, nKnown = n - nNew;
+    var span = Math.min(rung, 3);             // review the three rungs below, nearest most
     var seen = {}, idx = 0;
-    function fd(k) {
-      var q, tries = 0;
-      do { q = buildKey(k, seedOf(iso, day.v) + ':' + pid + ':' + idx + ':' + tries); tries++; } while (seen[JSON.stringify(q)] && tries < 8);
+    function fd(k, form) {
+      var q, tries = 0, seed = seedOf(iso, day.v) + ':' + pid + ':' + idx;
+      do { q = withSeed(seed + ':' + tries, function () { return fdQ(k, form); }); tries++; } while (seen[JSON.stringify(q)] && tries < 8);
       seen[JSON.stringify(q)] = 1; idx++;
       q.k = k; return q;
     }
-    var qs = [], fresh = [], cls = [], j;
-    for (j = 0; j < nKnown; j++) qs.push(fd(FD[rung - 1 - (j % rung)].id));
-    for (j = 0; j < nNew; j++) fresh.push(fd(FD[rung].id));
-    reach.forEach(function (x) { cls.push(JSON.parse(JSON.stringify(day.qs[x.i]))); });
-    while (fresh.length || cls.length) { if (fresh.length) qs.push(fresh.shift()); if (cls.length) qs.push(cls.shift()); }
-    // the teacher's two: one from the second half (a blank there = not finishing) and one of the new rung
+    var known = [], fresh = [], j;
+    for (j = 0; j < nKnown; j++) known.push(fd(LADDER[rung - 1 - (j % span)], Math.floor(j / span) % 2 ? 'miss' : 'std'));   // first pass plain, then missing numbers
+    for (j = 0; j < nNew; j++) fresh.push(fd(newK, 'std'));
+    // warm up on up to three known, then spread the new ones evenly through the rest
+    var qs = known.splice(0, Math.min(3, known.length)), rest = known.length + fresh.length, placed = 0;
+    for (j = 0; j < rest; j++) {
+      var due = fresh.length && (!known.length || Math.floor((j + 1) * nNew / rest) > placed);
+      if (due) { qs.push(fresh.shift()); placed++; } else qs.push(known.shift());
+    }
+    // the teacher's two: one of the new rung from the second half (a blank there = not finishing), and one more
     var half = qs.length / 2, audit = [];
     function pick(test) { for (var i = qs.length - 1; i >= 0; i--) if (audit.length < 2 && audit.indexOf(i) < 0 && test(qs[i], i)) { audit.push(i); return; } }
-    pick(function (q, i) { return i >= half && !isFd(q.k); });
+    pick(function (q, i) { return i >= half && q.k === newK; });
+    pick(function (q, i) { return i < half && q.k === newK; });
     pick(function (q, i) { return i >= half; });
-    pick(function (q) { return q.k === FD[rung].id; });
     pick(function () { return true; });
-    return { qs: qs, audit: audit.sort(function (a, b) { return a - b; }), rung: rung, why: plan.why };
+    return { qs: qs, audit: audit.sort(function (a, b) { return a - b; }), rung: rung, lv: LV, why: plan.why };
   }
 
   function planSheets(state, iso, onlyUnmarked) {
@@ -674,7 +738,7 @@
   function rowHTML(state, day, p) {
     var sh = day.sheets && day.sheets[p.id];
     return '<tr data-pid="' + p.id + '"><td class="name">' + esc(p.name) +
-        (sh ? ' <span class="cbm-sup" title="' + esc(sh.why + ' · ' + FD[sh.rung].label) + '">' + sh.qs.length + ' Qs</span>' : '') + '</td>' +
+        (sh ? ' <span class="cbm-sup" title="' + esc(sh.why + ' · ' + rungLabel(rungOf(sh))) + '">' + sh.qs.length + ' Qs</span>' : '') + '</td>' +
       '<td><input class="cbm-in" type="text" inputmode="text" autocomplete="off" value="' + esc(entryText(day, p.id)) + '" placeholder="e.g. 17 yn" aria-label="Score and marks for ' + esc(p.name) + '"></td>' +
       '<td class="cbm-markcell">' + auditBtn(day, p.id, 0) + '</td><td class="cbm-markcell">' + auditBtn(day, p.id, 1) + '</td>' +
       '<td class="num cbm-score">' + scoreHTML(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td></tr>';
@@ -870,7 +934,7 @@
       var hist = recent.slice().reverse().map(function (x) {
         return '<span class="cbm-sess' + (struggled(x) ? ' hard' : thrived(x) ? ' good' : '') + '" title="' + esc(shortDate(x.d) + ': ' + x.s + ' of ' + x.len + (x.blankLate ? ', blank in the second half' : x.blank ? ', a blank' : '')) + '">' + x.s + '/' + x.len + (x.blank ? '<i>b</i>' : '') + '</span>';
       }).join('');
-      var nextTxt = plan.on ? '<b>' + plan.n + ' questions</b> · ' + esc(FD[plan.rung].label) : 'Full sheet';
+      var nextTxt = plan.on ? '<b>' + plan.n + ' questions</b> · ' + esc(rungLabel(plan.rung)) : 'Full sheet';
       return '<tr data-spid="' + p.id + '"><td class="name">' + esc(p.name) + '</td><td>' + (hist || '<span class="muted small">no scores</span>') +
         (missing >= 2 ? ' <span class="cbm-flag" title="Days most of the class gave a score and this child did not">no score ' + missing + '×</span>' : '') + '</td>' +
         '<td>' + nextTxt + '<div class="cbm-why1">' + esc(plan.why || (hard ? 'Watching: ' + hard + ' hard sheet' + (hard > 1 ? 's' : '') + ' of the last 3' : '')) + '</div></td>' +
@@ -880,7 +944,7 @@
         '</td></tr>';
     }).join('');
     return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Not finishing, or finding it hard</h3></div>' +
-      '<p class="cbm-hint">A hard sheet is under half right, or a blank where you marked the second half. Two of the last three moves a child to a shorter sheet of simple calculations; two good sheets running (85%+, no blanks) adds two questions and a step, and past ' + SUP_MAX + ' they rejoin the full sheet. Changes here apply to the next sheet you make.</p>' +
+      '<p class="cbm-hint">A hard sheet is under half right, or a blank where you marked the second half. Two of the last three moves a child to a shorter sheet of number facts — numbers and symbols only, nothing to read, smallest numbers first; two good sheets running (85%+, no blanks) adds two questions and a step, and past ' + SUP_MAX + ' they rejoin the full sheet. Changes here apply to the next sheet you make.</p>' +
       (rows ? '<div class="table-wrap"><table class="cbm-suptable"><thead><tr><th class="name">Pupil</th><th>Last sheets</th><th>Next sheet</th><th>Setting</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
             : '<p class="muted small">Everyone is managing the full sheet.</p>') + '</div>';
   }
@@ -891,7 +955,7 @@
       tr.querySelectorAll('[data-rung]').forEach(function (b) {
         b.onclick = function () {
           var s = load(), plan = supportPlan(s, pid, addDays(todayISO(), 1)), o = supportOf(s, pid);
-          o.rung = clampRung(plan.rung + +b.dataset.rung); o.rungAt = todayISO(); s.support[pid] = o; save(s); renderProgress();
+          o.rung = clampRung(plan.rung + +b.dataset.rung); o.lv = LV; o.rungAt = todayISO(); s.support[pid] = o; save(s); renderProgress();
         };
       });
     });
@@ -924,6 +988,7 @@
         '<li><b>Results by skill, with fixed rules:</b> skills analysis helped teachers plan and pupils gain (Fuchs, Fuchs, Hamlett &amp; Stecker, 1990, 1991), and CBM only helps when teaching changes in response (Stecker, Fuchs &amp; Fuchs, 2005). Under ' + pct(RETEACH) + ' → reteach; ' + pct(SECURE) + '+ → secure.</li>' +
         '<li><b>Practice box:</b> what you marked wrong stays for their next ' + KEEP_SHEETS + ' sheets, spaced over separate days (Cepeda et al., 2006), mixed with other skills rather than four of one (Rohrer et al., 2020).</li>' +
         '<li><b>Shorter sheets:</b> work pitched at frustration level — too much, mostly wrong — loses attention and teaches little; at instructional level children finish and learn (Gickling &amp; Armstrong, 1978; Burns, 2004; VanDerHeyden &amp; Burns, 2005). Starting with easy calculations they know raises how much children attempt (Skinner, 2002). Support is added and taken away in response to how they do (contingent, fading support: Wood, Bruner &amp; Ross, 1976; van de Pol et al., 2010).</li>' +
+        '<li><b>What is on a shorter sheet:</b> numbers and symbols only — no words and no class questions — because a child who cannot yet read the question cannot show the maths they know (Fuchs, Fuchs &amp; Prentice, 2004). For children behind, fluent number facts come first (EEF, 2017; DfE ready-to-progress criteria, 2020), in the order children learn them: counting, add or take 1, facts within 5, within 10, bonds to 10, doubles, teen numbers, add or take 10, then across 10 (Baroody, 2006). About a third of the sheet is the step they are learning, in the plain form; the rest is the steps just below it, half as missing numbers (? + 3 = 7), so known facts are practised in new ways only once they are secure (acquisition, then fluency, then generalisation: Haring &amp; Eaton, 1978). Mostly known with a few new is the mix that builds fluency (Burns, 2004; Codding, Burns &amp; Lukito, 2011). A child getting a quarter or less of the full sheet starts on facts within 5.</li>' +
         '<li><b>Your two questions:</b> one from each half of the sheet, so a blank on the second shows who is not getting that far; within each half, skills the class gets wrong, never the same slot twice in a week.</li>' +
         '</ul></details>';
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
@@ -953,6 +1018,6 @@
     parseEntry: parseEntry, buildDay: buildDay, makeDay: makeDay, pickAudit: pickAudit,
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, supportPlan: supportPlan, planSheets: planSheets,
-    keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD
+    keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();
