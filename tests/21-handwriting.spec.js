@@ -88,5 +88,12 @@ test('CBM: the day\'s 20 questions go on the whiteboard, one at a time, then the
   const keys = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('tp_starter_ann') || '{}')));
   expect(keys).toHaveLength(1);
   expect(keys[0]).toMatch(/^cbm:\d{4}-\d{2}-\d{2}:q19$/);
+
+  /* a new set of questions for the day takes the old working with it */
+  page.once('dialog', d => d.accept());
+  await page.locator('.cbm-qlist summary').click();
+  await page.getByRole('button', { name: 'Make a new set of questions' }).click();
+  const after = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('tp_starter_ann') || '{}')));
+  expect(after).toEqual([]);
   expect(errors).toEqual([]);
 });

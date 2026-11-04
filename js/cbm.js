@@ -698,13 +698,22 @@
     document.getElementById('cbmRegen').onclick = function () {
       var has = enteredCount(day);
       if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The ' + has + ' scores entered for this sheet will be cleared.' : '?'))) return;
-      var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); renderToday();
+      var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); clearBoardInk(curDay); renderToday();
     };
     document.getElementById('cbmDelete').onclick = function () {
       var has = enteredCount(day);
       if (!confirm('Delete the sheet for ' + fullDate(curDay) + (has ? ' and the ' + has + ' scores entered for it' : '') + '?')) return;
-      var s = load(); delete s.days[curDay]; save(s); renderToday();
+      var s = load(); delete s.days[curDay]; save(s); clearBoardInk(curDay); renderToday();
     };
+  }
+
+  /* The board's ink for a day (tp_starter_ann, 'cbm:<iso>:…') belongs to that day's questions:
+     a new set or a deleted sheet must not show the old working over different questions. */
+  function clearBoardInk(iso) {
+    var a = Store.get('tp_starter_ann', null); if (!a || typeof a !== 'object') return;
+    var pre = 'cbm:' + iso + ':', hit = false;
+    Object.keys(a).forEach(function (k) { if (k.indexOf(pre) === 0) { delete a[k]; hit = true; } });
+    if (hit) Store.set('tp_starter_ann', a);
   }
 
   function wireNav(body) {
