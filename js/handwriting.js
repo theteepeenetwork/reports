@@ -8,12 +8,13 @@
    "Assessed on" date, today unless changed), so an old green can be
    rechecked.
 
-   THE ORDER — Oak National Academy's KS1 handwriting units
-     Year 1  Writing lower case letters in print — taught in movement
+   THE ORDER — Oak National Academy's KS1 handwriting units, in CURSIVE
+   (this school teaches cursive with lead-ins, never print or pre-cursive)
+     Letters  each lower case letter formed in cursive, in Oak's movement
              families: i l t · u y j · m n r · h k · b p · c a d · o g q ·
              e s f · v w x z
              Capital letters · Numerals 0–10
-     Year 2  The four joins (no lead-ins), with the pairs Oak's lessons use:
+     Joins   The four cursive joins, with the pairs Oak's lessons use:
              1st  baseline to x-height, diagonal: id ig ed eg en ud ir ag ac na to
              2nd  diagonal to an ascender:          ck ch nk lk il it ik ul el mb at tt
              3rd  horizontal:                       oo og wa wo on om ow oi os rm wi
@@ -37,7 +38,7 @@
   function joins(title, pairs) { return { title: title, items: pairs.split(' ').map(function (c) { return { id: 'j:' + c, t: c }; }) }; }
   var CAPS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   var SECTIONS = [
-    { id: 'lower', title: 'Lower case', yr: 'Year 1', sub: 'Writing lower case letters in print — Oak teaches them in families that start the same way.',
+    { id: 'lower', title: 'Cursive letters', yr: 'Year 1', sub: 'Each lower case letter in cursive, with its lead-in — in Oak\'s families of letters that start the same way.',
       groups: [fam('i l t', 'i l t'), fam('u y j', 'u y j'), fam('m n r', 'm n r'), fam('h k', 'h k'), fam('b p', 'b p'),
                fam('c a d', 'c a d'), fam('o g q', 'o g q'), fam('e s f', 'e s f'), fam('v w x z', 'v w x z')] },
     { id: 'caps', title: 'Capitals', yr: 'Year 1', sub: 'Capital letters.',
@@ -45,7 +46,7 @@
                { title: 'N – Z', items: CAPS.slice(13).map(function (c) { return { id: 'c:' + c, t: c }; }) }] },
     { id: 'nums', title: 'Numerals', yr: 'Year 1', sub: 'Numerals 0–10.',
       groups: [{ title: '0 – 10', items: '0 1 2 3 4 5 6 7 8 9 10'.split(' ').map(function (c) { return { id: 'n:' + c, t: c }; }) }] },
-    { id: 'joins', title: 'Joins', yr: 'Year 2', sub: 'The four joins, no lead-ins — the letter pairs Oak\'s lessons practise.',
+    { id: 'joins', title: 'Cursive joins', yr: 'Year 2', sub: 'The four cursive joins — the letter pairs Oak\'s lessons practise.',
       groups: [joins('1st join · diagonal', 'id ig ed eg en ud ir ag ac na to'),
                joins('2nd join · diagonal to an ascender', 'ck ch nk lk il it ik ul el mb at tt'),
                joins('3rd join · horizontal', 'oo og wa wo on om ow oi os rm wi'),
@@ -103,7 +104,7 @@
     if (!pupilId || !list.some(function (p) { return p.id === pupilId; })) pupilId = list.length ? list[0].id : null;
     h.innerHTML =
       '<div class="page-header"><h1>Handwriting</h1>' +
-      '<p>Check off each letter and join in Oak National Academy\'s order. Tap once for <b class="hw-key hw-ok">can do it</b>, again for <b class="hw-key hw-no">not yet</b>, again to clear. Each mark keeps the date it was assessed.</p></div>' +
+      '<p>Check off each cursive letter and join in Oak National Academy\'s order. Tap once for <b class="hw-key hw-ok">can do it</b>, again for <b class="hw-key hw-no">not yet</b>, again to clear. Each mark keeps the date it was assessed.</p></div>' +
       '<div class="hw-bar">' +
         '<div class="cbm-tabs hw-tabs">' + [['child', 'One child'], ['class', 'Whole class']].map(function (t) {
           return '<button type="button" class="cbm-tab' + (view === t[0] ? ' active' : '') + '" data-hwview="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +

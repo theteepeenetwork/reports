@@ -41,9 +41,9 @@ printable starter sheet.
 > with practice questions chosen for that child. The reasoning and research are in the page's
 > *Set up › How it decides* and at the top of the file.
 
-> **Handwriting** (`js/handwriting.js`, `#handwriting`) ticks off every letter and join in Oak National
-> Academy's KS1 order: Year 1 lower case in its families (i l t · u y j · m n r · h k · b p · c a d ·
-> o g q · e s f · v w x z), capitals and numerals 0–10; Year 2 the four joins with the pairs Oak's lessons
+> **Handwriting** (`js/handwriting.js`, `#handwriting`) ticks off every cursive letter and join in Oak National
+> Academy's KS1 order (cursive with lead-ins only; no print or pre-cursive): lower case in its families (i l t · u y j · m n r · h k · b p · c a d ·
+> o g q · e s f · v w x z), capitals and numerals 0–10; the four cursive joins with the pairs Oak's lessons
 > use, then break letters. Tap once for green (can do it), again for red (not yet), again to clear;
 > each mark keeps its *Assessed on* date. One child at a time as tiles, or the whole class as a grid.
 >
