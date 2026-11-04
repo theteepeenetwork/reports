@@ -83,7 +83,10 @@ active class's `tp_roster`, and every record is keyed by roster pupil id.
 
 ## Mental Starter (CBM): `tp_cbm` (Oct 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
-or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots, year, ×tables) when the teacher asks.
+or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots, year, ×tables) when the teacher asks, and
+(Nov 2026) the whiteboard ink drawn over its questions: *Go through on the board* opens the Mental Starters whiteboard
+(`window.hubOpenBoard` in `js/hub.js`), which keeps its strokes in `tp_starter_ann` under **`cbm:<iso>:…`** (`:q<n>`, `:grid`,
+`:ans`). A Mental Starters day clear matches `<iso>:` and so never touches them. Like the rest of `tp_starter_ann`, device-local.
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
 `{ ht, slots:(stepId|null)[20], yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode, rung?, rungAt? } }, days:{ [iso]:{ qs, audit:[i,j], sheets:{ [pid]:{ qs, audit, rung, why } }, marks:{ [pid]: {s,a} | {x:1} | {a} }, tg } } }`.
 `s` is the child's score; `a` the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for
@@ -97,6 +100,12 @@ into `LADDER` when it carries `lv: 2`; without `lv` it indexes the first ladder 
 readers map it through `rungOf`. Shorter sheets hold only `fd:` questions (numbers and symbols, no words); `pre:` keys depend on the order of the half-term sets in
 `js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
 stored here, only roster ids.
+
+## Handwriting: `tp_handwriting` (Nov 2026)
+`js/handwriting.js`, route `#handwriting`. One per-class key, **`tp_handwriting`** (in `DATA_KEYS` and `TP_PER_CLASS`):
+`{ marks: { [pid]: { [itemId]: { s: 1 | 0, d: 'YYYY-MM-DD' } } } }`. `s` 1 = can do it (green), 0 = not yet (red);
+no entry = not assessed; `d` the date it was assessed. Item ids are permanent: `l:<letter>`, `c:<capital>`,
+`n:<0–10>`, `j:<pair>`, `x:brk`. Add items, never rename one. Roster ids only, no names.
 
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)
 Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes

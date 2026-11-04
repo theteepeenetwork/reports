@@ -13,7 +13,7 @@ it has to work at 8:50am on a smartboard with thirty children arriving.
 
 **The app** — one sidebar, grouped by what you are doing. *Board*: Glow Getters, Mental Starters, Mental Starter (CBM),
 Name Picker. *Pupils*: Pupils, Class Context (SEND / EHCP / Pupil Premium).
-*Assess*: Markbook (assessments, starter scores, charts, marking), Reports. *Organise*: Timetable,
+*Assess*: Markbook (assessments, starter scores, charts, marking), Spellings, Handwriting, Reports. *Organise*: Timetable,
 Seating, Groups, Instant Groups. **Quick log** sits above them all — a star, praise, concern or glow
 point in two taps.
 
@@ -40,6 +40,15 @@ printable starter sheet.
 > sheets gets a shorter sheet of simple calculations that grows back as they succeed. Each sheet ends
 > with practice questions chosen for that child. The reasoning and research are in the page's
 > *Set up › How it decides* and at the top of the file.
+
+> **Handwriting** (`js/handwriting.js`, `#handwriting`) ticks off every cursive letter and join in Oak National
+> Academy's KS1 order (cursive with lead-ins only; no print or pre-cursive): lower case in its families (i l t · u y j · m n r · h k · b p · c a d ·
+> o g q · e s f · v w x z), capitals and numerals 0–10; the four cursive joins with the pairs Oak's lessons
+> use, then break letters. Tap once for green (can do it), again for red (not yet), again to clear;
+> each mark keeps its *Assessed on* date. One child at a time as tiles, or the whole class as a grid.
+>
+> CBM's **Go through on the board** opens the Mental Starters whiteboard with that day's 20 questions:
+> all of them or one at a time on squared paper, pen and rubber, then the answers page.
 
 > **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice. Tap Record and
 > talk through the set — *"new maths activity called partitioning on 25/9 … Aurora … not met …

@@ -41,6 +41,7 @@
       shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
       bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
       type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
+      pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
       ruler: '<path d="M3 15l6-6 3 3 3-3 3 3 3-3"/><path d="M3 15v4h18v-4"/><path d="M7 15v-2M11 15v-2M15 15v-2"/>'
     };
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (P[name] || '') + '</svg>';
@@ -1073,14 +1074,32 @@
   var wbRAF = 0;            // pending requestAnimationFrame id for a coalesced repaint
   var wbSaveT = 0;          // pending debounced save — persisting on every pen-lift blocked the
                             // main thread right when the next rapid stroke was landing
-  function wbDayKey(){ return stDayISO(stCurWeek, stCurDay); }
-  function wbQs(){ var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
+  /* wbSrc: another page's questions on this same board (Mental Starter (CBM) — window.hubOpenBoard).
+     null = Mental Starters' own day. Its ink lives in tp_starter_ann too, under 'cbm:<iso>:…', so a
+     Mental Starters day clear (prefix '<iso>:') never touches it. */
+  var wbSrc = null;
+  function wbDayKey(){ return wbSrc ? wbSrc.key : stDayISO(stCurWeek, stCurDay); }
+  function wbAnsISO(){ return wbSrc ? wbSrc.iso : stDayISO(stCurWeek, stCurDay); }
+  function wbQs(){ if (wbSrc) return wbSrc.qs || []; var d = stWeek(stCurWeek) || []; return d[stCurDay] || []; }
   /* The answers page comes after the last question: page qPages in the grid, wbFocus === qs.length one at a time. */
   function wbQPages(){ return Math.max(1, Math.ceil(wbQs().length / 10)); }
   function wbOnAnswers(){ return wbFocus != null ? wbFocus >= wbQs().length : wbPage >= wbQPages(); }
   function wbAnnKey(){ if (wbOnAnswers()) return wbDayKey() + ':ans'; if (wbFocus != null) return wbDayKey() + ':q' + wbFocus; var p = wbPage || 0; return wbDayKey() + ':grid' + (p ? p : ''); }
-  function openWhiteboard(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; wbPopInk = {}; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
-  function closeWhiteboard(){ wbFlushSave(); document.getElementById('whiteboard').style.display = 'none'; msGo('day'); }
+  function openWhiteboard(){ wbSrc = null; wbOpen(); }
+  function wbOpen(){ wbPage = 0; wbFocus = null; wbPopup = null; wbTool = 'pen'; wbPenEver = false; wbPopInk = {}; document.getElementById('whiteboard').style.display = 'flex'; renderWhiteboard(); }
+  function closeWhiteboard(){
+    wbFlushSave(); document.getElementById('whiteboard').style.display = 'none';
+    var src = wbSrc; wbSrc = null; wbLayerKey = null; wbLayerCache = null;
+    if (src) { if (typeof src.onClose === 'function') src.onClose(); } else msGo('day');
+  }
+  /* Mental Starter (CBM) shows its 20 questions here: opts = { qs, iso, title, sub, onClose }. */
+  window.hubOpenBoard = function (opts){
+    if (!opts || !opts.qs || !opts.iso) return;
+    wbFlushSave(); wbLayerKey = null; wbLayerCache = null;
+    wbSrc = { qs: opts.qs, iso: opts.iso, key: 'cbm:' + opts.iso, title: opts.title || opts.iso, sub: opts.sub || '', onClose: opts.onClose };
+    wbOpen();
+  };
+  function wbTitle(){ return wbSrc ? wbSrc.title : stDayShort(stCurWeek, stCurDay); }
   function tbStyle(on){ return on ? 'background:var(--teal-50);border:1.5px solid var(--teal-600);color:var(--teal-700);font-weight:700' : ''; }
   function renderWhiteboard(){
     var wb = document.getElementById('whiteboard'), qs = wbQs(), qPages = wbQPages(), pages = qPages + 1, grid = wbFocus == null, onAns = wbOnAnswers(), stage;
@@ -1100,12 +1119,12 @@
     wb.innerHTML =
       '<div class="wb-top">' +
         '<button class="wb-tb" id="wbExit">✕ exit</button>' +
-        '<b style="font-size:15px">' + stDayShort(stCurWeek, stCurDay) + '</b>' +
-        '<span style="font-size:12.5px;color:var(--faint)">' + fmtWB(stCurWeek) + '</span>' +
+        '<b style="font-size:15px">' + esc(wbTitle()) + '</b>' +
+        '<span style="font-size:12.5px;color:var(--faint)">' + esc(wbSrc ? wbSrc.sub : fmtWB(stCurWeek)) + '</span>' +
         '<span style="flex:1"></span>' +
         '<span class="wb-airplay">📡 AirPlay · classroom board</span>' +
-        (stCurDay > 0 ? '<button class="wb-tb" id="wbPrevDay">‹ ' + stDayShort(stCurWeek, stCurDay - 1) + '</button>' : '') +
-        (stCurDay < 4 ? '<button class="wb-tb" id="wbNextDay">' + stDayShort(stCurWeek, stCurDay + 1) + ' ›</button>' : '') +
+        (!wbSrc && stCurDay > 0 ? '<button class="wb-tb" id="wbPrevDay">‹ ' + stDayShort(stCurWeek, stCurDay - 1) + '</button>' : '') +
+        (!wbSrc && stCurDay < 4 ? '<button class="wb-tb" id="wbNextDay">' + stDayShort(stCurWeek, stCurDay + 1) + ' ›</button>' : '') +
       '</div>' +
       '<div class="wb-stage" id="wbStage">' + stage + '<canvas id="wbCanvas"></canvas>' + (wbPopup ? wbPopupHTML() : '') + WB_POINTER + '</div>' +
       '<div class="wb-toolbar">' +
@@ -1124,7 +1143,7 @@
     document.getElementById('wbPen').onclick = function (){ wbTool = 'pen'; renderWhiteboard(); };
     document.getElementById('wbRub').onclick = function (){ wbTool = 'rubber'; renderWhiteboard(); };
     document.getElementById('wbPtr').onclick = function (){ wbTool = 'pointer'; renderWhiteboard(); };
-    document.getElementById('wbClear').onclick = function (){ clearTimeout(wbSaveT); wbSaveT = 0; stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbPopInk = {}; redrawWB(); toast('✓ Board cleared for ' + stDayShort(stCurWeek, stCurDay) + ' — annotations otherwise keep forever'); };
+    document.getElementById('wbClear').onclick = function (){ clearTimeout(wbSaveT); wbSaveT = 0; stClearDay(wbDayKey()); wbLayerKey = null; wbLayerCache = null; wbEraseDirty = false; wbPopInk = {}; redrawWB(); toast('✓ Board cleared for ' + wbTitle() + ' — annotations otherwise keep forever'); };
     document.getElementById('wb100').onclick = function (){ wbPopup = wbPopup === 'hundred' ? null : 'hundred'; renderWhiteboard(); };
     document.getElementById('wbTimes').onclick = function (){ wbPopup = wbPopup === 'times' ? null : 'times'; renderWhiteboard(); };
     var pp = document.getElementById('wbPagePrev'); if (pp) pp.onclick = function (){ wbPage = Math.max(0, wbPage - 1); renderWhiteboard(); };
@@ -1140,7 +1159,7 @@
   /* Every answer for the day on one page, after the questions — the teacher shows it once the
      questions have been gone through and annotated. Columns grow with the count so twenty fit. */
   function wbAnswersHTML(qs){
-    var dayISO = wbDayKey(), cols = qs.length > 10 ? 4 : 2;
+    var dayISO = wbAnsISO(), cols = qs.length > 10 ? 4 : 2;
     var cells = qs.map(function (q, i){
       var a = typeof window.genAnswer === 'function' ? window.genAnswer(q, dayISO) : '';
       return '<div class="wb-ans"><span class="wb-num">' + (i + 1) + '</span><div class="wb-ans-q">' + GRQ(q) + '</div>' +
@@ -1519,6 +1538,8 @@
     { section: 'Assess' },
     { page: 'markbook', label: 'Markbook', icon: 'bar-chart-2' },
     { page: 'hundred-words', label: 'Spellings', icon: 'type' },
+    /* letters and joins, ticked off in Oak's order (js/handwriting.js) */
+    { page: 'handwriting', label: 'Handwriting', icon: 'pen' },
     { page: 'reports', label: 'Reports', icon: 'file-text' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -2305,6 +2326,7 @@
     /* timetable / seating / instant / groups are rendered by the base renderPage */
     else if (page === 'settings') { if (typeof renderClassManager === 'function') renderClassManager(); if (typeof renderProfile === 'function') renderProfile(); }
     else if (page === 'cbm' && typeof window.cbmRender === 'function') window.cbmRender();
+    else if (page === 'handwriting' && typeof window.hwRender === 'function') window.hwRender();
   }
 
   /* ===================================================================

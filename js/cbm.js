@@ -662,6 +662,7 @@
         '</div><div class="cbm-actions">' +
           '<button type="button" id="cbmPrintAll">Print class set</button>' +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
+          (typeof window.hubOpenBoard === 'function' ? '<button type="button" class="secondary" id="cbmWb">Go through on the board</button>' : '') +
           '<button type="button" class="secondary" id="cbmBoard">Answers on the board</button>' +
           (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
           (sup.length ? '<button type="button" class="secondary" id="cbmPrintAns">Answers for shorter sheets</button>' : '') +
@@ -681,6 +682,11 @@
     document.getElementById('cbmPrintAll').onclick = function () { printSheets(true); };
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
     document.getElementById('cbmBoard').onclick = showAnswers;
+    var wb = document.getElementById('cbmWb'); if (wb) wb.onclick = function () {
+      /* The Mental Starters whiteboard: all 20 or one at a time on squared paper, pen and
+         rubber, then the answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'). */
+      window.hubOpenBoard({ qs: day.qs, iso: curDay, title: 'Mental Starter (CBM) · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
+    };
     var pa = document.getElementById('cbmPrintAns'); if (pa) pa.onclick = printSupportAnswers;
     var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = function () { toPrint(tablesHTML(curDay, load().xt, '')); };
     document.getElementById('cbmRetarget').onclick = function () {
@@ -692,13 +698,22 @@
     document.getElementById('cbmRegen').onclick = function () {
       var has = enteredCount(day);
       if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The ' + has + ' scores entered for this sheet will be cleared.' : '?'))) return;
-      var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); renderToday();
+      var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); clearBoardInk(curDay); renderToday();
     };
     document.getElementById('cbmDelete').onclick = function () {
       var has = enteredCount(day);
       if (!confirm('Delete the sheet for ' + fullDate(curDay) + (has ? ' and the ' + has + ' scores entered for it' : '') + '?')) return;
-      var s = load(); delete s.days[curDay]; save(s); renderToday();
+      var s = load(); delete s.days[curDay]; save(s); clearBoardInk(curDay); renderToday();
     };
+  }
+
+  /* The board's ink for a day (tp_starter_ann, 'cbm:<iso>:…') belongs to that day's questions:
+     a new set or a deleted sheet must not show the old working over different questions. */
+  function clearBoardInk(iso) {
+    var a = Store.get('tp_starter_ann', null); if (!a || typeof a !== 'object') return;
+    var pre = 'cbm:' + iso + ':', hit = false;
+    Object.keys(a).forEach(function (k) { if (k.indexOf(pre) === 0) { delete a[k]; hit = true; } });
+    if (hit) Store.set('tp_starter_ann', a);
   }
 
   function wireNav(body) {
