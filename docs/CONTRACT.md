@@ -104,8 +104,10 @@ under a seeded `Math.random`, and changing one changes what an old day reprints 
 The audit positions on a child's sheet are the day's `audit` slots, which are never dropped.
 **Days without `ind`**: everyone shared `qs`; `sheets[pid]` is a whole shorter sheet `{ qs, audit, rung, lv?, why }`.
 `lv[pid][skill]` is how many White Rose steps back that child is on that class skill (missing = 0); the
-path back is the scheme's order within a topic across years (`stepBack`), so **never reorder steps
-within a block or blocks within a year** in `js/wrsteps.js`. `support[pid].lvAt` is the date of the
+path back (`stepBack`) is the scheme's order within a topic and year, and crosses into the year
+before by matching step **titles** (the step this one repeats, then the one before it), so **never
+reorder steps within a block or blocks within a year, and treat a step title as data** in `js/wrsteps.js`:
+rewording one can change where children a step back are sent. `support[pid].lvAt` is the date of the
 last marks those steps were worked out from.
 Every question carries `k`, its skill key — a White Rose step id, `pre:<set>:<slot>`, or `fd:<name>`
 (the foundation ladder in `js/cbm.js`). Step ids are already permanent (`js/wrsteps.js`); `fd:` ids

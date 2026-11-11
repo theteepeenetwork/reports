@@ -339,37 +339,97 @@
 
   /* ── stepping back through White Rose ─────────────────── */
   /* The way back from a class question is the scheme's own order: the
-     buildable steps of the same topic, across years. Year 2 "Addition and
-     subtraction" runs back into Year 1 "Addition and subtraction (within
-     20)" and then "(within 10)". A slot left on the half-term preset has no
-     path and stays where it is. */
-  var chains = null, chainAt = null;
+     buildable steps of the same topic within the year, one at a time. A slot
+     left on the half-term preset has no path and stays where it is.
+
+     Crossing into the year before needs care, because each year opens a
+     topic by going over last year's ground: Year 2 "Bonds to 10" is Year 1
+     "Number bonds to 10" again, not the step after the end of Year 1.
+     Stepping from the first step of a year onto the LAST step of the year
+     before would often make the question harder. So the way in is by
+     meaning: find the step in the year before that this one repeats (by
+     its title), and carry on from the step before THAT. Only when nothing
+     in the year before resembles it — it is new ground — does the path join
+     the end of last year's topic. Titles are White Rose's own, so this is a
+     good guide and not a guarantee: tests/19-cbm.spec.js pins the crossings
+     that matter most. */
+  var topics = null, stepAt = null, backMemo = {};
   function topicOf(blockId) {
     var b = window.wrBlock ? window.wrBlock(blockId) : null;
     return b ? String(b.title).replace(/\s*\(.*\)\s*$/, '').replace(/\s+[AB]$/, '') : '';
   }
-  function buildChains() {
-    chains = {}; chainAt = {};
+  function buildTopics() {
+    topics = {}; stepAt = {};
     (window.WR_STEPS || []).forEach(function (st) {
       if (typeof st.gen !== 'function') return;
-      var t = topicOf(st.block); if (!t) return;
-      var c = chains[t] || (chains[t] = []);
-      chainAt[st.id] = { t: t, i: c.length }; c.push(st.id);
+      var b = window.wrBlock ? window.wrBlock(st.block) : null, t = topicOf(st.block); if (!b || !t) return;
+      var years = topics[t] || (topics[t] = {}), list = years[b.year] || (years[b.year] = []);
+      stepAt[st.id] = { t: t, y: b.year, i: list.length, words: titleWords(st.title) }; list.push(st.id);
     });
+  }
+  /* A title as a set of words: "Number bonds to 10" → number, bond, to, 10.
+     The small words stay — "to 10" and "within 10" are different steps. */
+  var SMALL = { to: 1, within: 1, of: 1, 'in': 1, by: 1, from: 1, 'with': 1, on: 1, up: 1, into: 1, as: 1, is: 1, or: 1, 'for': 1,
+                number: 1, use: 1, using: 1, what: 1, how: 1, many: 1 };
+  function titleWords(title) {
+    var out = {};
+    String(title).toLowerCase().replace(/(\d),(\d)/g, '$1$2').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).forEach(function (w) {
+      if (!w || w === 'the' || w === 'a' || w === 'an' || w === 'and') return;
+      if (w.length > 3 && /^[a-z]+s$/.test(w) && !/ss$/.test(w)) w = w.slice(0, -1);
+      out[w] = 1;
+    });
+    return out;
+  }
+  /* Two ways for a step to be last year's step again.
+     close: nearly the same title ("Bonds to 10" / "Number bonds to 10").
+     loose: one title's telling words all sit inside the other's, two or more
+     of them ("Add and subtract 1s, 10s, 100s and 1,000s" / "Add and subtract
+     1s") — the same idea with more or less said about it. */
+  function close(a, b) {
+    var ka = Object.keys(a), both = ka.filter(function (w) { return b[w]; }).length, all = ka.length + Object.keys(b).length - both;
+    return all ? both / all : 0;
+  }
+  function loose(a, b) {
+    var ka = Object.keys(a).filter(function (w) { return !SMALL[w]; }), kb = Object.keys(b).filter(function (w) { return !SMALL[w]; });
+    var both = ka.filter(function (w) { return b[w]; }).length, least = Math.min(ka.length, kb.length);
+    return both >= 2 && least ? both / least : 0;
+  }
+  var CLOSE = 0.6, LOOSE = 0.66;
+  /* the step in a year's list that k repeats, or null. Ties go to the earlier, easier one. */
+  function sameStep(words, list) {
+    var best = null, score = 0;
+    list.forEach(function (id) { var sc = close(words, stepAt[id].words); if (sc >= CLOSE && sc > score) { best = id; score = sc; } });
+    if (best) return best;
+    list.forEach(function (id) { var sc = loose(words, stepAt[id].words); if (sc >= LOOSE && sc > score) { best = id; score = sc; } });
+    return best;
+  }
+  /* the step before k: earlier in the year's topic, else the way into the year before */
+  function prevStep(k) {
+    if (!topics) buildTopics();
+    var at = stepAt[k]; if (!at) return null;
+    var years = topics[at.t];
+    if (at.i > 0) return years[at.y][at.i - 1];
+    for (var y = at.y - 1; y >= 1; y--) {
+      var list = years[y]; if (!list || !list.length) continue;
+      var same = sameStep(at.words, list);
+      // nothing before last year's version of it: last year's version is the step back
+      return same ? (prevStep(same) || same) : list[list.length - 1];
+    }
+    return null;
+  }
+  /* k and the steps behind it, nearest first */
+  function backPath(k) {
+    if (backMemo[k]) return backMemo[k];
+    var out = [k], cur = k;
+    while (out.length <= MAX_BACK + 1 && (cur = prevStep(cur))) out.push(cur);
+    return (backMemo[k] = out);
   }
   /* the skill d small steps before k, or null when the path runs out */
   function stepBack(k, d) {
     if (!d) return k;
-    if (!chains) buildChains();
-    var at = chainAt[k];
-    return at && at.i - d >= 0 ? chains[at.t][at.i - d] : null;
+    return backPath(k)[d] || null;
   }
-  function depthOf(c, k) {
-    if (c === k) return 0;
-    if (!chains) buildChains();
-    var a = chainAt[c], b = chainAt[k];
-    return a && b && a.t === b.t && a.i > b.i ? a.i - b.i : 0;
-  }
+  function depthOf(c, k) { var i = backPath(c).indexOf(k); return i > 0 ? i : 0; }
 
   /* ── sheets and marks ─────────────────────────────────── */
   /* What one child was asked on a day, without building the questions:
@@ -1216,7 +1276,7 @@
     parseEntry: parseEntry, buildDay: buildDay, makeDay: makeDay, pickAudit: pickAudit,
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
-    stepBack: stepBack, focusSlots: focusSlots, isScored: isScored,
+    stepBack: stepBack, backPath: backPath, focusSlots: focusSlots, isScored: isScored,
     keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();

@@ -218,6 +218,35 @@ test('wrong answers step skills back one step at a time, at most five a sheet, o
   expect(r.forced).toBe(true);
 });
 
+test('the way back: one step at a time in the year; into the year before by meaning, not onto its last step', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(() => {
+    const C = window.CBM, steps = window.WR_STEPS.filter(s => typeof s.gen === 'function');
+    const yr = id => window.wrBlock(window.wrStep(id).block).year, title = id => id ? 'Y' + yr(id) + ' ' + window.wrStep(id).title : null;
+    const byTitle = (y, t) => steps.find(s => yr(s.id) === y && s.title === t).id;
+    const bad = steps.filter(s => { const p = C.backPath(s.id); return new Set(p).size !== p.length || p.some((id, i) => i && yr(id) > yr(p[i - 1])); }).map(s => s.id);
+    return {
+      inYear: C.stepBack('a2.16', 1), inYear2: C.stepBack('a2.16', 2),
+      bonds: title(C.stepBack('a2.1', 1)),
+      y3bonds: title(C.stepBack(byTitle(3, 'Apply number bonds within 10'), 1)),
+      y4add: title(C.stepBack(byTitle(4, 'Add and subtract 1s, 10s, 100s and 1,000s'), 1)),
+      groups: title(C.stepBack(byTitle(2, 'Recognise equal groups'), 1)),
+      shapes: title(C.stepBack(byTitle(2, 'Recognise 2-D and 3-D shapes'), 1)),
+      preset: C.stepBack('pre:Autumn 1:3', 1), bad
+    };
+  });
+  expect(r.inYear).toBe('a2.15');
+  expect(r.inYear2).toBe('a2.14');
+  // Year 2 opens by going over Year 1: the step before "Bonds to 10" is the one before Year 1's "Number bonds to 10"
+  expect(r.bonds).toBe('Y1 Systematic number bonds within 10');
+  expect(r.y3bonds).toBe('Y1 Systematic number bonds within 10');
+  expect(r.y4add).toBe('Y3 Apply number bonds within 10');     // not "Make decisions", the end of Year 3
+  expect(r.groups).toBe('Y1 Count in 5s');
+  expect(r.shapes).toMatch(/^Y1 /);                             // the first step of all still has a way back
+  expect(r.preset).toBeNull();
+  expect(r.bad).toEqual([]);                                    // no loops, and never forward a year
+});
+
 test('a blank on the second mark shortens the sheet by two and puts it back; it is never the two you mark', async ({ page }) => {
   await open(page);
   const r = await page.evaluate(PAST => {
