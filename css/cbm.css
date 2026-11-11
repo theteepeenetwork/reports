@@ -123,7 +123,25 @@
 .cbm-ansslip { display: inline-block; vertical-align: top; width: 31%; margin: 0 2% 12px 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
 .cbm-ansslip ol { margin: 6px 0 0; padding-left: 22px; columns: 2; font-size: 13px; }
 .cbm-ansslip li.is-audit { font-weight: 800; }
+.cbm-markans { display: inline-block; margin-left: 8px; font-weight: 700; color: var(--teal-700); font-size: 14px; }
+.cbm-abs { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); }
+.cbm-abs.on { background: var(--line-2); color: var(--ink); border-color: var(--ink); }
+.cbm-stepped { background: var(--teal-50); color: var(--teal-700); margin-left: 4px; cursor: help; }
+.cbm-focus { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.cbm-focus .cbm-k { margin-right: 6px; }
+.cbm-steplist { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; }
+.cbm-supall { margin-top: 12px; font-size: 13px; }
+.cbm-supall summary { cursor: pointer; color: var(--muted); }
+.cbm-supall .cbm-setrow { margin-top: 8px; align-items: center; }
+.cbm-back { font-style: normal; font-size: 10px; font-weight: 800; margin-left: 2px; opacity: .75; }
+.cbm-marklist table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.cbm-marklist th, .cbm-marklist td { text-align: left; padding: 5px 10px; border-bottom: 1px solid var(--line); }
+.cbm-marklist .cbm-ml-q { color: var(--muted); font-size: 12px; font-weight: 700; }
+.cbm-marklist .cbm-ml-box { width: 34px; border: 1px solid var(--line); }
 @media print {
+  .cbm-marklist table { font-size: 11.5pt; }
+  .cbm-marklist th, .cbm-marklist td { padding: 1.4mm 3mm; border-bottom: 0.3pt solid #999; }
+  .cbm-marklist .cbm-ml-box { border: 0.6pt solid #666; }
   .cbm-sheet-short .gen-q { font-size: 15pt; padding: 2.5mm 4mm; }
   .cbm-ansslip { break-inside: avoid; page-break-inside: avoid; }
   #cbmAnswers { display: none !important; }

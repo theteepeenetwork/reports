@@ -31,15 +31,17 @@ printable starter sheet.
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
 
 > **Mental Starter (CBM)** (`js/cbm.js`, `#cbm`) is a separate starter built on curriculum-based
-> measurement; Mental Starters is unchanged. The same 20 questions for most of the class, each slot a
-> fixed skill with new numbers daily. The teacher live-marks two app-chosen questions in every book
-> (one from each half); at the register each child calls their score and those two marks, typed
-> `17 yn` (`b` = blank). A different two each day builds a skill-by-skill picture over a fortnight;
-> skills not yet checked for a child are estimated from how hard the class finds them and how that
-> child compares. A child who is under half right, or blank in the second half, on two of three
-> sheets gets a shorter sheet of simple calculations that grows back as they succeed. Each sheet ends
-> with practice questions chosen for that child. The reasoning and research are in the page's
-> *Set up › How it decides* and at the top of the file.
+> measurement; Mental Starters is unchanged. The same 20 skills for everyone, each slot a fixed skill,
+> with **different numbers on every child's sheet** so nothing can be copied. The teacher live-marks
+> two app-chosen questions in every book (one from each half) and taps the two marks in — right,
+> wrong or blank; nothing is typed, children do not self-mark and no score is kept. Each child's own
+> two answers are beside their name and on a printed marking list. A different two each day builds a
+> skill-by-skill picture over a fortnight; skills not yet checked for a child are estimated from how
+> hard the class finds them and how that child compares. A wrong mark steps that one skill back one
+> White Rose step (right marks bring it forward); a blank on the second mark, twice in three sheets,
+> takes two questions off. *Numbers only* is a per-child setting for a child who cannot read the
+> questions yet. Each sheet ends with practice questions chosen for that child. The reasoning and
+> research are in the page's *Set up › How it decides* and at the top of the file.
 
 > **Handwriting** (`js/handwriting.js`, `#handwriting`) ticks off every cursive letter and join in Oak National
 > Academy's KS1 order (cursive with lead-ins only; no print or pre-cursive): lower case in its families (i l t · u y j · m n r · h k · b p · c a d ·
@@ -47,8 +49,9 @@ printable starter sheet.
 > use, then break letters. Tap once for green (can do it), again for red (not yet), again to clear;
 > each mark keeps its *Assessed on* date. One child at a time as tiles, or the whole class as a grid.
 >
-> CBM's **Go through on the board** opens the Mental Starters whiteboard with that day's 20 questions:
-> all of them or one at a time on squared paper, pen and rubber, then the answers page.
+> CBM's **Model the focus skills** and **All 20 on the board** open the Mental Starters whiteboard with
+> the model version of that day's questions (numbers nobody has) — the skills the class gets wrong
+> first, or all 20 — one at a time on squared paper, pen and rubber, then the answers page.
 
 > **Dictate marking** (Markbook › Marking › 🎤) marks a whole set of books by voice. Tap Record and
 > talk through the set — *"new maths activity called partitioning on 25/9 … Aurora … not met …

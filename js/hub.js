@@ -1092,11 +1092,12 @@
     var src = wbSrc; wbSrc = null; wbLayerKey = null; wbLayerCache = null;
     if (src) { if (typeof src.onClose === 'function') src.onClose(); } else msGo('day');
   }
-  /* Mental Starter (CBM) shows its 20 questions here: opts = { qs, iso, title, sub, onClose }. */
+  /* Mental Starter (CBM) shows its questions here: opts = { qs, iso, title, sub, onClose, key }.
+     key (default 'cbm:<iso>') is where the ink is kept: a second list for the same day passes its own. */
   window.hubOpenBoard = function (opts){
     if (!opts || !opts.qs || !opts.iso) return;
     wbFlushSave(); wbLayerKey = null; wbLayerCache = null;
-    wbSrc = { qs: opts.qs, iso: opts.iso, key: 'cbm:' + opts.iso, title: opts.title || opts.iso, sub: opts.sub || '', onClose: opts.onClose };
+    wbSrc = { qs: opts.qs, iso: opts.iso, key: opts.key || 'cbm:' + opts.iso, title: opts.title || opts.iso, sub: opts.sub || '', onClose: opts.onClose };
     wbOpen();
   };
   function wbTitle(){ return wbSrc ? wbSrc.title : stDayShort(stCurWeek, stCurDay); }

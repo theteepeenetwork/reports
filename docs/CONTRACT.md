@@ -81,23 +81,37 @@ one JSON value, `{ sessions, practice, plans, settings }`, under the per-class k
 `localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are read from the
 active class's `tp_roster`, and every record is keyed by roster pupil id.
 
-## Mental Starter (CBM): `tp_cbm` (Oct 2026)
+## Mental Starter (CBM): `tp_cbm` (Oct 2026; individual sheets Nov 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
-or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots, year, ×tables) when the teacher asks, and
-(Nov 2026) the whiteboard ink drawn over its questions: *Go through on the board* opens the Mental Starters whiteboard
-(`window.hubOpenBoard` in `js/hub.js`), which keeps its strokes in `tp_starter_ann` under **`cbm:<iso>:…`** (`:q<n>`, `:grid`,
-`:ans`). A Mental Starters day clear matches `<iso>:` and so never touches them. Like the rest of `tp_starter_ann`, device-local.
+or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots, year, ×tables) when the
+teacher asks, and to keep its board ink in `tp_starter_ann` under `cbm:<iso>:…` (the focus-skills list
+under `cbm:<iso>:focus:…`; `window.hubOpenBoard` takes the ink key as `opts.key`).
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode, rung?, rungAt? } }, days:{ [iso]:{ qs, audit:[i,j], sheets:{ [pid]:{ qs, audit, rung, why } }, marks:{ [pid]: {s,a} | {x:1} | {a} }, tg } } }`.
-`s` is the child's score; `a` the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for
-the slots in `audit`; `xt` is the optional ×tables back page (missing = off), seeded on the date so nothing is stored per day; `{x:1}` absent; `{a}` alone is marks waiting for the score and is not a result.
-A child on a shorter sheet has `sheets[pid]`, and their `s` and `a` refer to it. Marks from the first
-version carry `w` (wrong questions) instead of `s`; readers treat them as `s = length − w.length`.
+`{ ht, slots:(stepId|null)[20], yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg } } }`.
+`a` is the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for the slots in `audit`;
+`{x:1}` absent. An entry is complete when both marks are given. No score is kept: marks from before
+Nov 2026 also carry `s` (the child's own score; `w`, the wrong questions, in the first version), which
+still counts as an entry and is otherwise ignored. `support[pid].mode` `'support'` (the old "always
+shorter sheet") reads as `'num'`. `xt` is the optional ×tables back page (missing = off), seeded on the
+date so nothing is stored per day.
+**Days with `ind: 1`** (every day made since Nov 2026): every child has the day's 20 skills with their
+own numbers. `qs` is the model version (the board, the class picture). `sheets[pid]` holds only what
+differs from the class — `{ ks?: { [slot]: skill asked instead }, drop?: slot[], why? }` — and is absent
+when nothing does; a numbers-only child's sheet is stored whole as `{ qs, audit, rung, lv: 2, why }`.
+A child's questions are **never stored**: they are rebuilt from the seed `cbm:<iso>[#v]:<pid>:<slot>`
+(`sheetQs`), so the question generators in `js/wrsteps.js` / `js/generator.js` must stay deterministic
+under a seeded `Math.random`, and changing one changes what an old day reprints (marks are unaffected).
+The audit positions on a child's sheet are the day's `audit` slots, which are never dropped.
+**Days without `ind`**: everyone shared `qs`; `sheets[pid]` is a whole shorter sheet `{ qs, audit, rung, lv?, why }`.
+`lv[pid][skill]` is how many White Rose steps back that child is on that class skill (missing = 0); the
+path back is the scheme's order within a topic across years (`stepBack`), so **never reorder steps
+within a block or blocks within a year** in `js/wrsteps.js`. `support[pid].lvAt` is the date of the
+last marks those steps were worked out from.
 Every question carries `k`, its skill key — a White Rose step id, `pre:<set>:<slot>`, or `fd:<name>`
 (the foundation ladder in `js/cbm.js`). Step ids are already permanent (`js/wrsteps.js`); `fd:` ids
-are permanent too (append, never reorder). A shorter sheet's `rung` (and `support[pid].rung`) is an index
-into `LADDER` when it carries `lv: 2`; without `lv` it indexes the first ladder (`OLD_LADDER`), and
-readers map it through `rungOf`. Shorter sheets hold only `fd:` questions (numbers and symbols, no words); `pre:` keys depend on the order of the half-term sets in
+are permanent too (append, never reorder). A numbers-only sheet's `rung` (and `support[pid].rung`) is
+an index into `LADDER` when it carries `lv: 2`; without `lv` it indexes the first ladder (`OLD_LADDER`),
+and readers map it through `rungOf`. `pre:` keys depend on the order of the half-term sets in
 `js/generator.js`, so append to those sets, never reorder them. Pupil data: names are never
 stored here, only roster ids.
 

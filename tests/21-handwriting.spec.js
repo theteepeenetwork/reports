@@ -68,7 +68,7 @@ test('CBM: the day\'s 20 questions go on the whiteboard, one at a time, then the
   await open(page, 'cbm', () => document.querySelector('#planApp .nav-link') && typeof window.cbmRender === 'function' && typeof window.hubOpenBoard === 'function');
   await page.evaluate(() => { if (location.hash !== '#cbm') location.hash = '#cbm'; window.cbmRender(); });
   await page.getByRole('button', { name: 'Make the sheet' }).click();
-  await page.getByRole('button', { name: 'Go through on the board' }).click();
+  await page.getByRole('button', { name: 'All 20 on the board' }).click();
   await expect(page.locator('#whiteboard')).toBeVisible();
   await expect(page.locator('.wb-top')).toContainText('Mental Starter (CBM)');
   await expect(page.locator('#wbPrevDay, #wbNextDay')).toHaveCount(0);

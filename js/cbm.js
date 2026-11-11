@@ -4,19 +4,23 @@
 
    A second, separate morning starter built on curriculum-based
    measurement. Mental Starters (hub.js / starters.js) is untouched:
-   this page has its own store, its own sheets and its own scores.
+   this page has its own store, its own sheets and its own marks.
 
-   THE ROUTINE — about ten seconds a child at the register
-     1. Everyone gets the same 20 questions. Each slot is a fixed skill
-        (a White Rose small step, or the half-term set's question for that
-        position) with fresh numbers every day, so "Q7" means the same skill
-        all week.
-     2. Children self-mark against the answers on the board.
-     3. While they work, the teacher live-marks the SAME TWO questions in
+   THE ROUTINE
+     1. Everyone gets the same 20 SKILLS, each child with their OWN NUMBERS.
+        Each slot is a fixed skill (a White Rose small step, or the half-term
+        set's question for that position), so "Q7" means the same skill all
+        week — and a neighbour's answer is no use to anyone.
+     2. While they work, the teacher live-marks the SAME TWO questions in
         every book, chosen by the app and never announced: one from the
-        first half of the sheet and one from the second.
-     4. At the register each child calls their score and the teacher's two
-        marks: "seventeen, yes no". Typed as 17 yn (b = left blank).
+        first half of the sheet and one from the second. Each child's two
+        answers are on screen beside their name and on a printed marking list.
+     3. The teacher taps the two marks in: right, wrong or left blank. Nothing
+        else is entered. Children do not mark their own work and no score out
+        of 20 is kept: at this age self-marking is the least reliable evidence
+        there is (Ross, 2006; Brown & Harris, 2013), and it was being copied.
+     4. The board is for teaching, not marking: a model version of each
+        question (numbers nobody has), the skills the class gets wrong first.
      5. Every sheet carries a box of practice questions chosen for that child.
 
    WHERE THE DETAIL COMES FROM — sampling, not marking everything
@@ -26,22 +30,31 @@
      checked answers. A child's chance on a skill they have not been checked
      on yet is inferred from two things the app does know: how hard the class
      finds that skill (from everyone's checked answers) and how strong this
-     child is overall (their checked answers and their own scores) — the
-     idea behind item response theory (Rasch). Each checked answer then moves
-     that child's estimate for that one skill.
+     child is overall (all their checked answers) — the idea behind item
+     response theory (Rasch). Each checked answer then moves that child's
+     estimate for that one skill.
 
-   SCALING BACK — a child who is not finishing or is finding it too hard
-     Struggling on a sheet: under half right, or a BLANK on the teacher's
-     second-half question (they did not get that far). Two of the last three
-     sheets like that moves the child to a SUPPORTED sheet of their own:
-     fewer questions, and ONLY numbers and symbols — no words to read, no
-     class questions. It works up the number-facts ladder below, smallest
-     numbers first. About a third is the rung they are learning, in the plain
-     form (4 + 3 = ?); the rest is the rungs just below it, which they know,
-     half of them as missing numbers (? + 3 = 7, 9 - ? = 5). It is rebuilt
-     every day from how they did: two good sheets running (85%+, no blanks)
-     adds two questions and moves them up a rung; two hard ones takes two
-     away and moves them down. Past 18 questions they rejoin the full sheet.
+   WHEN A CHILD IS NOT GETTING THEM RIGHT — stepped, not dropped
+     Two different problems get two different answers (Haring & Eaton, 1978;
+     Daly et al., 1997).
+     WRONG ANSWERS step that one skill back, one small step at a time, along
+     the White Rose order for its topic (and on into the year before). A mark
+     on the step a child is on decides it: wrong, one step back; right, one
+     step forward — two right running if they were marked wrong on the step
+     above. A skill with no mark goes by how the child is doing overall: back
+     when their chance on it is under 60%, forward when their chance on the
+     harder step reaches 75%; that guess never overrides a mark. Never more
+     than one step between sheets, never more than 5 skills on one sheet,
+     never more than 6 steps back, and only on new marks —
+     so a child ends up on work at their level (Gickling & Armstrong, 1978;
+     Burns, 2004) by a staircase, not a cliff (Levitt, 1971).
+     BLANKS on the second of the two mean not finishing: two of the last three
+     takes two questions away (the ones they are most secure on); two sheets
+     with no blanks puts two back.
+     NUMBERS ONLY is a per-child setting for a child who cannot yet read the
+     questions: a sheet of number facts — numbers and symbols, no words —
+     that works up the ladder below, about a third the rung being learned and
+     the rest known facts, half of them as missing numbers.
 
    THE RESEARCH (also in the Set up tab)
      CBM — Deno (1985); Fuchs & Fuchs (1986). Skills analysis — Fuchs,
@@ -50,39 +63,46 @@
      accuracy — Ross (2006); Brown & Harris (2013). Spaced retrieval —
      Cepeda et al. (2006). Interleaving — Rohrer et al. (2020). Instructional
      vs frustration level — Gickling & Armstrong (1978); Burns (2004);
-     VanDerHeyden & Burns (2005). Easy items mixed in raise completion —
-     Skinner (2002). Contingent, fading support — Wood, Bruner & Ross (1976);
-     van de Pol, Volman & Beishuizen (2010). Supported sheets: reading
+     VanDerHeyden & Burns (2005). The success rate that learning is fastest
+     at — Wilson et al. (2019). Stepping back through the curriculum to find
+     the level — Hosp, Hosp & Howell (2016). One step at a time — Levitt
+     (1971). Accuracy and pace as separate problems — Haring & Eaton (1978);
+     Daly et al. (1997). Worked examples — Sweller & Cooper (1985);
+     Rosenshine (2012). Easy items mixed in raise completion — Skinner
+     (2002). Contingent, fading support — Wood, Bruner & Ross (1976); van de
+     Pol, Volman & Beishuizen (2010). Numbers-only sheets: reading
      difficulty depresses maths scores — Fuchs, Fuchs & Prentice (2004);
-     number facts as the priority for children behind, in this order — DfE
-     (2020) ready-to-progress criteria, EEF (2017) KS1 guidance; strategy
-     order (+1, small sums, bonds, doubles, then across 10) — Baroody (2006);
-     acquisition → fluency → generalisation — Haring & Eaton (1978); mostly
-     known items with a few new — Burns (2004); Codding, Burns & Lukito
-     (2011).
+     number facts first, in this order — DfE (2020) ready-to-progress
+     criteria, EEF (2017); Baroody (2006); mostly known items with a few new
+     — Burns (2004); Codding, Burns & Lukito (2011).
 
    STORE  tp_cbm  (per class; in DATA_KEYS; see docs/CONTRACT.md)
      { ht: null | 'Autumn 1' … ,                // null = work it out from the date
        slots: (stepId|null)[20],                 // the probe's blueprint
        xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number },  // ×tables back page
-       support: { [pid]: { mode:'auto'|'full'|'support', rung?, rungAt?, lv? } },
+       support: { [pid]: { mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } },
+       lv: { [pid]: { [class skill]: steps back } },   // where each child is on each skill
        days: { [iso]: {
-         qs:     Question[20],                   // each with k (skill key)
+         qs:     Question[20],                   // the model version, each with k (skill key)
          audit:  [i, j],                         // 0-based slots the teacher marks
-         sheets: { [pid]: { qs, audit, rung, lv?, why } },   // a supported child's own sheet
-         marks:  { [pid]: { s, a:[m, m] } | { x:1 } | { a } },
+         ind:    1,                              // every child has their own numbers
+         sheets: { [pid]: { ks?: { [slot]: skill }, drop?: slot[], why? }      // differences from the class
+                         | { qs, audit, rung, lv, why } },                     // a numbers-only sheet, whole
+         marks:  { [pid]: { a:[m, m] } | { x:1 } },
          tg:     { [pid]: [{ k, y }] }           // the practice box printed that day
        } } }
-   s = the child's score; a = the teacher's two marks: 1 right, 0 wrong,
-   -1 blank, null not given. { a } alone is marks waiting for a score.
-   Marks saved by the first version carry w (wrong questions) instead of s;
-   they read as s = length − w.length.
+   a = the teacher's two marks: 1 right, 0 wrong, -1 blank, null not given.
+   A child with no entry in sheets has the class's 20 skills. Their numbers
+   are never stored: every question is rebuilt from a seed (day, child,
+   slot), so a reprint is identical. Days made before Nov 2026 have no ind:
+   everyone shared day.qs, sheets held whole shorter sheets, and marks also
+   carry s (the child's own score; w in the first version) — still read as
+   an entry, no longer used.
    A skill key is a step id ('a2.3'), 'pre:<set>:<slot>' for a slot left on
-   the half-term set, or 'fd:<name>' for a foundation calculation. Practice
-   questions are rebuilt from a seed, so a reprint is identical and nothing
-   extra is stored.
+   the half-term set, or 'fd:<name>' for a foundation calculation.
    A rung is an index into LADDER when lv is 2, and into the first ladder
-   (OLD_LADDER) when lv is missing.
+   (OLD_LADDER) when lv is missing. support.lvAt is the date of the last
+   marks the steps back were worked out from.
    ============================================================ */
 (function () {
   'use strict';
@@ -96,7 +116,13 @@
   var LOOKBACK = 42;       // days of evidence an estimate looks at
   var HALF_LIFE = 21;      // days for a checked answer's weight to halve
   var PRIOR = 2;           // how many checked answers the inferred chance is worth
-  var SUP_MIN = 6, SUP_START_MAX = 14, SUP_MAX = 18;
+  var SUP_MIN = 6;         // the fewest questions a sheet is cut back to
+  var NUM_START = 12;      // a numbers-only child's first sheet
+  var MIN_MARKS = 4;       // checked answers before any skill is stepped
+  var MAX_DOWN = 5;        // skills that may step back on one sheet: a stagger, not a cliff
+  var MAX_BACK = 6;        // the furthest any one skill steps back; past that it needs a teacher, not an easier question
+  var UP_PRIOR = 0.75;     // with no mark to go on: likely right this often on the harder step → step forward
+  var STEP_EASE = 0.5;     // how much easier one step back is taken to be (logits)
 
   /* ── dates (local parts, never toISOString — BST midnight rolls back) ── */
   function isoOf(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
@@ -166,11 +192,17 @@
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              xt: normXt(s.xt),
              support: s.support && typeof s.support === 'object' ? s.support : {},
+             lv: s.lv && typeof s.lv === 'object' ? s.lv : {},   // { [pid]: { [class skill]: steps back } }
              days: s.days && typeof s.days === 'object' ? s.days : {} };
   }
   function save(s) { Store.set(KEY, s); }
   function htOf(state, iso) { return state.ht || halfTermFor(iso || todayISO()); }
-  function supportOf(state, pid) { var o = state.support[pid]; return o && typeof o === 'object' ? o : { mode: 'auto' }; }
+  /* mode: 'auto' | 'full' (always the class questions) | 'num' (numbers only; 'support' before Nov 2026) */
+  function supportOf(state, pid) {
+    var o = state.support[pid]; o = o && typeof o === 'object' ? o : {};
+    o.mode = o.mode === 'full' ? 'full' : (o.mode === 'num' || o.mode === 'support') ? 'num' : 'auto';
+    return o;
+  }
 
   /* ── foundation ladder ────────────────────────────────── */
   /* The number facts a child below age-related expectations works up, for
@@ -305,15 +337,80 @@
     });
   }
 
-  /* ── marks ────────────────────────────────────────────── */
-  function sheetOf(day, pid) { return (day.sheets && day.sheets[pid]) || day; }
-  function scoreOf(m, len) {
-    if (!m || m.x) return null;
-    if (typeof m.s === 'number') return m.s;
-    if (Array.isArray(m.w)) return Math.max(0, len - m.w.length);   // first-version marks
-    return null;
+  /* ── stepping back through White Rose ─────────────────── */
+  /* The way back from a class question is the scheme's own order: the
+     buildable steps of the same topic, across years. Year 2 "Addition and
+     subtraction" runs back into Year 1 "Addition and subtraction (within
+     20)" and then "(within 10)". A slot left on the half-term preset has no
+     path and stays where it is. */
+  var chains = null, chainAt = null;
+  function topicOf(blockId) {
+    var b = window.wrBlock ? window.wrBlock(blockId) : null;
+    return b ? String(b.title).replace(/\s*\(.*\)\s*$/, '').replace(/\s+[AB]$/, '') : '';
   }
-  function isScored(m) { return !!(m && (m.x || typeof m.s === 'number' || Array.isArray(m.w))); }
+  function buildChains() {
+    chains = {}; chainAt = {};
+    (window.WR_STEPS || []).forEach(function (st) {
+      if (typeof st.gen !== 'function') return;
+      var t = topicOf(st.block); if (!t) return;
+      var c = chains[t] || (chains[t] = []);
+      chainAt[st.id] = { t: t, i: c.length }; c.push(st.id);
+    });
+  }
+  /* the skill d small steps before k, or null when the path runs out */
+  function stepBack(k, d) {
+    if (!d) return k;
+    if (!chains) buildChains();
+    var at = chainAt[k];
+    return at && at.i - d >= 0 ? chains[at.t][at.i - d] : null;
+  }
+  function depthOf(c, k) {
+    if (c === k) return 0;
+    if (!chains) buildChains();
+    var a = chainAt[c], b = chainAt[k];
+    return a && b && a.t === b.t && a.i > b.i ? a.i - b.i : 0;
+  }
+
+  /* ── sheets and marks ─────────────────────────────────── */
+  /* What one child was asked on a day, without building the questions:
+     slots [{ i: the class slot, k: the skill asked, c: the slot's class skill }]
+     and audit, the positions in slots of the teacher's two.
+       · a day with ind: everyone has their own numbers. sheets[pid] holds only
+         what differs from the class (ks: stepped slots, drop: slots left out);
+         a numbers-only child's sheet is stored whole, as before.
+       · an older day: the class sheet, or a stored shorter sheet. */
+  function sheetPlan(day, pid) {
+    var sh = day.sheets && day.sheets[pid];
+    if (sh && sh.qs) return { own: true, num: true, rung: rungOf(sh), why: sh.why || '', audit: sh.audit || [], qs: sh.qs,
+                              slots: sh.qs.map(function (q, i) { return { i: i, k: q.k, c: q.k }; }) };
+    if (!day.ind) return { own: false, audit: day.audit || [], qs: day.qs, slots: day.qs.map(function (q, i) { return { i: i, k: q.k, c: q.k }; }) };
+    var drop = (sh && sh.drop) || [], ks = (sh && sh.ks) || {}, slots = [];
+    day.qs.forEach(function (q, i) { if (drop.indexOf(i) < 0) slots.push({ i: i, k: ks[i] || q.k, c: q.k }); });
+    var audit = [];
+    (day.audit || []).forEach(function (a) { for (var j = 0; j < slots.length; j++) if (slots[j].i === a) audit.push(j); });
+    return { own: true, ind: true, why: (sh && sh.why) || '', slots: slots, audit: audit };
+  }
+  /* On an individual sheet the second of the two is the "did they get that
+     far" question wherever it sits; on older sheets it is a second-half slot. */
+  function isLate(pl, j) { return pl.ind ? j === 1 : pl.audit[j] >= pl.slots.length / 2; }
+  /* The child's questions. Individual sheets are rebuilt from the seed, never
+     stored: 20 questions for 30 children every day would fill the store. */
+  var qsCache = {}, qsCacheN = 0;
+  function sheetQs(day, iso, pid) {
+    var pl = sheetPlan(day, pid);
+    if (pl.qs) return pl.qs;
+    var key = iso + '|' + (day.v || 0) + '|' + pid + '|' + pl.slots.map(function (x) { return x.i + ':' + x.k; }).join(',');
+    if (qsCache[key]) return qsCache[key];
+    if (qsCacheN++ > 400) { qsCache = {}; qsCacheN = 0; }
+    return (qsCache[key] = pl.slots.map(function (x) {
+      var q = JSON.parse(JSON.stringify(buildKey(x.k, seedOf(iso, day.v) + ':' + pid + ':' + x.i)));
+      q.k = x.k; return q;   // nothing else: descriptors already use a, b, c, d for their numbers
+    }));
+  }
+  /* An entry is the teacher's two marks, or absent. Older days also carry
+     the child's own score (s, or w in the first version): still an entry,
+     no longer used for anything. */
+  function isScored(m) { return !!(m && (m.x || typeof m.s === 'number' || Array.isArray(m.w) || (m.a && m.a[0] != null && m.a[1] != null))); }
 
   /* "17 yn" → score 17, teacher's marks ✓ ✗. b or - is a blank. */
   function parseEntry(str, max) {
@@ -332,8 +429,9 @@
   }
 
   /* ── evidence ─────────────────────────────────────────── */
-  /* One row per checked question per pupil per day. ok: 1 right, 0 wrong,
-     null blank (not reached — no evidence about the skill). */
+  /* One row per checked question per pupil per day. k is the skill asked, c
+     the class skill it stands in for. ok: 1 right, 0 wrong, null blank (not
+     reached — no evidence about the skill). */
   function results(state, from, to) {
     var out = [];
     Object.keys(state.days).sort().forEach(function (d) {
@@ -342,41 +440,51 @@
       Object.keys(day.marks || {}).forEach(function (pid) {
         var m = day.marks[pid];
         if (!m || m.x || !m.a) return;
-        var sh = sheetOf(day, pid);
-        (sh.audit || []).forEach(function (i, j) {
-          var v = m.a[j]; if (v !== 0 && v !== 1 && v !== -1) return;
-          out.push({ d: d, pid: pid, i: i, k: sh.qs[i].k, ok: v === -1 ? null : v, late: i >= sh.qs.length / 2 });
+        var pl = sheetPlan(day, pid);
+        pl.audit.forEach(function (pos, j) {
+          var v = m.a[j], x = pl.slots[pos]; if (!x || (v !== 0 && v !== 1 && v !== -1)) return;
+          out.push({ d: d, pid: pid, i: pos, k: x.k, c: x.c, ok: v === -1 ? null : v, late: isLate(pl, j) });
         });
       });
     });
     return out;
   }
 
-  /* Each child's sheets, newest first: score, how much of it was right, and
-     whether the teacher's marks found a blank. */
+  /* Each child's marked sheets, newest first: how long it was, what the two
+     marks were, and whether the late one was left blank. */
   function sessions(state, pid, before, n) {
     var out = [];
     Object.keys(state.days).sort().reverse().forEach(function (d) {
       if (d >= before || out.length >= n) return;
-      var day = state.days[d], m = day.marks && day.marks[pid], sh = sheetOf(day, pid), len = sh.qs.length;
-      var sc = scoreOf(m, len); if (sc === null) return;
-      var a = m.a || [], blank = (sh.audit || []).some(function (i, j) { return a[j] === -1; });
-      var blankLate = (sh.audit || []).some(function (i, j) { return a[j] === -1 && i >= len / 2; });
-      out.push({ d: d, len: len, s: sc, rate: sc / len, blank: blank, blankLate: blankLate, sup: sh !== day, rung: sh !== day ? rungOf(sh) : null });
+      var day = state.days[d], m = day.marks && day.marks[pid];
+      if (!isScored(m) || m.x) return;
+      var pl = sheetPlan(day, pid), a = m.a || [];
+      var x = { d: d, len: pl.slots.length, num: !!pl.num, rung: pl.num ? pl.rung : null, right: 0, wrong: 0, blank: false, late: false };
+      pl.audit.forEach(function (pos, j) {
+        if (a[j] === 1) x.right++; else if (a[j] === 0) x.wrong++;
+        else if (a[j] === -1) { x.blank = true; if (isLate(pl, j)) x.late = true; }
+      });
+      out.push(x);
     });
     return out;
   }
 
+  /* Everything is read from the teacher's marks. The class's success on a
+     skill says how hard it is; each child gets one number, th, for how they
+     compare with the class across every skill they were checked on — a
+     Rasch fit (Rasch, 1960), pulled towards the class when marks are few so
+     one morning does not decide everything. A question a few steps back is
+     taken to be STEP_EASE easier per step. */
   function analyse(state, to, windowDays) {
     windowDays = windowDays || 14;
     var look = Math.max(LOOKBACK, windowDays), from = addDays(to, -(look - 1)), winFrom = addDays(to, -(windowDays - 1));
     var rs = results(state, from, to), cls = {}, byPid = {}, kids = {};
-    function kid(pid) { return kids[pid] || (kids[pid] = { aN: 0, aOk: 0, sN: 0, sSum: 0, blanks: 0, sheets: [] }); }
+    function kid(pid) { return kids[pid] || (kids[pid] = { aN: 0, aOk: 0, blanks: 0, sheets: [], th: 0, rows: [] }); }
     rs.forEach(function (r) {
       var c = kid(r.pid);
       if (r.ok === null) { if (r.d >= winFrom) c.blanks++; return; }
       if (r.d >= winFrom) { var x = cls[r.k] || (cls[r.k] = { n: 0, ok: 0 }); x.n++; x.ok += r.ok; }
-      c.aN++; c.aOk += r.ok;
+      c.aN++; c.aOk += r.ok; c.rows.push(r);
       var p = byPid[r.pid] || (byPid[r.pid] = {});
       (p[r.k] || (p[r.k] = [])).push(r);
     });
@@ -384,39 +492,39 @@
     Object.keys(state.days).sort().forEach(function (d) {
       if (d < from || d > to) return;
       var day = state.days[d];
-      Object.keys(day.marks || {}).forEach(function (pid) {
-        var sh = sheetOf(day, pid), sc = scoreOf(day.marks[pid], sh.qs.length);
-        if (sc === null) return;
-        var c = kid(pid); c.sheets.push(d);
-        // a supported sheet's score says little about the class sheet, so only full sheets inform ability
-        if (sh === day) { c.sN++; c.sSum += sc / sh.qs.length; }
-      });
+      Object.keys(day.marks || {}).forEach(function (pid) { var m = day.marks[pid]; if (isScored(m) && !m.x) kid(pid).sheets.push(d); });
     });
-    /* Overall strength: checked answers count fully; the child's own scores
-       count as up to six checked answers' worth, because self-marking is
-       useful but not reliable at this age. A weak 75% starting point stops
-       one morning deciding everything. */
-    var total = 0, count = 0;
+    function smooth(x) { return logit((x.ok + 0.75 * 2) / (x.n + 2)); }
+    function ease(k, c) {
+      // a step back is only ever sat by the children who needed it, so its own marks say
+      // nothing about how hard it is for the class: it is the class step, eased per step
+      if (c && c !== k) { var y = cls[c]; return (y && y.n ? smooth(y) : logit(0.75)) + STEP_EASE * depthOf(c, k); }
+      var x = cls[k];
+      return x && x.n ? smooth(x) : logit(0.75);
+    }
     Object.keys(kids).forEach(function (pid) {
-      var c = kids[pid], sr = c.sN ? c.sSum / c.sN : null, ws = c.sN ? Math.min(6, c.sN * 2) : 0;
-      c.self = sr; c.audit = c.aN ? c.aOk / c.aN : null;
-      c.rate = (c.aOk + ws * (sr || 0) + 0.75) / (c.aN + ws + 1);
-      // self-marking that runs well ahead of what the teacher's marks find
-      c.flag = c.aN >= 6 && sr !== null && sr - c.audit >= 0.25;
-      total += c.rate; count++;
+      var c = kids[pid], th = 0, it, g, h;
+      for (it = 0; it < 8; it++) {
+        g = -th; h = -1;
+        c.rows.forEach(function (r) {
+          var w = Math.pow(0.5, daysBetween(r.d, to) / HALF_LIFE), p = sigmoid(ease(r.k, r.c) + th);
+          g += w * (r.ok - p); h -= w * p * (1 - p);
+        });
+        th -= g / h;
+      }
+      c.th = Math.max(-3, Math.min(3, th));
+      delete c.rows;
     });
-    return { to: to, cls: cls, byPid: byPid, kids: kids, classRate: count ? total / count : 0.75, windowDays: windowDays };
+    return { to: to, cls: cls, byPid: byPid, kids: kids, ease: ease, windowDays: windowDays };
   }
-  function kidOf(an, pid) { return an.kids[pid] || { aN: 0, aOk: 0, sN: 0, rate: an.classRate, self: null, audit: null, flag: false, sheets: [], blanks: 0 }; }
+  function kidOf(an, pid) { return an.kids[pid] || { aN: 0, aOk: 0, th: 0, sheets: [], blanks: 0 }; }
 
-  /* A child's chance of getting a skill right. Start from how hard the class
-     finds it, shifted by how this child compares with the class (a Rasch-style
-     ability × difficulty guess), then let their own checked answers on that
-     skill move it — recent ones counting more. */
-  function estimate(an, pid, k) {
-    var c = an.cls[k], kd = kidOf(an, pid);
-    var diff = c && c.n ? (c.ok + 0.75 * 2) / (c.n + 2) : 0.75;
-    var p0 = sigmoid(logit(diff) + logit(kd.rate) - logit(an.classRate));
+  /* A child's chance of getting a skill right: how hard the class finds it,
+     shifted by how this child compares with the class, then moved by their
+     own checked answers on that skill — recent ones counting more. c is the
+     class skill k stands in for, when k is a step back from it. */
+  function estimate(an, pid, k, c) {
+    var p0 = sigmoid(an.ease(k, c) + kidOf(an, pid).th);
     var rs = (an.byPid[pid] || {})[k] || [], a = 0, n = 0;
     rs.forEach(function (r) { var w = Math.pow(0.5, daysBetween(r.d, an.to) / HALF_LIFE); a += w * r.ok; n += w; });
     return { p: (PRIOR * p0 + a) / (PRIOR + n), prior: p0, n: rs.length, right: rs.filter(function (r) { return r.ok; }).length };
@@ -437,14 +545,15 @@
   var WHY = { miss: 'you marked it wrong recently', 'class': 'class focus', low: 'likely to find it hard', stretch: 'challenge', keep: 'keep it sharp' };
 
   /* The practice box for one child, from evidence before the day.
-     keys: the skill keys on the child's sheet, in order. */
-  function chooseTargets(an, pid, keys, max, supported) {
-    max = max || TARGETS;
+     keys: the skills on the child's sheet, in order; cmap: the class skill
+     each stands in for. */
+  function chooseTargets(an, pid, keys, max, supported, cmap) {
+    max = max || TARGETS; cmap = cmap || {};
     var kd = kidOf(an, pid);
-    if (!kd.aN && !kd.sN && !kd.sheets.length) return [];
+    if (!kd.aN && !kd.sheets.length) return [];
     var uniq = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
-    var est = {}; uniq.forEach(function (k) { est[k] = estimate(an, pid, k); });
-    // a supported child's box stays on the ladder: no class questions to read
+    var est = {}; uniq.forEach(function (k) { est[k] = estimate(an, pid, k, cmap[k]); });
+    // a numbers-only child's box stays on the ladder: no class questions to read
     Object.keys(an.byPid[pid] || {}).forEach(function (k) { if (!est[k] && (!supported || isFd(k))) est[k] = estimate(an, pid, k); });
     var out = [], have = {};
     function add(k, y) { if (out.length < max && !have[k]) { have[k] = 1; out.push({ k: k, y: y }); } }
@@ -454,7 +563,7 @@
       .filter(function (x) { return x.o.open; })
       .sort(function (x, y) { return x.o.miss < y.o.miss ? 1 : x.o.miss > y.o.miss ? -1 : x.e.p - y.e.p; })
       .forEach(function (x) { add(x.k, 'miss'); });
-    // 2. what the whole class is weak on (not on a supported sheet: wrong practice there)
+    // 2. what the whole class is weak on (not on a numbers-only sheet: wrong practice there)
     if (!supported) uniq.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH && est[k].p < SECURE; })
       .sort(function (x, y) { return an.cls[x].rate - an.cls[y].rate; })
       .forEach(function (k) { add(k, 'class'); });
@@ -500,45 +609,114 @@
     return [first, best(keys.length / 2, keys.length, first)];
   }
 
-  /* ── scaling back ─────────────────────────────────────── */
-  /* Frustration vs instructional level, read from what is collected anyway:
-     under half right, or a blank where the teacher marked the second half. */
-  function struggled(x) { return x.rate < 0.5 || x.blankLate; }
-  function thrived(x) { return x.rate >= 0.85 && !x.blank; }
+  /* The skills to model on the board: what the class gets wrong most, from
+     the teacher's marks. Slots of day.qs, weakest first. */
+  function focusSlots(an, day) {
+    var seen = {}, c = [];
+    day.qs.forEach(function (q, i) { var x = an.cls[q.k]; if (seen[q.k] || !x || x.n < 3) return; seen[q.k] = 1; c.push({ i: i, rate: x.rate }); });
+    c.sort(function (x, y) { return x.rate - y.rate || x.i - y.i; });
+    var low = c.filter(function (x) { return x.rate < RETEACH; }).slice(0, 6);
+    if (!low.length) low = c.filter(function (x) { return x.rate < SECURE; }).slice(0, 3);
+    return low.map(function (x) { return x.i; });
+  }
 
-  function supportPlan(state, pid, iso) {
-    var sup = supportOf(state, pid), mode = sup.mode || 'auto';
-    if (mode === 'full') return { on: false, n: N, why: 'You set the full sheet' };
-    var recent = sessions(state, pid, iso, 3), last = recent[0];
-    var cur = last && last.sup ? last.len : N;
-    var rung = last && last.sup && last.rung != null ? last.rung : START_RUNG;
-    var start = START_RUNG;
-    var plan;
-    if (cur >= N) {
-      var hard = recent.filter(struggled).length;
-      if (mode !== 'support' && !(recent.length >= 2 && hard >= 2)) return { on: false, n: N, why: '' };
-      // start just above what they actually got right, so the first sheet is finishable
-      var got = recent.map(function (x) { return x.s; }).sort(function (a, b) { return a - b; });
-      var med = got.length ? got[Math.floor((got.length - 1) / 2)] : 10;
-      var n0 = med + 2; n0 -= n0 % 2;
-      // a quarter of the full sheet or less right: start on facts within 5
-      if (got.length && med <= N / 4) start = LOW_START;
-      plan = { on: true, n: Math.max(SUP_MIN, Math.min(SUP_START_MAX, n0)), rung: start,
-               why: mode === 'support' ? 'You set a shorter sheet' : 'Under half right, or not reaching the second half, on ' + hard + ' of the last ' + recent.length + ' sheets' };
-    } else {
-      var two = recent.slice(0, 2).filter(function (x) { return x.sup && x.len === cur && x.rung === rung; });
-      plan = { on: true, n: cur, rung: rung, why: 'Holding: ' + cur + ' questions' };
-      if (two.length === 2 && two.every(thrived)) plan = { on: true, n: cur + 2, rung: rung + 1, why: 'Two good sheets running: 2 more questions, a step harder' };
-      else if (two.length === 2 && two.every(struggled)) plan = { on: true, n: Math.max(SUP_MIN, cur - 2), rung: rung - 1, why: 'Still too much twice running: 2 fewer questions, a step easier' };
-      if (plan.n > SUP_MAX) {
-        if (mode !== 'support') return { on: false, n: N, why: 'Ready for the full sheet again' };
-        plan.n = SUP_MAX;
-      }
+  /* ── each child's next sheet ──────────────────────────── */
+  /* Two different problems, two different answers (Haring & Eaton, 1978;
+     Daly et al., 1997):
+       · WRONG answers → that skill steps back one small step, towards work
+         at the child's level (Gickling & Armstrong, 1978; Burns, 2004).
+       · BLANKS on the second of the two → not finishing → fewer questions.
+     The rules are fixed in advance (Stecker, Fuchs & Fuchs, 2005), and a
+     skill never moves more than one step between sheets (Levitt, 1971). */
+
+  /* How many questions. run: the child's sheets at the current length, newest
+     first. Two of the last three with the late mark blank takes two away;
+     two running with no blank puts two back. */
+  function lengthPlan(run, cur, lo) {
+    if (cur > lo && run.slice(0, 3).filter(function (x) { return x.late; }).length >= 2)
+      return { n: Math.max(lo, cur - 2), why: 'Your second question left blank on 2 of the last ' + Math.min(3, run.length) + ' sheets: 2 fewer questions' };
+    if (cur < N && run.length >= 2 && !run[0].blank && !run[1].blank)
+      return { n: Math.min(N, cur + 2), why: 'No blanks two sheets running: 2 more questions' };
+    return { n: cur, why: cur < N ? 'Holding at ' + cur + ' questions' : '' };
+  }
+  function runAt(xs, test) { var out = []; for (var i = 0; i < xs.length && test(xs[i]); i++) out.push(xs[i]); return out; }
+
+  /* What a child's sheet made on iso would be. Pure: planSheets saves it.
+     classKeys: the day's class skills. */
+  function planFor(state, pid, iso, an, classKeys) {
+    var sup = supportOf(state, pid), mode = sup.mode, all = sessions(state, pid, iso, 8), cur, run, lp;
+    if (mode === 'num') {
+      var mine = all.filter(function (x) { return x.num; }), last = mine[0];
+      cur = last ? last.len : NUM_START;
+      var rung = last && last.rung != null ? last.rung : START_RUNG;
+      run = runAt(mine, function (x) { return x.len === cur && x.rung === rung; });
+      lp = lengthPlan(run, cur, SUP_MIN);
+      var why = lp.why, two = run.slice(0, 2);
+      if (two.length === 2 && two.every(function (x) { return x.right && !x.wrong && !x.blank; })) { rung++; why = 'Your marks all right two sheets running: a step harder'; }
+      else if (two.length === 2 && two.every(function (x) { return x.wrong; })) { rung--; why = 'A mark wrong two sheets running: a step easier'; }
+      // the teacher's Easier / Harder wins until a sheet is made after it
+      if (sup.rung != null && sup.rungAt && (!last || sup.rungAt >= last.d)) { rung = rungOf(sup); why = (why ? why + ' · ' : '') + 'step set by you'; }
+      return { mode: mode, n: lp.n, rung: clampRung(rung), why: why || 'Numbers only, set by you', lv: {}, moved: [] };
     }
-    // the teacher's Easier / Harder wins until a sheet is made after it
-    if (sup.rung != null && sup.rungAt && (!last || !last.sup || sup.rungAt >= last.d)) { plan.rung = rungOf(sup); plan.why += ' · ladder set by you'; }
-    plan.rung = clampRung(plan.rung);
-    return plan;
+    var lv = {}, moved = [], lvAt = sup.lvAt || null;
+    if (mode === 'full') return { mode: mode, n: N, why: 'Class questions, set by you', lv: lv, moved: moved, lvAt: lvAt };
+    var own = all.filter(function (x) { return !x.num; });
+    cur = own[0] ? own[0].len : N;
+    lp = lengthPlan(runAt(own, function (x) { return x.len === cur; }), cur, SUP_MIN);
+    Object.keys(state.lv[pid] || {}).forEach(function (c) { if (state.lv[pid][c] > 0) lv[c] = state.lv[pid][c]; });
+    var kd = kidOf(an, pid), latest = kd.sheets.length ? kd.sheets[kd.sheets.length - 1] : null;
+    /* Only on new evidence: making three sheets ahead must not step three
+       times. For each skill, k is the step the child is on and hk the step
+       above it.
+         · BACK one step: a new wrong mark on k. Or, with no new mark, when
+           how they are doing overall puts their chance on k under 60%.
+         · FORWARD one step: a new right mark on k — two right running if
+           they were marked wrong on hk, so "one wrong back, two right
+           forward" settles where they get about 70% right (Levitt, 1971).
+           Or, with no marks either way, when their chance on hk is 75%+.
+       A guess from the overall picture never overrides a mark: it cannot
+       send a child forward onto a step they were marked wrong on, or back
+       from one they were marked right on. */
+    if (kd.aN >= MIN_MARKS && latest && !(lvAt && lvAt >= latest)) {
+      var downs = [], since = lvAt || '', mine = an.byPid[pid] || {};
+      var marksOn = function (key) { return (mine[key] || []).slice().sort(function (x, y) { return x.d < y.d ? 1 : -1; }); };   // newest first
+      classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i; }).forEach(function (c) {
+        var d = lv[c] || 0, k = stepBack(c, d);
+        if (!k) { delete lv[c]; d = 0; k = c; }
+        var on = marksOn(k), fresh = on[0] && on[0].d > since ? on[0] : null;
+        var hk = d > 0 ? stepBack(c, d - 1) : null, above = hk ? marksOn(hk)[0] : null, wrongAbove = !!(above && !above.ok);
+        var canDown = d < MAX_BACK && stepBack(c, d + 1);
+        function up() { if (d > 1) lv[c] = d - 1; else delete lv[c]; moved.push({ c: c, to: d - 1 }); }
+        if (fresh && !fresh.ok) { if (canDown) downs.push({ c: c, d: d, p: 0 }); }
+        else if (fresh) { if (hk && (!wrongAbove || (on[1] && on[1].ok))) up(); }
+        else if (hk && !wrongAbove && !(on[0] && !on[0].ok) && estimate(an, pid, hk, c).prior >= UP_PRIOR) up();
+        else if (canDown && !(on[0] && on[0].ok)) {
+          var p0 = estimate(an, pid, k, c).prior;
+          if (p0 < RETEACH) downs.push({ c: c, d: d, p: p0 });
+        }
+      });
+      downs.sort(function (x, y) { return x.p - y.p; }).slice(0, MAX_DOWN).forEach(function (x) { lv[x.c] = x.d + 1; moved.push({ c: x.c, to: x.d + 1 }); });
+      lvAt = latest;
+    }
+    return { mode: mode, n: lp.n, why: lp.why, lv: lv, moved: moved, lvAt: lvAt };
+  }
+
+  /* What is stored for a child on the class's questions: the stepped slots
+     and the slots left out. Nothing at all when their sheet is the class's
+     with their own numbers. The ones left out are what they are most secure
+     on — never one of the teacher's two. */
+  function steppedSheet(day, pid, plan, an) {
+    var ks = {}, drop = [], sh = {};
+    day.qs.forEach(function (q, i) { var d = plan.lv[q.k] || 0, k = d ? stepBack(q.k, d) : null; if (k) ks[i] = k; });
+    if (plan.n < day.qs.length) {
+      drop = day.qs.map(function (q, i) { return { i: i, p: estimate(an, pid, ks[i] || q.k, q.k).p }; })
+        .filter(function (x) { return day.audit.indexOf(x.i) < 0; })
+        .sort(function (x, y) { return y.p - x.p || y.i - x.i; })
+        .slice(0, day.qs.length - plan.n).map(function (x) { return x.i; }).sort(function (a, b) { return a - b; });
+    }
+    if (Object.keys(ks).length) sh.ks = ks;
+    if (drop.length) { sh.drop = drop; sh.why = plan.why; }
+    return Object.keys(sh).length ? sh : null;
   }
 
   /* A supported child's own sheet: numbers and symbols only. About 70% known
@@ -579,17 +757,23 @@
 
   function planSheets(state, iso, onlyUnmarked) {
     var day = state.days[iso], an = analyse(state, addDays(iso, -1), 28);
+    var classKeys = day.qs.map(function (q) { return q.k; });
     if (!day.sheets) day.sheets = {};
     roster.forEach(function (p) {
       if (onlyUnmarked && day.marks[p.id]) return;
-      var plan = supportPlan(state, p.id, iso);
-      if (plan.on) day.sheets[p.id] = buildSupportSheet(day, iso, p.id, plan, an);
-      else delete day.sheets[p.id];
+      var plan = planFor(state, p.id, iso, an, classKeys), sh;
+      if (plan.mode === 'num') sh = buildSupportSheet(day, iso, p.id, plan, an);
+      else {
+        if (Object.keys(plan.lv).length) state.lv[p.id] = plan.lv; else delete state.lv[p.id];
+        if (plan.lvAt) { var o = supportOf(state, p.id); o.lvAt = plan.lvAt; state.support[p.id] = o; }
+        sh = steppedSheet(day, p.id, plan, an);
+      }
+      if (sh) day.sheets[p.id] = sh; else delete day.sheets[p.id];
     });
   }
 
   function makeDay(state, iso, v) {
-    var day = { qs: buildDay(state, iso, v), audit: [], sheets: {}, marks: {}, tg: {} };
+    var day = { qs: buildDay(state, iso, v), audit: [], sheets: {}, marks: {}, tg: {}, ind: 1 };
     if (v) day.v = v;
     state.days[iso] = day;
     day.audit = pickAudit(state, iso);
@@ -598,8 +782,9 @@
   }
 
   function targetsFor(an, day, pid) {
-    var sh = sheetOf(day, pid), sup = sh !== day;
-    return chooseTargets(an, pid, sh.qs.map(function (q) { return q.k; }), sup ? SUP_TARGETS : TARGETS, sup);
+    var pl = sheetPlan(day, pid), cmap = {};
+    pl.slots.forEach(function (x) { cmap[x.k] = x.c; });
+    return chooseTargets(an, pid, pl.slots.map(function (x) { return x.k; }), pl.num ? SUP_TARGETS : TARGETS, !!pl.num, cmap);
   }
   function targetsForDay(state, iso, pid) {
     var day = state.days[iso];
@@ -629,7 +814,7 @@
     if (!curDay) curDay = todayISO();
     h.innerHTML =
       '<div class="page-header"><h1>Mental Starter (CBM)</h1>' +
-      '<p>Same 20 questions for most of the class. You mark the same two questions in every book; at the register each child calls their score and your two marks. Over time the app works out who can do what, scales the sheet back for anyone it is too much for, and picks each child\'s practice questions.</p></div>' +
+      '<p>The same 20 skills for everyone, with different numbers on every child\'s sheet. You mark the same two questions in every book and tap them in. From those marks alone the app works out who can do what, steps a question back for a child who is not ready for it, and picks each child\'s practice questions.</p></div>' +
       '<div class="cbm-tabs">' + [['today', 'Today'], ['progress', 'Progress'], ['setup', 'Set up']].map(function (t) {
         return '<button type="button" class="cbm-tab' + (view === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div><div id="cbmBody"></div>';
@@ -646,50 +831,56 @@
       '<b>' + esc(fullDate(curDay)) + '</b>' + (curDay === todayISO() ? '<span class="cbm-pill">Today</span>' : '') + '</div>';
     if (!day) {
       body.innerHTML = nav + '<div class="card cbm-empty"><h3>No sheet for this day yet</h3>' +
-        '<p>Making it builds the 20 questions from <b>Set up</b> (' + esc(htOf(state, curDay)) + '), picks the two you will mark, and makes a shorter sheet for any child the full one has been too much for.</p>' +
+        '<p>Making it builds the 20 questions from <b>Set up</b> (' + esc(htOf(state, curDay)) + ') with different numbers for every child, picks the two you will mark, and steps a question back for any child your marks show is not ready for it.</p>' +
         '<button type="button" id="cbmMake">Make the sheet</button></div>';
       wireNav(body);
       document.getElementById('cbmMake').onclick = function () { var s = load(); makeDay(s, curDay); save(s); renderToday(); };
       return;
     }
-    var a = day.audit, qa = qNums(day);
-    var sup = sortedRoster().filter(function (p) { return day.sheets && day.sheets[p.id]; });
+    var a = day.audit, qa = qNums(day), an = analyse(state, curDay, 14), focus = focusSlots(an, day);
     var rows = sortedRoster().map(function (p) { return rowHTML(state, day, p); }).join('');
+    var board = typeof window.hubOpenBoard === 'function';
     body.innerHTML = nav +
       '<div class="cbm-audit"><div><div class="cbm-k">Mark these two in every book — don\'t tell the class which</div>' +
-        '<div class="cbm-auditq">' + a.map(function (i) { return '<span><b>Q' + (i + 1) + '</b> ' + esc(keyLabel(day.qs[i].k)) + ' <em>' + esc(ans(day.qs[i], curDay)) + '</em></span>'; }).join('') + '</div>' +
-        (sup.length ? '<div class="cbm-supq">Shorter sheets: ' + sup.map(function (p) { return '<span><b>' + esc(p.name) + '</b> ' + qNums(day.sheets[p.id]).join(' & ') + '</span>'; }).join('') + '</div>' : '') +
+        '<div class="cbm-auditq">' + a.map(function (i) { return '<span><b>Q' + (i + 1) + '</b> ' + esc(keyLabel(day.qs[i].k)) + (day.ind ? '' : ' <em>' + esc(ans(day.qs[i], curDay)) + '</em>') + '</span>'; }).join('') + '</div>' +
+        (day.ind ? '<div class="cbm-supq">Every child has their own numbers. Their two answers are beside their name below, and on the marking list.</div>' : '') +
+        (focus.length ? '<div class="cbm-focus"><span class="cbm-k">Model on the board</span>' + focus.map(function (i) {
+          var k = day.qs[i].k; return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }).join('') + '</div>' : '') +
         '</div><div class="cbm-actions">' +
           '<button type="button" id="cbmPrintAll">Print class set</button>' +
+          '<button type="button" class="secondary" id="cbmPrintMark">Print marking list</button>' +
+          (board && focus.length ? '<button type="button" class="secondary" id="cbmWbFocus">Model the focus skills</button>' : '') +
+          (board ? '<button type="button" class="secondary" id="cbmWb">All 20 on the board</button>' : '') +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
-          (typeof window.hubOpenBoard === 'function' ? '<button type="button" class="secondary" id="cbmWb">Go through on the board</button>' : '') +
-          '<button type="button" class="secondary" id="cbmBoard">Answers on the board</button>' +
           (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
-          (sup.length ? '<button type="button" class="secondary" id="cbmPrintAns">Answers for shorter sheets</button>' : '') +
         '</div></div>' +
-      '<div class="card"><div class="cbm-entryhead"><h3>Scores</h3><span class="cbm-count" id="cbmCount">' + enteredCount(day) + ' of ' + roster.length + ' entered</span></div>' +
-        '<p class="cbm-hint">Type their score and your two marks: <code>17 yn</code>. <code>y</code> right, <code>n</code> wrong, <code>b</code> left blank. <code>abs</code> = absent. ' +
-        'Or type the score and tap the marks. Enter moves to the next child.</p>' +
-        '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>Score &amp; marks</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th class="num">Score</th><th>Practice box</th></tr></thead>' +
+      '<div class="card"><div class="cbm-entryhead"><h3>Your marks</h3><span class="cbm-count" id="cbmCount">' + enteredCount(day) + ' of ' + roster.length + ' entered</span></div>' +
+        '<p class="cbm-hint">Tap each mark: <b>✓</b> right, <b>✗</b> wrong, <b>–</b> left blank. The answer beside it is that child\'s own. Nothing else is entered.</p>' +
+        '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th></th><th>Practice box</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div></div>' +
-      '<details class="card cbm-qlist"><summary>Today\'s 20 questions and answers</summary><ol>' +
+      '<details class="card cbm-qlist"><summary>Today\'s 20 questions — the model version, with answers</summary>' +
+        '<p class="cbm-hint">The same skills as every child\'s sheet, with numbers nobody has. This is what goes on the board.</p><ol>' +
         day.qs.map(function (q, i) { return '<li' + (a.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '><span class="cbm-qtext">' + GRQ(q) + '</span><span class="cbm-qans">' + esc(ans(q, curDay)) + '</span><span class="cbm-qskill" title="' + esc(keyTitle(q.k)) + '">' + esc(keyLabel(q.k)) + '</span></li>'; }).join('') +
-      '</ol><div class="cbm-qtools"><button type="button" class="secondary small" id="cbmRetarget" title="For children with nothing entered yet">Rebuild shorter sheets and practice boxes</button>' +
+      '</ol><div class="cbm-qtools">' + (day.ind ? '<button type="button" class="secondary small" id="cbmRetarget" title="For children with nothing entered yet">Rebuild sheets and practice boxes</button>' : '') +
         '<button type="button" class="secondary small" id="cbmRegen">Make a new set of questions</button>' +
         '<button type="button" class="danger small" id="cbmDelete">Delete this sheet</button></div></details>';
     wireNav(body);
     wireRows(body);
     document.getElementById('cbmPrintAll').onclick = function () { printSheets(true); };
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
-    document.getElementById('cbmBoard').onclick = showAnswers;
-    var wb = document.getElementById('cbmWb'); if (wb) wb.onclick = function () {
-      /* The Mental Starters whiteboard: all 20 or one at a time on squared paper, pen and
-         rubber, then the answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'). */
-      window.hubOpenBoard({ qs: day.qs, iso: curDay, title: 'Mental Starter (CBM) · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
+    document.getElementById('cbmPrintMark').onclick = printMarking;
+    /* The Mental Starters whiteboard: one at a time on squared paper, pen and rubber, then the
+       answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'); the focus list keeps
+       its own, because its question 1 is not the sheet's question 1. */
+    function openBoard(qs, key, title) {
+      window.hubOpenBoard({ qs: qs, iso: curDay, key: key, title: title + ' · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
+    }
+    var wb = document.getElementById('cbmWb'); if (wb) wb.onclick = function () { openBoard(day.qs, 'cbm:' + curDay, 'Mental Starter (CBM)'); };
+    var wf = document.getElementById('cbmWbFocus'); if (wf) wf.onclick = function () {
+      openBoard(focus.map(function (i) { return day.qs[i]; }), 'cbm:' + curDay + ':focus', 'Focus skills');
     };
-    var pa = document.getElementById('cbmPrintAns'); if (pa) pa.onclick = printSupportAnswers;
     var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = function () { toPrint(tablesHTML(curDay, load().xt, '')); };
-    document.getElementById('cbmRetarget').onclick = function () {
+    var rt = document.getElementById('cbmRetarget'); if (rt) rt.onclick = function () {
       var s = load(), d = s.days[curDay];
       planSheets(s, curDay, true);
       Object.keys(d.tg || {}).forEach(function (pid) { if (!d.marks[pid]) delete d.tg[pid]; });
@@ -697,12 +888,12 @@
     };
     document.getElementById('cbmRegen').onclick = function () {
       var has = enteredCount(day);
-      if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The ' + has + ' scores entered for this sheet will be cleared.' : '?'))) return;
+      if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The marks entered for ' + has + ' children will be cleared.' : '?'))) return;
       var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); clearBoardInk(curDay); renderToday();
     };
     document.getElementById('cbmDelete').onclick = function () {
       var has = enteredCount(day);
-      if (!confirm('Delete the sheet for ' + fullDate(curDay) + (has ? ' and the ' + has + ' scores entered for it' : '') + '?')) return;
+      if (!confirm('Delete the sheet for ' + fullDate(curDay) + (has ? ' and the marks entered for ' + has + ' children' : '') + '?')) return;
       var s = load(); delete s.days[curDay]; save(s); clearBoardInk(curDay); renderToday();
     };
   }
@@ -730,108 +921,71 @@
   }
 
   function enteredCount(day) { return roster.filter(function (p) { return isScored(day.marks[p.id]); }).length; }
-  function entryText(day, pid) { var m = day.marks[pid]; if (!isScored(m)) return ''; if (m.x) return 'abs'; return String(scoreOf(m, sheetOf(day, pid).qs.length)); }
   var MARK = { '1': ['yes', '✓'], '0': ['no', '✗'], '-1': ['blank', '–'] };
+  /* one of the teacher's two for one child: the tap button, and that child's own answer */
   function auditBtn(day, pid, j) {
-    var m = day.marks[pid], sh = sheetOf(day, pid), v = m && !m.x && m.a ? m.a[j] : null, mk = MARK[String(v)];
+    var m = day.marks[pid], pl = sheetPlan(day, pid), pos = pl.audit[j], v = m && !m.x && m.a ? m.a[j] : null, mk = MARK[String(v)];
+    if (pos == null) return '';
+    var q = pl.own ? sheetQs(day, curDay, pid)[pos] : null;
     return '<button type="button" class="cbm-mark' + (mk ? ' ' + mk[0] : '') + '" data-aj="' + j + '"' + (m && m.x ? ' disabled' : '') +
-      ' aria-label="Your mark for Q' + (sh.audit[j] + 1) + '">' + (mk ? mk[1] : '·') + '</button>' +
-      (sh !== day ? '<span class="cbm-markq">Q' + (sh.audit[j] + 1) + '</span>' : '');
+      ' aria-label="Your mark for Q' + (pos + 1) + '">' + (mk ? mk[1] : '·') + '</button>' +
+      (pos !== day.audit[j] ? '<span class="cbm-markq">Q' + (pos + 1) + '</span>' : '') +
+      (q ? '<span class="cbm-markans" title="' + esc(keyTitle(q.k)) + '">' + esc(ans(q, curDay)) + '</span>' : '');
   }
-  function scoreHTML(day, pid) {
-    var m = day.marks[pid], len = sheetOf(day, pid).qs.length;
-    if (!isScored(m)) return '<span class="muted">—</span>';
-    if (m.x) return '<span class="muted">absent</span>';
-    var blank = (m.a || []).some(function (v) { return v === -1; });
-    return '<b>' + scoreOf(m, len) + '</b><span class="muted">/' + len + '</span>' + (blank ? ' <span class="cbm-flag cbm-flag-blank" title="One of your two was left blank">blank</span>' : '');
+  function absBtn(day, pid) {
+    var x = !!(day.marks[pid] && day.marks[pid].x);
+    return '<button type="button" class="cbm-abs' + (x ? ' on' : '') + '" aria-pressed="' + x + '">Absent</button>';
   }
   function boxHTML(state, day, pid) {
     var tg = day.tg && day.tg[pid] ? day.tg[pid] : targetsForDay(state, curDay, pid);
-    if (!tg.length) return '<span class="muted small">after the first scores</span>';
+    if (!tg.length) return '<span class="muted small">after your first marks</span>';
     return tg.map(function (t) { return '<span class="cbm-tg cbm-tg-' + t.y + '" title="' + esc(keyTitle(t.k) + ' — ' + WHY[t.y]) + '">' + esc(keyLabel(t.k)) + '</span>'; }).join('');
   }
+  /* what is different about this child's sheet, beside their name */
+  function tagsHTML(day, pid) {
+    var pl = sheetPlan(day, pid), out = '';
+    if (pl.num) return ' <span class="cbm-sup" title="' + esc((pl.why ? pl.why + ' · ' : '') + rungLabel(pl.rung)) + '">' + (day.ind ? 'numbers · ' : '') + pl.slots.length + ' Qs</span>';
+    if (pl.slots.length < day.qs.length) out += ' <span class="cbm-sup" title="' + esc(pl.why) + '">' + pl.slots.length + ' Qs</span>';
+    var st = pl.slots.filter(function (x) { return x.k !== x.c; });
+    if (st.length) out += ' <span class="cbm-sup cbm-stepped" title="' + esc(st.map(function (x) { return 'Q' + (pl.slots.indexOf(x) + 1) + ' ' + keyLabel(x.c) + ' → ' + keyLabel(x.k); }).join('\n')) + '">' + st.length + ' stepped back</span>';
+    return out;
+  }
   function rowHTML(state, day, p) {
-    var sh = day.sheets && day.sheets[p.id];
-    return '<tr data-pid="' + p.id + '"><td class="name">' + esc(p.name) +
-        (sh ? ' <span class="cbm-sup" title="' + esc(sh.why + ' · ' + rungLabel(rungOf(sh))) + '">' + sh.qs.length + ' Qs</span>' : '') + '</td>' +
-      '<td><input class="cbm-in" type="text" inputmode="text" autocomplete="off" value="' + esc(entryText(day, p.id)) + '" placeholder="e.g. 17 yn" aria-label="Score and marks for ' + esc(p.name) + '"></td>' +
+    return '<tr data-pid="' + p.id + '"><td class="name">' + esc(p.name) + tagsHTML(day, p.id) + '</td>' +
       '<td class="cbm-markcell">' + auditBtn(day, p.id, 0) + '</td><td class="cbm-markcell">' + auditBtn(day, p.id, 1) + '</td>' +
-      '<td class="num cbm-score">' + scoreHTML(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td></tr>';
+      '<td class="cbm-abscell">' + absBtn(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td></tr>';
   }
 
   function wireRows(body) {
     function refresh(tr) {
-      var s = load(), day = s.days[curDay], pid = tr.dataset.pid, td = tr.children, input = tr.querySelector('.cbm-in');
-      // update the cells in place: replacing the row would pull the focused input out
-      // from under the browser, which fires its change event a second time mid-update
-      input.value = entryText(day, pid); input.classList.remove('bad'); input.title = '';
-      td[2].innerHTML = auditBtn(day, pid, 0); td[3].innerHTML = auditBtn(day, pid, 1);
-      td[4].innerHTML = scoreHTML(day, pid); td[5].innerHTML = boxHTML(s, day, pid);
+      var s = load(), day = s.days[curDay], pid = tr.dataset.pid, td = tr.children;
+      td[1].innerHTML = auditBtn(day, pid, 0); td[2].innerHTML = auditBtn(day, pid, 1);
+      td[3].innerHTML = absBtn(day, pid); td[4].innerHTML = boxHTML(s, day, pid);
       document.getElementById('cbmCount').textContent = enteredCount(day) + ' of ' + roster.length + ' entered';
     }
-    function commit(input) {
-      var tr = input.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], prev = day.marks[pid];
-      var len = sheetOf(day, pid).qs.length, r = parseEntry(input.value, len);
-      var bad = r.bad && r.bad.length;
-      input.classList.toggle('bad', !!bad);
-      if (bad) { input.title = 'Not understood: ' + r.bad.join(' ') + ' (score out of ' + len + ', then y / n / b)'; return null; }
-      var keepA = prev && !prev.x && prev.a ? prev.a : [null, null];
-      var a = r.a ? [r.a[0], r.a.length > 1 ? r.a[1] : keepA[1]] : keepA;
-      if (r.empty || (r.s === null && !r.x)) {
-        // marks can arrive before the score: keep them, but they are not a result yet
-        if (a.some(function (v) { return v != null; })) day.marks[pid] = { a: a };
-        else delete day.marks[pid];
-      } else if (r.x) day.marks[pid] = { x: 1 };
-      else day.marks[pid] = { s: r.s, a: a };
-      save(s);
-      return pid;
-    }
     body.querySelectorAll('.cbm-table tbody').forEach(function (tb) {
-      tb.addEventListener('change', function (e) {
-        if (!e.target.classList.contains('cbm-in')) return;
-        var tr = e.target.closest('tr');
-        if (commit(e.target)) refresh(tr);
-      });
-      tb.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' || !e.target.classList.contains('cbm-in')) return;
-        e.preventDefault();
-        var tr = e.target.closest('tr');
-        if (!commit(e.target)) return;
-        refresh(tr);
-        var next = tr.nextElementSibling;
-        if (next) next.querySelector('.cbm-in').focus(); else e.target.blur();
-      });
       tb.addEventListener('click', function (e) {
-        var b = e.target.closest('.cbm-mark'); if (!b || b.disabled) return;
-        var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], j = +b.dataset.aj;
-        var m = day.marks[pid] || (day.marks[pid] = { a: [null, null] });
-        if (m.x) return;
-        if (!m.a) m.a = [null, null];
-        var v = m.a[j];
-        m.a[j] = v === 1 ? 0 : v === 0 ? -1 : v === -1 ? null : 1;    // · → ✓ → ✗ → blank → ·
+        var b = e.target.closest('.cbm-mark, .cbm-abs'); if (!b || b.disabled) return;
+        var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], m = day.marks[pid];
+        if (b.classList.contains('cbm-abs')) {
+          if (m && m.x) delete day.marks[pid]; else day.marks[pid] = { x: 1 };
+        } else {
+          var j = +b.dataset.aj;
+          if (!m) m = day.marks[pid] = { a: [null, null] };
+          if (!m.a) m.a = [null, null];
+          var v = m.a[j];
+          m.a[j] = v === 1 ? 0 : v === 0 ? -1 : v === -1 ? null : 1;    // · → ✓ → ✗ → blank → ·
+          if (m.a[0] == null && m.a[1] == null && typeof m.s !== 'number' && !Array.isArray(m.w)) delete day.marks[pid];
+        }
         save(s); refresh(tr);
       });
     });
   }
 
-  /* ── Answers ──────────────────────────────────────────── */
-  function showAnswers() {
-    var day = load().days[curDay]; if (!day) return;
-    var ov = document.getElementById('cbmAnswers');
-    if (!ov) { ov = document.createElement('div'); ov.id = 'cbmAnswers'; document.body.appendChild(ov); }
-    ov.innerHTML = '<div class="cbm-ans-top"><b>Answers · ' + esc(fullDate(curDay)) + '</b><button type="button" id="cbmAnsClose">Close</button></div>' +
-      '<ol class="cbm-ans-grid">' + day.qs.map(function (q) { return '<li><span>' + esc(ans(q, curDay)) + '</span></li>'; }).join('') + '</ol>';
-    ov.style.display = 'flex';
-    function close() { ov.style.display = 'none'; document.removeEventListener('keydown', esc_); }
-    function esc_(e) { if (e.key === 'Escape') close(); }
-    document.getElementById('cbmAnsClose').onclick = close;
-    document.addEventListener('keydown', esc_);
-  }
-
   /* ── Print ────────────────────────────────────────────── */
   function sheetHTML(day, iso, name, targets, pid) {
-    var sh = pid ? sheetOf(day, pid) : day, short = sh !== day;
-    var cells = sh.qs.map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
+    var qs = pid ? sheetQs(day, iso, pid) : day.qs, short = qs.length <= 14;
+    var cells = qs.map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
     var box = '';
     if (targets && targets.length) {
       box = '<div class="cbm-pbox"><div class="cbm-pbox-h">My ' + targets.length + ' to practise</div><div class="cbm-pbox-grid">' +
@@ -840,7 +994,7 @@
           return '<div class="gen-q"><span class="gen-num">' + 'abcd'.charAt(i) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>';
         }).join('') + '</div></div>';
     }
-    // a shorter sheet looks like everyone else's — same heading, no label — just bigger and fewer
+    // every sheet looks alike — same heading, no label — a short one is just bigger
     return '<div class="card gen-sheet gen-day cbm-sheet' + (short ? ' cbm-sheet-short' : '') + '"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
       esc(fullDate(iso)) + ' · Mental Starter</h2><div class="gen-grid">' + cells + '</div>' + box + '</div>';
   }
@@ -871,17 +1025,19 @@
     toPrint(html);
     if (view === 'today') renderToday();
   }
-  /* Shorter sheets have their own questions, so the board's answers do not
-     fit them: one page of answer strips for whoever marks those. */
-  function printSupportAnswers() {
+  /* Every child's numbers are their own, so the two answers the teacher needs
+     are different in every book: one page to carry round the room. */
+  function printMarking() {
     var day = load().days[curDay]; if (!day) return;
-    var html = sortedRoster().filter(function (p) { return day.sheets && day.sheets[p.id]; }).map(function (p) {
-      var sh = day.sheets[p.id];
-      return '<div class="cbm-ansslip"><b>' + esc(p.name) + '</b><ol>' + sh.qs.map(function (q, i) {
-        return '<li' + (sh.audit.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '>' + esc(ans(q, curDay)) + '</li>';
-      }).join('') + '</ol></div>';
+    var rows = sortedRoster().map(function (p) {
+      var pl = sheetPlan(day, p.id), qs = sheetQs(day, curDay, p.id);
+      return '<tr><td class="name">' + esc(p.name) + '</td>' + [0, 1].map(function (j) {
+        var pos = pl.audit[j];
+        return pos == null ? '<td></td>' : '<td><span class="cbm-ml-q">Q' + (pos + 1) + '</span> <b>' + esc(ans(qs[pos], curDay)) + '</b></td><td class="cbm-ml-box"></td>';
+      }).join('') + '</tr>';
     }).join('');
-    toPrint('<div class="card gen-sheet gen-day cbm-ansslips"><h2 class="gen-heading">Answers for shorter sheets · ' + esc(fullDate(curDay)) + '</h2>' + html + '</div>');
+    toPrint('<div class="card gen-sheet gen-day cbm-marklist"><h2 class="gen-heading">Marking list · ' + esc(fullDate(curDay)) + '</h2>' +
+      '<table><thead><tr><th class="name">Pupil</th><th>First</th><th></th><th>Second</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>');
   }
 
   /* ── Progress ─────────────────────────────────────────── */
@@ -891,32 +1047,39 @@
     if (!last) { body.innerHTML = '<div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>'; return; }
     var an = analyse(state, todayISO(), windowDays);
     var latest = state.days[last], keys = latest.qs.map(function (q) { return q.k; });
-    Object.keys(an.cls).forEach(function (k) { if (keys.indexOf(k) < 0 && !isFd(k)) keys.push(k); });
+    // other class skills checked in the window; not the steps back or the number facts individual children were given
+    var wasClass = {};
+    dates.forEach(function (d) { state.days[d].qs.forEach(function (q) { wasClass[q.k] = 1; }); });
+    Object.keys(an.cls).forEach(function (k) { if (keys.indexOf(k) < 0 && wasClass[k]) keys.push(k); });
     keys = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
     var checked = keys.filter(function (k) { return an.cls[k]; }).length;
+    function depth(pid, k) { return supportOf(state, pid).mode === 'auto' ? ((state.lv[pid] || {})[k] || 0) : 0; }
 
     var reteach = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH; }).sort(function (a, b) { return an.cls[a].rate - an.cls[b].rate; });
     var secure = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate >= SECURE; });
-    var checks = sortedRoster().filter(function (p) { return kidOf(an, p.id).flag; });
+    var back = sortedRoster().map(function (p) { return { p: p, n: keys.filter(function (k) { return depth(p.id, k) > 0; }).length }; }).filter(function (x) { return x.n; });
     function chips(list, empty, fmt) { return list.length ? list.map(fmt).join('') : '<span class="muted small">' + empty + '</span>'; }
 
     var head = '<tr><th class="name">Pupil</th>' + keys.map(function (k) {
       return '<th class="cbm-hk" title="' + esc(keyTitle(k)) + '"><span>' + esc(keyLabel(k)) + '</span></th>';
-    }).join('') + '<th title="Their own average score beside how many of your marks were right">Self-marked · your marks</th><th>Practice box next</th></tr>';
+    }).join('') + '<th title="How many of your marks were right">Your marks</th><th>Practice box next</th></tr>';
     var classRow = '<tr class="cbm-classrow"><td class="name">Class</td>' + keys.map(function (k) {
-      var c = an.cls[k]; return c ? '<td class="cbm-cell b-' + band(c.rate) + '" title="' + esc(keyLabel(k) + ': ' + c.ok + ' of ' + c.n + ' checked answers right') + '">' + pct(c.rate) + '</td>' : '<td class="cbm-cell" title="Not checked yet">·</td>';
+      var c = an.cls[k], n = roster.filter(function (p) { return depth(p.id, k) > 0; }).length;
+      var tip = keyLabel(k) + ': ' + (c ? c.ok + ' of ' + c.n + ' checked answers right' : 'not checked yet') + (n ? ' · ' + n + ' working a step or more back' : '');
+      return '<td class="cbm-cell' + (c ? ' b-' + band(c.rate) : '') + '" title="' + esc(tip) + '">' + (c ? pct(c.rate) : '·') + '</td>';
     }).join('') + '<td></td><td></td></tr>';
     var rows = sortedRoster().map(function (p) {
       var kd = kidOf(an, p.id);
       var cells = keys.map(function (k) {
-        if (!kd.aN && !kd.sN) return '<td class="cbm-cell">·</td>';
-        var e = estimate(an, p.id, k), o = openState(an, p.id, k);
-        var tip = p.name + ' · ' + keyLabel(k) + ': ' + (e.n ? e.right + ' of ' + e.n + ' checked right, ' : 'not checked yet, ') + 'about ' + pct(e.p) + ' likely' + (o.open ? ' — in their practice box' : '');
-        return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (o.open ? ' is-open' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + '</td>';
+        if (!kd.aN) return '<td class="cbm-cell">·</td>';
+        var d = depth(p.id, k), e = estimate(an, p.id, k, k), o = openState(an, p.id, k);
+        var tip = p.name + ' · ' + keyLabel(k) + ': ' + (e.n ? e.right + ' of ' + e.n + ' checked right, ' : 'not checked yet, ') + 'about ' + pct(e.p) + ' likely' +
+          (d ? ' — working ' + d + ' step' + (d > 1 ? 's' : '') + ' back: ' + keyLabel(stepBack(k, d) || k) : '') + (o.open ? ' — in their practice box' : '');
+        return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (o.open ? ' is-open' : '') + (d ? ' is-back' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + (d ? '<i class="cbm-back">↓' + d + '</i>' : '') + '</td>';
       }).join('');
       var tg = targetsFor(an, latest, p.id);
-      return '<tr><td class="name">' + esc(p.name) + (latest.sheets && latest.sheets[p.id] ? ' <span class="cbm-sup">' + latest.sheets[p.id].qs.length + ' Qs</span>' : '') + '</td>' + cells +
-        '<td class="cbm-trust">' + (kd.self != null ? pct(kd.self) : '—') + ' · ' + (kd.aN ? kd.aOk + '/' + kd.aN : '—') + (kd.flag ? ' <span class="cbm-flag">check</span>' : '') + '</td>' +
+      return '<tr><td class="name">' + esc(p.name) + '</td>' + cells +
+        '<td class="cbm-trust">' + (kd.aN ? kd.aOk + '/' + kd.aN : '—') + '</td>' +
         '<td class="cbm-box-cell">' + (tg.length ? tg.map(function (x) { return '<span class="cbm-tg cbm-tg-' + x.y + '" title="' + esc(WHY[x.y]) + '">' + esc(keyLabel(x.k)) + '</span>'; }).join('') : '<span class="muted small">—</span>') + '</td></tr>';
     }).join('');
 
@@ -924,56 +1087,73 @@
       '<div class="cbm-daynav"><label for="cbmWin">Looking at</label><select id="cbmWin">' +
         [[7, 'the last week'], [14, 'the last 2 weeks'], [28, 'the last 4 weeks'], [91, 'the last term']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === windowDays ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
       '</select><span class="muted small">' + checked + ' of ' + keys.length + ' skills checked so far</span></div>' +
-      supportHTML(state) +
+      supportHTML(state, latest) +
       '<div class="cbm-cards">' +
         '<div class="card cbm-card"><h3>Reteach to the class</h3><p class="cbm-hint">Under ' + pct(RETEACH) + ' of your marks right across the class.</p>' + chips(reteach, 'Nothing below ' + pct(RETEACH) + '.', function (k) { return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }) + '</div>' +
         '<div class="card cbm-card"><h3>Secure</h3><p class="cbm-hint">' + pct(SECURE) + ' or more right. Could leave the sheet for a harder step.</p>' + chips(secure, 'Nothing secure yet.', function (k) { return '<span class="cbm-chip sec" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + '</span>'; }) + '</div>' +
-        '<div class="card cbm-card"><h3>Check their self-marking</h3><p class="cbm-hint">Their own scores run well ahead of your marks (6+ marks).</p>' + chips(checks, 'No one.', function (p) { var kd = kidOf(an, p.id); return '<span class="cbm-chip mid">' + esc(p.name) + ' · ' + pct(kd.self) + ' vs ' + pct(kd.audit) + '</span>'; }) + '</div>' +
+        '<div class="card cbm-card"><h3>Working a step or more back</h3><p class="cbm-hint">Children whose sheet has an earlier step in place of a class question.</p>' + chips(back, 'No one.', function (x) { return '<span class="cbm-chip mid">' + esc(x.p.name) + ' · ' + x.n + ' skill' + (x.n > 1 ? 's' : '') + '</span>'; }) + '</div>' +
       '</div>' +
       '<div class="card"><div class="cbm-entryhead"><h3>Skill by skill</h3><span class="cbm-legend"><i class="b-low"></i>under 60% <i class="b-mid"></i>60–74% <i class="b-ok"></i>75–89% <i class="b-sec"></i>90%+ <i class="is-open"></i>in practice box</span></div>' +
-        '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. Each mark you make firms it up.</p>' +
+        '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. <b>↓2</b> = that child is working two steps back on it. Each mark you make firms it up.</p>' +
         '<div class="table-wrap"><table class="cbm-grid"><thead>' + head + '</thead><tbody>' + classRow + rows + '</tbody></table></div></div>';
     document.getElementById('cbmWin').onchange = function (e) { windowDays = +e.target.value; renderProgress(); };
-    wireSupport(body);
+    wireSupport(body, latest);
   }
 
-  /* Who the full sheet is too much for, and what happens next. */
-  function supportHTML(state) {
-    var next = addDays(todayISO(), 1);
+  /* Whose next sheet is not simply the class's 20, and why. */
+  function supportHTML(state, latest) {
+    var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), classKeys = latest.qs.map(function (q) { return q.k; });
     var busy = Object.keys(state.days).filter(function (d) { return d <= todayISO() && daysBetween(d, todayISO()) < 10 && enteredCount(state.days[d]) >= roster.length / 2; });
     var rows = sortedRoster().map(function (p) {
-      var recent = sessions(state, p.id, next, 5), plan = supportPlan(state, p.id, next), mode = supportOf(state, p.id).mode || 'auto';
-      var hard = recent.slice(0, 3).filter(struggled).length;
+      var recent = sessions(state, p.id, next, 5), plan = planFor(state, p.id, next, an, classKeys);
+      var stepped = classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i && plan.lv[c] > 0; });
       var missing = busy.filter(function (d) { return !isScored(state.days[d].marks[p.id]); }).length;
-      if (!(plan.on || mode !== 'auto' || hard >= 1 || missing >= 2)) return '';
+      if (!(plan.mode !== 'auto' || stepped.length || plan.n < N || missing >= 2)) return '';
       var hist = recent.slice().reverse().map(function (x) {
-        return '<span class="cbm-sess' + (struggled(x) ? ' hard' : thrived(x) ? ' good' : '') + '" title="' + esc(shortDate(x.d) + ': ' + x.s + ' of ' + x.len + (x.blankLate ? ', blank in the second half' : x.blank ? ', a blank' : '')) + '">' + x.s + '/' + x.len + (x.blank ? '<i>b</i>' : '') + '</span>';
+        var t = new Array(x.right + 1).join('✓') + new Array(x.wrong + 1).join('✗') + (x.blank ? '–' : '');
+        return '<span class="cbm-sess' + (x.wrong || x.late ? ' hard' : x.right === 2 ? ' good' : '') + '" title="' + esc(shortDate(x.d) + ': ' + x.len + ' questions' + (x.late ? ', your second question left blank' : '')) + '">' + (t || '·') + '</span>';
       }).join('');
-      var nextTxt = plan.on ? '<b>' + plan.n + ' questions</b> · ' + esc(rungLabel(plan.rung)) : 'Full sheet';
-      return '<tr data-spid="' + p.id + '"><td class="name">' + esc(p.name) + '</td><td>' + (hist || '<span class="muted small">no scores</span>') +
-        (missing >= 2 ? ' <span class="cbm-flag" title="Days most of the class gave a score and this child did not">no score ' + missing + '×</span>' : '') + '</td>' +
-        '<td>' + nextTxt + '<div class="cbm-why1">' + esc(plan.why || (hard ? 'Watching: ' + hard + ' hard sheet' + (hard > 1 ? 's' : '') + ' of the last 3' : '')) + '</div></td>' +
+      var nextTxt = '<b>' + plan.n + ' questions</b> · ' + (plan.mode === 'num' ? 'numbers only · ' + esc(rungLabel(plan.rung))
+        : stepped.length ? stepped.length + ' skill' + (stepped.length > 1 ? 's' : '') + ' a step or more back' : 'the class questions');
+      var list = stepped.length ? '<ul class="cbm-steplist">' + stepped.map(function (c) {
+        return '<li>' + esc(keyLabel(c)) + ' → <b>' + esc(keyLabel(stepBack(c, plan.lv[c]) || c)) + '</b>' + (plan.lv[c] > 1 ? ' <span class="muted">(' + plan.lv[c] + ' steps)</span>' : '') + '</li>'; }).join('') + '</ul>' : '';
+      return '<tr data-spid="' + p.id + '"><td class="name">' + esc(p.name) + '</td><td>' + (hist || '<span class="muted small">no marks</span>') +
+        (missing >= 2 ? ' <span class="cbm-flag" title="Days most of the class were marked and this child was not">not marked ' + missing + '×</span>' : '') + '</td>' +
+        '<td>' + nextTxt + (plan.why ? '<div class="cbm-why1">' + esc(plan.why) + '</div>' : '') + list + '</td>' +
         '<td class="cbm-supctl"><select data-mode aria-label="Sheet for ' + esc(p.name) + '">' +
-          [['auto', 'Automatic'], ['full', 'Always full sheet'], ['support', 'Always shorter sheet']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === mode ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
-          (plan.on ? '<button type="button" class="secondary small" data-rung="-1" title="Simpler calculations">Easier</button><button type="button" class="secondary small" data-rung="1" title="Harder calculations">Harder</button>' : '') +
+          [['auto', 'Automatic'], ['full', 'Always the class questions'], ['num', 'Numbers only']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === plan.mode ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
+          (plan.mode === 'num' ? '<button type="button" class="secondary small" data-rung="-1" title="Simpler calculations">Easier</button><button type="button" class="secondary small" data-rung="1" title="Harder calculations">Harder</button>' : '') +
+          (stepped.length ? '<button type="button" class="secondary small" data-reset title="Put every skill back to the class question">Back to class questions</button>' : '') +
         '</td></tr>';
     }).join('');
-    return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Not finishing, or finding it hard</h3></div>' +
-      '<p class="cbm-hint">A hard sheet is under half right, or a blank where you marked the second half. Two of the last three moves a child to a shorter sheet of number facts — numbers and symbols only, nothing to read, smallest numbers first; two good sheets running (85%+, no blanks) adds two questions and a step, and past ' + SUP_MAX + ' they rejoin the full sheet. Changes here apply to the next sheet you make.</p>' +
-      (rows ? '<div class="table-wrap"><table class="cbm-suptable"><thead><tr><th class="name">Pupil</th><th>Last sheets</th><th>Next sheet</th><th>Setting</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
-            : '<p class="muted small">Everyone is managing the full sheet.</p>') + '</div>';
+    var all = '<details class="cbm-supall"><summary>Change another child\'s setting</summary><div class="cbm-setrow"><select id="cbmSupPid" aria-label="Pupil">' +
+      sortedRoster().map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select><select id="cbmSupMode" aria-label="Setting">' +
+      '<option value="auto">Automatic</option><option value="full">Always the class questions</option><option value="num">Numbers only</option></select>' +
+      '<button type="button" class="secondary small" id="cbmSupSet">Set</button></div></details>';
+    return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Stepped back, shorter, or numbers only</h3></div>' +
+      '<p class="cbm-hint">Only your two marks decide this. <b>A wrong answer</b> steps that skill back one small step along the White Rose order — never more than one step between sheets, no more than ' + MAX_DOWN + ' skills at once, and never past ' + MAX_BACK + ' steps — and right answers on the easier step bring it forward again (two running, if they were wrong on the step above). Skills you have not marked follow how the child is doing overall. ' +
+      '<b>Your second question left blank</b> on two of the last three sheets means not finishing: two fewer questions, put back after two sheets with no blanks. <b>Numbers only</b> is for a child who cannot read the questions yet. Changes here apply to the next sheet you make.</p>' +
+      (rows ? '<div class="table-wrap"><table class="cbm-suptable"><thead><tr><th class="name">Pupil</th><th>Last marks</th><th>Next sheet</th><th>Setting</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
+            : '<p class="muted small">Everyone is on the class questions, all 20.</p>') + all + '</div>';
   }
-  function wireSupport(body) {
+  function wireSupport(body, latest) {
+    function setMode(pid, mode) { var s = load(), o = supportOf(s, pid); o.mode = mode; s.support[pid] = o; save(s); renderProgress(); }
     body.querySelectorAll('tr[data-spid]').forEach(function (tr) {
       var pid = tr.dataset.spid, sel = tr.querySelector('[data-mode]');
-      sel.onchange = function () { var s = load(), o = supportOf(s, pid); o.mode = sel.value; s.support[pid] = o; save(s); renderProgress(); };
+      sel.onchange = function () { setMode(pid, sel.value); };
       tr.querySelectorAll('[data-rung]').forEach(function (b) {
         b.onclick = function () {
-          var s = load(), plan = supportPlan(s, pid, addDays(todayISO(), 1)), o = supportOf(s, pid);
+          var s = load(), next = addDays(todayISO(), 1), o = supportOf(s, pid);
+          var plan = planFor(s, pid, next, analyse(s, todayISO(), 28), latest.qs.map(function (q) { return q.k; }));
           o.rung = clampRung(plan.rung + +b.dataset.rung); o.lv = LV; o.rungAt = todayISO(); s.support[pid] = o; save(s); renderProgress();
         };
       });
+      var rs = tr.querySelector('[data-reset]');
+      // lvAt: the marks already in must not step them straight back again
+      if (rs) rs.onclick = function () { var s = load(), o = supportOf(s, pid); delete s.lv[pid]; o.lvAt = todayISO(); s.support[pid] = o; save(s); renderProgress(); };
     });
+    var set = document.getElementById('cbmSupSet');
+    if (set) set.onclick = function () { setMode(document.getElementById('cbmSupPid').value, document.getElementById('cbmSupMode').value); };
   }
 
   /* ── Set up ───────────────────────────────────────────── */
@@ -998,12 +1178,15 @@
       '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
         '<ul>' +
         '<li><b>The sheet is a CBM probe:</b> short, mixed and frequent (Deno, 1985; Fuchs &amp; Fuchs, 1986).</li>' +
-        '<li><b>Two marks a day, a different two each day:</b> matrix sampling (Shoemaker, 1973). After a fortnight every skill has been checked across the class, and every child has a growing record of checked answers — for ten seconds each at the register.</li>' +
-        '<li><b>Filling the gaps:</b> a child\'s chance on a skill not yet checked for them is worked out from how hard the class finds it and how they compare with the class — the idea behind item response theory (Rasch). Each of your marks then moves it. Their own scores count, but less than your marks, because young children\'s self-marking is the least reliable (Ross, 2006; Brown &amp; Harris, 2013).</li>' +
+        '<li><b>Two marks a day, a different two each day:</b> matrix sampling (Shoemaker, 1973). After a fortnight every skill has been checked across the class, and every child has a growing record of checked answers — for two taps each.</li>' +
+        '<li><b>Filling the gaps:</b> a child\'s chance on a skill not yet checked for them is worked out from how hard the class finds it and how they compare with the class — the idea behind item response theory (Rasch). Each of your marks then moves it. Only your marks count.</li>' +
         '<li><b>Results by skill, with fixed rules:</b> skills analysis helped teachers plan and pupils gain (Fuchs, Fuchs, Hamlett &amp; Stecker, 1990, 1991), and CBM only helps when teaching changes in response (Stecker, Fuchs &amp; Fuchs, 2005). Under ' + pct(RETEACH) + ' → reteach; ' + pct(SECURE) + '+ → secure.</li>' +
         '<li><b>Practice box:</b> what you marked wrong stays for their next ' + KEEP_SHEETS + ' sheets, spaced over separate days (Cepeda et al., 2006), mixed with other skills rather than four of one (Rohrer et al., 2020).</li>' +
-        '<li><b>Shorter sheets:</b> work pitched at frustration level — too much, mostly wrong — loses attention and teaches little; at instructional level children finish and learn (Gickling &amp; Armstrong, 1978; Burns, 2004; VanDerHeyden &amp; Burns, 2005). Starting with easy calculations they know raises how much children attempt (Skinner, 2002). Support is added and taken away in response to how they do (contingent, fading support: Wood, Bruner &amp; Ross, 1976; van de Pol et al., 2010).</li>' +
-        '<li><b>What is on a shorter sheet:</b> numbers and symbols only — no words and no class questions — because a child who cannot yet read the question cannot show the maths they know (Fuchs, Fuchs &amp; Prentice, 2004). For children behind, fluent number facts come first (EEF, 2017; DfE ready-to-progress criteria, 2020), in the order children learn them: counting, add or take 1, facts within 5, within 10, bonds to 10, doubles, teen numbers, add or take 10, then across 10 (Baroody, 2006). About a third of the sheet is the step they are learning, in the plain form; the rest is the steps just below it, half as missing numbers (? + 3 = 7), so known facts are practised in new ways only once they are secure (acquisition, then fluency, then generalisation: Haring &amp; Eaton, 1978). Mostly known with a few new is the mix that builds fluency (Burns, 2004; Codding, Burns &amp; Lukito, 2011). A child getting a quarter or less of the full sheet starts on facts within 5.</li>' +
+        '<li><b>Their own numbers, no self-marking:</b> every child has the same 20 skills with different numbers, so nothing can be copied and your marks show what that child can do. Different numbers for the same skill are how CBM is meant to be repeated (Fuchs &amp; Fuchs, 1986). No score out of 20 is kept: young children\'s marking of their own work is the least reliable evidence there is (Ross, 2006; Brown &amp; Harris, 2013).</li>' +
+        '<li><b>Stepping a skill back:</b> work that is mostly wrong teaches little, and so does work that is far too easy; children learn fastest when they get most, not all, of it right (Gickling &amp; Armstrong, 1978; Burns, 2004; Wilson et al., 2019). So a wrong mark moves that one question back one small step along the White Rose order for its topic, and right marks on the easier step move it forward again: one wrong back, two right forward, which settles where a child gets about 70% right. A skill you have not marked goes by how the child is doing overall: back when their chance on it is under ' + pct(RETEACH) + ', forward when their chance on the harder step reaches ' + pct(UP_PRIOR) + '; that never overrides a mark of yours. One step at a time, no more than ' + MAX_DOWN + ' skills on one sheet, and only when there are new marks: finding the level by small moves rather than one big one (Levitt, 1971; Hosp, Hosp &amp; Howell, 2016), with the rule fixed in advance rather than decided sheet by sheet (Stecker, Fuchs &amp; Fuchs, 2005).</li>' +
+        '<li><b>Not finishing is a different problem:</b> a child who gets them right but runs out of time needs fewer questions, not easier ones (Haring &amp; Eaton, 1978; Daly et al., 1997). Your second question left blank on two of the last three sheets takes two questions away; two sheets with no blanks puts them back.</li>' +
+        '<li><b>The board:</b> a model version of each question, the ones the class gets wrong first, for you to work through — worked examples are how a method is best shown (Sweller &amp; Cooper, 1985; Rosenshine, 2012).</li>' +
+        '<li><b>Numbers only</b> (a setting on Progress, for a child who cannot read the questions yet): numbers and symbols only, because a child who cannot read the question cannot show the maths they know (Fuchs, Fuchs &amp; Prentice, 2004). Fluent number facts come first (EEF, 2017; DfE ready-to-progress criteria, 2020), in the order children learn them: counting, add or take 1, facts within 5, within 10, bonds to 10, doubles, teen numbers, add or take 10, then across 10 (Baroody, 2006). About a third of the sheet is the step they are learning; the rest is the steps just below it, half as missing numbers (? + 3 = 7) — mostly known with a few new (Burns, 2004; Codding, Burns &amp; Lukito, 2011), starting with ones they know (Skinner, 2002).</li>' +
         '<li><b>Your two questions:</b> one from each half of the sheet, so a blank on the second shows who is not getting that far; within each half, skills the class gets wrong, never the same slot twice in a week.</li>' +
         '</ul></details>';
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
@@ -1032,7 +1215,8 @@
   window.CBM = {
     parseEntry: parseEntry, buildDay: buildDay, makeDay: makeDay, pickAudit: pickAudit,
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
-    chooseTargets: chooseTargets, supportPlan: supportPlan, planSheets: planSheets,
+    chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
+    stepBack: stepBack, focusSlots: focusSlots, isScored: isScored,
     keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();
