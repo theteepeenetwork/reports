@@ -393,21 +393,23 @@
   }
 
   /* ── SVG: a number line with an arrow ───────────────────── */
-  /* lo..hi with a tick for every `step`, only the two ends labelled (the
-     middle tick a little taller, as on a ruler), and an arrow at `at`. */
+  /* lo..hi with a tick for every `step` and an arrow at `at`. Only the two
+     ends are labelled (the middle tick a little taller, as on a ruler),
+     unless `label` is set: then every multiple of it is, with a tall tick. */
   function genNumLineSVG(q){
-    var lo = +q.lo, hi = +q.hi, step = +q.step || 1, n = Math.round((hi - lo) / step);
+    var lo = +q.lo, hi = +q.hi, step = +q.step || 1, n = Math.round((hi - lo) / step), lab = +q.label || 0, labels = '';
+    function T(v){ return '<text x="' + X(v).toFixed(1) + '" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">' + v + '</text>'; }
     var x0 = 16, x1 = 224, y = 40, i, s;
     function X(v){ return x0 + (x1 - x0) * (v - lo) / (hi - lo); }
     s = '<svg class="gen-numline" viewBox="0 0 240 64" role="img" aria-label="number line from ' + lo + ' to ' + hi + ' with an arrow">' +
       '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="#111827" stroke-width="2"/>';
     for (i = 0; i <= n; i++){
-      var x = X(lo + i * step).toFixed(1), end = i === 0 || i === n, mid = n % 2 === 0 && i === n / 2, h = end ? 9 : mid ? 7 : 5;
+      var v = lo + i * step, x = X(v).toFixed(1), end = i === 0 || i === n || (lab && (v - lo) % lab === 0), mid = !lab && n % 2 === 0 && i === n / 2, h = end ? 9 : mid ? 7 : 5;
+      if (end) labels += T(v);
       s += '<line x1="' + x + '" y1="' + (y - h) + '" x2="' + x + '" y2="' + (y + h) + '" stroke="#111827" stroke-width="' + (end ? 2 : 1.2) + '"/>';
     }
     var ax = X(+q.at).toFixed(1);
-    s += '<text x="' + x0 + '" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">' + lo + '</text>' +
-      '<text x="' + x1 + '" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">' + hi + '</text>' +
+    s += labels +
       '<line x1="' + ax + '" y1="3" x2="' + ax + '" y2="22" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round"/>' +
       '<path d="M' + (ax - 5.5) + ' 20 L' + ax + ' 30 L' + (+ax + 5.5) + ' 20 Z" fill="#2563eb"/>';
     return s + '</svg>';

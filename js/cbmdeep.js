@@ -172,6 +172,8 @@
 
   var BY_TYPE = {
     arith: arith, arith3: arith3, missing: missing, times: times, divide: divide, half: half, seq: seq,
+    /* a number line needs its picture; the deeper form is the same counting, written out */
+    numline: function (x) { var st = +x.step === 10 ? 10 : P([1, 10]); return seq({ start: Math.min(+x.at, st === 10 ? 60 : 95), step: st, len: 4 }); },
     placeval: function (x) { var n = x.tens * 10 + x.ones; return n >= 11 && n <= 89 ? regroup(n) : null; },
     tensones: function (x) { return x.n >= 11 && x.n <= 89 ? regroup(+x.n) : null; },
     partition: function (x) { return x.n >= 11 && x.n <= 89 ? regroup(+x.n) : null; },

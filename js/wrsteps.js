@@ -110,9 +110,11 @@
     { id:'a1.8',  block:'a1', n:8,  title:'Write numbers to 100 in expanded form',
       gen:function(){ var n = td(); return q('Write ' + n + ' as tens add ones.', (n - n%10) + ' + ' + n%10); } },
     { id:'a1.9',  block:'a1', n:9,  title:'10s on the number line to 100',
-      gen:function(){ return { t:'seq', start:R(1,4)*10, step:10, len:4, blank:R(1,2) }; } },
+      /* 0 to 100 with a tick for each ten and only the ends labelled: count along in tens */
+      gen:function(){ return { t:'numline', lo:0, hi:100, step:10, at:R(1,9)*10 }; } },
     { id:'a1.10', block:'a1', n:10, title:'10s and 1s on the number line to 100',
-      gen:function(){ return { t:'seq', start:R(11,60), step:P([1,10]), len:4, blank:R(1,2) }; } },
+      /* two decades, the tens labelled and a tick for each one: find the ten, then count on in ones */
+      gen:function(){ var a = R(0,8)*10, o = R(1,9); return { t:'numline', lo:a, hi:a + 20, step:1, label:10, at:a + P([0,10]) + o }; } },
     { id:'a1.11', block:'a1', n:11, title:'Estimate numbers on a number line',
       /* a real line: one decade, a tick for each number, only the ends
          labelled, and an arrow to read off (drawn by genRenderQuestion) */
