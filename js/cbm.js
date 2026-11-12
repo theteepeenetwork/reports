@@ -107,7 +107,8 @@
 (function () {
   'use strict';
 
-  var N = 20;
+  var N = 20;              // the most questions a sheet can have; state.n is how many the class gets
+  var N_MIN = 6;
   var KEY = 'tp_cbm';
   var RETEACH = 0.6;       // class below this on a skill → reteach it to everyone
   var SECURE = 0.9;        // at or above → secure
@@ -121,7 +122,13 @@
   var MIN_MARKS = 4;       // checked answers before any skill is stepped
   var MAX_DOWN = 5;        // skills that may step back on one sheet: a stagger, not a cliff
   var MAX_BACK = 6;        // the furthest any one skill steps back; past that it needs a teacher, not an easier question
+  var RECOVER_PRIOR = 0.7; // …and only for a child this likely to manage the step above: a gap over RETEACH, so it does not go back and forth
+  var RECOVER_SHEETS = 3;  // sheets with no further wrong mark before a stepped-back skill comes forward again
   var UP_PRIOR = 0.75;     // with no mark to go on: likely right this often on the harder step → step forward
+  var DEEP_MARKS = 12;     // marks before a child's questions go deeper
+  var DEEP_RATE = 0.85;    // of their own marks right, to start
+  var DEEP_STAY = 0.78;    // and to stay: a gap, so one wrong mark does not flip them out and in
+  var MAX_UP = 5;          // the most deeper questions a sheet carries
   var STEP_EASE = 0.5;     // how much easier one step back is taken to be (logits)
 
   /* ── dates (local parts, never toISOString — BST midnight rolls back) ── */
@@ -186,11 +193,13 @@
     return { on: x.on === true, pick: XT_PICKS.indexOf(x.pick) >= 0 ? x.pick : 'all',
              count: XT_COUNTS.indexOf(x.count) >= 0 ? x.count : 50 };
   }
+  function normN(n) { n = Math.round(+n); return n >= N_MIN && n <= N ? n : N; }
   function load() {
     var s = Store.get(KEY, null) || {};
     return { ht: typeof s.ht === 'string' ? s.ht : null, slots: normSlots(s.slots),
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              xt: normXt(s.xt),
+             n: normN(s.n),                              // questions on the class sheet, 6–20
              support: s.support && typeof s.support === 'object' ? s.support : {},
              lv: s.lv && typeof s.lv === 'object' ? s.lv : {},   // { [pid]: { [class skill]: steps back } }
              days: s.days && typeof s.days === 'object' ? s.days : {} };
@@ -280,17 +289,37 @@
     return 'pre:' + setName(ht) + ':' + i;
   }
   function presetQ(set, i) { var qs = window.genBuild ? window.genBuild(set, 'preset', N) : []; return qs[i] || { t: 'prompt', s: '', ans: '' }; }
+  function plainQ(k) {
+    if (k.indexOf('pre:') === 0) { var p = k.split(':'); return presetQ(p.slice(1, -1).join(':'), +p[p.length - 1]); }
+    if (isFd(k)) return fdQ(k, 'std');
+    return (window.wrBuild && window.wrBuild(k)) || { t: 'prompt', s: '', ans: '' };
+  }
+  /* A deeper form of a class skill (js/cbmdeep.js): 'dp:<skill>' on the sheet,
+     one checkable answer; 'do:<skill>' in the practice box, where a question
+     with many answers is allowed. Not a new skill and not next year's work:
+     the same step, asked so that it needs reasoning. */
+  function isDeep(k) { k = String(k); return k.indexOf('dp:') === 0 || k.indexOf('do:') === 0; }
+  function baseOf(k) { return isDeep(k) ? String(k).slice(3) : k; }
+  var deepMemo = {};
+  function canDeep(c) {
+    if (deepMemo[c] != null) return deepMemo[c];
+    var ok = false;
+    if (typeof window.cbmDeep === 'function' && !isFd(c) && !isDeep(c)) {
+      try { ok = !!withSeed('deep?', function () { return window.cbmDeep(c, plainQ(c), false); }); } catch (e) { ok = false; }
+    }
+    return (deepMemo[c] = ok);
+  }
   function buildKey(k, seed) {
     return withSeed(seed, function () {
-      if (k.indexOf('pre:') === 0) { var p = k.split(':'); return presetQ(p[1], +p[2]); }
-      if (isFd(k)) return fdQ(k, 'std');
-      return (window.wrBuild && window.wrBuild(k)) || { t: 'prompt', s: '', ans: '' };
+      if (!isDeep(k)) return plainQ(k);
+      var b = baseOf(k), q = plainQ(b);
+      return (typeof window.cbmDeep === 'function' && window.cbmDeep(b, q, String(k).charAt(1) === 'o')) || q;   // no deeper form after all: the class question
     });
   }
 
   var TYPE_LABEL = {
     arith3: 'Adding three numbers', half: 'Halving', times: 'Times tables', divide: 'Division',
-    clock: 'Telling the time', placeval: 'Tens and ones', missing: 'Missing numbers', words: 'Numbers in words',
+    clock: 'Telling the time', placeval: 'Tens and ones', numline: 'Number line', missing: 'Missing numbers', words: 'Numbers in words',
     shape: 'Properties of shape', future: 'Days and dates', compare: 'Comparing numbers', seq: 'Number sequences',
     tensones: 'Tens and ones', partition: 'Partitioning', step: 'More and less', prompt: 'Question'
   };
@@ -298,7 +327,8 @@
   function keyLabel(k) {
     if (labelCache[k]) return labelCache[k];
     var out;
-    if (isFd(k)) out = FD_BY[k] ? FD_BY[k].label : k;
+    if (isDeep(k)) out = keyLabel(baseOf(k)) + ' · deeper';
+    else if (isFd(k)) out = FD_BY[k] ? FD_BY[k].label : k;
     else if (k.indexOf('pre:') === 0) {
       var p = k.split(':'), q = withSeed('label', function () { return presetQ(p[1], +p[2]); });
       var t = q.t === 'arith' ? (q.op === '-' ? 'Subtraction' : 'Addition') : (TYPE_LABEL[q.t] || 'Question');
@@ -309,10 +339,12 @@
     return (labelCache[k] = out);
   }
   function keyTitle(k) {
+    if (isDeep(k)) return keyTitle(baseOf(k)) + ' — a deeper question on the same step';
     if (isFd(k)) return 'Simple calculation: ' + keyLabel(k);
     return k.indexOf('pre:') === 0 ? keyLabel(k) + ' — ' + k.split(':')[1] + ' set' : (window.wrLabel ? window.wrLabel(k) : k);
   }
   function nextStep(k) {
+    k = baseOf(k);
     if (isFd(k)) { var f = fdIndex(k); return f >= 0 && f < LADDER.length - 1 ? LADDER[f + 1] : null; }
     var steps = window.WR_STEPS || [], i;
     for (i = 0; i < steps.length; i++) if (steps[i].id === k) break;
@@ -326,7 +358,7 @@
     return withSeed(seedOf(iso, v), function () {
       var base = window.genBuild ? window.genBuild(ht, 'preset', N) : [];
       var out = [];
-      for (var i = 0; i < N; i++) {
+      for (var i = 0, n = normN(state.n); i < n; i++) {
         var k = slotKey(state, i, ht), q = null;
         if (k.indexOf('pre:') !== 0) q = window.wrBuild ? window.wrBuild(k) : null;
         if (!q) { q = base[i] || { t: 'prompt', s: '', ans: '' }; k = 'pre:' + set + ':' + i; }
@@ -427,9 +459,10 @@
   /* the skill d small steps before k, or null when the path runs out */
   function stepBack(k, d) {
     if (!d) return k;
+    if (d < 0) return canDeep(k) ? 'dp:' + k : null;          // the other way: the same step, deeper
     return backPath(k)[d] || null;
   }
-  function depthOf(c, k) { var i = backPath(c).indexOf(k); return i > 0 ? i : 0; }
+  function depthOf(c, k) { if (isDeep(k)) return -1; var i = backPath(c).indexOf(k); return i > 0 ? i : 0; }
 
   /* ── sheets and marks ─────────────────────────────────── */
   /* What one child was asked on a day, without building the questions:
@@ -519,7 +552,7 @@
       var day = state.days[d], m = day.marks && day.marks[pid];
       if (!isScored(m) || m.x) return;
       var pl = sheetPlan(day, pid), a = m.a || [];
-      var x = { d: d, len: pl.slots.length, num: !!pl.num, rung: pl.num ? pl.rung : null, right: 0, wrong: 0, blank: false, late: false };
+      var x = { d: d, len: pl.slots.length, full: (day.qs || []).length || N, num: !!pl.num, rung: pl.num ? pl.rung : null, right: 0, wrong: 0, blank: false, late: false };
       pl.audit.forEach(function (pos, j) {
         if (a[j] === 1) x.right++; else if (a[j] === 0) x.wrong++;
         else if (a[j] === -1) { x.blank = true; if (isLate(pl, j)) x.late = true; }
@@ -556,6 +589,7 @@
     });
     function smooth(x) { return logit((x.ok + 0.75 * 2) / (x.n + 2)); }
     function ease(k, c) {
+      if (!c && isDeep(k)) c = baseOf(k);
       // a step back is only ever sat by the children who needed it, so its own marks say
       // nothing about how hard it is for the class: it is the class step, eased per step
       if (c && c !== k) { var y = cls[c]; return (y && y.n ? smooth(y) : logit(0.75)) + STEP_EASE * depthOf(c, k); }
@@ -623,18 +657,27 @@
       .filter(function (x) { return x.o.open; })
       .sort(function (x, y) { return x.o.miss < y.o.miss ? 1 : x.o.miss > y.o.miss ? -1 : x.e.p - y.e.p; })
       .forEach(function (x) { add(x.k, 'miss'); });
+    /* no mark of yours wrong in the last fortnight, and enough marks to say so:
+       the box is all challenge, not "least secure of what is left" */
+    var clean = !supported && kd.aN >= MIN_MARKS && !Object.keys(an.byPid[pid] || {}).some(function (k) {
+      return an.byPid[pid][k].some(function (r) { return !r.ok && daysBetween(r.d, an.to) <= 14; }); });
     // 2. what the whole class is weak on (not on a numbers-only sheet: wrong practice there)
-    if (!supported) uniq.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH && est[k].p < SECURE; })
+    if (!supported && !clean) uniq.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH && est[k].p < SECURE; })
       .sort(function (x, y) { return an.cls[x].rate - an.cls[y].rate; })
       .forEach(function (k) { add(k, 'class'); });
     // 3. what they are most likely to get wrong
-    uniq.filter(function (k) { return est[k].p < 0.8; })
+    if (!clean) uniq.filter(function (k) { return est[k].p < 0.8; })
       .sort(function (x, y) { return est[x].p - est[y].p; })
       .forEach(function (k) { add(k, 'low'); });
-    // 4. likely secure on all of it: the next small step on from their strongest
-    uniq.filter(function (k) { return k.indexOf('pre:') !== 0; })
-      .sort(function (x, y) { return est[y].p - est[x].p; })
-      .forEach(function (k) { var nx = nextStep(k); if (nx && uniq.indexOf(nx) < 0) add(nx, 'stretch'); });
+    /* 4. likely secure on all of it: their strongest skills, asked deeper
+       (js/cbmdeep.js). Only where a skill has no deeper form, the next small
+       step on. Never deeper on a skill they are working a step back on. */
+    uniq.slice().sort(function (x, y) { return est[y].p - est[x].p; }).forEach(function (k) {
+      var b = baseOf(k), back = !isDeep(k) && cmap[k] && cmap[k] !== k;
+      if (!supported && !back && canDeep(b)) { add('do:' + b, 'stretch'); return; }
+      if (k.indexOf('pre:') === 0 || isDeep(k)) return;
+      var nx = nextStep(k); if (nx && uniq.indexOf(nx) < 0) add(nx, 'stretch');
+    });
     // 5. still short: the least secure of the rest
     uniq.slice().sort(function (x, y) { return est[x].p - est[y].p; }).forEach(function (k) { add(k, 'keep'); });
     return out;
@@ -665,8 +708,8 @@
       }
       return top ? top.i : lo;
     }
-    var first = best(0, keys.length / 2, null);
-    return [first, best(keys.length / 2, keys.length, first)];
+    var half = Math.ceil(keys.length / 2), first = best(0, half, null);
+    return [first, best(half, keys.length, first)];
   }
 
   /* The skills to model on the board: what the class gets wrong most, from
@@ -692,12 +735,13 @@
   /* How many questions. run: the child's sheets at the current length, newest
      first. Two of the last three with the late mark blank takes two away;
      two running with no blank puts two back. */
-  function lengthPlan(run, cur, lo) {
+  function lengthPlan(run, cur, lo, hi) {
+    hi = hi || N;
     if (cur > lo && run.slice(0, 3).filter(function (x) { return x.late; }).length >= 2)
       return { n: Math.max(lo, cur - 2), why: 'Your second question left blank on 2 of the last ' + Math.min(3, run.length) + ' sheets: 2 fewer questions' };
-    if (cur < N && run.length >= 2 && !run[0].blank && !run[1].blank)
-      return { n: Math.min(N, cur + 2), why: 'No blanks two sheets running: 2 more questions' };
-    return { n: cur, why: cur < N ? 'Holding at ' + cur + ' questions' : '' };
+    if (cur < hi && run.length >= 2 && !run[0].blank && !run[1].blank)
+      return { n: Math.min(hi, cur + 2), why: 'No blanks two sheets running: 2 more questions' };
+    return { n: cur, why: cur < hi ? 'Holding at ' + cur + ' questions' : '' };
   }
   function runAt(xs, test) { var out = []; for (var i = 0; i < xs.length && test(xs[i]); i++) out.push(xs[i]); return out; }
 
@@ -705,12 +749,13 @@
      classKeys: the day's class skills. */
   function planFor(state, pid, iso, an, classKeys) {
     var sup = supportOf(state, pid), mode = sup.mode, all = sessions(state, pid, iso, 8), cur, run, lp;
+    var M = classKeys && classKeys.length ? classKeys.length : N, lo = Math.min(SUP_MIN, M);   // the class's length, and the shortest a sheet goes
     if (mode === 'num') {
       var mine = all.filter(function (x) { return x.num; }), last = mine[0];
-      cur = last ? last.len : NUM_START;
+      cur = Math.max(lo, Math.min(M, last ? last.len : NUM_START));
       var rung = last && last.rung != null ? last.rung : START_RUNG;
-      run = runAt(mine, function (x) { return x.len === cur && x.rung === rung; });
-      lp = lengthPlan(run, cur, SUP_MIN);
+      run = runAt(mine, function (x) { return x.len === last.len && x.rung === rung; });
+      lp = lengthPlan(run, cur, lo, M);
       var why = lp.why, two = run.slice(0, 2);
       if (two.length === 2 && two.every(function (x) { return x.right && !x.wrong && !x.blank; })) { rung++; why = 'Your marks all right two sheets running: a step harder'; }
       else if (two.length === 2 && two.every(function (x) { return x.wrong; })) { rung--; why = 'A mark wrong two sheets running: a step easier'; }
@@ -719,11 +764,13 @@
       return { mode: mode, n: lp.n, rung: clampRung(rung), why: why || 'Numbers only, set by you', lv: {}, moved: [] };
     }
     var lv = {}, moved = [], lvAt = sup.lvAt || null;
-    if (mode === 'full') return { mode: mode, n: N, why: 'Class questions, set by you', lv: lv, moved: moved, lvAt: lvAt };
+    if (mode === 'full') return { mode: mode, n: M, why: 'Class questions, set by you', lv: lv, moved: moved, lvAt: lvAt };
     var own = all.filter(function (x) { return !x.num; });
-    cur = own[0] ? own[0].len : N;
-    lp = lengthPlan(runAt(own, function (x) { return x.len === cur; }), cur, SUP_MIN);
-    Object.keys(state.lv[pid] || {}).forEach(function (c) { if (state.lv[pid][c] > 0) lv[c] = state.lv[pid][c]; });
+    /* a child on the whole sheet stays on the whole sheet when its length changes;
+       a child already cut back keeps their length, within the class's */
+    cur = !own[0] || own[0].len >= own[0].full ? M : Math.max(lo, Math.min(M, own[0].len));
+    lp = lengthPlan(runAt(own, function (x) { return x.len === own[0].len; }), cur, lo, M);
+    Object.keys(state.lv[pid] || {}).forEach(function (c) { if (state.lv[pid][c]) lv[c] = state.lv[pid][c]; });   // above 0: steps back; -1: the deeper form
     var kd = kidOf(an, pid), latest = kd.sheets.length ? kd.sheets[kd.sheets.length - 1] : null;
     /* Only on new evidence: making three sheets ahead must not step three
        times. For each skill, k is the step the child is on and hk the step
@@ -734,21 +781,50 @@
            they were marked wrong on hk, so "one wrong back, two right
            forward" settles where they get about 70% right (Levitt, 1971).
            Or, with no marks either way, when their chance on hk is 75%+.
+           Or after RECOVER_SHEETS sheets with no further wrong mark on it.
        A guess from the overall picture never overrides a mark: it cannot
        send a child forward onto a step they were marked wrong on, or back
-       from one they were marked right on. */
+       from one they were marked right on.
+         · DEEPER is decided for the child, not skill by skill, and afresh at
+           every sheet: a child with DEEP_MARKS marks, DEEP_RATE of them right,
+           is working deeper, and stays so until fewer than DEEP_STAY are.
+           (Deeper questions are harder, so their marks pull that rate down by
+           themselves.) It goes by the child's own marks and not the model's
+           guess, because the class's rate on a skill comes only from the
+           children still sitting it, which flatters it. While they are, every
+           class question with a deeper form can be asked that way, except one
+           whose last mark, plain or deeper, was wrong. The sheet carries a
+           few of them (deepCap), different ones each day. Depth, not next
+           year's work. */
     if (kd.aN >= MIN_MARKS && latest && !(lvAt && lvAt >= latest)) {
       var downs = [], since = lvAt || '', mine = an.byPid[pid] || {};
+      var wasDeep = Object.keys(lv).some(function (c) { return lv[c] < 0; });
+      Object.keys(lv).forEach(function (c) { if (lv[c] < 0) delete lv[c]; });
       var marksOn = function (key) { return (mine[key] || []).slice().sort(function (x, y) { return x.d < y.d ? 1 : -1; }); };   // newest first
-      classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i; }).forEach(function (c) {
+      var uniq = classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i; });
+      uniq.forEach(function (c) {
         var d = lv[c] || 0, k = stepBack(c, d);
         if (!k) { delete lv[c]; d = 0; k = c; }
         var on = marksOn(k), fresh = on[0] && on[0].d > since ? on[0] : null;
         var hk = d > 0 ? stepBack(c, d - 1) : null, above = hk ? marksOn(hk)[0] : null, wrongAbove = !!(above && !above.ok);
         var canDown = d < MAX_BACK && stepBack(c, d + 1);
         function up() { if (d > 1) lv[c] = d - 1; else delete lv[c]; moved.push({ c: c, to: d - 1 }); }
+        /* Time served: any one skill is only marked about once a fortnight, so
+           waiting for a right mark on it would leave a child a step back for
+           weeks after one slip. RECOVER_SHEETS sheets practising the easier
+           step with no further wrong mark on this skill brings it forward one
+           step — unless how they are doing overall says the step above is
+           still beyond them, which is what would send it straight back. */
+        var recovered = false;
+        if (hk) {
+          var lastWrong = '';
+          for (var b = 0; b <= d; b++) marksOn(stepBack(c, b) || '').forEach(function (r) { if (!r.ok && r.d > lastWrong) lastWrong = r.d; });
+          recovered = !!lastWrong && kd.sheets.filter(function (x) { return x > lastWrong; }).length >= RECOVER_SHEETS &&
+            estimate(an, pid, hk, c).prior >= RECOVER_PRIOR;
+        }
         if (fresh && !fresh.ok) { if (canDown) downs.push({ c: c, d: d, p: 0 }); }
-        else if (fresh) { if (hk && (!wrongAbove || (on[1] && on[1].ok))) up(); }
+        else if (fresh) { if (hk && (!wrongAbove || (on[1] && on[1].ok) || recovered)) up(); }
+        else if (recovered) up();
         else if (hk && !wrongAbove && !(on[0] && !on[0].ok) && estimate(an, pid, hk, c).prior >= UP_PRIOR) up();
         else if (canDown && !(on[0] && on[0].ok)) {
           var p0 = estimate(an, pid, k, c).prior;
@@ -756,6 +832,12 @@
         }
       });
       downs.sort(function (x, y) { return x.p - y.p; }).slice(0, MAX_DOWN).forEach(function (x) { lv[x.c] = x.d + 1; moved.push({ c: x.c, to: x.d + 1 }); });
+      var rate = kd.aN ? kd.aOk / kd.aN : 0;
+      if (kd.aN >= DEEP_MARKS && rate >= (wasDeep ? DEEP_STAY : DEEP_RATE)) uniq.forEach(function (c) {
+        if (lv[c] || !canDeep(c)) return;
+        var last = marksOn(c).concat(marksOn('dp:' + c)).sort(function (x, y) { return x.d < y.d ? 1 : -1; })[0];
+        if (!(last && !last.ok)) lv[c] = -1;
+      });
       lvAt = latest;
     }
     return { mode: mode, n: lp.n, why: lp.why, lv: lv, moved: moved, lvAt: lvAt };
@@ -765,9 +847,18 @@
      and the slots left out. Nothing at all when their sheet is the class's
      with their own numbers. The ones left out are what they are most secure
      on — never one of the teacher's two. */
-  function steppedSheet(day, pid, plan, an) {
-    var ks = {}, drop = [], sh = {};
-    day.qs.forEach(function (q, i) { var d = plan.lv[q.k] || 0, k = d ? stepBack(q.k, d) : null; if (k) ks[i] = k; });
+  function deepCap(len) { return Math.max(2, Math.min(MAX_UP, Math.round(len / 4))); }
+  function steppedSheet(day, pid, plan, an, iso) {
+    var ks = {}, drop = [], sh = {}, deep = [];
+    day.qs.forEach(function (q, i) {
+      var d = plan.lv[q.k] || 0, k = d ? stepBack(q.k, d) : null;
+      if (k && d < 0) deep.push({ i: i, k: k }); else if (k) ks[i] = k;
+    });
+    /* A sheet carries a few deeper questions, not twenty: they take longer to
+       read. A child secure on more than that has a different few each day. */
+    var cap = deepCap(day.qs.length), rnd = seeded('deep:' + (iso || '') + ':' + pid);
+    deep.map(function (x) { return { x: x, r: rnd() }; }).sort(function (a, b) { return a.r - b.r; }).slice(0, cap)
+      .forEach(function (o) { ks[o.x.i] = o.x.k; });
     if (plan.n < day.qs.length) {
       drop = day.qs.map(function (q, i) { return { i: i, p: estimate(an, pid, ks[i] || q.k, q.k).p }; })
         .filter(function (x) { return day.audit.indexOf(x.i) < 0; })
@@ -826,7 +917,7 @@
       else {
         if (Object.keys(plan.lv).length) state.lv[p.id] = plan.lv; else delete state.lv[p.id];
         if (plan.lvAt) { var o = supportOf(state, p.id); o.lvAt = plan.lvAt; state.support[p.id] = o; }
-        sh = steppedSheet(day, p.id, plan, an);
+        sh = steppedSheet(day, p.id, plan, an, iso);
       }
       if (sh) day.sheets[p.id] = sh; else delete day.sheets[p.id];
     });
@@ -874,7 +965,7 @@
     if (!curDay) curDay = todayISO();
     h.innerHTML =
       '<div class="page-header"><h1>Mental Starter (CBM)</h1>' +
-      '<p>The same 20 skills for everyone, with different numbers on every child\'s sheet. You mark the same two questions in every book and tap them in. From those marks alone the app works out who can do what, steps a question back for a child who is not ready for it, and picks each child\'s practice questions.</p></div>' +
+      '<p>The same skills for everyone, with different numbers on every child\'s sheet. You mark the same two questions in every book and tap them in. From those marks alone the app works out who can do what, steps a question back for a child who is not ready for it, and picks each child\'s practice questions.</p></div>' +
       '<div class="cbm-tabs">' + [['today', 'Today'], ['progress', 'Progress'], ['setup', 'Set up']].map(function (t) {
         return '<button type="button" class="cbm-tab' + (view === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' + t[1] + '</button>';
       }).join('') + '</div><div id="cbmBody"></div>';
@@ -891,7 +982,7 @@
       '<b>' + esc(fullDate(curDay)) + '</b>' + (curDay === todayISO() ? '<span class="cbm-pill">Today</span>' : '') + '</div>';
     if (!day) {
       body.innerHTML = nav + '<div class="card cbm-empty"><h3>No sheet for this day yet</h3>' +
-        '<p>Making it builds the 20 questions from <b>Set up</b> (' + esc(htOf(state, curDay)) + ') with different numbers for every child, picks the two you will mark, and steps a question back for any child your marks show is not ready for it.</p>' +
+        '<p>Making it builds the ' + state.n + ' questions from <b>Set up</b> (' + esc(htOf(state, curDay)) + ') with different numbers for every child, picks the two you will mark, and steps a question back for any child your marks show is not ready for it.</p>' +
         '<button type="button" id="cbmMake">Make the sheet</button></div>';
       wireNav(body);
       document.getElementById('cbmMake').onclick = function () { var s = load(); makeDay(s, curDay); save(s); renderToday(); };
@@ -910,7 +1001,7 @@
           '<button type="button" id="cbmPrintAll">Print class set</button>' +
           '<button type="button" class="secondary" id="cbmPrintMark">Print marking list</button>' +
           (board && focus.length ? '<button type="button" class="secondary" id="cbmWbFocus">Model the focus skills</button>' : '') +
-          (board ? '<button type="button" class="secondary" id="cbmWb">All 20 on the board</button>' : '') +
+          (board ? '<button type="button" class="secondary" id="cbmWb">All ' + day.qs.length + ' on the board</button>' : '') +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
           (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
         '</div></div>' +
@@ -918,7 +1009,7 @@
         '<p class="cbm-hint">Tap each mark: <b>✓</b> right, <b>✗</b> wrong, <b>–</b> left blank. The answer beside it is that child\'s own. Nothing else is entered.</p>' +
         '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th></th><th>Practice box</th></tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div></div>' +
-      '<details class="card cbm-qlist"><summary>Today\'s 20 questions — the model version, with answers</summary>' +
+      '<details class="card cbm-qlist"><summary>Today\'s ' + day.qs.length + ' questions — the model version, with answers</summary>' +
         '<p class="cbm-hint">The same skills as every child\'s sheet, with numbers nobody has. This is what goes on the board.</p><ol>' +
         day.qs.map(function (q, i) { return '<li' + (a.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '><span class="cbm-qtext">' + GRQ(q) + '</span><span class="cbm-qans">' + esc(ans(q, curDay)) + '</span><span class="cbm-qskill" title="' + esc(keyTitle(q.k)) + '">' + esc(keyLabel(q.k)) + '</span></li>'; }).join('') +
       '</ol><div class="cbm-qtools">' + (day.ind ? '<button type="button" class="secondary small" id="cbmRetarget" title="For children with nothing entered yet">Rebuild sheets and practice boxes</button>' : '') +
@@ -948,7 +1039,7 @@
     };
     document.getElementById('cbmRegen').onclick = function () {
       var has = enteredCount(day);
-      if (!confirm('Replace the 20 questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The marks entered for ' + has + ' children will be cleared.' : '?'))) return;
+      if (!confirm('Replace the ' + day.qs.length + ' questions for ' + fullDate(curDay) + ' with a fresh set' + (has ? '? The marks entered for ' + has + ' children will be cleared.' : '?'))) return;
       var s = load(); makeDay(s, curDay, (s.days[curDay].v || 0) + 1); save(s); clearBoardInk(curDay); renderToday();
     };
     document.getElementById('cbmDelete').onclick = function () {
@@ -1118,6 +1209,8 @@
     var reteach = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH; }).sort(function (a, b) { return an.cls[a].rate - an.cls[b].rate; });
     var secure = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate >= SECURE; });
     var back = sortedRoster().map(function (p) { return { p: p, n: keys.filter(function (k) { return depth(p.id, k) > 0; }).length }; }).filter(function (x) { return x.n; });
+    var deepKids = sortedRoster().map(function (p) { return { p: p, n: keys.filter(function (k) { return depth(p.id, k) < 0 && canDeep(k); }).length }; }).filter(function (x) { return x.n; });
+    var stages = stagesFor(state);
     function chips(list, empty, fmt) { return list.length ? list.map(fmt).join('') : '<span class="muted small">' + empty + '</span>'; }
 
     var head = '<tr><th class="name">Pupil</th>' + keys.map(function (k) {
@@ -1128,17 +1221,17 @@
       var tip = keyLabel(k) + ': ' + (c ? c.ok + ' of ' + c.n + ' checked answers right' : 'not checked yet') + (n ? ' · ' + n + ' working a step or more back' : '');
       return '<td class="cbm-cell' + (c ? ' b-' + band(c.rate) : '') + '" title="' + esc(tip) + '">' + (c ? pct(c.rate) : '·') + '</td>';
     }).join('') + '<td></td><td></td></tr>';
-    var rows = sortedRoster().map(function (p) {
+    var rows = sortedRoster().filter(function (p) { return !stageFilter || stages[p.id].id === stageFilter; }).map(function (p) {
       var kd = kidOf(an, p.id);
       var cells = keys.map(function (k) {
         if (!kd.aN) return '<td class="cbm-cell">·</td>';
         var d = depth(p.id, k), e = estimate(an, p.id, k, k), o = openState(an, p.id, k);
         var tip = p.name + ' · ' + keyLabel(k) + ': ' + (e.n ? e.right + ' of ' + e.n + ' checked right, ' : 'not checked yet, ') + 'about ' + pct(e.p) + ' likely' +
-          (d ? ' — working ' + d + ' step' + (d > 1 ? 's' : '') + ' back: ' + keyLabel(stepBack(k, d) || k) : '') + (o.open ? ' — in their practice box' : '');
-        return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (o.open ? ' is-open' : '') + (d ? ' is-back' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + (d ? '<i class="cbm-back">↓' + d + '</i>' : '') + '</td>';
+          (d > 0 ? ' — working ' + d + ' step' + (d > 1 ? 's' : '') + ' back: ' + keyLabel(stepBack(k, d) || k) : d < 0 ? ' — on deeper questions for this skill' : '') + (o.open ? ' — in their practice box' : '');
+        return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (o.open ? ' is-open' : '') + (d > 0 ? ' is-back' : d < 0 ? ' is-deep' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + (d > 0 ? '<i class="cbm-back">↓' + d + '</i>' : d < 0 ? '<i class="cbm-back cbm-up">↑</i>' : '') + '</td>';
       }).join('');
       var tg = targetsFor(an, latest, p.id);
-      return '<tr><td class="name">' + esc(p.name) + '</td>' + cells +
+      return '<tr><td class="name">' + stagePill(p.name, stages[p.id]) + '</td>' + cells +
         '<td class="cbm-trust">' + (kd.aN ? kd.aOk + '/' + kd.aN : '—') + '</td>' +
         '<td class="cbm-box-cell">' + (tg.length ? tg.map(function (x) { return '<span class="cbm-tg cbm-tg-' + x.y + '" title="' + esc(WHY[x.y]) + '">' + esc(keyLabel(x.k)) + '</span>'; }).join('') : '<span class="muted small">—</span>') + '</td></tr>';
     }).join('');
@@ -1147,54 +1240,128 @@
       '<div class="cbm-daynav"><label for="cbmWin">Looking at</label><select id="cbmWin">' +
         [[7, 'the last week'], [14, 'the last 2 weeks'], [28, 'the last 4 weeks'], [91, 'the last term']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === windowDays ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
       '</select><span class="muted small">' + checked + ' of ' + keys.length + ' skills checked so far</span></div>' +
-      supportHTML(state, latest) +
+      stageCard(stages) +
+      supportHTML(state, latest, stages) +
       '<div class="cbm-cards">' +
         '<div class="card cbm-card"><h3>Reteach to the class</h3><p class="cbm-hint">Under ' + pct(RETEACH) + ' of your marks right across the class.</p>' + chips(reteach, 'Nothing below ' + pct(RETEACH) + '.', function (k) { return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }) + '</div>' +
         '<div class="card cbm-card"><h3>Secure</h3><p class="cbm-hint">' + pct(SECURE) + ' or more right. Could leave the sheet for a harder step.</p>' + chips(secure, 'Nothing secure yet.', function (k) { return '<span class="cbm-chip sec" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + '</span>'; }) + '</div>' +
         '<div class="card cbm-card"><h3>Working a step or more back</h3><p class="cbm-hint">Children whose sheet has an earlier step in place of a class question.</p>' + chips(back, 'No one.', function (x) { return '<span class="cbm-chip mid">' + esc(x.p.name) + ' · ' + x.n + ' skill' + (x.n > 1 ? 's' : '') + '</span>'; }) + '</div>' +
+        '<div class="card cbm-card"><h3>Working deeper</h3><p class="cbm-hint">Children whose sheet has a reasoning question in place of a class question they are secure on.</p>' + chips(deepKids, 'No one yet.', function (x) { return '<span class="cbm-chip sec">' + esc(x.p.name) + ' · ' + x.n + ' skill' + (x.n > 1 ? 's' : '') + '</span>'; }) + '</div>' +
       '</div>' +
       '<div class="card"><div class="cbm-entryhead"><h3>Skill by skill</h3><span class="cbm-legend"><i class="b-low"></i>under 60% <i class="b-mid"></i>60–74% <i class="b-ok"></i>75–89% <i class="b-sec"></i>90%+ <i class="is-open"></i>in practice box</span></div>' +
-        '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. <b>↓2</b> = that child is working two steps back on it. Each mark you make firms it up.</p>' +
+        '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. <b>↓2</b> = that child is working two steps back on it; <b>↑</b> = on deeper questions for it. Each mark you make firms it up.</p>' +
         '<div class="table-wrap"><table class="cbm-grid"><thead>' + head + '</thead><tbody>' + classRow + rows + '</tbody></table></div></div>';
     document.getElementById('cbmWin').onchange = function (e) { windowDays = +e.target.value; renderProgress(); };
+    body.querySelectorAll('[data-stagepick]').forEach(function (b) {
+      b.onclick = function () { stageFilter = stageFilter === b.dataset.stagepick ? null : b.dataset.stagepick; renderProgress(); };
+    });
     wireSupport(body, latest);
   }
 
-  /* Whose next sheet is not simply the class's 20, and why. */
-  function supportHTML(state, latest) {
-    var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), classKeys = latest.qs.map(function (q) { return q.k; });
+  /* What stage a child's NEXT sheet is at, for the teacher's eyes only: this
+     is shown on Progress and nowhere a child could see it (not the sheets,
+     not Today, not the marking list). One stage each, most support first.
+     Three questions, not one, tip a child into Easier or Challenge: a single
+     question a step back is ordinary movement, and colouring it would turn
+     the whole class red or green within a fortnight. */
+  var STAGES = [['easier', 'Easier questions', 'E'], ['fewer', 'Fewer questions', 'F'], ['class', 'Class questions', ''], ['deeper', 'Challenge', 'C']];
+  var STAGE_AT = 3;
+  function stageOf(plan, classKeys) {
+    var M = classKeys.length, back = 0, deep = 0;
+    if (plan.mode !== 'num') classKeys.forEach(function (c) {
+      var d = plan.lv[c] || 0;
+      if (d > 0 && stepBack(c, d)) back++; else if (d < 0 && canDeep(c)) deep++;
+    });
+    deep = Math.min(deep, deepCap(M));
+    var short = plan.n < M, id = plan.mode === 'num' || back >= STAGE_AT ? 'easier' : short ? 'fewer' : deep >= Math.min(STAGE_AT, deepCap(M)) ? 'deeper' : 'class';
+    var why = plan.mode === 'num' ? 'Numbers only, set by you'
+      : id === 'easier' ? back + ' questions a step or more back'
+      : id === 'fewer' ? (plan.why || plan.n + ' questions')
+      : id === 'deeper' ? deep + ' deeper questions on the next sheet'
+      : 'The class questions' + (back ? ', ' + back + ' a step back' : '') + (deep ? ', ' + deep + ' deeper' : '');
+    return { id: id, back: back, deep: deep, n: plan.n, short: short, num: plan.mode === 'num', why: why };
+  }
+  function stagePill(name, st) {
+    var meta = STAGES.filter(function (x) { return x[0] === st.id; })[0];
+    var extra = (st.id !== 'easier' && st.back ? '<i class="cbm-st-x">↓' + st.back + '</i>' : '') + (st.id !== 'deeper' && st.deep ? '<i class="cbm-st-x">↑' + st.deep + '</i>' : '') +
+      (st.id === 'easier' && st.short ? '<i class="cbm-st-x">' + st.n + ' Qs</i>' : '');
+    return '<span class="cbm-stage cbm-stage-' + st.id + '" data-stage="' + st.id + '" title="' + esc(meta[1] + ': ' + st.why) + '">' + esc(name) + (meta[2] ? '<b>' + meta[2] + '</b>' : '') + '</span>' + extra;
+  }
+  var stageFilter = null;
+  function stagesFor(state) {
+    var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), keys = nextKeys(state), out = {};
+    roster.forEach(function (p) { out[p.id] = stageOf(planFor(state, p.id, next, an, keys), keys); });
+    return out;
+  }
+  /* One column a stage, a name a line: who is on what at a glance. The
+     heading of a column is also the filter for the tables underneath. */
+  var STAGE_SAYS = { easier: 'Numbers only, or ' + STAGE_AT + ' or more questions a step back', fewer: 'Not finishing: a shorter sheet',
+                     'class': 'The class questions', deeper: STAGE_AT + ' or more deeper questions' };
+  function stageNote(st) {
+    var bits = [];
+    if (st.id === 'easier') bits.push(st.num ? 'numbers only' : st.back + ' back');
+    if (st.short) bits.push(st.n + ' Qs');
+    if (st.id !== 'easier' && st.back) bits.push('↓' + st.back);
+    if (st.id !== 'deeper' && st.deep) bits.push('↑' + st.deep);
+    return bits.join(' · ');
+  }
+  function stageCard(stages) {
+    var cols = STAGES.map(function (x) {
+      var kids = sortedRoster().filter(function (p) { return stages[p.id].id === x[0]; });
+      return '<div class="cbm-st-col cbm-st-' + x[0] + (stageFilter === x[0] ? ' is-on' : '') + '">' +
+        '<button type="button" class="cbm-st-head" data-stagepick="' + x[0] + '" aria-pressed="' + (stageFilter === x[0]) + '" title="Show only these children in the tables below">' +
+          '<span class="cbm-st-title">' + (x[2] ? '<b>' + x[2] + '</b>' : '') + esc(x[1]) + '</span><span class="cbm-st-count">' + kids.length + '</span></button>' +
+        '<p class="cbm-st-says">' + esc(STAGE_SAYS[x[0]]) + '</p>' +
+        (kids.length ? '<ul>' + kids.map(function (p) {
+          var st = stages[p.id], note = stageNote(st);
+          return '<li data-stage="' + st.id + '" title="' + esc(st.why) + '"><span>' + esc(p.name) + '</span>' + (note ? '<i>' + esc(note) + '</i>' : '') + '</li>'; }).join('') + '</ul>'
+          : '<p class="cbm-st-none">No one</p>') + '</div>';
+    }).join('');
+    return '<div class="card cbm-stages"><div class="cbm-entryhead"><h3>Who is on what</h3><span class="muted small">their next sheet · only shown here, never on a sheet</span></div>' +
+      '<div class="cbm-st-cols">' + cols + '</div>' +
+      '<p class="cbm-hint">Beside a name: <b>8 Qs</b> the length of their sheet, <b>↓2</b> questions a step back, <b>↑1</b> deeper questions. Tap a heading to show only those children in the tables below' + (stageFilter ? '; tap it again to show everyone' : '') + '.</p></div>';
+  }
+
+  /* Whose next sheet is not simply the class's, and why. */
+  function nextKeys(state) { return buildDay(state, addDays(todayISO(), 1)).map(function (q) { return q.k; }); }
+  function supportHTML(state, latest, stages) {
+    var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), classKeys = nextKeys(state);
     var busy = Object.keys(state.days).filter(function (d) { return d <= todayISO() && daysBetween(d, todayISO()) < 10 && enteredCount(state.days[d]) >= roster.length / 2; });
     var rows = sortedRoster().map(function (p) {
       var recent = sessions(state, p.id, next, 5), plan = planFor(state, p.id, next, an, classKeys);
       var stepped = classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i && plan.lv[c] > 0; });
+      var deeper = plan.mode === 'num' ? [] : classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i && plan.lv[c] < 0 && canDeep(c); });
       var missing = busy.filter(function (d) { return !isScored(state.days[d].marks[p.id]); }).length;
-      if (!(plan.mode !== 'auto' || stepped.length || plan.n < N || missing >= 2)) return '';
+      if (!(plan.mode !== 'auto' || stepped.length || deeper.length || plan.n < classKeys.length || missing >= 2)) return '';
+      if (stageFilter && stages && stages[p.id].id !== stageFilter) return '';
       var hist = recent.slice().reverse().map(function (x) {
         var t = new Array(x.right + 1).join('✓') + new Array(x.wrong + 1).join('✗') + (x.blank ? '–' : '');
         return '<span class="cbm-sess' + (x.wrong || x.late ? ' hard' : x.right === 2 ? ' good' : '') + '" title="' + esc(shortDate(x.d) + ': ' + x.len + ' questions' + (x.late ? ', your second question left blank' : '')) + '">' + (t || '·') + '</span>';
       }).join('');
       var nextTxt = '<b>' + plan.n + ' questions</b> · ' + (plan.mode === 'num' ? 'numbers only · ' + esc(rungLabel(plan.rung))
-        : stepped.length ? stepped.length + ' skill' + (stepped.length > 1 ? 's' : '') + ' a step or more back' : 'the class questions');
+        : stepped.length ? stepped.length + ' skill' + (stepped.length > 1 ? 's' : '') + ' a step or more back' : 'the class questions') +
+        (deeper.length ? ' · ' + Math.min(deeper.length, deepCap(classKeys.length)) + ' deeper' + (deeper.length > deepCap(classKeys.length) ? ' (from ' + deeper.length + ' skills, a different few each day)' : '') : '');
       var list = stepped.length ? '<ul class="cbm-steplist">' + stepped.map(function (c) {
         return '<li>' + esc(keyLabel(c)) + ' → <b>' + esc(keyLabel(stepBack(c, plan.lv[c]) || c)) + '</b>' + (plan.lv[c] > 1 ? ' <span class="muted">(' + plan.lv[c] + ' steps)</span>' : '') + '</li>'; }).join('') + '</ul>' : '';
-      return '<tr data-spid="' + p.id + '"><td class="name">' + esc(p.name) + '</td><td>' + (hist || '<span class="muted small">no marks</span>') +
+      if (deeper.length) list += '<ul class="cbm-steplist cbm-deeplist">' + deeper.map(function (c) { return '<li>' + esc(keyLabel(c)) + ' <b>↑ deeper</b></li>'; }).join('') + '</ul>';
+      return '<tr data-spid="' + p.id + '"><td class="name">' + (stages ? stagePill(p.name, stages[p.id]) : esc(p.name)) + '</td><td>' + (hist || '<span class="muted small">no marks</span>') +
         (missing >= 2 ? ' <span class="cbm-flag" title="Days most of the class were marked and this child was not">not marked ' + missing + '×</span>' : '') + '</td>' +
         '<td>' + nextTxt + (plan.why ? '<div class="cbm-why1">' + esc(plan.why) + '</div>' : '') + list + '</td>' +
         '<td class="cbm-supctl"><select data-mode aria-label="Sheet for ' + esc(p.name) + '">' +
           [['auto', 'Automatic'], ['full', 'Always the class questions'], ['num', 'Numbers only']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === plan.mode ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
           (plan.mode === 'num' ? '<button type="button" class="secondary small" data-rung="-1" title="Simpler calculations">Easier</button><button type="button" class="secondary small" data-rung="1" title="Harder calculations">Harder</button>' : '') +
-          (stepped.length ? '<button type="button" class="secondary small" data-reset title="Put every skill back to the class question">Back to class questions</button>' : '') +
+          (stepped.length || deeper.length ? '<button type="button" class="secondary small" data-reset title="Put every skill back to the class question">Back to class questions</button>' : '') +
         '</td></tr>';
     }).join('');
     var all = '<details class="cbm-supall"><summary>Change another child\'s setting</summary><div class="cbm-setrow"><select id="cbmSupPid" aria-label="Pupil">' +
       sortedRoster().map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select><select id="cbmSupMode" aria-label="Setting">' +
       '<option value="auto">Automatic</option><option value="full">Always the class questions</option><option value="num">Numbers only</option></select>' +
       '<button type="button" class="secondary small" id="cbmSupSet">Set</button></div></details>';
-    return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Stepped back, shorter, or numbers only</h3></div>' +
-      '<p class="cbm-hint">Only your two marks decide this. <b>A wrong answer</b> steps that skill back one small step along the White Rose order — never more than one step between sheets, no more than ' + MAX_DOWN + ' skills at once, and never past ' + MAX_BACK + ' steps — and right answers on the easier step bring it forward again (two running, if they were wrong on the step above). Skills you have not marked follow how the child is doing overall. ' +
-      '<b>Your second question left blank</b> on two of the last three sheets means not finishing: two fewer questions, put back after two sheets with no blanks. <b>Numbers only</b> is for a child who cannot read the questions yet. Changes here apply to the next sheet you make.</p>' +
+    return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Stepped back, shorter, deeper, or numbers only</h3></div>' +
+      '<p class="cbm-hint">Only your two marks decide this. <b>A wrong answer</b> steps that skill back one small step along the White Rose order — never more than one step between sheets, no more than ' + MAX_DOWN + ' skills at once, and never past ' + MAX_BACK + ' steps — and right answers on the easier step bring it forward again (two running, if they were wrong on the step above), as do ' + RECOVER_SHEETS + ' sheets with no further wrong mark on that skill. Skills you have not marked follow how the child is doing overall. ' +
+      '<b>Your second question left blank</b> on two of the last three sheets means not finishing: two fewer questions, put back after two sheets with no blanks. <b>Deeper</b>: a child with ' + DEEP_MARKS + ' or more marks, ' + pct(DEEP_RATE) + ' of them right, gets up to ' + MAX_UP + ' of the class questions as reasoning questions on the same skill (spot the mistake, true or false, work backwards), different ones each day, and keeps them while ' + pct(DEEP_STAY) + ' of their marks are right. A skill whose last mark was wrong stays as the class question. <b>Numbers only</b> is for a child who cannot read the questions yet. Changes here apply to the next sheet you make.</p>' +
       (rows ? '<div class="table-wrap"><table class="cbm-suptable"><thead><tr><th class="name">Pupil</th><th>Last marks</th><th>Next sheet</th><th>Setting</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
-            : '<p class="muted small">Everyone is on the class questions, all 20.</p>') + all + '</div>';
+            : '<p class="muted small">' + (stageFilter ? 'No one at this stage has anything to show here.' : 'Everyone is on the class questions, all ' + classKeys.length + '.') + '</p>') + all + '</div>';
   }
   function wireSupport(body, latest) {
     function setMode(pid, mode) { var s = load(), o = supportOf(s, pid); o.mode = mode; s.support[pid] = o; save(s); renderProgress(); }
@@ -1204,7 +1371,7 @@
       tr.querySelectorAll('[data-rung]').forEach(function (b) {
         b.onclick = function () {
           var s = load(), next = addDays(todayISO(), 1), o = supportOf(s, pid);
-          var plan = planFor(s, pid, next, analyse(s, todayISO(), 28), latest.qs.map(function (q) { return q.k; }));
+          var plan = planFor(s, pid, next, analyse(s, todayISO(), 28), nextKeys(s));
           o.rung = clampRung(plan.rung + +b.dataset.rung); o.lv = LV; o.rungAt = todayISO(); s.support[pid] = o; save(s); renderProgress();
         };
       });
@@ -1220,13 +1387,15 @@
   function renderSetup() {
     var state = load(), body = document.getElementById('cbmBody'), ht = htOf(state);
     var picker = typeof window.genStepPicker === 'function' ? window.genStepPicker(state.slots, ht, state.yr) : '';
+    var nOpts = ''; for (var n = N_MIN; n <= N; n++) nOpts += '<option value="' + n + '"' + (state.n === n ? ' selected' : '') + '>' + n + '</option>';
     body.innerHTML =
       '<div class="card"><div class="cbm-setrow"><div><label for="cbmHT">Half term</label><select id="cbmHT">' +
         '<option value="">Work it out from the date (' + esc(halfTermFor(todayISO())) + ')</option>' +
         HALF_TERMS.map(function (h) { return '<option' + (state.ht === h ? ' selected' : '') + '>' + h + '</option>'; }).join('') +
-      '</select></div><div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy the questions from Mental Starters</button></div>' +
-      '<p class="cbm-hint">Each slot stays the same skill every day, with new numbers, so your marks build up skill by skill. Changes apply to sheets made from now on.</p>' +
-      picker + '</div>' +
+      '</select></div><div><label for="cbmN">Questions on the sheet</label><select id="cbmN">' + nOpts + '</select></div>' +
+      '<div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy the questions from Mental Starters</button></div>' +
+      '<p class="cbm-hint">Each question stays the same skill every day, with new numbers, so your marks build up skill by skill. Choose the skill on the left; the example on the right is what it looks like on the sheet, and under it the deeper question a child who is secure on it gets instead. Changes apply to sheets made from now on.</p>' +
+      '<div class="cbm-picker">' + picker + '</div></div>' +
       '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmXt"' + (state.xt.on ? ' checked' : '') + '> ×tables on the back</label>' +
         (state.xt.on
           ? '<div><label for="cbmXtPick">Tables</label><select id="cbmXtPick">' + XT_PICKS.map(function (v) {
@@ -1242,13 +1411,36 @@
         '<li><b>Filling the gaps:</b> a child\'s chance on a skill not yet checked for them is worked out from how hard the class finds it and how they compare with the class — the idea behind item response theory (Rasch). Each of your marks then moves it. Only your marks count.</li>' +
         '<li><b>Results by skill, with fixed rules:</b> skills analysis helped teachers plan and pupils gain (Fuchs, Fuchs, Hamlett &amp; Stecker, 1990, 1991), and CBM only helps when teaching changes in response (Stecker, Fuchs &amp; Fuchs, 2005). Under ' + pct(RETEACH) + ' → reteach; ' + pct(SECURE) + '+ → secure.</li>' +
         '<li><b>Practice box:</b> what you marked wrong stays for their next ' + KEEP_SHEETS + ' sheets, spaced over separate days (Cepeda et al., 2006), mixed with other skills rather than four of one (Rohrer et al., 2020).</li>' +
-        '<li><b>Their own numbers, no self-marking:</b> every child has the same 20 skills with different numbers, so nothing can be copied and your marks show what that child can do. Different numbers for the same skill are how CBM is meant to be repeated (Fuchs &amp; Fuchs, 1986). No score out of 20 is kept: young children\'s marking of their own work is the least reliable evidence there is (Ross, 2006; Brown &amp; Harris, 2013).</li>' +
-        '<li><b>Stepping a skill back:</b> work that is mostly wrong teaches little, and so does work that is far too easy; children learn fastest when they get most, not all, of it right (Gickling &amp; Armstrong, 1978; Burns, 2004; Wilson et al., 2019). So a wrong mark moves that one question back one small step along the White Rose order for its topic, and right marks on the easier step move it forward again: one wrong back, two right forward, which settles where a child gets about 70% right. A skill you have not marked goes by how the child is doing overall: back when their chance on it is under ' + pct(RETEACH) + ', forward when their chance on the harder step reaches ' + pct(UP_PRIOR) + '; that never overrides a mark of yours. One step at a time, no more than ' + MAX_DOWN + ' skills on one sheet, and only when there are new marks: finding the level by small moves rather than one big one (Levitt, 1971; Hosp, Hosp &amp; Howell, 2016), with the rule fixed in advance rather than decided sheet by sheet (Stecker, Fuchs &amp; Fuchs, 2005).</li>' +
+        '<li><b>Their own numbers, no self-marking:</b> every child has the same skills with different numbers, so nothing can be copied and your marks show what that child can do. Different numbers for the same skill are how CBM is meant to be repeated (Fuchs &amp; Fuchs, 1986). No score is kept: young children\'s marking of their own work is the least reliable evidence there is (Ross, 2006; Brown &amp; Harris, 2013).</li>' +
+        '<li><b>Stepping a skill back:</b> work that is mostly wrong teaches little, and so does work that is far too easy; children learn fastest when they get most, not all, of it right (Gickling &amp; Armstrong, 1978; Burns, 2004; Wilson et al., 2019). So a wrong mark moves that one question back one small step along the White Rose order for its topic, and right marks on the easier step move it forward again: one wrong back, two right forward, which settles where a child gets about 70% right. Any one skill is only marked about once a fortnight, so a skill also comes forward after ' + RECOVER_SHEETS + ' sheets practising the easier step with no further wrong mark, unless the child\'s marks overall say the harder step is still beyond them. A skill you have not marked goes by how the child is doing overall: back when their chance on it is under ' + pct(RETEACH) + ', forward when their chance on the harder step reaches ' + pct(UP_PRIOR) + '; that never overrides a mark of yours. One step at a time, no more than ' + MAX_DOWN + ' skills on one sheet, and only when there are new marks: finding the level by small moves rather than one big one (Levitt, 1971; Hosp, Hosp &amp; Howell, 2016), with the rule fixed in advance rather than decided sheet by sheet (Stecker, Fuchs &amp; Fuchs, 2005).</li>' +
+        '<li><b>Going deeper, not further on:</b> a child who is secure on a skill is not moved on to later work; the same step is asked so that it needs reasoning — spot the mistake, true or false, a balance, work backwards, compare without working it all out. That is the mastery approach the scheme itself takes: depth before acceleration (NCETM, 2014; DfE, 2020), with reasoning and problem solving as the stretch. It goes by the child\'s own marks: ' + DEEP_MARKS + ' or more, ' + pct(DEEP_RATE) + ' of them right, and it lasts while ' + pct(DEEP_STAY) + ' are; a skill whose last mark was wrong stays as the class question. No more than ' + MAX_UP + ' on a sheet, because they take longer to read. The questions are written for this app; they follow the kinds of question White Rose use and copy none of them.</li>' +
         '<li><b>Not finishing is a different problem:</b> a child who gets them right but runs out of time needs fewer questions, not easier ones (Haring &amp; Eaton, 1978; Daly et al., 1997). Your second question left blank on two of the last three sheets takes two questions away; two sheets with no blanks puts them back.</li>' +
         '<li><b>The board:</b> a model version of each question, the ones the class gets wrong first, for you to work through — worked examples are how a method is best shown (Sweller &amp; Cooper, 1985; Rosenshine, 2012).</li>' +
         '<li><b>Numbers only</b> (a setting on Progress, for a child who cannot read the questions yet): numbers and symbols only, because a child who cannot read the question cannot show the maths they know (Fuchs, Fuchs &amp; Prentice, 2004). Fluent number facts come first (EEF, 2017; DfE ready-to-progress criteria, 2020), in the order children learn them: counting, add or take 1, facts within 5, within 10, bonds to 10, doubles, teen numbers, add or take 10, then across 10 (Baroody, 2006). About a third of the sheet is the step they are learning; the rest is the steps just below it, half as missing numbers (? + 3 = 7) — mostly known with a few new (Burns, 2004; Codding, Burns &amp; Lukito, 2011), starting with ones they know (Skinner, 2002).</li>' +
         '<li><b>Your two questions:</b> one from each half of the sheet, so a blank on the second shows who is not getting that far; within each half, skills the class gets wrong, never the same slot twice in a week.</li>' +
         '</ul></details>';
+    /* The picker is Mental Starters' (js/generator.js), shown here as a list:
+       only the questions this sheet has, each with an example beside it. The
+       example's numbers are fixed, so it changes only when its skill does. */
+    var list = body.querySelector('.cbm-picker .gen-slots');
+    if (list) {
+      var set = 0;
+      Array.prototype.forEach.call(list.querySelectorAll('.gen-slot'), function (row, i) {
+        if (i >= state.n) { row.parentNode.removeChild(row); return; }
+        var k = slotKey(state, i, ht), q = buildKey(k, 'cbm:eg:' + i), eg = document.createElement('div');
+        if (k.indexOf('pre:') !== 0) set++;
+        eg.className = 'cbm-eg';
+        var dq = canDeep(k) ? buildKey('dp:' + k, 'cbm:eg:' + i) : null;
+        eg.innerHTML = '<div class="cbm-egrow"><span class="cbm-egq">' + GRQ(q) + '</span><span class="cbm-ega">' + esc(ans(q, todayISO())) + '</span></div>' +
+          (dq ? '<div class="cbm-egrow cbm-egdeep" title="What a child who is secure on this gets instead"><span class="cbm-egdq"><b>Deeper</b> ' + GRQ(dq) + '</span><span class="cbm-ega">' + esc(ans(dq, todayISO())) + '</span></div>' : '');
+        row.appendChild(eg);
+      });
+      list.insertAdjacentHTML('beforebegin', '<div class="cbm-eghead"><span>Skill</span><span>Example, with its answer</span></div>');
+      var cnt = body.querySelector('.cbm-picker .ms-count'); if (cnt) cnt.textContent = set + ' of ' + state.n + ' set';
+      var hint = body.querySelector('.cbm-picker .ms-hint');
+      if (hint) hint.innerHTML = 'White Rose small steps. A question left alone uses the <b>' + esc(setName(ht)) + '</b> question for that position.';
+    }
+    document.getElementById('cbmN').onchange = function (e) { var s = load(); s.n = normN(e.target.value); save(s); renderSetup(); };
     document.getElementById('cbmHT').onchange = function (e) { var s = load(); s.ht = e.target.value || null; save(s); renderSetup(); };
     document.getElementById('cbmCopy').onclick = function () {
       var cfg = Store.get('tp_starter_cfg', null) || {};
@@ -1276,7 +1468,7 @@
     parseEntry: parseEntry, buildDay: buildDay, makeDay: makeDay, pickAudit: pickAudit,
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
-    stepBack: stepBack, backPath: backPath, focusSlots: focusSlots, isScored: isScored,
+    stepBack: stepBack, backPath: backPath, stageOf: stageOf, canDeep: canDeep, focusSlots: focusSlots, isScored: isScored,
     keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();

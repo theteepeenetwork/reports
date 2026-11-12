@@ -114,8 +114,9 @@
     { id:'a1.10', block:'a1', n:10, title:'10s and 1s on the number line to 100',
       gen:function(){ return { t:'seq', start:R(11,60), step:P([1,10]), len:4, blank:R(1,2) }; } },
     { id:'a1.11', block:'a1', n:11, title:'Estimate numbers on a number line',
-      gen:function(){ var a = R(0,4)*10, b = a + 10;
-                      return q('A number is halfway between ' + a + ' and ' + b + '. What is it?', a + 5); } },
+      /* a real line: one decade, a tick for each number, only the ends
+         labelled, and an arrow to read off (drawn by genRenderQuestion) */
+      gen:function(){ var a = R(0,9)*10; return { t:'numline', lo:a, hi:a + 10, step:1, at:a + R(1,9) }; } },
     { id:'a1.12', block:'a1', n:12, title:'Compare objects', gen:null, why:NEEDS_PICTURE },
     { id:'a1.13', block:'a1', n:13, title:'Compare numbers',
       gen:function(){ var p = two(10,99); return q('&lt;, &gt; or =?<br>' + p[0] + ' <span class="gen-blank">?</span> ' + p[1], p[0] < p[1] ? '<' : '>'); } },

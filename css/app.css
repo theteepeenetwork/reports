@@ -435,6 +435,7 @@
     .gen-clock-label { font-weight: 800; font-size: 1rem; }
     .gen-clock { width: 104px; height: 104px; }
     .gen-blocks { max-width: 100%; height: 70px; margin-top: .3rem; }
+    .gen-numline { display: block; width: 100%; max-width: 300px; height: auto; margin-top: .3rem; }
     .gen-blank {
       display: inline-block; min-width: 1.6em; padding: 0 .25em; text-align: center;
       border: 2px dashed var(--accent); border-radius: 6px; color: var(--accent-dark); font-weight: 700;
@@ -577,6 +578,7 @@
       .gen-clock { width: 21mm; height: 21mm; }
       .gen-clock-label { font-size: 9pt; }
       .gen-blocks { height: 14mm; }
+      .gen-numline { max-width: 62mm; margin-top: 1mm; }
       .gen-grid-tables { grid-template-columns: repeat(5, 1fr) !important; gap: 2mm !important; }
       .gen-grid-tables .gen-q { font-size: 11pt; padding: 1.2mm 2mm; }
     }

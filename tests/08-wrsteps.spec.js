@@ -457,3 +457,20 @@ test('a chosen step reaches the saved week, not just a preview', async ({ page }
     'the sheet a teacher prints does not show the chosen step').toContainText('10 ×');
   expect(errors).toEqual([]);
 });
+
+test('Estimate numbers on a number line draws a line with an arrow, and the answer is where it points', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(() => {
+    const out = [];
+    for (let i = 0; i < 60; i++) {
+      const q = window.wrBuild('a1.11'), html = window.genRenderQuestion(q);
+      const x = v => 16 + 208 * (v - q.lo) / (q.hi - q.lo);
+      const arrow = +(/<line x1="([\d.]+)" y1="3"/.exec(html) || [])[1];
+      out.push({ t: q.t, span: q.hi - q.lo, inside: q.at > q.lo && q.at < q.hi, ans: String(window.genAnswer(q)) === String(q.at),
+                 svg: /<svg class="gen-numline"/.test(html), ticks: (html.match(/<line /g) || []).length, onTick: Math.abs(arrow - x(q.at)) < 0.06,
+                 labels: html.includes('>' + q.lo + '</text>') && html.includes('>' + q.hi + '</text>') && !html.includes('>' + q.at + '</text>') });
+    }
+    return out;
+  });
+  for (const x of r) expect(x).toEqual({ t: 'numline', span: 10, inside: true, ans: true, svg: true, ticks: 13, onTick: true, labels: true });
+});

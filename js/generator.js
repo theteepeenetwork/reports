@@ -392,6 +392,27 @@
     return s + '</svg>';
   }
 
+  /* ── SVG: a number line with an arrow ───────────────────── */
+  /* lo..hi with a tick for every `step`, only the two ends labelled (the
+     middle tick a little taller, as on a ruler), and an arrow at `at`. */
+  function genNumLineSVG(q){
+    var lo = +q.lo, hi = +q.hi, step = +q.step || 1, n = Math.round((hi - lo) / step);
+    var x0 = 16, x1 = 224, y = 40, i, s;
+    function X(v){ return x0 + (x1 - x0) * (v - lo) / (hi - lo); }
+    s = '<svg class="gen-numline" viewBox="0 0 240 64" role="img" aria-label="number line from ' + lo + ' to ' + hi + ' with an arrow">' +
+      '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="#111827" stroke-width="2"/>';
+    for (i = 0; i <= n; i++){
+      var x = X(lo + i * step).toFixed(1), end = i === 0 || i === n, mid = n % 2 === 0 && i === n / 2, h = end ? 9 : mid ? 7 : 5;
+      s += '<line x1="' + x + '" y1="' + (y - h) + '" x2="' + x + '" y2="' + (y + h) + '" stroke="#111827" stroke-width="' + (end ? 2 : 1.2) + '"/>';
+    }
+    var ax = X(+q.at).toFixed(1);
+    s += '<text x="' + x0 + '" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">' + lo + '</text>' +
+      '<text x="' + x1 + '" y="61" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#111827">' + hi + '</text>' +
+      '<line x1="' + ax + '" y1="3" x2="' + ax + '" y2="22" stroke="#2563eb" stroke-width="2.6" stroke-linecap="round"/>' +
+      '<path d="M' + (ax - 5.5) + ' 20 L' + ax + ' 30 L' + (+ax + 5.5) + ' 20 Z" fill="#2563eb"/>';
+    return s + '</svg>';
+  }
+
   /* ── Deterministic renderers (descriptor -> HTML) ───────── */
   var GEN_RENDERERS = {
     arith: function (q){ return esc(q.a + ' ' + q.op + ' ' + q.b + ' ='); },
@@ -406,6 +427,9 @@
     },
     placeval: function (q){
       return '<div class="gen-qtext">What number is this?</div>' + genBlocksSVG(q.tens, q.ones);
+    },
+    numline: function (q){
+      return '<div class="gen-qtext">What number is the arrow pointing to?</div>' + genNumLineSVG(q);
     },
     missing: function (q){
       var box = '<span class="gen-blank">?</span>';
@@ -492,6 +516,7 @@
       return q.items.map(function (it, i){ return 'ABC'.charAt(i) + ': ' + genTimeWords(it); }).join(' · ');
     },
     placeval: function (q){ return q.tens * 10 + q.ones; },
+    numline: function (q){ return q.at; },
     missing: function (q){ return q.blank === 'a' ? q.sum - q.b : q.sum - q.a; },
     words: function (q){ return genWords(q.n); },
     shape: function (q){ return GEN_SIDES[q.shape] != null ? GEN_SIDES[q.shape] : ''; },

@@ -184,7 +184,7 @@ test('wrong answers step skills back one step at a time, at most five a sheet, o
     out.first = { ks: sh.ks || {}, drop: sh.drop || [], depths: depths(), len: C.sheetPlan(d3, 'p1').slots.length };
     out.oneStep = Object.keys(sh.ks || {}).every(i => sh.ks[i] === C.stepBack(d3.qs[i].k, 1));
     out.noFacts = C.sheetPlan(d3, 'p1').slots.every(x => !x.k.startsWith('fd:'));
-    out.others = Object.keys(d3.sheets).filter(pid => pid !== 'p1');
+    out.others = Object.keys(d3.sheets).filter(pid => pid !== 'p1' && (d3.sheets[pid].drop || d3.sheets[pid].qs || Object.values(d3.sheets[pid].ks || {}).some(k => k.indexOf('dp:') !== 0)));
     // the next sheet made with no new marks in between does not step again
     const lvThen = JSON.stringify(s.lv.p1);
     C.makeDay(s, days[4]);
@@ -257,7 +257,7 @@ test('a blank on the second mark shortens the sheet by two and puts it back; it 
     out.len = pl.slots.length; out.drop = d2.sheets.p1.drop; out.audit = d2.audit;
     out.auditSkills = pl.audit.map(j => pl.slots[j].i);
     out.stored = Object.keys(d2.sheets.p1).sort();
-    out.others = Object.keys(d2.sheets).filter(pid => pid !== 'p1');
+    out.others = Object.keys(d2.sheets).filter(pid => pid !== 'p1' && (d2.sheets[pid].drop || d2.sheets[pid].qs || Object.values(d2.sheets[pid].ks || {}).some(k => k.indexOf('dp:') !== 0)));
     // still blank twice at 18 → 16
     mark(d2, [1, -1]); mark(C.makeDay(s, days[3]), [1, -1]);
     out.shorter = C.sheetPlan(C.makeDay(s, days[4]), 'p1').slots.length;
@@ -491,4 +491,329 @@ test('×tables on the back: off by default, turned on in Set up, one page after 
   await expect(page.locator('#starterPrint .gen-grid-tables')).toHaveCount(1);
   expect(await page.locator('#starterPrint .gen-grid-tables').innerHTML()).toBe(grids[0]);
   expect(errors).toEqual([]);
+});
+
+test('Set up is a list: a drop-down for each question and an example of it beside', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  const rows = page.locator('.cbm-picker .gen-slot');
+  await expect(rows).toHaveCount(20);
+  await expect(page.locator('.cbm-picker .gen-slot select')).toHaveCount(20);
+  const egs = await page.locator('.cbm-picker .cbm-eg .cbm-egq').evaluateAll(els => els.map(e => e.innerHTML.trim()));
+  expect(egs).toHaveLength(20);
+  egs.forEach(h => { expect(h.length).toBeGreaterThan(0); expect(h).not.toMatch(/undefined|NaN/); });
+
+  /* choosing a skill changes that row's example, and only that row's */
+  const step = await page.evaluate(() => window.WR_STEPS.filter(s => s.block === 'a2' && typeof s.gen === 'function')[0].id);
+  const before = await rows.nth(0).locator('.cbm-eg').innerHTML(), second = await rows.nth(1).locator('.cbm-eg').innerHTML();
+  await rows.nth(0).locator('select').selectOption(step);
+  expect(await page.evaluate(() => window.CBM.load().slots[0])).toBe(step);
+  expect(await rows.nth(0).locator('.cbm-eg').innerHTML()).not.toBe(before);
+  expect(await rows.nth(1).locator('.cbm-eg').innerHTML()).toBe(second);
+  await expect(page.locator('.cbm-picker .ms-count')).toHaveText('1 of 20 set');
+  expect(errors).toEqual([]);
+});
+
+test('the number of questions is yours to choose, up to 20; made days keep their length', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('#cbmN').selectOption('12');
+  await expect(page.locator('.cbm-picker .gen-slot')).toHaveCount(12);
+  await expect(page.locator('.cbm-picker .ms-count')).toHaveText('12 of 12 set');
+  expect(await page.evaluate(() => window.CBM.load().n)).toBe(12);
+
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await expect(page.getByRole('button', { name: 'All 12 on the board' })).toBeVisible();
+  const made = await page.evaluate(() => {
+    const C = window.CBM, s = C.load(), iso = Object.keys(s.days)[0], d = s.days[iso];
+    return { n: d.qs.length, audit: d.audit, mine: C.sheetQs(d, iso, 'p1').length };
+  });
+  expect(made.n).toBe(12);
+  expect(made.mine).toBe(12);
+  expect(made.audit[0]).toBeLessThan(6);
+  expect(made.audit[1]).toBeGreaterThanOrEqual(6);
+  expect(made.audit[1]).toBeLessThan(12);
+
+  /* back to 20: the hidden rows kept their choices, and the day made at 12 is still 12 */
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('#cbmN').selectOption('20');
+  await expect(page.locator('.cbm-picker .gen-slot')).toHaveCount(20);
+  await expect(page.locator('.cbm-picker .ms-count')).toHaveText('20 of 20 set');
+  expect(await page.evaluate(() => { const s = window.CBM.load(); return Object.values(s.days)[0].qs.length; })).toBe(12);
+
+  /* an odd number still gives one marked question in each half; nonsense reads as 20 */
+  const odd = await page.evaluate(() => {
+    const C = window.CBM, s = C.load(); s.n = 9; const d = C.makeDay(s, '2031-03-03');
+    s.n = 3; C.save(s);
+    return { n: d.qs.length, audit: d.audit, bad: C.load().n };
+  });
+  expect(odd.n).toBe(9);
+  expect(odd.audit[0]).toBeLessThan(5);
+  expect(odd.audit[1]).toBeGreaterThanOrEqual(5);
+  expect(odd.audit[1]).toBeLessThan(9);
+  expect(odd.bad).toBe(20);
+  expect(errors).toEqual([]);
+});
+
+test('changing the number: a child on the whole sheet follows it; a child cut back keeps theirs, within it', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(10), out = {};
+    const mark = (day, p1) => roster.forEach(p => { day.marks[p.id] = { a: p.id === 'p1' ? p1 : [1, 1] }; });
+    const len = (d, pid) => C.sheetPlan(d, pid).slots.length;
+    for (let i = 0; i < 6; i++) mark(C.makeDay(s, days[i]), [1, -1]);        // 20 20 18 18 16 16
+    const d6 = C.makeDay(s, days[6]); out.cut = len(d6, 'p1'); mark(d6, [1, 1]);
+    s.n = 16; const d7 = C.makeDay(s, days[7]);
+    out.at16 = [d7.qs.length, len(d7, 'p1'), len(d7, 'p2')]; mark(d7, [1, 1]);
+    s.n = 12; const d8 = C.makeDay(s, days[8]);
+    out.at12 = [d8.qs.length, len(d8, 'p1'), len(d8, 'p2')]; mark(d8, [1, 1]);
+    s.n = 20; const d9 = C.makeDay(s, days[9]);
+    out.at20 = [d9.qs.length, len(d9, 'p1'), len(d9, 'p2')];
+    return out;
+  }, PAST_DAYS);
+  expect(r.cut).toBe(14);
+  expect(r.at16).toEqual([16, 14, 16]);
+  expect(r.at12).toEqual([12, 12, 12]);
+  expect(r.at20).toEqual([20, 20, 20]);            // on the whole sheet at 12, so on the whole sheet at 20
+});
+
+
+/* ── going deeper ─────────────────────────────────────── */
+test('deeper questions: every one is well formed, short, and has the right answer', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(() => {
+    const C = window.CBM, calc = (a, op, b) => op === '+' ? a + b : op === '-' ? a - b : op === '×' ? a * b : a / b;
+    const keys = window.WR_STEPS.filter(s => typeof s.gen === 'function' && window.wrBlock(s.block).year === 2).map(s => s.id)
+      .concat(C.buildDay(C.load(), '2030-01-07').map(q => q.k));
+    const bad = [], forms = {}; let n = 0, deepKeys = 0;
+    keys.forEach(k => {
+      if (!C.canDeep(k)) return; deepKeys++;
+      for (let i = 0; i < 200; i++) ['dp:', 'do:'].forEach(pre => {
+        const d = C.buildKey(pre + k, 's' + i); n++;
+        if (!d.f) return;                                   // this build had no deeper form: the class question, checked elsewhere
+        forms[d.f] = 1;
+        const txt = d.t === 'prompt' ? String(d.s).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : JSON.stringify(d), fail = m => bad.push(k + ' ' + d.f + ' ' + m + ': ' + txt);
+        const ans = String(window.genAnswer(d, '2030-01-07'));
+        if (!txt || ans === '' || /undefined|NaN/.test(txt + ans)) fail('junk');
+        if (d.f === 'open' && pre === 'dp:') fail('open on the sheet');
+        if (d.t === 'prompt') {
+          if (txt.length > 120) fail('long');
+          let m;
+          if (d.f === 'mistake' && (m = txt.match(/says (\d+) ([+\-×÷]) (\d+)(?: \+ (\d+))? = (\d+)\./))) {
+            const right = m[4] ? +m[1] + +m[3] + +m[4] : calc(+m[1], m[2], +m[3]);
+            if (String(right) !== ans || +m[5] === right) fail('mistake');
+          }
+          if (d.f === 'truefalse' && (m = txt.match(/(\d+) ([+\-×÷]) (\d+) = (\d+)$/)) && (calc(+m[1], m[2], +m[3]) === +m[4]) !== (ans === 'True')) fail('true/false');
+          if (d.f === 'backwards' && (m = txt.match(/I add (\d+) and get (\d+)/)) && +m[2] - +m[1] !== +ans) fail('backwards');
+          if (d.f === 'balance' && (m = txt.match(/^(\d+) ([+\-]) (\d+) = \? ([+\-]) (\d+)$/)) && calc(+ans, m[4], +m[5]) !== calc(+m[1], m[2], +m[3])) fail('balance');
+        } else if (d.t === 'compare') {
+          if (calc(d.a, d.aop, d.b) < 0 || calc(d.c, d.bop, d.d) < 0) fail('negative');
+        } else fail('type');
+      });
+    });
+    return { bad: bad.slice(0, 8), n, deepKeys, forms: Object.keys(forms), clock: C.canDeep('c2.1'), fd: C.canDeep('fd:add10') };
+  });
+  expect(r.bad).toEqual([]);
+  expect(r.deepKeys).toBeGreaterThan(60);
+  expect(r.forms).toEqual(expect.arrayContaining(['mistake', 'truefalse', 'backwards', 'balance', 'compare', 'more', 'fewest', 'whole', 'regroup', 'open']));
+  expect(r.clock).toBe(false);                       // needs a picture: stays the class question
+  expect(r.fd).toBe(false);
+});
+
+test('a child whose marks are nearly all right goes deeper: five a sheet at most, own numbers, and a wrong mark brings that question back', async ({ page }) => {
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  const r = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(26), out = { perSheet: [] };
+    s.support.p2 = { mode: 'num' }; s.support.p3 = { mode: 'full' };
+    const deepOf = (d, pid) => Object.values((d.sheets[pid] || {}).ks || {}).filter(k => k.indexOf('dp:') === 0);
+    const lvDeep = pid => Object.keys(s.lv[pid] || {}).filter(c => s.lv[pid][c] < 0);
+    const allRight = d => roster.forEach(p => { d.marks[p.id] = { a: [1, 1] }; });
+    let hit = null, i = 0;
+    for (; i < 12; i++) {
+      const d = C.makeDay(s, days[i]);
+      out.perSheet.push(deepOf(d, 'p1').length);
+      if (i === 11) { out.stored = Object.keys(d.sheets.p1 || {}); out.num = deepOf(d, 'p2').length + (s.lv.p2 ? 1 : 0); out.full = deepOf(d, 'p3').length; }
+      allRight(d);
+    }
+    out.total = lvDeep('p1').length;
+    // p1 and p4 on the same deeper slot have different numbers; a rebuild is identical
+    const dl = s.days[days[11]], a = C.sheetQs(dl, days[11], 'p1'), pl = C.sheetPlan(dl, 'p1'), j = pl.slots.findIndex(x => x.k.indexOf('dp:') === 0);
+    out.label = C.keyLabel(pl.slots[j].k);
+    out.same = JSON.stringify(C.buildKey(pl.slots[j].k, 'x:p1')) === JSON.stringify(C.buildKey(pl.slots[j].k, 'x:p1'));
+    out.differ = [1, 2, 3, 4, 5, 6].some(n => JSON.stringify(C.buildKey(pl.slots[j].k, 'x:p1:' + n)) !== JSON.stringify(C.buildKey(pl.slots[j].k, 'x:p4:' + n)));
+    out.rendered = a.map(q => window.genRenderQuestion(q)).join(' ');
+    // mark right until one of the two marked questions is a deeper one for p1, then mark that wrong
+    for (; i < 24 && !hit; i++) {
+      const d = C.makeDay(s, days[i]), p = C.sheetPlan(d, 'p1'); allRight(d);
+      const k = p.audit.findIndex(pos => p.slots[pos].k.indexOf('dp:') === 0);
+      if (k >= 0) { hit = p.slots[p.audit[k]].c; d.marks.p1 = { a: k === 0 ? [0, 1] : [1, 0] }; }
+    }
+    out.hit = !!hit;
+    if (hit) {
+      const d = C.makeDay(s, days[i]), p = C.sheetPlan(d, 'p1'); allRight(d);
+      out.backNow = !(s.lv.p1 && s.lv.p1[hit]);
+      out.others = lvDeep('p1').length;                 // the rest stay deeper
+      const again = p.audit.some(pos => p.slots[pos].c === hit);          // marked right on it today: it may go deeper again
+      C.makeDay(s, days[i + 1]);
+      out.stillBack = again || !(s.lv.p1 && s.lv.p1[hit]);
+
+    }
+    // marks that stop being nearly all right: no deeper questions at all (a fresh class)
+    const t = C.load(), deepT = () => Object.keys(t.lv.p1 || {}).filter(c => t.lv.p1[c] < 0).length;
+    out.fall = [];
+    for (let n = 0; n < 11; n++) { const d = C.makeDay(t, days[n]); out.fall.push(deepT()); roster.forEach(p => { d.marks[p.id] = { a: n < 7 ? [1, 1] : [0, 0] }; }); }
+    return out;
+  }, PAST_DAYS);
+  expect(r.fall[7]).toBeGreaterThan(5);                     // 14 marks, all right
+  expect(r.fall[8]).toBeGreaterThan(0);                     // 14 of 16: still above the line to stay
+  expect(r.fall[10]).toBe(0);                               // 14 of 20: no longer
+  expect(Math.max(...r.perSheet)).toBeLessThanOrEqual(5);
+  expect(Math.max(...r.perSheet)).toBeGreaterThanOrEqual(3);
+  expect(r.perSheet.slice(0, 6)).toEqual([0, 0, 0, 0, 0, 0]);   // nothing before twelve marks
+  expect(r.total).toBeGreaterThan(5);                       // more skills than a sheet carries: a different few each day
+  expect(r.stored).toEqual(['ks']);
+  expect(r.num).toBe(0);
+  expect(r.full).toBe(0);
+  expect(r.label).toMatch(/ · deeper$/);
+  expect(r.same).toBe(true);
+  expect(r.differ).toBe(true);
+  expect(r.rendered).not.toMatch(/undefined|NaN|dp:/);
+  expect(r.hit).toBe(true);
+  expect(r.backNow).toBe(true);
+  expect(r.stillBack).toBe(true);
+  expect(r.others).toBeGreaterThan(5);
+});
+
+test('practice box: a child with no wrong marks gets four deeper questions; a wrong mark still comes first', async ({ page }) => {
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  const r = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(8);
+    for (let i = 0; i < 6; i++) { const d = C.makeDay(s, days[i]); roster.forEach(p => { d.marks[p.id] = { a: p.id === 'p2' && i === 5 ? [0, 1] : [1, 1] }; }); }
+    const d = C.makeDay(s, days[6]);
+    const an = C.analyse(s, days[5], 28), tg = pid => { const pl = C.sheetPlan(d, pid), cmap = {}; pl.slots.forEach(x => { cmap[x.k] = x.c; }); return C.chooseTargets(an, pid, pl.slots.map(x => x.k), 4, false, cmap); };
+    const mine = tg('p1'), q = C.buildKey(mine[0].k, 'box');
+    return { mine, p2: tg('p2'), text: window.genRenderQuestion(q) + ' ' + window.genAnswer(q, days[6]) };
+  }, PAST_DAYS);
+  expect(r.mine).toHaveLength(4);
+  expect(r.mine.every(x => x.y === 'stretch' && x.k.indexOf('do:') === 0)).toBe(true);
+  expect(r.p2[0].y).toBe('miss');
+  expect(r.text).not.toMatch(/undefined|NaN/);
+});
+
+test('who is on what: colours on Progress only, by the next sheet, with a letter as well as a colour', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  const unit = await page.evaluate(() => {
+    const C = window.CBM, keys = C.buildDay(C.load(), '2030-01-07').map(q => q.k), uniq = keys.filter((k, i) => keys.indexOf(k) === i);
+    const backable = uniq.filter(k => C.stepBack(k, 1)), deepable = uniq.filter(k => C.canDeep(k));
+    const lv = (list, n, v) => { const o = {}; list.slice(0, n).forEach(k => { o[k] = v; }); return o; };
+    const st = (plan) => { const x = C.stageOf(Object.assign({ mode: 'auto', n: keys.length, lv: {}, why: '' }, plan), keys); return [x.id, x.back, x.deep]; };
+    const per = k => keys.filter(x => x === k).length;                  // a skill can fill more than one slot
+    return {
+      cls: st({}), num: st({ mode: 'num', n: 12 })[0],
+      back1: st({ lv: lv(backable, 1, 1) }), back1n: per(backable[0]),
+      back3: st({ lv: lv(backable, 3, 1) })[0],
+      fewer: st({ n: keys.length - 2 })[0], both: st({ n: keys.length - 2, lv: lv(backable, 3, 2) })[0],
+      deep: st({ lv: lv(deepable, 6, -1) }), deep1: st({ lv: lv(deepable, 1, -1) })[0] === 'deeper' && per(deepable[0]) < 3
+    };
+  });
+  expect(unit.cls).toEqual(['class', 0, 0]);
+  expect(unit.num).toBe('easier');
+  expect(unit.back1[0]).toBe(unit.back1n >= 3 ? 'easier' : 'class');     // one or two questions back: still blue, with a ↓
+  expect(unit.back1[1]).toBe(unit.back1n);
+  expect(unit.back3).toBe('easier');
+  expect(unit.fewer).toBe('fewer');
+  expect(unit.both).toBe('easier');                                      // most support first
+  expect(unit.deep[0]).toBe('deeper');
+  expect(unit.deep[2]).toBe(5);                                          // what the sheet will carry, not every skill
+  expect(unit.deep1).toBe(false);
+
+  /* in the page: p2 numbers only, p3 not finishing, the rest marked right */
+  await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(6);
+    s.support.p2 = { mode: 'num' };
+    days.forEach(iso => { const d = C.makeDay(s, iso); roster.forEach(p => { d.marks[p.id] = { a: p.id === 'p3' ? [1, -1] : [1, 1] }; }); });
+    C.makeDay(s, (() => { const x = new Date(); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); })());
+    C.save(s); window.cbmRender();
+  }, PAST_DAYS);
+  await expect(page.locator('.cbm-stage')).toHaveCount(0);               // Today: nothing coloured
+  await page.locator('.cbm-tab[data-view="progress"]').click();
+  const card = page.locator('.cbm-stages');
+  await expect(card.locator('.cbm-st-col')).toHaveCount(4);                 // a column a stage, a name a line
+  await expect(card.locator('.cbm-st-col li')).toHaveCount(ROSTER.length);
+  await expect(card.locator('.cbm-st-easier .cbm-st-title')).toHaveText('EEasier questions');
+  await expect(card.locator('.cbm-st-fewer .cbm-st-title')).toHaveText('FFewer questions');
+  await expect(card.locator('.cbm-st-deeper .cbm-st-title')).toHaveText('CChallenge');
+  await expect(card.locator('.cbm-st-easier li')).toHaveCount(1);
+  await expect(card.locator('.cbm-st-easier li i')).toContainText('numbers only');
+  await expect(card.locator('.cbm-st-fewer li')).toHaveCount(1);
+  await expect(card.locator('.cbm-st-fewer li i')).toContainText('Qs');
+  expect(await card.locator('.cbm-st-deeper li').count()).toBeGreaterThan(0);
+  const counts = await card.locator('.cbm-st-count').evaluateAll(els => els.map(e => +e.textContent));
+  expect(counts.reduce((a, b) => a + b, 0)).toBe(ROSTER.length);
+  /* a heading keeps its own colour whatever the app's buttons do */
+  const head = card.locator('.cbm-st-easier .cbm-st-head');
+  await head.hover();
+  expect(await head.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(251, 213, 213)');
+  await head.click();                                                       // the tables below: only those children
+  await expect(page.locator('.cbm-grid tbody tr')).toHaveCount(2);          // the class row and that child
+  await expect(page.locator('.cbm-stages .cbm-st-col li')).toHaveCount(ROSTER.length);
+  expect(await page.locator('.cbm-stages .cbm-st-easier .cbm-st-head').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(251, 213, 213)');
+  await page.locator('.cbm-stages .cbm-st-easier .cbm-st-head').click();
+  await expect(page.locator('.cbm-grid tbody tr')).toHaveCount(ROSTER.length + 1);
+
+  /* nothing a child sees carries it: the sheets, the marking list, Today */
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await expect(page.locator('.cbm-stage')).toHaveCount(0);
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  expect(await page.evaluate(() => document.body.innerHTML.includes('cbm-stage'))).toBe(false);
+  await page.getByRole('button', { name: 'Print marking list' }).click();
+  expect(await page.evaluate(() => document.body.innerHTML.includes('cbm-stage'))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('Set up shows the deeper question under the example, where a skill has one', async ({ page }) => {
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  const n = await page.locator('.cbm-picker .cbm-egdeep').count();
+  expect(n).toBeGreaterThan(10);
+  const txt = await page.locator('.cbm-picker .cbm-egdeep').allInnerTexts();
+  txt.forEach(t => { expect(t).toMatch(/^Deeper/i); expect(t).not.toMatch(/undefined|NaN/); });
+  await expect(page.locator('.cbm-picker .cbm-eg .cbm-egq')).toHaveCount(20);
+});
+
+test('a skill stepped back after one slip comes forward again after three sheets with no further wrong mark', async ({ page }) => {
+  await open(page);
+  await page.evaluate(WR_SLOTS);
+  const r = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(8), out = { depth: [] };
+    const mark = (d, p1) => roster.forEach(p => { d.marks[p.id] = { a: p.id === 'p1' ? p1 : [1, 1] }; });
+    mark(C.makeDay(s, days[0]), [1, 1]); mark(C.makeDay(s, days[1]), [1, 1]);
+    const d2 = C.makeDay(s, days[2]), c = C.sheetPlan(d2, 'p1').slots[C.sheetPlan(d2, 'p1').audit[0]].c;
+    mark(d2, [0, 1]);                                       // one slip on c
+    let touched = false;
+    for (let i = 3; i < 8; i++) {
+      const d = C.makeDay(s, days[i]), pl = C.sheetPlan(d, 'p1');
+      out.depth.push((s.lv.p1 || {})[c] || 0);
+      if (pl.audit.some(pos => pl.slots[pos].c === c)) touched = true;      // marked on it again: the marks rule applies instead
+      mark(d, [1, 1]);
+    }
+    out.touched = touched;
+    return out;
+  }, PAST_DAYS);
+  expect(r.depth[0]).toBe(1);                               // the sheet after the slip: one step back
+  if (!r.touched) {
+    expect(r.depth.slice(0, 3)).toEqual([1, 1, 1]);         // practised for three sheets
+    expect(r.depth[3]).toBe(0);                             // then the class question again
+    expect(r.depth[4]).toBe(0);
+  }
 });

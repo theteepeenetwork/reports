@@ -31,7 +31,8 @@ printable starter sheet.
 > teacher designed there never reached the week the class actually got. `#generator` redirects.
 
 > **Mental Starter (CBM)** (`js/cbm.js`, `#cbm`) is a separate starter built on curriculum-based
-> measurement; Mental Starters is unchanged. The same 20 skills for everyone, each slot a fixed skill,
+> measurement; Mental Starters is unchanged. The same skills for everyone (6 to 20 questions, chosen in
+> *Set up* from a list with an example beside each), each slot a fixed skill,
 > with **different numbers on every child's sheet** so nothing can be copied. The teacher live-marks
 > two app-chosen questions in every book (one from each half) and taps the two marks in — right,
 > wrong or blank; nothing is typed, children do not self-mark and no score is kept. Each child's own
@@ -39,7 +40,12 @@ printable starter sheet.
 > skill-by-skill picture over a fortnight; skills not yet checked for a child are estimated from how
 > hard the class finds them and how that child compares. A wrong mark steps that one skill back one
 > White Rose step (right marks bring it forward); a blank on the second mark, twice in three sheets,
-> takes two questions off. *Numbers only* is a per-child setting for a child who cannot read the
+> takes two questions off. A child whose marks are nearly all right gets up to five of the questions
+> as **deeper** versions of the same skill (`js/cbmdeep.js`: spot the mistake, true or false, work
+> backwards, a balance; written for this app in the forms White Rose use for reasoning, copying
+> none of them), not later work. *Progress › Who is on what* colours each name by their next sheet
+> (red easier, yellow fewer, blue class, green challenge, each with a letter); nothing a child sees
+> is coloured. *Numbers only* is a per-child setting for a child who cannot read the
 > questions yet. Each sheet ends with practice questions chosen for that child. The reasoning and
 > research are in the page's *Set up › How it decides* and at the top of the file.
 
