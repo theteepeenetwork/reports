@@ -466,12 +466,12 @@ test('a made sheet can be swapped for a fresh set of questions; marks entered fo
 test('×tables on the back: off by default, turned on in Set up, one page after each child, same tables for everyone', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page);
-  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', count: 50 });
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', count: 50, mode: 'grid', per: false });
   await page.getByRole('button', { name: 'Set up' }).click();
   await page.getByLabel('×tables on the back').check();
   await page.locator('#cbmXtPick').selectOption('5');
   await page.locator('#cbmXtCount').selectOption('30');
-  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: true, pick: '5', count: 30 });
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: true, pick: '5', count: 30, mode: 'grid', per: false });
 
   await page.locator('.cbm-tab[data-view="today"]').click();
   await page.getByRole('button', { name: 'Make the sheet' }).click();
@@ -910,5 +910,129 @@ test('children mark their own: each child\'s answers as a strip on the back page
   await expect(page.locator('#starterPrint .cbm-backpage').first()).toContainText('Mental Starter answers');
   await page.getByRole('button', { name: 'Print one blank sheet' }).click();
   await expect(page.locator('#starterPrint .cbm-strip')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+
+/* ── Times tables: one record per child; the Multiples page moves it on ── */
+test('Multiples: two ✓ in a row moves a child on, every third page is a revisit, ✗✗ on a revisit learns it again', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  const r = await page.evaluate(`(() => {
+    const C = window.CBM, days = ${PAST_DAYS}(12), s = C.load();
+    s.xt = { on: true, pick: 'all', count: 50, mode: 'mult', per: false };
+    const steps = [];
+    // each day: fix the table as printing would, then mark p1 with the given mark
+    const go = (d, m) => { s.days[d] = { qs: [], audit: [], sheets: {}, marks: {}, tg: {}, ind: 1 };
+      C.freezeTables(s, d); if (m != null) s.days[d].xm = { p1: m }; steps.push(s.days[d].mt.p1); };
+    go(days[0], 1); go(days[1], 1);          // 10, 10 → got 10
+    go(days[2], 1); go(days[3], 1);          // 5, 5 → got 5; learning 2
+    go(days[4], null); go(days[5], null);    // 2, 2
+    go(days[6], 1);                          // a revisit: 10, seen longest ago
+    go(days[7], null); go(days[8], null);    // 2, 2
+    go(days[9], 0);                          // revisit 5: ✗
+    go(days[10], 0);                         // 5 again on the next sheet: ✗ again → learning 5
+    go(days[11], null);
+    const st = C.tablesState(s, 'p1');
+    return { steps, on: st.on, got: Object.keys(st.got).map(Number), p2: s.days[days[0]].mt.p2 };
+  })()`);
+  expect(r.steps).toEqual([10, 10, 5, 5, 2, 2, 10, 2, 2, 5, 5, 5]);
+  expect(r.on).toBe(5);
+  expect(r.got).toEqual([10]);
+  expect(r.p2).toBe(10);       // a child with no record starts on 10s
+  expect(errors).toEqual([]);
+});
+
+test('Multiples page: every table makes one connected path, a true sort, and no holes; same date and table, same page', async ({ page }) => {
+  await open(page);
+  const bad = await page.evaluate(() => {
+    const C = window.CBM, out = [];
+    ['2026-11-02', '2026-11-03', '2026-11-04'].forEach(d => C.ORDER.forEach(n => {
+      const m = C.multiplesFor(d, n);
+      if (JSON.stringify(m) !== JSON.stringify(C.multiplesFor(d, n))) out.push(n + ' not repeatable');
+      if (m.sort.length !== 18 || m.sort.some(x => (x.v % n === 0) !== x.m) || new Set(m.sort.map(x => x.v)).size !== 18) out.push(n + ' sort');
+      // the multiples in the grid are exactly the path, and it joins the top row to the bottom
+      const on = (r, c) => m.grid[r][c] % n === 0, seen = {}, todo = [];
+      for (let c = 0; c < 8; c++) if (on(0, c)) { seen['0:' + c] = 1; todo.push([0, c]); }
+      for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) if (on(r, c) !== !!m.path[r + ':' + c]) out.push(n + ' path cell');
+      while (todo.length) { const [r, c] = todo.pop(); [[1,0],[-1,0],[0,1],[0,-1]].forEach(([a, b]) => { const k = (r + a) + ':' + (c + b);
+        if (r + a >= 0 && r + a < 8 && c + b >= 0 && c + b < 8 && !seen[k] && on(r + a, c + b)) { seen[k] = 1; todo.push([r + a, c + b]); } }); }
+      if (![0,1,2,3,4,5,6,7].some(c => seen['7:' + c])) out.push(n + ' path broken');
+      if (Object.keys(seen).length !== Object.keys(m.path).length) out.push(n + ' stray multiple');
+      for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) if (m.path[r + ':' + c] && m.path[r + ':' + (c + 1)] && m.path[(r + 1) + ':' + c] && m.path[(r + 1) + ':' + (c + 1)]) out.push(n + ' path not one wide');
+      // no fact twice: the twelve calculations use twelve different multipliers
+      const by = m.calcs.concat(m.easy).map(q => q.by);
+      if (new Set(by).size !== 12) out.push(n + ' repeated fact ' + by);
+      if (m.seqs.some(row => row.some(x => x.v < 0) || row.filter(x => x.g).length < 2)) out.push(n + ' seq');
+      if (m.calcs.concat(m.easy).some(q => q.s.indexOf('_') < 0 || !(q.a >= 0))) out.push(n + ' calc');
+    }));
+    return out;
+  });
+  expect(bad).toEqual([]);
+});
+
+test('Multiples on the back: each child gets their own table, the mark is one tap, the marking list has a key per table', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.getByLabel('×tables on the back').check();
+  await page.locator('#cbmXtMode').selectOption('mult');
+  await expect(page.locator('#cbmXtPick')).toHaveCount(0);
+  // p2 already has 10s and 5s
+  await page.evaluate(() => { const s = window.CBM.load(); window.CBM.moveOnto(s, 'p2', 2); window.CBM.save(s); });
+
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await expect(page.locator('tr[data-pid="p1"] .cbm-xmt')).toHaveText('×10');
+  await expect(page.locator('tr[data-pid="p2"] .cbm-xmt')).toHaveText('×2');
+  const xm = page.locator('tr[data-pid="p1"] .cbm-xm');
+  await xm.click(); await expect(xm).toHaveText('✓');
+  await xm.click(); await expect(xm).toHaveText('✗');
+  await xm.click(); await expect(xm).toHaveText('·');
+  await xm.click();
+  // a Multiples mark is not one of the teacher's two
+  await expect(page.locator('#cbmCount')).toHaveText(`0 of ${ROSTER.length} entered`);
+
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  await expect(page.locator('#starterPrint .cbm-mpage')).toHaveCount(ROSTER.length);
+  await expect(page.locator('#starterPrint .cbm-paper > .gen-day').nth(1)).toContainText('Multiples of TEN');
+  const tabs = await page.locator('#starterPrint .cbm-mpage').evaluateAll(els => els.map(e => e.dataset.table));
+  expect(tabs).toContain('2');
+  await page.getByRole('button', { name: 'Print marking list' }).click();
+  await expect(page.locator('#starterPrint .cbm-mkey')).toHaveCount(new Set(tabs).size);
+  expect(errors).toEqual([]);
+});
+
+test('The square reads the same record: own tables when chosen, the class pick when not; Progress moves children by hand', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  const r = await page.evaluate(`(() => {
+    const C = window.CBM, d = ${PAST_DAYS}(1)[0], s = C.load();
+    s.xt = { on: true, pick: 'all', count: 40, mode: 'grid', per: false };
+    const cls = C.squareFor(s, d, 'p1');
+    C.moveOnto(s, 'p1', 5);
+    const before = C.squareFor(s, d, 'p1');
+    s.xt.per = true;
+    const own = C.squareFor(s, d, 'p1');
+    return { cls: cls.label, before: before.label, own: own.label, bases: [...new Set(own.qs.map(q => q.base))].sort((a, b) => a - b), n: own.qs.length };
+  })()`);
+  expect(r.cls).toBe(r.before);            // per off: the class pick, unchanged
+  expect(r.own).toBe('5×, 10×');
+  expect(r.bases).toEqual([5, 10]);
+  expect(r.n).toBe(40);
+
+  await page.evaluate(() => { const s = window.CBM.load(); s.xt = { on: true, pick: 'all', count: 50, mode: 'grid', per: true }; window.CBM.save(s); });
+  await page.getByRole('button', { name: 'Progress' }).click();
+  const row = page.locator('tr[data-xpid="p1"]');
+  await row.locator('[data-xon]').selectOption('4');
+  expect(await page.evaluate(() => { const st = window.CBM.tablesState(window.CBM.load(), 'p1'); return [st.on, Object.keys(st.got).map(Number).sort((a, b) => a - b)]; })).toEqual([4, [2, 5, 10]]);
+  await page.locator('tr[data-xpid="p1"] [data-xgot="5"]').click();
+  expect(await page.evaluate(() => Object.keys(window.CBM.tablesState(window.CBM.load(), 'p1').got).map(Number).sort((a, b) => a - b))).toEqual([2, 10]);
+  await page.locator('tr[data-xpid="p2"] .cbm-xtsel').check();
+  await page.locator('tr[data-xpid="p3"] .cbm-xtsel').check();
+  await page.locator('#cbmXtBulk').selectOption('8');
+  await page.locator('#cbmXtBulkGo').click();
+  expect(await page.evaluate(() => ['p2', 'p3'].map(p => window.CBM.tablesState(window.CBM.load(), p).on))).toEqual([8, 8]);
   expect(errors).toEqual([]);
 });

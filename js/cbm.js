@@ -79,7 +79,9 @@
    STORE  tp_cbm  (per class; in DATA_KEYS; see docs/CONTRACT.md)
      { ht: null | 'Autumn 1' … ,                // null = work it out from the date
        slots: (stepId|null)[20],                 // the probe's blueprint
-       xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number },  // ×tables back page
+       xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number,     // back page
+             mode:'grid'|'mult', per:boolean },  // ×tables square or Multiples of N; per: the square from each child's own tables
+       xs: { [pid]: { on, got:[n], seen:{ [n]: iso }, at } },   // the teacher's own change to a child's tables, from at
        support: { [pid]: { mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } },
        lv: { [pid]: { [class skill]: steps back } },   // where each child is on each skill
        days: { [iso]: {
@@ -90,6 +92,8 @@
                          | { qs, audit, rung, lv, why } },                     // a numbers-only sheet, whole
          marks:  { [pid]: { a:[m, m] } | { x:1 } },
          tg:     { [pid]: [{ k, y }] }           // the practice box printed that day
+         mt?:    { [pid]: n },                   // the table on their Multiples page, fixed when printed or marked
+         xm?:    { [pid]: 1 | 0 },               // the teacher's mark for it: got it / not yet
        } } }
    a = the teacher's two marks: 1 right, 0 wrong, -1 blank, null not given.
    A child with no entry in sheets has the class's 20 skills. Their numbers
@@ -173,6 +177,177 @@
     return out;
   }
   function tablesLabel(pick) { return typeof window.genTablesLabel === 'function' ? window.genTablesLabel(pick) : pick; }
+
+  /* ── each child's times tables ────────────────────────────
+     One record per child: the table they are learning and the tables they
+     have achieved. The Multiples back page moves it on (two ✓ in a row on
+     the learning table → achieved, the next in ORDER is learnt), and brings
+     the achieved ones back on every third page, longest unseen first, so
+     they are retrieved again after a gap rather than left to fade —
+     spaced retrieval (Cepeda et al., 2006; Roediger & Karpicke, 2006). A ✗
+     on a revisit brings it back on the next sheet; a second ✗ in a row and
+     it is learnt again. The square reads the same record when set to. The
+     teacher's own change (xs) always wins over marks made before it. */
+  var ORDER = [10, 5, 2, 4, 8, 3, 6, 9, 7, 11, 12];
+  var REVISIT_EVERY = 3;   // every third back page is a revisit
+  var MOVE_ON = 2;         // ✓ in a row on the learning table that achieve it
+  function firstNotGot(got) { for (var i = 0; i < ORDER.length; i++) if (!got[ORDER[i]]) return ORDER[i]; return null; }
+  function tablesState(state, pid, upto) {
+    var o = state.xs && state.xs[pid], got = {}, from = '';
+    var on = o ? (o.on > 0 ? o.on : null) : 10;
+    if (o) {
+      from = o.at || '';
+      (o.got || []).forEach(function (n) { if (ORDER.indexOf(n) >= 0) got[n] = (o.seen && o.seen[n]) || from; });
+      if (on && got[on]) delete got[on];
+    }
+    var streak = 0, since = 0, owed = null;
+    Object.keys(state.days).sort().forEach(function (d) {
+      if (d <= from || (upto && d >= upto)) return;
+      var day = state.days[d], n = day.mt && day.mt[pid];
+      if (!n || (day.marks[pid] && day.marks[pid].x)) return;
+      var m = day.xm ? day.xm[pid] : undefined;
+      if (n === on) {
+        since++;
+        if (m === 1 && ++streak >= MOVE_ON) { got[on] = d; on = firstNotGot(got); streak = 0; since = 0; }
+        else if (m === 0) streak = 0;
+        return;
+      }
+      since = 0;
+      if (!got[n]) return;                       // a table set by hand since: nothing to move
+      got[n] = d;
+      if (m === 0) {
+        if (owed === n) { delete got[n]; on = n; streak = 0; owed = null; }   // twice running: learn it again
+        else owed = n;
+      } else if (m === 1 && owed === n) owed = null;
+    });
+    return { on: on, got: got, streak: streak, since: since, owed: owed };
+  }
+  function gotList(st) { return ORDER.filter(function (n) { return st.got[n]; }); }
+  function oldestGot(st) {
+    return gotList(st).sort(function (a, b) { return st.got[a] < st.got[b] ? -1 : st.got[a] > st.got[b] ? 1 : ORDER.indexOf(a) - ORDER.indexOf(b); })[0];
+  }
+  /* The table on a child's Multiples page for a day: frozen once printed or marked. */
+  function tableForDay(state, iso, pid) {
+    var day = state.days[iso], st = tablesState(state, pid, iso);
+    if (day && day.mt && day.mt[pid]) return { n: day.mt[pid], r: day.mt[pid] !== st.on };
+    if (st.owed && st.got[st.owed]) return { n: st.owed, r: true };
+    if (!st.on) return { n: oldestGot(st) || 10, r: true };
+    if (gotList(st).length && st.since >= REVISIT_EVERY - 1) return { n: oldestGot(st), r: true };
+    return { n: st.on, r: false };
+  }
+  function freezeTables(state, iso) {
+    var day = state.days[iso]; if (!day) return;
+    day.mt = day.mt || {};
+    roster.forEach(function (p) { if (!day.mt[p.id]) day.mt[p.id] = tableForDay(state, iso, p.id).n; });
+  }
+  /* The teacher's own change to a child's record, from today. */
+  function setTables(state, pid, on, got) {
+    var st = tablesState(state, pid), seen = {}, at = todayISO();
+    got = ORDER.filter(function (n) { return got.indexOf(n) >= 0 && n !== on; });
+    got.forEach(function (n) { seen[n] = st.got[n] || at; });
+    state.xs = state.xs || {};
+    state.xs[pid] = { on: on || 0, got: got, seen: seen, at: at };
+  }
+  function moveOnto(state, pid, n) { setTables(state, pid, n || 0, n ? ORDER.slice(0, ORDER.indexOf(n)) : ORDER.slice()); }
+
+  /* The square, from a child's record: about half on the table they are
+     learning, the rest over the ones they have achieved. Children on the same
+     tables get the same square, so one answer sheet still does for them. */
+  function squareFor(state, iso, pid) {
+    var xt = state.xt;
+    if (!xt.per || !pid) return { qs: tablesFor(iso, xt), label: tablesLabel(xt.pick) };
+    var st = tablesState(state, pid, iso), got = gotList(st), on = st.on, qs = [];
+    var rnd = seeded('cbm:' + iso + ':xt:' + (on || 0) + ':' + got.join('.'));
+    for (var i = 0; i < xt.count; i++) {
+      var useOn = on && (!got.length || i % 2 === 0);
+      qs.push({ t: 'times', base: useOn ? on : got[Math.floor(rnd() * got.length)], by: 1 + Math.floor(rnd() * 12) });
+    }
+    for (var j = qs.length - 1; j > 0; j--) { var r = Math.floor(rnd() * (j + 1)), t = qs[j]; qs[j] = qs[r]; qs[r] = t; }
+    var tabs = (on ? [on] : []).concat(got);
+    return { qs: qs, label: tabs.map(function (n) { return n + '×'; }).join(', ') };
+  }
+
+  /* ── the Multiples of N page ───────────────────────────────
+     Sort into multiple / not, a path of multiples top to bottom, missing
+     numbers in sequences, missing numbers in calculations. Seeded on the
+     date and the table, so everyone on 4s that day has the same page and
+     one answer key covers them. */
+  var NUM_WORDS = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'];
+  function multiplesFor(iso, n) {
+    var rnd = seeded('cbm:' + iso + ':mt:' + n);
+    function ri(a, b) { return a + Math.floor(rnd() * (b - a + 1)); }
+    function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+    function nonMult(max) { var v; do { v = ri(1, max); } while (v % n === 0); return v; }
+    // sort: nine multiples (0 to 12n, and 20n), nine that are not
+    var ks = shuffle([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20]).slice(0, 9), not = [];
+    while (not.length < 9) { var v = nonMult(Math.max(12 * n, 25)); if (not.indexOf(v) < 0) not.push(v); }
+    var sort = shuffle(ks.map(function (k) { return { v: k * n, m: true }; }).concat(not.map(function (x) { return { v: x, m: false }; })));
+    // path: a walk from the top row to the bottom; only its cells are multiples.
+    // It never turns back over the row above, so it stays one cell wide.
+    var R = 8, C = 8, path = {}, c = ri(0, C - 1), last = 0;
+    for (var r = 0; r < R; r++) {
+      path[r + ':' + c] = 1;
+      if (r === R - 1) break;
+      var dir = rnd() < 0.5 ? -1 : 1;
+      if (dir === -last) dir = 0;
+      var to = Math.max(0, Math.min(C - 1, c + dir * ri(1, 3)));
+      last = to === c ? 0 : dir;
+      while (c !== to) { c += to > c ? 1 : -1; path[r + ':' + c] = 1; }
+    }
+    var grid = [];
+    for (r = 0; r < R; r++) { var row = []; for (var cc = 0; cc < C; cc++) row.push(path[r + ':' + cc] ? ri(1, 12) * n : nonMult(12 * n)); grid.push(row); }
+    // sequences: three counting on, two counting back, harder as they go
+    var MASKS = [[[0, 1, 2]], [[0, 1], [1, 2]], [[2, 3, 4], [3, 4, 5]], [[1, 2, 3], [2, 3]], [[0, 2], [1, 3], [2, 4]]];
+    var seqs = MASKS.map(function (opts, i) {
+      var down = i >= 3, k = down ? ri(6, 15) : ri(i === 0 ? 1 : 2, i === 2 ? 15 : 10), mask = opts[ri(0, opts.length - 1)], cells = [];
+      for (var j = 0; j < 6; j++) cells.push({ v: (down ? k - j : k + j) * n, g: mask.indexOf(j) >= 0 });
+      return cells;
+    });
+    // calculations: eight mixed forms from 3–12, four from 1, 2, 10 and 20
+    var FORMS = shuffle(['ax', 'ax', 'ax', 'bx', 'bx', 'cb', 'cn', 'nx']), bys = shuffle([3, 4, 5, 6, 7, 8, 9, 11, 12]).slice(0, 8);   // 1, 2 and 10 are in the last column
+    function calc(f, a) {
+      var p = a * n, q =
+        f === 'ax' ? { s: [a, '×', n, '=', '_'], a: p } : f === 'bx' ? { s: ['_', '×', n, '=', p], a: a }
+        : f === 'cb' ? { s: [p, '=', '_', '×', n], a: a } : f === 'cn' ? { s: [p, '=', n, '×', '_'], a: a } : { s: [n, '×', a, '=', '_'], a: p };
+      q.by = a; return q;
+    }
+    var calcs = FORMS.map(function (f, i) { return calc(f, bys[i]); });
+    var easy = shuffle([1, 2, 10, 20]).map(function (a) { return calc('ax', a); });
+    return { n: n, sort: sort, grid: grid, path: path, seqs: seqs, calcs: calcs, easy: easy };
+  }
+  function mxBlank() { return '<span class="mx-blank"></span>'; }
+  function mxCalc(q, key) { return q.s.map(function (t) { return t === '_' ? (key ? '<b>' + q.a + '</b>' : mxBlank()) : esc(String(t)); }).join(' '); }
+  function mxSeqRows(m, key) {
+    return m.seqs.map(function (row) {
+      return '<tr>' + row.map(function (x) { return '<td>' + (x.g ? x.v : key ? '<b>' + x.v + '</b>' : '') + '</td>'; }).join('') + '</tr>'; }).join('');
+  }
+  function mxGrid(m, key) {
+    return m.grid.map(function (row, r) {
+      return '<tr>' + row.map(function (v, c) { return '<td' + (key && m.path[r + ':' + c] ? ' class="mx-on"' : '') + '>' + v + '</td>'; }).join('') + '</tr>'; }).join('');
+  }
+  function multiplesHTML(iso, n, name, strip) {
+    var m = multiplesFor(iso, n), word = NUM_WORDS[n] || String(n), half = Math.ceil(m.sort.length / 2);
+    var nums = function (a) { return '<div class="mx-nums">' + a.map(function (x) { return '<span>' + x.v + '</span>'; }).join('') + '</div>'; };
+    var calcRows = [0, 1, 2, 3].map(function (i) { return '<tr><td>' + mxCalc(m.calcs[i]) + '</td><td>' + mxCalc(m.calcs[i + 4]) + '</td></tr>'; }).join('');
+    return '<div class="card gen-sheet gen-day cbm-backpage cbm-mpage" data-table="' + n + '"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
+      esc(fullDate(iso)) + ' · Multiples of ' + word + '</h2>' +
+      '<div class="mx-lo">LO – to be able to identify multiples of ' + word.toLowerCase() + '</div>' +
+      '<div class="mx-sort"><div class="mx-boxes"><div class="mx-box">We are a multiple of ' + n + '</div><div class="mx-box">We are <b>not</b> a multiple of ' + n + '</div></div>' +
+        '<div class="mx-sortrow"><div class="mx-say">Sort the numbers into the correct box.</div><div>' + nums(m.sort.slice(0, half)) + nums(m.sort.slice(half)) + '</div></div></div>' +
+      '<div class="mx-mid"><div><div class="mx-say">Make a path from top to bottom by colouring in the multiples of ' + n + '.</div><table class="mx-grid">' + mxGrid(m) + '</table></div>' +
+        '<div><div class="mx-say">Fill in the missing numbers in these sequences:</div><table class="mx-seq">' + mxSeqRows(m) + '</table></div></div>' +
+      '<div class="mx-say">Fill in the missing numbers in these calculations:</div>' +
+      '<div class="mx-calcs"><table class="mx-calc">' + calcRows + '</table><table class="mx-calc mx-easy">' + m.easy.map(function (q) { return '<tr><td>' + mxCalc(q) + '</td></tr>'; }).join('') + '</table></div>' +
+      (strip || '') + '</div>';
+  }
+  function multiplesKeyHTML(iso, n, names) {
+    var m = multiplesFor(iso, n);
+    return '<div class="cbm-mkey"><h3>Multiples of ' + n + ' — answers <span>' + esc(names.join(', ')) + '</span></h3>' +
+      '<div class="cbm-mkey-row"><div><b>Multiples:</b> ' + m.sort.filter(function (x) { return x.m; }).map(function (x) { return x.v; }).join(', ') +
+        '<br><b>Not:</b> ' + m.sort.filter(function (x) { return !x.m; }).map(function (x) { return x.v; }).join(', ') + '</div></div>' +
+      '<div class="cbm-mkey-row"><table class="mx-grid mx-small">' + mxGrid(m, true) + '</table><table class="mx-seq mx-small">' + mxSeqRows(m, true) + '</table>' +
+        '<div class="mx-keycalc">' + m.calcs.concat(m.easy).map(function (q) { return '<div>' + mxCalc(q, true) + '</div>'; }).join('') + '</div></div></div>';
+  }
   function logit(p) { p = Math.min(0.97, Math.max(0.03, p)); return Math.log(p / (1 - p)); }
   function sigmoid(x) { return 1 / (1 + Math.exp(-x)); }
 
@@ -191,7 +366,9 @@
   function normXt(x) {
     x = x && typeof x === 'object' ? x : {};
     return { on: x.on === true, pick: XT_PICKS.indexOf(x.pick) >= 0 ? x.pick : 'all',
-             count: XT_COUNTS.indexOf(x.count) >= 0 ? x.count : 50 };
+             count: XT_COUNTS.indexOf(x.count) >= 0 ? x.count : 50,
+             mode: x.mode === 'mult' ? 'mult' : 'grid',   // the square, or the Multiples of N page
+             per: x.per === true };                       // the square from each child's own tables
   }
   function normN(n) { n = Math.round(+n); return n >= N_MIN && n <= N ? n : N; }
   function load() {
@@ -199,6 +376,7 @@
     return { ht: typeof s.ht === 'string' ? s.ht : null, slots: normSlots(s.slots),
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              xt: normXt(s.xt),
+             xs: s.xs && typeof s.xs === 'object' ? s.xs : {},   // { [pid]: { on, got, seen, at } } the teacher's own change to a child's tables
              sm: s.sm === true,                          // children mark their own: an answer strip on each back page
              n: normN(s.n),                              // questions on the class sheet, 6–20
              support: s.support && typeof s.support === 'object' ? s.support : {},
@@ -990,6 +1168,7 @@
       return;
     }
     var a = day.audit, qa = qNums(day), an = analyse(state, curDay, 14), focus = focusSlots(an, day);
+    var mult = state.xt.on && state.xt.mode === 'mult';
     var rows = sortedRoster().map(function (p) { return rowHTML(state, day, p); }).join('');
     var board = typeof window.hubOpenBoard === 'function';
     body.innerHTML = nav +
@@ -1004,11 +1183,12 @@
           (board && focus.length ? '<button type="button" class="secondary" id="cbmWbFocus">Model the focus skills</button>' : '') +
           (board ? '<button type="button" class="secondary" id="cbmWb">All ' + day.qs.length + ' on the board</button>' : '') +
           '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
-          (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">Print ×tables only</button>' : '') +
+          (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">' + (state.xt.mode === 'mult' ? 'Print Multiples pages only' : 'Print ×tables only') + '</button>' : '') +
         '</div></div>' +
       '<div class="card"><div class="cbm-entryhead"><h3>Your marks</h3><span class="cbm-count" id="cbmCount">' + enteredCount(day) + ' of ' + roster.length + ' entered</span></div>' +
         '<p class="cbm-hint">Tap each mark: <b>✓</b> right, <b>✗</b> wrong, <b>–</b> left blank. The answer beside it is that child\'s own. Nothing else is entered.</p>' +
-        '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th></th><th>Practice box</th></tr></thead>' +
+        (mult ? '<p class="cbm-hint"><b>Multiples</b>: tap <b>✓</b> when they got it (all or nearly all right), <b>✗</b> not yet. Two ✓ in a row on the table they are learning moves them on; <b>↻</b> is a table they have already got, coming back so it is not forgotten.</p>' : '') +
+        '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th></th><th>Practice box</th>' + (mult ? '<th>Multiples</th>' : '') + '</tr></thead>' +
         '<tbody>' + rows + '</tbody></table></div></div>' +
       '<details class="card cbm-qlist"><summary>Today\'s ' + day.qs.length + ' questions — the model version, with answers</summary>' +
         '<p class="cbm-hint">The same skills as every child\'s sheet, with numbers nobody has. This is what goes on the board.</p><ol>' +
@@ -1031,7 +1211,7 @@
     var wf = document.getElementById('cbmWbFocus'); if (wf) wf.onclick = function () {
       openBoard(focus.map(function (i) { return day.qs[i]; }), 'cbm:' + curDay + ':focus', 'Focus skills');
     };
-    var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = function () { toPrint(tablesHTML(curDay, load().xt, '')); };
+    var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = printBacks;
     var rt = document.getElementById('cbmRetarget'); if (rt) rt.onclick = function () {
       var s = load(), d = s.days[curDay];
       planSheets(s, curDay, true);
@@ -1105,7 +1285,23 @@
   function rowHTML(state, day, p) {
     return '<tr data-pid="' + p.id + '"><td class="name">' + esc(p.name) + tagsHTML(day, p.id) + '</td>' +
       '<td class="cbm-markcell">' + auditBtn(day, p.id, 0) + '</td><td class="cbm-markcell">' + auditBtn(day, p.id, 1) + '</td>' +
-      '<td class="cbm-abscell">' + absBtn(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td></tr>';
+      '<td class="cbm-abscell">' + absBtn(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td>' +
+      (state.xt.on && state.xt.mode === 'mult' ? '<td class="cbm-xmcell">' + xmBtn(state, day, p.id) + '</td>' : '') + '</tr>';
+  }
+  /* the Multiples page's one mark: · → ✓ → ✗ → · */
+  function xmBtn(state, day, pid) {
+    var t = tableForDay(state, curDay, pid), v = day.xm ? day.xm[pid] : undefined, mk = MARK[String(v)], x = !!(day.marks[pid] && day.marks[pid].x);
+    return '<span class="cbm-xmt" title="' + (t.r ? 'A table they have already got, back so it is not forgotten' : 'The table they are learning') + '">×' + t.n + (t.r ? ' ↻' : '') + '</span>' +
+      '<button type="button" class="cbm-mark cbm-xm' + (mk ? ' ' + mk[0] : '') + '"' + (x ? ' disabled' : '') + ' aria-label="Multiples of ' + t.n + '">' + (mk ? mk[1] : '·') + '</button>';
+  }
+  /* just the back pages: the class's square, or each child's own */
+  function printBacks() {
+    var s = load(), day = s.days[curDay]; if (!day) return;
+    if (s.xt.mode !== 'mult' && !s.xt.per) { toPrint(tablesHTML(curDay, squareFor(s, curDay, ''), '')); return; }
+    if (s.xt.mode === 'mult') { freezeTables(s, curDay); save(s); }
+    toPrint(sortedRoster().map(function (p) {
+      return s.xt.mode === 'mult' ? multiplesHTML(curDay, day.mt[p.id], p.name) : tablesHTML(curDay, squareFor(s, curDay, p.id), p.name);
+    }).join(''));
   }
 
   function wireRows(body) {
@@ -1113,13 +1309,20 @@
       var s = load(), day = s.days[curDay], pid = tr.dataset.pid, td = tr.children;
       td[1].innerHTML = auditBtn(day, pid, 0); td[2].innerHTML = auditBtn(day, pid, 1);
       td[3].innerHTML = absBtn(day, pid); td[4].innerHTML = boxHTML(s, day, pid);
+      if (td[5]) td[5].innerHTML = xmBtn(s, day, pid);
       document.getElementById('cbmCount').textContent = enteredCount(day) + ' of ' + roster.length + ' entered';
     }
     body.querySelectorAll('.cbm-table tbody').forEach(function (tb) {
       tb.addEventListener('click', function (e) {
         var b = e.target.closest('.cbm-mark, .cbm-abs'); if (!b || b.disabled) return;
         var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], m = day.marks[pid];
-        if (b.classList.contains('cbm-abs')) {
+        if (b.classList.contains('cbm-xm')) {
+          // the mark is for the table on their page: fix it now if it was not printed
+          day.mt = day.mt || {}; if (!day.mt[pid]) day.mt[pid] = tableForDay(s, curDay, pid).n;
+          day.xm = day.xm || {};
+          var xv = day.xm[pid];
+          if (xv === 1) day.xm[pid] = 0; else if (xv === 0) delete day.xm[pid]; else day.xm[pid] = 1;
+        } else if (b.classList.contains('cbm-abs')) {
           if (m && m.x) delete day.marks[pid]; else day.marks[pid] = { x: 1 };
         } else {
           var j = +b.dataset.aj;
@@ -1151,10 +1354,12 @@
   function backHTML(day, iso, s, name, pid, targets) {
     var strip = s.sm && pid ? stripHTML(day, iso, pid, targets) : '';
     if (!s.xt.on && !strip) return '';
-    if (!strip) return tablesHTML(iso, s.xt, name);
+    if (s.xt.on && s.xt.mode === 'mult') return multiplesHTML(iso, pid ? tableForDay(s, iso, pid).n : classTable(day), name, strip);
+    var sq = s.xt.on ? squareFor(s, iso, pid) : null;
+    if (!strip) return tablesHTML(iso, sq, name);
     var head = '<h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') + esc(fullDate(iso)) +
-      (s.xt.on ? ' · Times tables — ' + esc(tablesLabel(s.xt.pick)) : ' · Mental Starter answers') + '</h2>';
-    var cells = s.xt.on ? '<div class="gen-grid gen-grid-tables">' + tablesFor(iso, s.xt).map(function (q, i) {
+      (s.xt.on ? ' · Times tables — ' + esc(sq.label) : ' · Mental Starter answers') + '</h2>';
+    var cells = s.xt.on ? '<div class="gen-grid gen-grid-tables">' + sq.qs.map(function (q, i) {
       return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('') + '</div>' : '';
     return '<div class="card gen-sheet gen-day cbm-backpage">' + head + cells + strip + '</div>';
   }
@@ -1173,11 +1378,17 @@
     return '<div class="card gen-sheet gen-day cbm-sheet' + (short ? ' cbm-sheet-short' : '') + '"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
       esc(fullDate(iso)) + ' · Mental Starter</h2><div class="gen-grid">' + cells + '</div>' + box + '</div>';
   }
-  function tablesHTML(iso, xt, name) {
-    var cells = tablesFor(iso, xt).map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
+  /* the table most of the class is on that day: for a blank sheet */
+  function classTable(day) {
+    var c = {}, best = 10, top = 0;
+    Object.keys((day && day.mt) || {}).forEach(function (pid) { var n = day.mt[pid]; c[n] = (c[n] || 0) + 1; if (c[n] > top) { top = c[n]; best = n; } });
+    return best;
+  }
+  function tablesHTML(iso, sq, name) {
+    var cells = sq.qs.map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
     // the Mental Starters back page exactly: no cbm-sheet sizing, which would crowd 100 questions
     return '<div class="card gen-sheet gen-day"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
-      esc(fullDate(iso)) + ' · Times tables — ' + esc(tablesLabel(xt.pick)) + '</h2><div class="gen-grid gen-grid-tables">' + cells + '</div></div>';
+      esc(fullDate(iso)) + ' · Times tables — ' + esc(sq.label) + '</h2><div class="gen-grid gen-grid-tables">' + cells + '</div></div>';
   }
   /* Every sheet on one side of A4, whatever is on it. Deeper questions and
      pictures make some children's sheets longer than others; a sheet that ran
@@ -1213,6 +1424,7 @@
     var html = '', back = function (name, pid, tg) { return backHTML(day, curDay, s, name, pid, tg); };
     if (personal) {
       if (!day.tg || !Object.keys(day.tg).length) freezeTargets(s, curDay);
+      if (s.xt.on && s.xt.mode === 'mult') freezeTables(s, curDay);
       sortedRoster().forEach(function (p) {
         if (!day.tg[p.id]) day.tg[p.id] = targetsForDay(s, curDay, p.id);
         html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id) + back(p.name, p.id, day.tg[p.id]);
@@ -1225,7 +1437,15 @@
   /* Every child's numbers are their own, so the two answers the teacher needs
      are different in every book: one page to carry round the room. */
   function printMarking() {
-    var day = load().days[curDay]; if (!day) return;
+    var st = load(), day = st.days[curDay]; if (!day) return;
+    var keys = '';
+    if (st.xt.on && st.xt.mode === 'mult') {
+      freezeTables(st, curDay); save(st);
+      var by = {};
+      sortedRoster().forEach(function (p) { var n = day.mt[p.id]; (by[n] = by[n] || []).push(p.name); });
+      keys = ORDER.filter(function (n) { return by[n]; }).map(function (n) { return multiplesKeyHTML(curDay, n, by[n]); }).join('');
+      if (keys) keys = '<div class="card gen-sheet gen-day cbm-mkeys"><h2 class="gen-heading">Multiples answers · ' + esc(fullDate(curDay)) + '</h2>' + keys + '</div>';
+    }
     var rows = sortedRoster().map(function (p) {
       var pl = sheetPlan(day, p.id), qs = sheetQs(day, curDay, p.id);
       return '<tr><td class="name">' + esc(p.name) + '</td>' + [0, 1].map(function (j) {
@@ -1234,14 +1454,14 @@
       }).join('') + '</tr>';
     }).join('');
     toPrint('<div class="card gen-sheet gen-day cbm-marklist"><h2 class="gen-heading">Marking list · ' + esc(fullDate(curDay)) + '</h2>' +
-      '<table><thead><tr><th class="name">Pupil</th><th>First</th><th></th><th>Second</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>');
+      '<table><thead><tr><th class="name">Pupil</th><th>First</th><th></th><th>Second</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' + keys);
   }
 
   /* ── Progress ─────────────────────────────────────────── */
   function renderProgress() {
     var state = load(), body = document.getElementById('cbmBody');
     var dates = Object.keys(state.days).sort(), last = dates.filter(function (d) { return d <= todayISO(); }).pop();
-    if (!last) { body.innerHTML = '<div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>'; return; }
+    if (!last) { body.innerHTML = '<div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>' + tablesCard(state); wireTablesCard(body); return; }
     var an = analyse(state, todayISO(), windowDays);
     var latest = state.days[last], keys = latest.qs.map(function (q) { return q.k; });
     // other class skills checked in the window; not the steps back or the number facts individual children were given
@@ -1287,6 +1507,7 @@
         [[7, 'the last week'], [14, 'the last 2 weeks'], [28, 'the last 4 weeks'], [91, 'the last term']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === windowDays ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
       '</select><span class="muted small">' + checked + ' of ' + keys.length + ' skills checked so far</span></div>' +
       stageCard(stages) +
+      tablesCard(state) +
       supportHTML(state, latest, stages) +
       '<div class="cbm-cards">' +
         '<div class="card cbm-card"><h3>Reteach to the class</h3><p class="cbm-hint">Under ' + pct(RETEACH) + ' of your marks right across the class.</p>' + chips(reteach, 'Nothing below ' + pct(RETEACH) + '.', function (k) { return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }) + '</div>' +
@@ -1298,6 +1519,7 @@
         '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. <b>↓2</b> = that child is working two steps back on it; <b>↑</b> = on deeper questions for it. Each mark you make firms it up.</p>' +
         '<div class="table-wrap"><table class="cbm-grid"><thead>' + head + '</thead><tbody>' + classRow + rows + '</tbody></table></div></div>';
     document.getElementById('cbmWin').onchange = function (e) { windowDays = +e.target.value; renderProgress(); };
+    wireTablesCard(body);
     body.querySelectorAll('[data-stagepick]').forEach(function (b) {
       b.onclick = function () { stageFilter = stageFilter === b.dataset.stagepick ? null : b.dataset.stagepick; renderProgress(); };
     });
@@ -1429,6 +1651,61 @@
     if (set) set.onclick = function () { setMode(document.getElementById('cbmSupPid').value, document.getElementById('cbmSupMode').value); };
   }
 
+  /* ── Times tables: each child's record ────────────────── */
+  var FADE_DAYS = 21;   // an achieved table not seen for this long shows faded
+  function tablesCard(state) {
+    if (!state.xt.on || (state.xt.mode !== 'mult' && !state.xt.per)) return '';
+    var today = todayISO(), opts = function (sel) {
+      return ORDER.map(function (n) { return '<option value="' + n + '"' + (sel === n ? ' selected' : '') + '>' + n + '×</option>'; }).join('') +
+        '<option value="0"' + (sel === null ? ' selected' : '') + '>All got: revisiting</option>';
+    };
+    var rows = sortedRoster().map(function (p) {
+      var st = tablesState(state, p.id), recent = [];
+      Object.keys(state.days).sort().reverse().forEach(function (d) {
+        var day = state.days[d], n = day.mt && day.mt[p.id];
+        if (n && recent.length < 6) recent.push('<span class="cbm-xtrec" title="' + esc(shortDate(d)) + '">' + n + (day.xm && day.xm[p.id] === 1 ? '✓' : day.xm && day.xm[p.id] === 0 ? '✗' : '·') + '</span>');
+      });
+      var chips = ORDER.map(function (n) {
+        var g = st.got[n], old = g && daysBetween(g, today) > FADE_DAYS;
+        return '<button type="button" class="cbm-xtchip' + (g ? ' on' : '') + (old ? ' old' : '') + (n === st.on ? ' cur' : '') + '" data-xgot="' + n + '"' +
+          ' title="' + n + '× ' + (g ? 'got — last seen ' + esc(shortDate(g)) + '. Tap to take it off' : n === st.on ? 'learning now. Tap to mark it got' : 'not yet. Tap to mark it got') + '">' + n + '×</button>';
+      }).join('');
+      return '<tr data-xpid="' + p.id + '"><td><input type="checkbox" class="cbm-xtsel" aria-label="Choose ' + esc(p.name) + '"></td><td class="name">' + esc(p.name) + '</td>' +
+        '<td><select data-xon aria-label="Learning, for ' + esc(p.name) + '">' + opts(st.on) + '</select></td><td class="cbm-xtchips">' + chips + '</td>' +
+        '<td class="cbm-xtrecs">' + (recent.reverse().join(' ') || '<span class="muted small">—</span>') + '</td></tr>';
+    }).join('');
+    return '<div class="card cbm-xtcard"><div class="cbm-entryhead"><h3>Times tables</h3></div>' +
+      '<p class="cbm-hint">Each child\'s record: the table they are <b>learning</b> and the ones they have <b>got</b> (filled; faded when not seen for ' + FADE_DAYS + ' days). ' +
+      (state.xt.mode === 'mult'
+        ? 'Your Multiples marks move it on: two ✓ in a row on the learning table and it is got, and the next of ' + ORDER.join(', ') + ' starts. Every ' + (REVISIT_EVERY === 3 ? 'third' : REVISIT_EVERY + 'th') + ' page brings back the table they got longest ago; a ✗ on it brings it back next time, and a second ✗ means learning it again. '
+        : 'The square on the back is about half the learning table and half the ones they have got. Move children on here by hand. ') +
+      'Choosing a learning table counts every table before it as got; tap a table to change just that one. Changes start from the next sheet.</p>' +
+      '<div class="cbm-setrow"><span>Move the ticked children onto</span><select id="cbmXtBulk">' + opts(10) + '</select><button type="button" class="secondary small" id="cbmXtBulkGo">Move them</button></div>' +
+      '<div class="table-wrap"><table class="cbm-xttable"><thead><tr><th><input type="checkbox" id="cbmXtAll" aria-label="Choose everyone"></th><th class="name">Pupil</th><th>Learning</th><th>Got</th><th>Last pages</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  }
+  function wireTablesCard(body) {
+    var card = body.querySelector('.cbm-xtcard'); if (!card) return;
+    card.querySelectorAll('tr[data-xpid]').forEach(function (tr) {
+      var pid = tr.dataset.xpid;
+      tr.querySelector('[data-xon]').onchange = function (e) { var s = load(); moveOnto(s, pid, +e.target.value); save(s); renderProgress(); };
+      tr.querySelectorAll('[data-xgot]').forEach(function (b) {
+        b.onclick = function () {
+          var s = load(), st = tablesState(s, pid), n = +b.dataset.xgot, got = gotList(st), on = st.on;
+          if (st.got[n]) got.splice(got.indexOf(n), 1);
+          else { got.push(n); if (n === on) { var g = {}; got.forEach(function (x) { g[x] = 1; }); on = firstNotGot(g); } }
+          setTables(s, pid, on, got); save(s); renderProgress();
+        };
+      });
+    });
+    var all = card.querySelector('#cbmXtAll');
+    all.onchange = function () { card.querySelectorAll('.cbm-xtsel').forEach(function (c) { c.checked = all.checked; }); };
+    card.querySelector('#cbmXtBulkGo').onclick = function () {
+      var s = load(), n = +card.querySelector('#cbmXtBulk').value, any = false;
+      card.querySelectorAll('tr[data-xpid]').forEach(function (tr) { if (tr.querySelector('.cbm-xtsel').checked) { moveOnto(s, tr.dataset.xpid, n); any = true; } });
+      if (any) { save(s); renderProgress(); }
+    };
+  }
+
   /* ── Set up ───────────────────────────────────────────── */
   function renderSetup() {
     var state = load(), body = document.getElementById('cbmBody'), ht = htOf(state);
@@ -1444,12 +1721,18 @@
       '<div class="cbm-picker">' + picker + '</div></div>' +
       '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmXt"' + (state.xt.on ? ' checked' : '') + '> ×tables on the back</label>' +
         (state.xt.on
-          ? '<div><label for="cbmXtPick">Tables</label><select id="cbmXtPick">' + XT_PICKS.map(function (v) {
-              return '<option value="' + v + '"' + (state.xt.pick === v ? ' selected' : '') + '>' + esc(v === 'all' ? '2, 5, 10' : v + '×') + '</option>'; }).join('') + '</select></div>' +
+          ? '<div><label for="cbmXtMode">Back page</label><select id="cbmXtMode"><option value="grid"' + (state.xt.mode === 'grid' ? ' selected' : '') + '>×tables square</option><option value="mult"' + (state.xt.mode === 'mult' ? ' selected' : '') + '>Multiples of N</option></select></div>'
+          : '') +
+        (state.xt.on && state.xt.mode === 'grid'
+          ? '<label class="cbm-xton"><input type="checkbox" id="cbmXtPer"' + (state.xt.per ? ' checked' : '') + '> Each child\'s own tables</label>' +
+            (state.xt.per ? '' : '<div><label for="cbmXtPick">Tables</label><select id="cbmXtPick">' + XT_PICKS.map(function (v) {
+              return '<option value="' + v + '"' + (state.xt.pick === v ? ' selected' : '') + '>' + esc(v === 'all' ? '2, 5, 10' : v + '×') + '</option>'; }).join('') + '</select></div>') +
             '<div><label for="cbmXtCount">Questions</label><select id="cbmXtCount">' + XT_COUNTS.map(function (n) {
               return '<option value="' + n + '"' + (state.xt.count === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>'
           : '') +
-      '</div><p class="cbm-hint">A page of times tables printed after each child\'s sheet, so it goes on the back when you print double-sided. Not marked or scored here. Applies to any sheet you print, including ones already made.</p></div>' +
+      '</div><p class="cbm-hint">A page printed after each child\'s sheet, so it goes on the back when you print double-sided. ' +
+        '<b>×tables square</b>: times-tables questions, the class\'s 2, 5 and 10 — or, with <b>each child\'s own tables</b>, the table they are learning and the ones they have got, moved on by you on <b>Progress</b>. ' +
+        '<b>Multiples of N</b>: sort, a path, sequences and missing numbers for the table each child is on, ' + ORDER.join(', ') + ' in that order. You tap ✓ or ✗ for it on Today; two ✓ in a row moves a child on, and the tables they have got keep coming back every third page so they are not forgotten. Both read the same record for each child, on Progress. Neither changes the front of the sheet.</p></div>' +
       '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmSm"' + (state.sm ? ' checked' : '') + '> Children mark their own answers</label></div>' +
         '<p class="cbm-hint">Every child has different numbers, so the answers cannot go on the board. With this on, each child\'s own answers print as a strip at the foot of the back of their sheet (under the ×tables, if those are on), to fold under or cut off and hand back when it is time to mark. Nothing the children mark is entered or used: sheets, stepping and who is on what still go by your two marks only.</p></div>' +
       '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
@@ -1493,7 +1776,7 @@
     document.getElementById('cbmCopy').onclick = function () {
       var cfg = Store.get('tp_starter_cfg', null) || {};
       var s = load(); s.slots = normSlots(cfg.slots); s.yr = cfg.wrYear >= 1 && cfg.wrYear <= 6 ? cfg.wrYear : null;   // null: follow the class, as the starter does
-      s.xt = normXt({ on: cfg.xtb !== false, pick: cfg.xtPick, count: cfg.xtCount });   // its back page too (on unless turned off, as there)
+      s.xt = normXt({ on: cfg.xtb !== false, pick: cfg.xtPick, count: cfg.xtCount, mode: s.xt.mode, per: s.xt.per });   // its back page too (on unless turned off, as there)
       save(s); renderSetup();
     };
     body.querySelectorAll('[data-slot]').forEach(function (sel) {
@@ -1507,6 +1790,8 @@
     document.getElementById('cbmXt').onchange = function (e) { var s = load(); s.xt.on = e.target.checked; save(s); renderSetup(); };
     var xp = document.getElementById('cbmXtPick'); if (xp) xp.onchange = function () { var s = load(); s.xt.pick = xp.value; save(s); renderSetup(); };
     var xc = document.getElementById('cbmXtCount'); if (xc) xc.onchange = function () { var s = load(); s.xt.count = +xc.value; save(s); renderSetup(); };
+    var xm = document.getElementById('cbmXtMode'); if (xm) xm.onchange = function () { var s = load(); s.xt.mode = xm.value; save(s); renderSetup(); };
+    var xr = document.getElementById('cbmXtPer'); if (xr) xr.onchange = function () { var s = load(); s.xt.per = xr.checked; save(s); renderSetup(); };
   }
 
   window.addEventListener('tp:sync', function () { var h = host(); if (h && h.classList.contains('active')) render(); });
@@ -1518,6 +1803,7 @@
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
     stepBack: stepBack, backPath: backPath, stageOf: stageOf, canDeep: canDeep, focusSlots: focusSlots, isScored: isScored,
-    keyLabel: keyLabel, tablesFor: tablesFor, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
+    keyLabel: keyLabel, tablesFor: tablesFor, tablesState: tablesState, tableForDay: tableForDay, freezeTables: freezeTables,
+    multiplesFor: multiplesFor, squareFor: squareFor, moveOnto: moveOnto, setTables: setTables, ORDER: ORDER, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();
