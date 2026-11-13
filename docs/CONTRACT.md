@@ -87,7 +87,7 @@ or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots,
 teacher asks, and to keep its board ink in `tp_starter_ann` under `cbm:<iso>:…` (the focus-skills list
 under `cbm:<iso>:focus:…`; `window.hubOpenBoard` takes the ink key as `opts.key`).
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], n?:6-20, yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg } } }`.
+`{ ht, slots:(stepId|null)[20], n?:6-20, sm?:true, yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg } } }`.
 `a` is the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for the slots in `audit`;
 `{x:1}` absent. An entry is complete when both marks are given. No score is kept: marks from before
 Nov 2026 also carry `s` (the child's own score; `w`, the wrong questions, in the first version), which
@@ -98,7 +98,8 @@ Skill keys also take the form `dp:<class skill>` (the same step asked as a reaso
 sheet; `js/cbmdeep.js`) and `do:<class skill>` (the same in the practice box, where an open answer is
 allowed); never rename those prefixes. `lv[pid][skill]` is `-1` for a skill that may be asked deeper
 (above 0 remains steps back). Stage colours on Progress are worked out, not stored.
-`n` is how many questions the class sheet has (missing = 20); `slots` is always 20 long and a shorter
+`sm` (missing = off): the class's children mark their own, so each child's answers print as a strip on the
+back page; nothing they mark is stored. `n` is how many questions the class sheet has (missing = 20); `slots` is always 20 long and a shorter
 sheet uses its first `n`, so `days[iso].qs` is 6–20 long and a day keeps the length it was made with.
 **Days with `ind: 1`** (every day made since Nov 2026): every child has the day's skills with their
 own numbers. `qs` is the model version (the board, the class picture). `sheets[pid]` holds only what

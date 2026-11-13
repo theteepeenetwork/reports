@@ -168,18 +168,9 @@
   .cbm-marklist table { font-size: 11.5pt; }
   .cbm-marklist th, .cbm-marklist td { padding: 1.4mm 3mm; border-bottom: 0.3pt solid #999; }
   .cbm-marklist .cbm-ml-box { border: 0.6pt solid #666; }
-  .cbm-sheet-short .gen-q { font-size: 15pt; padding: 2.5mm 4mm; }
   .cbm-ansslip { break-inside: avoid; page-break-inside: avoid; }
   #cbmAnswers { display: none !important; }
-  .cbm-sheet .gen-heading { font-size: 12pt; margin: 0 0 3mm; }
-  .cbm-sheet .gen-grid { gap: 2mm !important; }
-  .cbm-sheet .gen-q { font-size: 11.5pt; padding: 1.3mm 3mm; }
-  .cbm-sheet .gen-clock { width: 18mm; height: 18mm; }
-  .cbm-sheet .gen-numline { max-width: 56mm; }
-  .cbm-sheet .gen-blocks { height: 12mm; }
-  .cbm-pbox { margin-top: 3mm; padding: 2mm 3mm; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
-  .cbm-pbox-h { font-size: 11pt; margin-bottom: 1.5mm; }
-  .cbm-pbox-grid { gap: 2mm; }
+  .cbm-paper .cbm-sheet { break-inside: avoid; page-break-inside: avoid; border: 0; }
 }
 .cbm-xton { display: flex; align-items: center; gap: 8px; font-weight: 600; align-self: center; white-space: nowrap; }
 .cbm-xton input { width: auto; flex: none; }
@@ -219,3 +210,39 @@
 .cbm-grid td.name .cbm-stage, .cbm-suptable td.name .cbm-stage { font-size: 12.5px; }
 .cbm-up { color: #145c35; opacity: 1; }
 .cbm-deeplist b { color: #145c35; }
+
+/* ── The printed sheet ─────────────────────────────────────
+   One child, one side of A4: the questions AND the practice box, always,
+   so the ×tables page lands on the back when printed double-sided. These
+   sizes are not inside @media print on purpose: fitSheets() in cbm.js lays
+   the sheets out off-screen at the paper's width, measures each one, and
+   turns --k down until it fits. What is measured has to be what prints. */
+.cbm-paper { width: 192mm; }                                  /* A4 less the 9mm page margins (css/app.css @page) */
+.cbm-paper .cbm-sheet { --k: 1; padding: 0; margin: 0; border: 0; box-shadow: none; border-radius: 0; }
+.cbm-paper .cbm-sheet .gen-heading { font-size: calc(12pt * var(--k)); line-height: 1.25; margin: 0 0 calc(3mm * var(--k)); }
+.cbm-paper .cbm-sheet .gen-grid { display: grid; grid-template-columns: 1fr 1fr !important; gap: calc(2mm * var(--k)) !important; }
+.cbm-paper .cbm-sheet .gen-q { font-size: calc(11.5pt * var(--k)); line-height: 1.3; padding: calc(1.3mm * var(--k)) 3mm; gap: 3mm; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
+.cbm-paper .cbm-sheet-short .gen-q { font-size: calc(15pt * var(--k)); padding: calc(2.5mm * var(--k)) 4mm; }
+.cbm-paper .cbm-sheet .gen-qtext { font-size: calc(9pt * var(--k)); margin-top: calc(1mm * var(--k)); }
+.cbm-paper .cbm-sheet .gen-clocks { gap: 3mm; }
+.cbm-paper .cbm-sheet .gen-clock { width: calc(18mm * var(--k)); height: calc(18mm * var(--k)); }
+.cbm-paper .cbm-sheet .gen-clock-label { font-size: calc(9pt * var(--k)); }
+.cbm-paper .cbm-sheet .gen-blocks { height: calc(12mm * var(--k)); margin-top: calc(1mm * var(--k)); }
+.cbm-paper .cbm-sheet .gen-numline { max-width: calc(56mm * var(--k)); margin-top: calc(1mm * var(--k)); }
+.cbm-paper .cbm-pbox { margin-top: calc(3mm * var(--k)); padding: calc(2mm * var(--k)) 3mm; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
+.cbm-paper .cbm-pbox-h { font-size: calc(11pt * var(--k)); margin-bottom: calc(1.5mm * var(--k)); }
+.cbm-paper .cbm-pbox-grid { gap: calc(2mm * var(--k)); }
+
+/* The back page when children mark their own: the ×tables (if on) and the
+   child's answer strip at the foot. Sized here, not in @media print, so
+   fitSheets() can keep it to one page as it does the front. */
+.cbm-paper .cbm-backpage { --k: 1; padding: 0; margin: 0; border: 0; box-shadow: none; border-radius: 0; }
+.cbm-paper .cbm-backpage .gen-heading { font-size: calc(13pt * var(--k)); line-height: 1.25; margin: 0 0 calc(4mm * var(--k)); }
+.cbm-paper .cbm-backpage .gen-grid-tables { display: grid; grid-template-columns: repeat(5, 1fr) !important; gap: calc(2mm * var(--k)) !important; }
+.cbm-paper .cbm-backpage .gen-grid-tables .gen-q { font-size: calc(11pt * var(--k)); line-height: 1.3; padding: calc(1.2mm * var(--k)) 2mm; gap: 2mm; border-radius: 4px; }
+.cbm-strip { margin-top: calc(7mm * var(--k)); padding-top: 3mm; border-top: 1.2pt dashed #666; break-inside: avoid; page-break-inside: avoid; position: relative; }
+.cbm-strip-cut { position: absolute; top: -2.6mm; right: 4mm; background: #fff; padding: 0 2mm; font-size: 7.5pt; color: #555; }
+.cbm-strip-h { font-size: 9pt; font-weight: 800; margin-bottom: 1.5mm; }
+.cbm-strip-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1mm 4mm; font-size: 9pt; line-height: 1.35; }
+.cbm-strip-box { margin-top: 1.5mm; padding-top: 1.5mm; border-top: 0.4pt solid #bbb; grid-template-columns: repeat(2, 1fr); }
+.cbm-strip-a b { font-weight: 800; margin-right: 1mm; }

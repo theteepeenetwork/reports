@@ -479,10 +479,10 @@ test('×tables on the back: off by default, turned on in Set up, one page after 
   await page.getByRole('button', { name: 'Print class set' }).click();
   const tables = page.locator('#starterPrint .gen-grid-tables');
   await expect(tables).toHaveCount(ROSTER.length);
-  await expect(page.locator('#starterPrint > .gen-day')).toHaveCount(ROSTER.length * 2);
+  await expect(page.locator('#starterPrint .cbm-paper > .gen-day')).toHaveCount(ROSTER.length * 2);
   // each child's tables page comes straight after their sheet, so it lands on the back
-  await expect(page.locator('#starterPrint > .gen-day').nth(1)).toContainText(ROSTER[0].name);
-  await expect(page.locator('#starterPrint > .gen-day').nth(1)).toContainText('Times tables — 5×');
+  await expect(page.locator('#starterPrint .cbm-paper > .gen-day').nth(1)).toContainText(ROSTER[0].name);
+  await expect(page.locator('#starterPrint .cbm-paper > .gen-day').nth(1)).toContainText('Times tables — 5×');
   await expect(tables.first().locator('.gen-q')).toHaveCount(30);
   const grids = await tables.evaluateAll(els => els.map(e => e.innerHTML));
   expect(new Set(grids).size).toBe(1);
@@ -816,4 +816,99 @@ test('a skill stepped back after one slip comes forward again after three sheets
     expect(r.depth[3]).toBe(0);                             // then the class question again
     expect(r.depth[4]).toBe(0);
   }
+});
+
+test('printing: every child\'s questions and practice box fit one side of A4, so the ×tables land on the back', async ({ page }) => {
+  await open(page);
+  /* about the longest sheet there is: clocks, number lines and blocks, deeper questions, a practice box */
+  const made = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(8);
+    s.slots = Array.from({ length: 20 }, (_, i) => ['c2.3', 'a1.10', 'c2.5', 'a1.4', 'a2.19'][i % 5]);     // clocks, lines, blocks
+    s.xt = { on: true, pick: 'all', count: 100 };
+    days.forEach(iso => { const d = C.makeDay(s, iso); roster.forEach(p => { d.marks[p.id] = { a: [1, p.id === 'p2' ? 0 : 1] }; }); });
+    const x = new Date(), today = x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+    const d = C.makeDay(s, today);
+    C.save(s); window.cbmRender(); window.print = () => {};
+    return { deep: Object.values(d.sheets).filter(sh => Object.values(sh.ks || {}).some(k => k.indexOf('dp:') === 0)).length };
+  }, PAST_DAYS);
+  expect(made.deep).toBeGreaterThan(0);
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  await page.emulateMedia({ media: 'print' });
+  const r = await page.evaluate(() => {
+    const ruler = document.createElement('div'); ruler.style.cssText = 'height:100mm;width:1px;position:absolute'; document.body.appendChild(ruler);
+    const mm = ruler.getBoundingClientRect().height / 100; ruler.remove();
+    const sheets = [...document.querySelectorAll('#starterPrint .cbm-sheet')];
+    return { n: sheets.length, tallest: Math.max(...sheets.map(s => s.getBoundingClientRect().height / mm)),
+             boxes: sheets.filter(s => s.querySelector('.cbm-pbox')).length, widths: [...new Set(sheets.map(s => Math.round(s.getBoundingClientRect().width / mm)))],
+             ks: sheets.map(s => +(s.style.getPropertyValue('--k') || 1)), smallest: Math.min(...sheets.map(s => parseFloat(getComputedStyle(s.querySelector('.gen-q')).fontSize))) };
+  });
+  expect(r.n).toBe(ROSTER.length);
+  expect(r.boxes).toBe(ROSTER.length);
+  expect(r.widths).toEqual([192]);
+  expect(r.tallest).toBeLessThanOrEqual(279);                 // one side of A4 inside the page margins
+  expect(Math.min(...r.ks)).toBeLessThan(1);                  // these were too long, and were turned down to fit
+  expect(Math.min(...r.ks)).toBeGreaterThanOrEqual(0.5);
+  /* the real thing: as a PDF, a sheet and its ×tables page for every child and nothing else */
+  const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true });
+  const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+  expect(pages).toBe(ROSTER.length * 2);
+});
+
+test('printing: an ordinary sheet is not shrunk', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button', { name: 'Print one blank sheet' }).click();
+  const k = await page.evaluate(() => document.querySelector('#starterPrint .cbm-sheet').style.getPropertyValue('--k'));
+  expect(k).toBe('');
+});
+
+
+test('children mark their own: each child\'s answers as a strip on the back page, still one page, nothing entered', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  expect(await page.evaluate(() => window.CBM.load().sm)).toBe(false);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.getByLabel('Children mark their own answers').check();
+  await page.getByLabel('×tables on the back').check();
+  await page.locator('#cbmXtCount').selectOption('100');
+  expect(await page.evaluate(() => window.CBM.load().sm)).toBe(true);
+  await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), days = eval(PAST)(3);
+    days.forEach(iso => { const d = C.makeDay(s, iso); roster.forEach(p => { d.marks[p.id] = { a: [1, 0] }; }); });
+    C.save(s);
+  }, PAST_DAYS);
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  await expect(page.locator('#starterPrint .cbm-strip')).toHaveCount(ROSTER.length);
+  await expect(page.locator('#starterPrint .cbm-sheet .cbm-strip')).toHaveCount(0);        // never on the side they write on
+  const r = await page.evaluate(() => {
+    const C = window.CBM, s = C.load(), iso = Object.keys(s.days).sort().pop(), d = s.days[iso];
+    const strips = [...document.querySelectorAll('#starterPrint .cbm-strip')];
+    const first = [...strips[0].querySelectorAll('.cbm-strip-list:not(.cbm-strip-box) .cbm-strip-a')].map(e => e.textContent.replace(/^\d+\)\s*/, ''));
+    const want = C.sheetQs(d, iso, roster[0].id).map(q => String(window.genAnswer(q, iso)));
+    return { first, want, box: strips[0].querySelectorAll('.cbm-strip-box .cbm-strip-a').length, pbox: document.querySelectorAll('#starterPrint .cbm-sheet')[0].querySelectorAll('.cbm-pbox .gen-q').length,
+             differ: new Set(strips.map(e => e.textContent)).size > 1, marks: Object.keys(d.marks).length, text: strips.map(e => e.textContent).join(' ') };
+  });
+  expect(r.first).toEqual(r.want);                          // this child's own answers, in order
+  expect(r.box).toBe(r.pbox);                               // and their practice box's
+  expect(r.differ).toBe(true);
+  expect(r.marks).toBe(0);                                  // printing answers enters nothing
+  expect(r.text).not.toMatch(/undefined|NaN/);
+  await page.emulateMedia({ media: 'print' });
+  const pdf = await page.pdf({ format: 'A4', preferCSSPageSize: true });
+  expect((pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length).toBe(ROSTER.length * 2);   // 100 tables and the strip: still one back page
+  await page.emulateMedia({ media: 'screen' });
+
+  /* without ×tables the back page is just the strip; the blank sheet and the board never carry answers */
+  await page.evaluate(() => { const s = window.CBM.load(); s.xt.on = false; window.CBM.save(s); window.cbmRender(); });
+  await page.getByRole('button', { name: 'Print class set' }).click();
+  await expect(page.locator('#starterPrint .cbm-backpage')).toHaveCount(ROSTER.length);
+  await expect(page.locator('#starterPrint .gen-grid-tables')).toHaveCount(0);
+  await expect(page.locator('#starterPrint .cbm-backpage').first()).toContainText('Mental Starter answers');
+  await page.getByRole('button', { name: 'Print one blank sheet' }).click();
+  await expect(page.locator('#starterPrint .cbm-strip')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });

@@ -199,6 +199,7 @@
     return { ht: typeof s.ht === 'string' ? s.ht : null, slots: normSlots(s.slots),
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              xt: normXt(s.xt),
+             sm: s.sm === true,                          // children mark their own: an answer strip on each back page
              n: normN(s.n),                              // questions on the class sheet, 6–20
              support: s.support && typeof s.support === 'object' ? s.support : {},
              lv: s.lv && typeof s.lv === 'object' ? s.lv : {},   // { [pid]: { [class skill]: steps back } }
@@ -1134,6 +1135,29 @@
   }
 
   /* ── Print ────────────────────────────────────────────── */
+  function boxQ(t, iso, pid) { return buildKey(t.k, 'cbm:' + iso + ':' + pid + ':' + t.k); }
+  /* For a class whose children mark their own (Set up): that child's answers,
+     to fold under or cut off the foot of the back page. Each child's numbers
+     are their own, so the answers cannot go on the board. Nothing a child
+     marks is entered or used; the teacher's two marks still decide everything. */
+  function stripHTML(day, iso, pid, targets) {
+    var qs = sheetQs(day, iso, pid);
+    var item = function (n, q) { return '<span class="cbm-strip-a"><b>' + n + ')</b> ' + esc(ans(q, iso)) + '</span>'; };
+    return '<div class="cbm-strip"><div class="cbm-strip-cut">fold under or cut off</div><div class="cbm-strip-h">Answers</div><div class="cbm-strip-list">' +
+      qs.map(function (q, i) { return item(i + 1, q); }).join('') + '</div>' +
+      (targets && targets.length ? '<div class="cbm-strip-list cbm-strip-box">' + targets.map(function (t, i) { return item('abcd'.charAt(i), boxQ(t, iso, pid)); }).join('') + '</div>' : '') + '</div>';
+  }
+  /* The back of a child's sheet: the ×tables, their answer strip, or both. Always one page. */
+  function backHTML(day, iso, s, name, pid, targets) {
+    var strip = s.sm && pid ? stripHTML(day, iso, pid, targets) : '';
+    if (!s.xt.on && !strip) return '';
+    if (!strip) return tablesHTML(iso, s.xt, name);
+    var head = '<h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') + esc(fullDate(iso)) +
+      (s.xt.on ? ' · Times tables — ' + esc(tablesLabel(s.xt.pick)) : ' · Mental Starter answers') + '</h2>';
+    var cells = s.xt.on ? '<div class="gen-grid gen-grid-tables">' + tablesFor(iso, s.xt).map(function (q, i) {
+      return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('') + '</div>' : '';
+    return '<div class="card gen-sheet gen-day cbm-backpage">' + head + cells + strip + '</div>';
+  }
   function sheetHTML(day, iso, name, targets, pid) {
     var qs = pid ? sheetQs(day, iso, pid) : day.qs, short = qs.length <= 14;
     var cells = qs.map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
@@ -1141,7 +1165,7 @@
     if (targets && targets.length) {
       box = '<div class="cbm-pbox"><div class="cbm-pbox-h">My ' + targets.length + ' to practise</div><div class="cbm-pbox-grid">' +
         targets.map(function (t, i) {
-          var q = buildKey(t.k, 'cbm:' + iso + ':' + pid + ':' + t.k);
+          var q = boxQ(t, iso, pid);
           return '<div class="gen-q"><span class="gen-num">' + 'abcd'.charAt(i) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>';
         }).join('') + '</div></div>';
     }
@@ -1155,21 +1179,43 @@
     return '<div class="card gen-sheet gen-day"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
       esc(fullDate(iso)) + ' · Times tables — ' + esc(tablesLabel(xt.pick)) + '</h2><div class="gen-grid gen-grid-tables">' + cells + '</div></div>';
   }
+  /* Every sheet on one side of A4, whatever is on it. Deeper questions and
+     pictures make some children's sheets longer than others; a sheet that ran
+     onto a second page pushed its practice box over, and the ×tables page
+     after it onto the wrong side of the paper. So the sheets are laid out
+     off-screen at the paper's width (css/cbm.css .cbm-paper), each one is
+     measured, and one that is too tall has its type, spacing and pictures
+     turned down a little at a time (--k) until it fits. */
+  var PAGE_MM = 279, FIT_MIN = 0.5;            // A4 less the page margins; below half size it is not a sheet any more
+  function fitSheets(c) {
+    var sheets = c.querySelectorAll('.cbm-paper .cbm-sheet, .cbm-paper .cbm-backpage'); if (!sheets.length) return;
+    var was = c.getAttribute('style') || '';
+    c.setAttribute('style', 'display:block !important;position:absolute;left:-20000px;top:0;visibility:hidden');
+    var ruler = document.createElement('div'); ruler.style.cssText = 'height:100mm;width:1px'; c.appendChild(ruler);
+    var limit = ruler.getBoundingClientRect().height / 100 * PAGE_MM * 0.97;          // 3% spare: paper is not a screen
+    c.removeChild(ruler);
+    Array.prototype.forEach.call(sheets, function (sh) {
+      var k = 1;
+      while (sh.getBoundingClientRect().height > limit && k > FIT_MIN) { k = Math.round((k - 0.03) * 100) / 100; sh.style.setProperty('--k', k); }
+    });
+    if (was) c.setAttribute('style', was); else c.removeAttribute('style');
+  }
   function toPrint(html) {
     var c = document.getElementById('starterPrint');
     if (!c) { c = document.createElement('div'); c.id = 'starterPrint'; document.body.appendChild(c); }
-    c.innerHTML = html;
+    c.innerHTML = '<div class="cbm-paper">' + html + '</div>';
+    fitSheets(c);
     window.print();
   }
   function printSheets(personal) {
     var s = load(), day = s.days[curDay]; if (!day) return;
     // each child's ×tables page follows their sheet, so it prints double-sided onto the back
-    var html = '', back = function (name) { return s.xt.on ? tablesHTML(curDay, s.xt, name) : ''; };
+    var html = '', back = function (name, pid, tg) { return backHTML(day, curDay, s, name, pid, tg); };
     if (personal) {
       if (!day.tg || !Object.keys(day.tg).length) freezeTargets(s, curDay);
       sortedRoster().forEach(function (p) {
         if (!day.tg[p.id]) day.tg[p.id] = targetsForDay(s, curDay, p.id);
-        html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id) + back(p.name);
+        html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id) + back(p.name, p.id, day.tg[p.id]);
       });
       save(s);
     } else html = sheetHTML(day, curDay, '', null, '') + back('');
@@ -1404,6 +1450,8 @@
               return '<option value="' + n + '"' + (state.xt.count === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>'
           : '') +
       '</div><p class="cbm-hint">A page of times tables printed after each child\'s sheet, so it goes on the back when you print double-sided. Not marked or scored here. Applies to any sheet you print, including ones already made.</p></div>' +
+      '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmSm"' + (state.sm ? ' checked' : '') + '> Children mark their own answers</label></div>' +
+        '<p class="cbm-hint">Every child has different numbers, so the answers cannot go on the board. With this on, each child\'s own answers print as a strip at the foot of the back of their sheet (under the ×tables, if those are on), to fold under or cut off and hand back when it is time to mark. Nothing the children mark is entered or used: sheets, stepping and who is on what still go by your two marks only.</p></div>' +
       '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
         '<ul>' +
         '<li><b>The sheet is a CBM probe:</b> short, mixed and frequent (Deno, 1985; Fuchs &amp; Fuchs, 1986).</li>' +
@@ -1455,6 +1503,7 @@
     if (clr) clr.onclick = function () { var s = load(); s.slots = normSlots([]); save(s); renderSetup(); };
     var yr = body.querySelector('[data-gen-year]');
     if (yr) yr.onchange = function () { var s = load(); s.yr = +yr.value; save(s); renderSetup(); };
+    document.getElementById('cbmSm').onchange = function (e) { var s = load(); s.sm = e.target.checked; save(s); renderSetup(); };
     document.getElementById('cbmXt').onchange = function (e) { var s = load(); s.xt.on = e.target.checked; save(s); renderSetup(); };
     var xp = document.getElementById('cbmXtPick'); if (xp) xp.onchange = function () { var s = load(); s.xt.pick = xp.value; save(s); renderSetup(); };
     var xc = document.getElementById('cbmXtCount'); if (xc) xc.onchange = function () { var s = load(); s.xt.count = +xc.value; save(s); renderSetup(); };

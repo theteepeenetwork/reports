@@ -45,7 +45,10 @@ printable starter sheet.
 > backwards, a balance; written for this app in the forms White Rose use for reasoning, copying
 > none of them), not later work. *Progress › Who is on what* colours each name by their next sheet
 > (red easier, yellow fewer, blue class, green challenge, each with a letter); nothing a child sees
-> is coloured. *Numbers only* is a per-child setting for a child who cannot read the
+> is coloured. Every sheet and its practice box is fitted to one side of A4 before printing, so the
+> ×tables land on the back. For a class whose children mark their own (*Set up*), each child's
+> answers print as a strip at the foot of the back page; what they mark is never entered or used.
+> *Numbers only* is a per-child setting for a child who cannot read the
 > questions yet. Each sheet ends with practice questions chosen for that child. The reasoning and
 > research are in the page's *Set up › How it decides* and at the top of the file.
 
