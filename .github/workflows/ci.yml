@@ -10,7 +10,7 @@ on:
 jobs:
   smoke:
     name: smoke tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56 has no Chromium for ubuntu-latest (26.04)
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
 
   guardrails:
     name: guardrails
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Playwright 1.56 has no Chromium for ubuntu-latest (26.04)
     steps:
       - uses: actions/checkout@v4
 
