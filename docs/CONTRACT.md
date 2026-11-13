@@ -87,13 +87,17 @@ or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots,
 teacher asks, and to keep its board ink in `tp_starter_ann` under `cbm:<iso>:…` (the focus-skills list
 under `cbm:<iso>:focus:…`; `window.hubOpenBoard` takes the ink key as `opts.key`).
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], n?:6-20, sm?:true, yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg } } }`.
+`{ ht, slots:(stepId|null)[20], n?:6-20, sm?:true, yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count, mode?:'grid'|'mult', per?:true }, xs?:{ [pid]:{ on, got, seen, at } }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg, mt?:{ [pid]:n }, xm?:{ [pid]:1|0 } } } }`.
 `a` is the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for the slots in `audit`;
 `{x:1}` absent. An entry is complete when both marks are given. No score is kept: marks from before
 Nov 2026 also carry `s` (the child's own score; `w`, the wrong questions, in the first version), which
 still counts as an entry and is otherwise ignored. `support[pid].mode` `'support'` (the old "always
-shorter sheet") reads as `'num'`. `xt` is the optional ×tables back page (missing = off), seeded on the
-date so nothing is stored per day.
+shorter sheet") reads as `'num'`. `xt` is the optional back page (missing = off). `xt.mode` `'grid'` (missing) is the ×tables square, seeded on the
+date so nothing is stored per day; `xt.per` makes the square each child's own (their learning table and the ones
+they have got). `'mult'` is the Multiples of N page, seeded on date + table. One times-tables record per child is
+worked out, never stored: `xs[pid]` = `{ on (0 = all got), got:[n], seen:{ [n]: iso }, at }` (the teacher's last
+change; missing = learning 10, nothing got) replayed with each later day's `mt[pid]` (the table printed, fixed at
+print or first mark) and `xm[pid]` (1 got it / 0 not yet; not one of the two marks, never in `marks`).
 Skill keys also take the form `dp:<class skill>` (the same step asked as a reasoning question, on the
 sheet; `js/cbmdeep.js`) and `do:<class skill>` (the same in the practice box, where an open answer is
 allowed); never rename those prefixes. `lv[pid][skill]` is `-1` for a skill that may be asked deeper
