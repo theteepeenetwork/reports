@@ -79,8 +79,10 @@
    STORE  tp_cbm  (per class; in DATA_KEYS; see docs/CONTRACT.md)
      { ht: null | 'Autumn 1' … ,                // null = work it out from the date
        slots: (stepId|null)[20],                 // the probe's blueprint
-       xt: { on:boolean, pick:'2'|'5'|'10'|'all', count:number,     // back page
-             mode:'grid'|'mult', per:boolean },  // ×tables square or Multiples of N; per: the square from each child's own tables
+       xt: { on:boolean, mode:'grid'|'mult',     // the class's back page: the tables square or Multiples of N
+             per:boolean, tabs:number[],         // a square from each child's own tables, or from the class's tables
+             count:20|30|40|50, pick },          // questions on a square; pick is Mental Starters' setting, kept for copying
+       xb: { [pid]: { p:'grid'|'mult'|'none', n? } },   // a child whose back page is not the class's (n: their square's length)
        xs: { [pid]: { on, got:[n], seen:{ [n]: iso }, at } },   // the teacher's own change to a child's tables, from at
        support: { [pid]: { mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } },
        lv: { [pid]: { [class skill]: steps back } },   // where each child is on each skill
@@ -92,8 +94,8 @@
                          | { qs, audit, rung, lv, why } },                     // a numbers-only sheet, whole
          marks:  { [pid]: { a:[m, m] } | { x:1 } },
          tg:     { [pid]: [{ k, y }] }           // the practice box printed that day
-         mt?:    { [pid]: n },                   // the table on their Multiples page, fixed when printed or marked
-         xm?:    { [pid]: 1 | 0 },               // the teacher's mark for it: got it / not yet
+         mt?:    { [pid]: n },                   // the table their back page is marked for, fixed when printed or marked
+         xm?:    { [pid]: 1 | 0 },               // the teacher's mark for their back page, Multiples or own-tables square: got it / not yet
        } } }
    a = the teacher's two marks: 1 right, 0 wrong, -1 blank, null not given.
    A child with no entry in sheets has the class's 20 skills. Their numbers
@@ -168,16 +170,6 @@
     var orig = Math.random; Math.random = seeded(seed);
     try { return fn(); } finally { Math.random = orig; }
   }
-  /* Seeded on the day, so every child's back page — and a reprint — is the same. */
-  function tablesFor(iso, xt) {
-    var bases = typeof window.genBasesFor === 'function' ? window.genBasesFor(xt.pick) : [2, 5, 10];
-    if (!bases.length) bases = [2, 5, 10];
-    var rnd = seeded('cbm:' + iso + ':xt:' + xt.pick), out = [];
-    for (var i = 0; i < xt.count; i++) out.push({ t: 'times', base: bases[Math.floor(rnd() * bases.length)], by: 1 + Math.floor(rnd() * 12) });
-    return out;
-  }
-  function tablesLabel(pick) { return typeof window.genTablesLabel === 'function' ? window.genTablesLabel(pick) : pick; }
-
   /* ── each child's times tables ────────────────────────────
      One record per child: the table they are learning and the tables they
      have achieved. The Multiples back page moves it on (two ✓ in a row on
@@ -186,7 +178,8 @@
      they are retrieved again after a gap rather than left to fade —
      spaced retrieval (Cepeda et al., 2006; Roediger & Karpicke, 2006). A ✗
      on a revisit brings it back on the next sheet; a second ✗ in a row and
-     it is learnt again. The square reads the same record when set to. The
+     it is learnt again. A square made from a child's own tables is marked the
+     same way and moves the same record (see "whose back page is what"). The
      teacher's own change (xs) always wins over marks made before it. */
   var ORDER = [10, 5, 2, 4, 8, 3, 6, 9, 7, 11, 12];
   var REVISIT_EVERY = 3;   // every third back page is a revisit
@@ -200,7 +193,7 @@
       (o.got || []).forEach(function (n) { if (ORDER.indexOf(n) >= 0) got[n] = (o.seen && o.seen[n]) || from; });
       if (on && got[on]) delete got[on];
     }
-    var streak = 0, since = 0, owed = null;
+    var streak = 0, since = 0, owed = null, moved = '', again = null;
     Object.keys(state.days).sort().forEach(function (d) {
       if (d <= from || (upto && d >= upto)) return;
       var day = state.days[d], n = day.mt && day.mt[pid];
@@ -208,7 +201,7 @@
       var m = day.xm ? day.xm[pid] : undefined;
       if (n === on) {
         since++;
-        if (m === 1 && ++streak >= MOVE_ON) { got[on] = d; on = firstNotGot(got); streak = 0; since = 0; }
+        if (m === 1 && ++streak >= MOVE_ON) { got[on] = d; if (again === on) again = null; on = firstNotGot(got); streak = 0; since = 0; moved = d; }
         else if (m === 0) streak = 0;
         return;
       }
@@ -216,11 +209,11 @@
       if (!got[n]) return;                       // a table set by hand since: nothing to move
       got[n] = d;
       if (m === 0) {
-        if (owed === n) { delete got[n]; on = n; streak = 0; owed = null; }   // twice running: learn it again
+        if (owed === n) { delete got[n]; on = n; streak = 0; owed = null; again = n; }   // twice running: learn it again
         else owed = n;
       } else if (m === 1 && owed === n) owed = null;
     });
-    return { on: on, got: got, streak: streak, since: since, owed: owed };
+    return { on: on, got: got, streak: streak, since: since, owed: owed, moved: moved, again: again };   // moved: the last day a mark moved them on; again: a table being learnt a second time
   }
   function gotList(st) { return ORDER.filter(function (n) { return st.got[n]; }); }
   function oldestGot(st) {
@@ -235,11 +228,6 @@
     if (gotList(st).length && st.since >= REVISIT_EVERY - 1) return { n: oldestGot(st), r: true };
     return { n: st.on, r: false };
   }
-  function freezeTables(state, iso) {
-    var day = state.days[iso]; if (!day) return;
-    day.mt = day.mt || {};
-    roster.forEach(function (p) { if (!day.mt[p.id]) day.mt[p.id] = tableForDay(state, iso, p.id).n; });
-  }
   /* The teacher's own change to a child's record, from today. */
   function setTables(state, pid, on, got) {
     var st = tablesState(state, pid), seen = {}, at = todayISO();
@@ -250,21 +238,89 @@
   }
   function moveOnto(state, pid, n) { setTables(state, pid, n || 0, n ? ORDER.slice(0, ORDER.indexOf(n)) : ORDER.slice()); }
 
-  /* The square, from a child's record: about half on the table they are
-     learning, the rest over the ones they have achieved. Children on the same
-     tables get the same square, so one answer sheet still does for them. */
+  /* ── whose back page is what ───────────────────────────────
+     The class has one back page (xt: nothing, the tables square or Multiples
+     of N); any child can be given a different one (xb). A child is ON THE
+     LADDER when their page follows their own record: every Multiples page,
+     and a square made from their own tables. One ✓ / ✗ for the page, either
+     kind, moves the same record by the same rule. A square of the class's
+     tables is the same for everyone and moves nothing. */
+  function pageOf(state, pid) {
+    var o = pid && state.xb && state.xb[pid];
+    if (o && PAGES.indexOf(o.p) >= 0) return o.p;
+    return state.xt.on ? state.xt.mode : 'none';
+  }
+  function ownSquare(state, pid) { return !!pid && (state.xt.per || !!(state.xb && state.xb[pid] && state.xb[pid].p === 'grid')); }
+  function onLadder(state, pid) { var pg = pageOf(state, pid); return pg === 'mult' || (pg === 'grid' && ownSquare(state, pid)); }
+  function anyBack(state) { return state.xt.on || roster.some(function (p) { return pageOf(state, p.id) !== 'none'; }); }
+  function squareCount(state, pid) {
+    var o = pid && state.xb && state.xb[pid];
+    return o && o.p === 'grid' && XT_COUNTS.indexOf(o.n) >= 0 ? o.n : state.xt.count;
+  }
+  /* The table a ladder child's mark is for, on a day: frozen once printed or
+     marked. Multiples revisits on every third page; a square always carries
+     the table being learned (the ones already got are on it anyway). */
+  function ladderTable(state, iso, pid) {
+    if (pageOf(state, pid) === 'mult') return tableForDay(state, iso, pid);
+    var day = state.days[iso], st = tablesState(state, pid, iso);
+    if (day && day.mt && day.mt[pid]) return { n: day.mt[pid], r: day.mt[pid] !== st.on };
+    return st.on ? { n: st.on, r: false } : { n: oldestGot(st) || 10, r: true };
+  }
+  function freezeTables(state, iso) {
+    var day = state.days[iso]; if (!day) return;
+    day.mt = day.mt || {};
+    roster.forEach(function (p) { if (onLadder(state, p.id) && !day.mt[p.id]) day.mt[p.id] = ladderTable(state, iso, p.id).n; });
+  }
+
+  /* ── the tables square ─────────────────────────────────────
+     Quick facts, at most 50 so the page stays one side of A4 at a size a
+     child can read. Which tables:
+       · a child's own: half the table they are learning, the rest the tables
+         they have got, the one seen longest ago getting the most (a table
+         got last week needs less than one not met for a month);
+       · the class's: an even spread over the tables ticked in Set up.
+     Within a table every multiplier 1–12 comes up once before any repeats,
+     so no fact is asked three times while another is never asked. About a
+     quarter are asked the other way round, half as a missing number
+     (☐ × 5 = 35) and half as division (35 ÷ 5 = ☐): knowing a table means
+     knowing its facts in every form. Seeded on the day and the tables, so
+     children on the same tables get the same square and a reprint is
+     identical. */
+  var SQ_MAX = 50, SQ_OTHER = 0.25;
   function squareFor(state, iso, pid) {
-    var xt = state.xt;
-    if (!xt.per || !pid) return { qs: tablesFor(iso, xt), label: tablesLabel(xt.pick) };
-    var st = tablesState(state, pid, iso), got = gotList(st), on = st.on, qs = [];
-    var rnd = seeded('cbm:' + iso + ':xt:' + (on || 0) + ':' + got.join('.'));
-    for (var i = 0; i < xt.count; i++) {
-      var useOn = on && (!got.length || i % 2 === 0);
-      qs.push({ t: 'times', base: useOn ? on : got[Math.floor(rnd() * got.length)], by: 1 + Math.floor(rnd() * 12) });
+    var own = ownSquare(state, pid), count = Math.min(SQ_MAX, squareCount(state, pid)), alloc = [], tabs, key, i;
+    if (own) {
+      var st = tablesState(state, pid, iso), on = st.on;
+      var got = gotList(st).sort(function (a, b) { return st.got[a] < st.got[b] ? -1 : st.got[a] > st.got[b] ? 1 : ORDER.indexOf(a) - ORDER.indexOf(b); });   // longest unseen first
+      if (!on && !got.length) on = ORDER[0];
+      var nOn = !on ? 0 : got.length ? Math.round(count / 2) : count, rest = count - nOn;
+      for (i = 0; i < nOn; i++) alloc.push(on);
+      // weights k, k-1, … 1 from the longest unseen; whole questions by largest remainder
+      var total = got.length * (got.length + 1) / 2, given = 0;
+      var share = got.map(function (t, j) { var x = rest * (got.length - j) / total; given += Math.floor(x); return { t: t, n: Math.floor(x), f: x - Math.floor(x), j: j }; });
+      share.slice().sort(function (a, b) { return b.f - a.f || a.j - b.j; }).slice(0, rest - given).forEach(function (x) { x.n++; });
+      share.forEach(function (x) { for (var q = 0; q < x.n; q++) alloc.push(x.t); });
+      tabs = (on ? [on] : []).concat(gotList(st));
+      key = (on || 0) + ':' + got.join('.');
+    } else {
+      tabs = normXt(state.xt).tabs;
+      for (i = 0; i < count; i++) alloc.push(tabs[i % tabs.length]);
+      key = 'c:' + tabs.join('.');
     }
-    for (var j = qs.length - 1; j > 0; j--) { var r = Math.floor(rnd() * (j + 1)), t = qs[j]; qs[j] = qs[r]; qs[r] = t; }
-    var tabs = (on ? [on] : []).concat(got);
-    return { qs: qs, label: tabs.map(function (n) { return n + '×'; }).join(', ') };
+    var rnd = seeded('cbm:' + iso + ':sq:' + key + ':' + count);
+    function shuffle(a) { for (var j = a.length - 1; j > 0; j--) { var r = Math.floor(rnd() * (j + 1)), t = a[j]; a[j] = a[r]; a[r] = t; } return a; }
+    var bag = {};
+    function next(t) { if (!bag[t] || !bag[t].length) bag[t] = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]); return bag[t].pop(); }
+    var nOther = Math.round(count * SQ_OTHER), forms = [];
+    for (i = 0; i < count; i++) forms.push(i < nOther ? (i % 2 ? 'div' : 'miss') : 'std');
+    shuffle(alloc); shuffle(forms);
+    var qs = alloc.map(function (t, n) {
+      var by = next(t), p = t * by, f = forms[n];
+      if (f === 'miss') return { t: 'prompt', s: BOX + ' × ' + t + ' = ' + p, ans: String(by), base: t, by: by, f: f };
+      if (f === 'div') return { t: 'prompt', s: p + ' ÷ ' + t + ' =', ans: String(by), base: t, by: by, f: f };
+      return { t: 'times', base: t, by: by };
+    });
+    return { qs: qs, label: tabs.map(function (n) { return n + '×'; }).join(', '), tabs: tabs, own: own };
   }
 
   /* ── the Multiples of N page ───────────────────────────────
@@ -360,15 +416,19 @@
     }
     return out;
   }
-  /* The ×tables back page, as Mental Starters has it: off unless the teacher
-     turns it on, so sheets printed before it existed are unchanged. */
-  var XT_PICKS = ['2', '5', '10', 'all'], XT_COUNTS = [20, 30, 40, 50, 60, 80, 100];
+  /* The back page: off unless the teacher turns it on, so sheets printed
+     before it existed are unchanged. pick is Mental Starters' own setting,
+     kept so its questions can be copied across; tabs is what is used. */
+  var XT_PICKS = ['2', '5', '10', 'all'], XT_COUNTS = [20, 30, 40, 50], PAGES = ['grid', 'mult', 'none'];
   function normXt(x) {
     x = x && typeof x === 'object' ? x : {};
-    return { on: x.on === true, pick: XT_PICKS.indexOf(x.pick) >= 0 ? x.pick : 'all',
-             count: XT_COUNTS.indexOf(x.count) >= 0 ? x.count : 50,
-             mode: x.mode === 'mult' ? 'mult' : 'grid',   // the square, or the Multiples of N page
-             per: x.per === true };                       // the square from each child's own tables
+    var pick = XT_PICKS.indexOf(x.pick) >= 0 ? x.pick : 'all', n = Math.round(+x.count);
+    var tabs = Array.isArray(x.tabs) ? ORDER.slice().sort(function (a, b) { return a - b; }).filter(function (v) { return x.tabs.indexOf(v) >= 0; }) : [];
+    if (!tabs.length) tabs = pick === 'all' ? [2, 5, 10] : [+pick];
+    return { on: x.on === true, pick: pick, tabs: tabs,                // tabs: the class's tables, for a square that is the same for everyone
+             count: XT_COUNTS.indexOf(n) >= 0 ? n : 50,                // 60, 80 and 100 from before Nov 2026 read as 50: the most that fits A4
+             mode: x.mode === 'mult' ? 'mult' : 'grid',                // the square, or the Multiples of N page
+             per: x.per === true };                                    // the square from each child's own tables
   }
   function normN(n) { n = Math.round(+n); return n >= N_MIN && n <= N ? n : N; }
   function load() {
@@ -377,6 +437,7 @@
              yr: s.yr >= 1 && s.yr <= 6 ? s.yr : null,   // White Rose year the picker shows; null = the class's
              xt: normXt(s.xt),
              xs: s.xs && typeof s.xs === 'object' ? s.xs : {},   // { [pid]: { on, got, seen, at } } the teacher's own change to a child's tables
+             xb: s.xb && typeof s.xb === 'object' ? s.xb : {},   // { [pid]: { p, n? } } a child whose back page is not the class's
              sm: s.sm === true,                          // children mark their own: an answer strip on each back page
              n: normN(s.n),                              // questions on the class sheet, 6–20
              support: s.support && typeof s.support === 'object' ? s.support : {},
@@ -1166,7 +1227,7 @@
   };
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
   function dayBar(state, day) {
-    var sum = day ? day.qs.length + ' questions · ' + (day.ind ? 'different numbers for each child' : 'the same numbers for everyone') + (state.xt.on ? ' · ×tables on the back' : '') : '';
+    var sum = day ? day.qs.length + ' questions · ' + (day.ind ? 'different numbers for each child' : 'the same numbers for everyone') + (anyBack(state) ? ' · ×tables on the back' : '') : '';
     return '<div class="cbm-daybar"><div class="cbm-daynav"><button type="button" class="secondary" data-shift="-1" aria-label="Previous school day">‹</button>' +
       '<input type="date" id="cbmDate" value="' + curDay + '" aria-label="Day"><button type="button" class="secondary" data-shift="1" aria-label="Next school day">›</button></div>' +
       '<b class="cbm-dayname">' + esc(fullDate(curDay)) + '</b>' + (curDay === todayISO() ? '<span class="cbm-pill">Today</span>' : '') +
@@ -1220,10 +1281,10 @@
       return;
     }
     var a = day.audit, qa = qNums(day), an = analyse(state, curDay, 14), focus = focusSlots(an, day);
-    var ladder = state.xt.on && state.xt.mode === 'mult';
+    var ladder = roster.some(function (p) { return onLadder(state, p.id); });
+    var nBack = roster.filter(function (p) { return pageOf(state, p.id) !== 'none'; }).length;
     var rows = sortedRoster().map(function (p) { return rowHTML(state, day, p); }).join('');
-    var backs = !state.xt.on ? '' : state.xt.mode === 'mult' ? ['Multiples pages only', plural(roster.length, 'page')]
-      : ['×tables backs only', state.xt.per ? plural(roster.length, 'page') : '1 page'];
+    var backs = !nBack ? '' : ['×tables backs only', ladder || Object.keys(state.xb).length ? plural(nBack, 'page') : '1 page'];
     body.innerHTML = '<div class="cbm-today">' + dayBar(state, day) +
       '<section class="card cbm-steps" id="cbmSteps" aria-label="Today\'s routine">' + stepsHTML(day, focus) + '</section>' +
       '<div class="cbm-cols"><section class="card cbm-markcard" aria-labelledby="cbmMarkH">' +
@@ -1238,7 +1299,7 @@
         '<div class="cbm-foot"><span id="cbmShown"></span><span>Saved automatically</span></div></section>' +
       '<aside class="cbm-side">' +
         '<section class="card cbm-sidecard" aria-labelledby="cbmPrintH"><h2 id="cbmPrintH">Print</h2>' +
-          '<p class="cbm-sub">' + (state.xt.on || state.sm ? 'Print double-sided: ' + (state.xt.on ? '×tables' : 'the answers') + ' go on the back.' : 'One side of A4 for each child.') + '</p>' +
+          '<p class="cbm-sub">' + (nBack || state.sm ? 'Print double-sided: ' + (nBack ? '×tables' : 'the answers') + ' go on the back.' : 'One side of A4 for each child.') + '</p>' +
           '<button type="button" class="cbm-wide" id="cbmPrintAll">' + ICON.print + 'Print class set · ' + plural(roster.length, 'sheet') + '</button>' +
           '<div class="cbm-plinks"><button type="button" class="cbm-plink" id="cbmPrintMark"><span>Marking list</span><small>each child\'s two answers</small></button>' +
             '<button type="button" class="cbm-plink" id="cbmPrintOne"><span>One blank sheet</span><small>spare / visitor</small></button>' +
@@ -1354,21 +1415,22 @@
     return '<tr data-pid="' + p.id + '"><td class="name">' + nameCell(day, p) + '</td>' +
       '<td class="cbm-markcell">' + auditBtn(day, p.id, 0) + '</td><td class="cbm-markcell">' + auditBtn(day, p.id, 1) + '</td>' +
       '<td class="cbm-abscell">' + absBtn(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td>' +
-      (state.xt.on && state.xt.mode === 'mult' ? '<td class="cbm-xmcell">' + xmBtn(state, day, p.id) + '</td>' : '') + '</tr>';
+      (roster.some(function (x) { return onLadder(state, x.id); }) ? '<td class="cbm-xmcell">' + (onLadder(state, p.id) ? xmBtn(state, day, p.id) : '') + '</td>' : '') + '</tr>';
   }
   /* the back page's one mark: got it, or not yet */
   function xmBtn(state, day, pid) {
-    var t = tableForDay(state, curDay, pid), v = day.xm ? day.xm[pid] : null, x = !!(day.marks[pid] && day.marks[pid].x);
+    var t = ladderTable(state, curDay, pid), v = day.xm ? day.xm[pid] : null, x = !!(day.marks[pid] && day.marks[pid].x);
     return '<div class="cbm-markwrap"><span class="cbm-xmt" title="' + (t.r ? 'A table they have already got, back so it is not forgotten' : 'The table they are learning') + '">×' + t.n + (t.r ? ' ↻' : '') + '</span>' +
-      segHTML([1, 0], v == null ? null : v, 'data-xm', 'Multiples of ' + t.n, x).replace(/class="cbm-mark/g, 'class="cbm-mark cbm-xm') + '</div>';
+      segHTML([1, 0], v == null ? null : v, 'data-xm', 'Back page, ×' + t.n, x).replace(/class="cbm-mark/g, 'class="cbm-mark cbm-xm') + '</div>';
   }
-  /* just the back pages: the class's square, or each child's own */
+  /* just the back pages: one square if the whole class has the same one, else a page a child */
   function printBacks() {
     var s = load(), day = s.days[curDay]; if (!day) return;
-    if (s.xt.mode !== 'mult' && !s.xt.per) { toPrint(tablesHTML(curDay, squareFor(s, curDay, ''), '')); return; }
-    if (s.xt.mode === 'mult') { freezeTables(s, curDay); save(s); }
-    toPrint(sortedRoster().map(function (p) {
-      return s.xt.mode === 'mult' ? multiplesHTML(curDay, day.mt[p.id], p.name) : tablesHTML(curDay, squareFor(s, curDay, p.id), p.name);
+    var kids = sortedRoster().filter(function (p) { return pageOf(s, p.id) !== 'none'; });
+    if (!kids.some(function (p) { return onLadder(s, p.id); })) { toPrint(tablesHTML(curDay, squareFor(s, curDay, ''), '')); return; }
+    freezeTables(s, curDay); save(s);
+    toPrint(kids.map(function (p) {
+      return pageOf(s, p.id) === 'mult' ? multiplesHTML(curDay, day.mt[p.id], p.name) : tablesHTML(curDay, squareFor(s, curDay, p.id), p.name);
     }).join(''));
   }
 
@@ -1379,7 +1441,7 @@
       var s = load(), day = s.days[curDay], pid = tr.dataset.pid, td = tr.children;
       td[1].innerHTML = auditBtn(day, pid, 0); td[2].innerHTML = auditBtn(day, pid, 1);
       td[3].innerHTML = absBtn(day, pid); td[4].innerHTML = boxHTML(s, day, pid);
-      if (td[5]) td[5].innerHTML = xmBtn(s, day, pid);
+      if (td[5]) td[5].innerHTML = onLadder(s, pid) ? xmBtn(s, day, pid) : '';
       var an = analyse(s, curDay, 14), focus = focusSlots(an, day);
       document.getElementById('cbmSteps').innerHTML = stepsHTML(day, focus);
       document.getElementById('cbmBoard').innerHTML = boardHTML(day, an, focus);
@@ -1406,7 +1468,7 @@
       var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], m = day.marks[pid], v = +b.dataset.v, key;
       if (b.classList.contains('cbm-xm')) {
         // the mark is for the table on their page: fix it now if it was not printed
-        day.mt = day.mt || {}; if (!day.mt[pid]) day.mt[pid] = tableForDay(s, curDay, pid).n;
+        day.mt = day.mt || {}; if (!day.mt[pid]) day.mt[pid] = ladderTable(s, curDay, pid).n;
         day.xm = day.xm || {};
         if (day.xm[pid] === v) delete day.xm[pid]; else day.xm[pid] = v;
         key = '.cbm-xm[data-v="' + v + '"]';
@@ -1444,15 +1506,12 @@
   /* The back of a child's sheet: the ×tables, their answer strip, or both. Always one page. */
   function backHTML(day, iso, s, name, pid, targets) {
     var strip = s.sm && pid ? stripHTML(day, iso, pid, targets) : '';
-    if (!s.xt.on && !strip) return '';
-    if (s.xt.on && s.xt.mode === 'mult') return multiplesHTML(iso, pid ? tableForDay(s, iso, pid).n : classTable(day), name, strip);
-    var sq = s.xt.on ? squareFor(s, iso, pid) : null;
+    var pg = pid ? pageOf(s, pid) : s.xt.on ? s.xt.mode : 'none';
+    if (pg === 'none' && !strip) return '';
+    if (pg === 'mult') return multiplesHTML(iso, pid ? ladderTable(s, iso, pid).n : classTable(day), name, strip);
+    var sq = pg === 'grid' ? squareFor(s, iso, pid) : null;
     if (!strip) return tablesHTML(iso, sq, name);
-    var head = '<h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') + esc(fullDate(iso)) +
-      (s.xt.on ? ' · Times tables — ' + esc(sq.label) : ' · Mental Starter answers') + '</h2>';
-    var cells = s.xt.on ? '<div class="gen-grid gen-grid-tables">' + sq.qs.map(function (q, i) {
-      return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('') + '</div>' : '';
-    return '<div class="card gen-sheet gen-day cbm-backpage">' + head + cells + strip + '</div>';
+    return tablesHTML(iso, sq, name, strip);
   }
   function sheetHTML(day, iso, name, targets, pid) {
     var qs = pid ? sheetQs(day, iso, pid) : day.qs, short = qs.length <= 14;
@@ -1475,11 +1534,16 @@
     Object.keys((day && day.mt) || {}).forEach(function (pid) { var n = day.mt[pid]; c[n] = (c[n] || 0) + 1; if (c[n] > top) { top = c[n]; best = n; } });
     return best;
   }
-  function tablesHTML(iso, sq, name) {
-    var cells = sq.qs.map(function (q, i) { return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('');
-    // the Mental Starters back page exactly: no cbm-sheet sizing, which would crowd 100 questions
-    return '<div class="card gen-sheet gen-day"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
-      esc(fullDate(iso)) + ' · Times tables — ' + esc(sq.label) + '</h2><div class="gen-grid gen-grid-tables">' + cells + '</div></div>';
+  /* The square, with the child's answer strip under it when children mark
+     their own; with no square, the strip alone. It is a back page like the
+     Multiples one, so fitSheets() keeps it to one side of A4: a square that
+     ran onto a second page would put the next child's sheet on the wrong
+     side of the paper. */
+  function tablesHTML(iso, sq, name, strip) {
+    var cells = sq ? '<div class="gen-grid gen-grid-tables">' + sq.qs.map(function (q, i) {
+      return '<div class="gen-q"><span class="gen-num">' + (i + 1) + ')</span><div class="gen-body">' + GRQ(q) + '</div></div>'; }).join('') + '</div>' : '';
+    return '<div class="card gen-sheet gen-day cbm-backpage' + (sq ? ' cbm-square' : '') + '"><h2 class="gen-heading">' + (name ? '<span class="gen-day-name">' + esc(name) + '</span> · ' : '') +
+      esc(fullDate(iso)) + (sq ? ' · Times tables — ' + esc(sq.label) : ' · Mental Starter answers') + '</h2>' + cells + (strip || '') + '</div>';
   }
   /* Every sheet on one side of A4, whatever is on it. Deeper questions and
      pictures make some children's sheets longer than others; a sheet that ran
@@ -1515,7 +1579,7 @@
     var html = '', back = function (name, pid, tg) { return backHTML(day, curDay, s, name, pid, tg); };
     if (personal) {
       if (!day.tg || !Object.keys(day.tg).length) freezeTargets(s, curDay);
-      if (s.xt.on && s.xt.mode === 'mult') freezeTables(s, curDay);
+      freezeTables(s, curDay);
       sortedRoster().forEach(function (p) {
         if (!day.tg[p.id]) day.tg[p.id] = targetsForDay(s, curDay, p.id);
         html += sheetHTML(day, curDay, p.name, day.tg[p.id], p.id) + back(p.name, p.id, day.tg[p.id]);
@@ -1530,10 +1594,10 @@
   function printMarking() {
     var st = load(), day = st.days[curDay]; if (!day) return;
     var keys = '';
-    if (st.xt.on && st.xt.mode === 'mult') {
+    if (roster.some(function (p) { return pageOf(st, p.id) === 'mult'; })) {
       freezeTables(st, curDay); save(st);
       var by = {};
-      sortedRoster().forEach(function (p) { var n = day.mt[p.id]; (by[n] = by[n] || []).push(p.name); });
+      sortedRoster().forEach(function (p) { if (pageOf(st, p.id) !== 'mult') return; var n = day.mt[p.id]; (by[n] = by[n] || []).push(p.name); });
       keys = ORDER.filter(function (n) { return by[n]; }).map(function (n) { return multiplesKeyHTML(curDay, n, by[n]); }).join('');
       if (keys) keys = '<div class="card gen-sheet gen-day cbm-mkeys"><h2 class="gen-heading">Multiples answers · ' + esc(fullDate(curDay)) + '</h2>' + keys + '</div>';
     }
@@ -1559,7 +1623,7 @@
     var state = load(), body = document.getElementById('cbmBody');
     var dates = Object.keys(state.days).sort(), last = dates.filter(function (d) { return d <= todayISO(); }).pop();
     if (!last) {
-      body.innerHTML = '<div class="cbm-progress"><div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>' + (tablesCard(state, true) ? '<section class="card cbm-gridcard"><div class="cbm-gridhead"><h2>Times tables</h2></div>' + tablesCard(state, true) + '</section>' : '') + '</div>';
+      body.innerHTML = '<div class="cbm-progress"><div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>' + (tablesCard(state) ? '<section class="card cbm-gridcard"><div class="cbm-gridhead"><h2>Times tables</h2></div>' + tablesCard(state) + '</section>' : '') + '</div>';
       wireTablesCard(body); wirePupilLinks(body.firstElementChild); return;
     }
     var an = analyse(state, todayISO(), windowDays);
@@ -1737,17 +1801,22 @@
     };
     var order = sortedRoster(), at = order.map(function (x) { return x.id; }).indexOf(pid);
     var xtSec = '';
-    if (state.xt.on && (state.xt.mode === 'mult' || state.xt.per)) {
-      var ts = tablesState(state, pid), pages = [];
-      dates.slice().reverse().forEach(function (d) {
-        var day = state.days[d], n = day.mt && day.mt[pid];
-        if (n && pages.length < 4) pages.push(n + (day.xm && day.xm[pid] === 1 ? '✓' : day.xm && day.xm[pid] === 0 ? '✗' : '·'));
-      });
+    if (onLadder(state, pid)) {
+      var ts = tablesState(state, pid), pages = pagesText(lastPages(state, pid, 4));
       xtSec = sec('X', 'Times tables', '<div class="cbm-chips">' + ORDER.map(function (n) {
           return '<span class="cbm-chip ' + (ts.got[n] ? 'sec' : n === ts.on ? 'deep' : 'grey') + '">' + (n === ts.on ? 'Learning ' : '') + n + '×</span>'; }).join('') + '</div>' +
-        '<div class="cbm-sub">' + (pages.length ? 'Last pages: ' + pages.reverse().join(' · ') : 'No back pages marked yet') +
+        '<div class="cbm-sub">' + (pages ? 'Last pages: ' + pages : 'No back pages marked yet') +
           (ts.on && ts.streak === MOVE_ON - 1 ? '. One more ✓ on ×' + ts.on + ' moves them on.' : '') + '</div>');
     }
+    var xo = state.xb[pid], bp = xo && PAGES.indexOf(xo.p) >= 0 ? xo.p : 'class';
+    var backSec = sec('K', 'Their back page', '<div role="radiogroup" aria-labelledby="cbmPK" class="cbm-opts">' +
+      opt('cbmBack', 'class', bp === 'class', 'Same as the class', PAGE_NAME[state.xt.on ? state.xt.mode : 'none']) +
+      opt('cbmBack', 'grid', bp === 'grid', 'Tables square', 'Quick facts on their own tables: gentler than Multiples',
+        bp === 'grid' ? '<span class="cbm-rung"><span class="cbm-sub">Questions</span><select id="cbmBackN" aria-label="Questions on their square">' + XT_COUNTS.map(function (n) {
+          return '<option' + (squareCount(state, pid) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></span>' : '') +
+      opt('cbmBack', 'mult', bp === 'mult', 'Multiples of N', 'Even if the class changes') +
+      opt('cbmBack', 'none', bp === 'none', 'Nothing', 'Single-sided') +
+      '</div><div class="cbm-sub">Either page moves them up the same ladder when you tap ✓ / ✗ on Today.</div>');
     return '<div class="cbm-scrim" data-pclose></div><aside class="cbm-panel" role="dialog" aria-modal="true" aria-label="' + esc(p.name) + ' — Mental Starter" tabindex="-1">' +
       '<div class="cbm-ptop"><div class="cbm-pnav"><div><button type="button" class="secondary" data-pgo="' + order[(at + order.length - 1) % order.length].id + '" aria-label="Previous pupil">‹</button>' +
         '<button type="button" class="secondary" data-pgo="' + order[(at + 1) % order.length].id + '" aria-label="Next pupil">›</button></div>' +
@@ -1765,7 +1834,7 @@
         ? '<div class="cbm-chips">' + tg.map(function (x) { return '<span class="cbm-tg cbm-tg-' + x.y + '" title="' + esc(keyTitle(x.k) + ' — ' + WHY[x.y]) + '">' + esc(keyLabel(x.k)) + '</span>'; }).join('') + '</div>' +
           '<div class="cbm-sub">What you mark wrong stays for their next ' + KEEP_SHEETS + ' sheets, spaced out.</div>'
         : '<div class="cbm-sub">Filled in after your first marks.</div>') +
-      xtSec +
+      xtSec + backSec +
       sec('M', 'Their sheet', '<div role="radiogroup" aria-labelledby="cbmPM" class="cbm-opts">' +
         opt('cbmMode', 'auto', plan.mode === 'auto', 'Automatic', 'Your marks step skills back or deeper') +
         opt('cbmMode', 'full', plan.mode === 'full', 'Always the class questions', 'No stepping back or deeper') +
@@ -1780,9 +1849,13 @@
     if (!p) { panelPid = null; if (el) el.parentNode.removeChild(el); return; }
     if (!el) { el = document.createElement('div'); el.id = 'cbmPanel'; h.appendChild(el); wirePanel(el); }
     var top = el.querySelector('.cbm-panel'), y = top && !focus ? top.scrollTop : 0;
+    // the panel is redrawn after every change: keep the keyboard where it was, or Esc stops closing it
+    var act = document.activeElement, had = el.contains(act);
+    var key = !had ? null : act.id ? '#' + act.id : act.name ? '[name="' + act.name + '"][value="' + act.value + '"]' : act.dataset.rung ? '[data-rung="' + act.dataset.rung + '"]' : null;
     el.innerHTML = panelHTML(load(), p);
     top = el.querySelector('.cbm-panel'); top.scrollTop = y;
-    if (focus) top.focus();
+    var again = !focus && key ? el.querySelector(key) : null;
+    if (again) again.focus(); else if (focus || had) top.focus();
   }
   function wirePanel(el) {
     function change(fn) { var s = load(), o = supportOf(s, panelPid); fn(s, o); s.support[panelPid] = o; save(s); redraw(); }
@@ -1799,64 +1872,182 @@
     });
     el.addEventListener('change', function (e) {
       if (e.target.name === 'cbmMode') change(function (s, o) { o.mode = e.target.value; });
+      else if (e.target.name === 'cbmBack' || e.target.id === 'cbmBackN') {
+        var s = load(), v = e.target.value;
+        if (e.target.id === 'cbmBackN') s.xb[panelPid] = { p: 'grid', n: +v };
+        else if (v === 'class') delete s.xb[panelPid];
+        else s.xb[panelPid] = { p: v };
+        save(s); redraw();
+      }
     });
     el.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
   }
 
-  /* ── Times tables: each child's record ────────────────── */
+  /* ── Times tables: the ladder ─────────────────────────── */
+  /* Progress › ×tables. One column a table, in the order they are learnt,
+     with the children learning it; choose names and move them to another
+     table. Under it every child's record, a table a tap. */
   var FADE_DAYS = 21;   // an achieved table not seen for this long shows faded
-  function tablesCard(state, always) {
-    if (!state.xt.on || (state.xt.mode !== 'mult' && !state.xt.per)) return '';
-    if (progView !== 'tables' && !always) return '';
-    var today = todayISO(), opts = function (sel) {
-      return ORDER.map(function (n) { return '<option value="' + n + '"' + (sel === n ? ' selected' : '') + '>' + n + '×</option>'; }).join('') +
-        '<option value="0"' + (sel === null ? ' selected' : '') + '>All got: revisiting</option>';
-    };
-    var rows = sortedRoster().map(function (p) {
-      var st = tablesState(state, p.id), recent = [];
-      Object.keys(state.days).sort().reverse().forEach(function (d) {
-        var day = state.days[d], n = day.mt && day.mt[p.id];
-        if (n && recent.length < 6) recent.push('<span class="cbm-xtrec" title="' + esc(shortDate(d)) + '">' + n + (day.xm && day.xm[p.id] === 1 ? '✓' : day.xm && day.xm[p.id] === 0 ? '✗' : '·') + '</span>');
-      });
-      var chips = ORDER.map(function (n) {
-        var g = st.got[n], old = g && daysBetween(g, today) > FADE_DAYS;
-        return '<button type="button" class="cbm-xtchip' + (g ? ' on' : '') + (old ? ' old' : '') + (n === st.on ? ' cur' : '') + '" data-xgot="' + n + '"' +
-          ' title="' + n + '× ' + (g ? 'got — last seen ' + esc(shortDate(g)) + '. Tap to take it off' : n === st.on ? 'learning now. Tap to mark it got' : 'not yet. Tap to mark it got') + '">' + n + '×</button>';
-      }).join('');
-      return '<tr data-xpid="' + p.id + '"><td><input type="checkbox" class="cbm-xtsel" aria-label="Choose ' + esc(p.name) + '"></td><td class="name">' + esc(p.name) + '</td>' +
-        '<td><select data-xon aria-label="Learning, for ' + esc(p.name) + '">' + opts(st.on) + '</select></td><td class="cbm-xtchips">' + chips + '</td>' +
-        '<td class="cbm-xtrecs">' + (recent.reverse().join(' ') || '<span class="muted small">—</span>') + '</td></tr>';
-    }).join('');
-    return '<div class="cbm-xtcard">' +
-      '<p class="cbm-hint">Each child\'s record: the table they are <b>learning</b> and the ones they have <b>got</b> (filled; faded when not seen for ' + FADE_DAYS + ' days). ' +
-      (state.xt.mode === 'mult'
-        ? 'Your Multiples marks move it on: two ✓ in a row on the learning table and it is got, and the next of ' + ORDER.join(', ') + ' starts. Every ' + (REVISIT_EVERY === 3 ? 'third' : REVISIT_EVERY + 'th') + ' page brings back the table they got longest ago; a ✗ on it brings it back next time, and a second ✗ means learning it again. '
-        : 'The square on the back is about half the learning table and half the ones they have got. Move children on here by hand. ') +
-      'Choosing a learning table counts every table before it as got; tap a table to change just that one. Changes start from the next sheet.</p>' +
-      '<div class="cbm-setrow"><span>Move the ticked children onto</span><select id="cbmXtBulk">' + opts(10) + '</select><button type="button" class="secondary small" id="cbmXtBulkGo">Move them</button></div>' +
-      '<div class="table-wrap"><table class="cbm-xttable"><thead><tr><th><input type="checkbox" id="cbmXtAll" aria-label="Choose everyone"></th><th class="name">Pupil</th><th>Learning</th><th>Got</th><th>Last pages</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+  var ladderSel = {};
+  var PAGE_NAME = { grid: 'Tables square', mult: 'Multiples of N', none: 'Nothing' };
+  function names(list) {
+    var n = list.map(firstName);
+    return n.length > 2 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n.join(' and ');
+  }
+  /* who is on a page that is not the class's, in words */
+  function backSummary(state) {
+    var cls = state.xt.on ? state.xt.mode : 'none', by = { grid: [], mult: [], none: [] };
+    sortedRoster().forEach(function (p) { var pg = pageOf(state, p.id); if (pg !== cls) by[pg].push(p); });
+    var bits = [];
+    if (by.grid.length) bits.push(esc(names(by.grid)) + ' on the tables square');
+    if (by.mult.length) bits.push(esc(names(by.mult)) + ' on Multiples');
+    if (by.none.length) bits.push(esc(names(by.none)) + ' with nothing');
+    return 'Back page: <b>' + PAGE_NAME[cls] + '</b>' + (bits.length ? ' · ' + bits.join(' · ') : '');
+  }
+  function lastPages(state, pid, n) {
+    var out = [];
+    Object.keys(state.days).sort().reverse().forEach(function (d) {
+      var day = state.days[d], t = day.mt && day.mt[pid];
+      if (!t || out.length >= n) return;
+      var m = day.xm ? day.xm[pid] : undefined;
+      out.push({ d: d, n: t, m: m, r: tablesState(state, pid, d).on !== t });
+    });
+    return out.reverse();
+  }
+  function pagesText(list) { return list.map(function (x) { return x.n + (x.m === 1 ? '✓' : x.m === 0 ? '✗' : '·') + (x.r ? '↻' : ''); }).join(' '); }
+  function tablesCard(state) {
+    var today = todayISO(), next = addDays(today, 1), mon = mondayOf(today);
+    var kids = sortedRoster().map(function (p) {
+      var st = tablesState(state, p.id), pg = pageOf(state, p.id), on = onLadder(state, p.id);
+      return { p: p, st: st, pg: pg, on: on, soon: on && st.on && st.streak === MOVE_ON - 1, again: on && st.on && st.again === st.on,
+               moved: on && st.moved && st.moved >= mon, rev: on && pg === 'mult' && st.on && tableForDay(state, next, p.id).r };
+    });
+    function stat(tone, label, list, says) {
+      return '<div class="card cbm-stat"><span class="cbm-sub">' + label + '</span><span class="cbm-big t-' + tone + '">' + list.length + '</span>' +
+        '<span class="cbm-stat-s">' + (list.length && list.length <= 5 ? esc(list.map(function (k) { return firstName(k.p); }).join(', ')) : says) + '</span></div>';
+    }
+    var stats = '<section class="cbm-tiles cbm-ladstats" aria-label="This week">' +
+      stat('green', 'Moved on this week', kids.filter(function (k) { return k.moved; }), 'two ✓ in a row on a table') +
+      stat('blue', 'One ✓ from moving on', kids.filter(function (k) { return k.soon; }), 'a ✓ on their next page moves them up') +
+      stat('amber', 'Revisiting tomorrow ↻', kids.filter(function (k) { return k.rev; }), 'the table got longest ago comes back') +
+      stat('rose', 'Learning again', kids.filter(function (k) { return k.again; }), '✗ twice on a table they had got') + '</section>';
+
+    var far = 0;
+    kids.forEach(function (k) { if (k.st.on) far = Math.max(far, ORDER.indexOf(k.st.on)); });
+    var rungs = ORDER.slice(0, Math.min(ORDER.length, Math.max(far + 2, 6))), done = kids.filter(function (k) { return !k.st.on; });
+    var cols = rungs.map(function (n) { return { n: n, kids: kids.filter(function (k) { return k.st.on === n; }) }; });
+    if (done.length) cols.push({ n: 0, kids: done });
+    var most = Math.max.apply(null, cols.map(function (c) { return c.kids.length; }).concat(1));
+    var sel = Object.keys(ladderSel).filter(function (pid) { return ladderSel[pid]; });
+    var ladder = '<div class="cbm-rungs" style="--rungs:' + cols.length + '">' + cols.map(function (c) {
+      var canMove = sel.length && sel.some(function (pid) { var k = kids.filter(function (x) { return x.p.id === pid; })[0]; return k && (k.st.on || 0) !== c.n; });
+      return '<div class="cbm-rung-col' + (c.kids.length ? '' : ' is-empty') + '" data-rung-n="' + c.n + '"><div class="cbm-rung-top"><span class="cbm-rung-n">' + (c.n ? '×' + c.n : 'All got') + '</span>' +
+        '<span class="cbm-rung-c">' + (c.kids.length ? plural(c.kids.length, 'child', 'children') : '—') + '</span></div>' +
+        '<div class="cbm-rung-bar"><i style="width:' + Math.round(c.kids.length / most * 100) + '%"></i></div>' +
+        c.kids.map(function (k) {
+          var note = !k.on ? (k.pg === 'grid' ? 'class square' : 'no page') : k.again ? 'again' : k.pg === 'grid' ? 'square' : k.rev ? '↻' : k.soon ? '✓' : '';
+          return '<button type="button" class="cbm-kid' + (ladderSel[k.p.id] ? ' sel' : '') + '" data-kid="' + k.p.id + '" aria-pressed="' + !!ladderSel[k.p.id] + '"><span>' + esc(firstName(k.p)) + '</span>' +
+            (note ? '<span class="cbm-kid-n' + (note === 'again' ? ' is-again' : '') + '">' + note + '</span>' : '') + '</button>'; }).join('') +
+        (canMove ? '<button type="button" class="cbm-move" data-moveto="' + c.n + '">Move here</button>' : '') + '</div>'; }).join('') + '</div>';
+    var beyond = ORDER.slice(rungs.length);
+
+    var rec = '<div class="table-wrap"><table class="cbm-rec"><thead><tr><th class="name" scope="col">Pupil</th>' + ORDER.map(function (n) { return '<th scope="col">' + n + '×</th>'; }).join('') +
+      '<th class="cbm-rec-last" scope="col">Last back pages</th></tr></thead><tbody>' + kids.map(function (k) {
+        var st = k.st;
+        return '<tr data-xpid="' + k.p.id + '"><td class="name"><button type="button" class="cbm-plainlink" data-pupil="' + k.p.id + '">' + esc(k.p.name) + '</button></td>' + ORDER.map(function (n) {
+          var g = st.got[n], old = g && daysBetween(g, today) > FADE_DAYS, cur = n === st.on;
+          return '<td><button type="button" class="cbm-xtchip ' + (cur ? 'l' : g ? (old ? 'gf' : 'g') : 'n') + '" data-xgot="' + n + '" aria-label="' + esc(firstName(k.p)) + ' ' + n + '×: ' +
+            (g ? 'got, last seen ' + esc(shortDate(g)) + '. Tap to take it off' : cur ? 'learning now. Tap to mark it got' : 'not yet. Tap to mark it got') + '">' + (cur ? '•' : g ? '✓' : '') + '</button></td>'; }).join('') +
+          '<td class="cbm-rec-last">' + (pagesText(lastPages(state, k.p.id, 4)) || '—') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+
+    return '<div class="cbm-xtcard"><div class="cbm-ladline"><span>' + backSummary(state) + '</span><button type="button" class="cbm-plainlink cbm-link" data-goto="setup">change</button></div>' + stats +
+      '<section class="cbm-ladder" aria-labelledby="cbmLadH"><div class="cbm-cardhead"><h3 id="cbmLadH">The ladder: who is learning which table</h3>' +
+        '<span class="cbm-sub" id="cbmLadHint" aria-live="polite">' + (sel.length ? sel.length + ' chosen. Tap “Move here” on a table, or tap a name to unchoose' : 'Tap names to choose them, then move them to another table') + '</span></div>' +
+        '<div class="table-wrap">' + ladder + '</div>' +
+        '<div class="cbm-ladkey"><span><b>✓</b> one ✓ so far on this table</span><span><b>↻</b> revisit due next page</span><span><b class="is-again">again</b> learning it again</span><span><b>square</b> on the tables square, not Multiples</span>' +
+          (beyond.length ? '<span>×' + beyond[0] + (beyond.length > 1 ? ' – ×' + beyond[beyond.length - 1] : '') + ': no one yet</span>' : '') + '</div></section>' +
+      '<section class="cbm-recsec" aria-labelledby="cbmRecH"><div class="cbm-cardhead"><h3 id="cbmRecH">Every child\'s record</h3>' +
+        '<span class="cbm-legend"><span><i class="l"></i>learning</span><span><i class="g"></i>got</span><span><i class="gf"></i>got, not seen for 3 weeks</span><span><i class="n"></i>not yet</span></span></div>' + rec +
+        '<p class="cbm-sub">Moving a child onto a table counts every table before it as got. Tap a square to change just that table. Changes start from the next sheet.</p></section></div>';
   }
   function wireTablesCard(body) {
     var card = body.querySelector('.cbm-xtcard'); if (!card) return;
-    card.querySelectorAll('tr[data-xpid]').forEach(function (tr) {
-      var pid = tr.dataset.xpid;
-      tr.querySelector('[data-xon]').onchange = function (e) { var s = load(); moveOnto(s, pid, +e.target.value); save(s); renderProgress(); };
-      tr.querySelectorAll('[data-xgot]').forEach(function (b) {
-        b.onclick = function () {
-          var s = load(), st = tablesState(s, pid), n = +b.dataset.xgot, got = gotList(st), on = st.on;
-          if (st.got[n]) got.splice(got.indexOf(n), 1);
-          else { got.push(n); if (n === on) { var g = {}; got.forEach(function (x) { g[x] = 1; }); on = firstNotGot(g); } }
-          setTables(s, pid, on, got); save(s); renderProgress();
-        };
-      });
+    card.addEventListener('click', function (e) {
+      var kid = e.target.closest('[data-kid]'), mv = e.target.closest('[data-moveto]'), got = e.target.closest('[data-xgot]');
+      if (e.target.closest('[data-goto="setup"]')) { view = 'setup'; setupSec = 'back'; render(); }
+      else if (kid) { ladderSel[kid.dataset.kid] = !ladderSel[kid.dataset.kid]; renderProgress(); var b = document.querySelector('[data-kid="' + kid.dataset.kid + '"]'); if (b) b.focus(); }
+      else if (mv) {
+        var s = load();
+        Object.keys(ladderSel).forEach(function (pid) { if (ladderSel[pid]) moveOnto(s, pid, +mv.dataset.moveto); });
+        ladderSel = {}; save(s); redraw();
+      } else if (got) {
+        var s2 = load(), pid = got.closest('tr').dataset.xpid, st = tablesState(s2, pid), n = +got.dataset.xgot, list = gotList(st), on = st.on;
+        if (st.got[n]) list.splice(list.indexOf(n), 1);
+        else { list.push(n); if (n === on) { var g = {}; list.forEach(function (x) { g[x] = 1; }); on = firstNotGot(g); } }
+        setTables(s2, pid, on, list); save(s2); redraw();
+      }
     });
-    var all = card.querySelector('#cbmXtAll');
-    all.onchange = function () { card.querySelectorAll('.cbm-xtsel').forEach(function (c) { c.checked = all.checked; }); };
-    card.querySelector('#cbmXtBulkGo').onclick = function () {
-      var s = load(), n = +card.querySelector('#cbmXtBulk').value, any = false;
-      card.querySelectorAll('tr[data-xpid]').forEach(function (tr) { if (tr.querySelector('.cbm-xtsel').checked) { moveOnto(s, tr.dataset.xpid, n); any = true; } });
-      if (any) { save(s); renderProgress(); }
-    };
+  }
+
+  /* Set up › the back page: the class's page, whose tables a square has,
+     the children on a different page, and how long a square is. */
+  var setupSec = 'q';
+  function segBtns(items, attr, cur, label, radio) {
+    return '<div class="cbm-sg" role="' + (radio ? 'radiogroup' : 'group') + '" aria-label="' + esc(label) + '">' + items.map(function (it) {
+      var on = it[0] === cur;
+      return '<button type="button" ' + attr + '="' + it[0] + '" class="' + (on ? 'on' : '') + '" ' + (radio ? 'role="radio" aria-checked="' : 'aria-pressed="') + on + '">' + it[1] + '</button>'; }).join('') + '</div>';
+  }
+  function backSetupHTML(state) {
+    var cls = state.xt.on ? state.xt.mode : 'none';
+    var exc = sortedRoster().filter(function (p) { return state.xb[p.id] && PAGES.indexOf(state.xb[p.id].p) >= 0; });
+    var rest = sortedRoster().filter(function (p) { return exc.indexOf(p) < 0; });
+    var sqKids = exc.filter(function (p) { return state.xb[p.id].p === 'grid'; });
+    var NOTE = { grid: 'quick facts on their own tables', mult: 'Multiples, whatever the class has', none: 'single-sided' };
+    return '<div class="card cbm-backset"><h2>Back page · times tables</h2><p class="cbm-hint">Printed after each child\'s sheet, so it lands on the back when you print double-sided.</p>' +
+      '<div class="cbm-setblock"><div class="cbm-setlabel">1 · The class\'s back page</div>' +
+        segBtns([['none', 'Nothing'], ['grid', 'Tables square'], ['mult', 'Multiples of N']], 'data-xkind', cls, 'What goes on the back', true) + '</div>' +
+      (cls === 'none' ? '' : '<div class="cbm-setblock"><div class="cbm-setlabel">2 · Whose tables</div>' +
+        (cls === 'mult' ? '<p class="cbm-sub">Each child\'s own: the page follows their place on the <b>×tables ladder</b> (Progress › ×tables). Children on the same table get the same page, so one answer key covers them.</p>'
+          : '<div class="cbm-setline">' + segBtns([['own', 'Each child\'s own'], ['class', 'The same for everyone']], 'data-xwho', state.xt.per ? 'own' : 'class', 'Whose tables') +
+            (state.xt.per ? '' : '<span class="cbm-tabchips"><span class="cbm-sub">Tables:</span>' + ORDER.map(function (n) {
+              var on = state.xt.tabs.indexOf(n) >= 0;
+              return '<button type="button" class="cbm-tc' + (on ? ' on' : '') + '" data-xtab="' + n + '" aria-pressed="' + on + '">' + n + '×</button>'; }).join('') + '</span>') + '</div>' +
+            (state.xt.per ? '<p class="cbm-sub">Follows each child\'s place on the <b>×tables ladder</b> (Progress › ×tables). Children on the same tables get the same square.</p>' : '')) + '</div>') +
+      '<div class="cbm-setblock"><div class="cbm-setlabel">3 · Children on a different page <span class="cbm-sub">Also set from each child\'s panel</span></div><div class="cbm-exc">' +
+        exc.map(function (p) {
+          var cur = state.xb[p.id].p;
+          return '<div class="cbm-exc-row" data-xbpid="' + p.id + '"><button type="button" class="cbm-plainlink" data-pupil="' + p.id + '">' + esc(p.name) + '</button>' +
+            segBtns([['grid', 'Tables square'], ['mult', 'Multiples of N'], ['none', 'Nothing']], 'data-xbp', cur, 'Back page for ' + p.name) +
+            '<span class="cbm-sub grow">' + NOTE[cur] + '</span><button type="button" class="cbm-quiet" data-xbdel aria-label="Put ' + esc(p.name) + ' back on the class page">Back to class page</button></div>'; }).join('') +
+        '<div class="cbm-exc-row cbm-exc-add">' + (rest.length ? '<select id="cbmXbAdd" aria-label="Add a child on a different page"><option value="">+ Add a child…</option>' +
+          rest.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select>' : '') +
+          '<span class="cbm-sub">' + (roster.length - exc.length) + ' on the class page · ' + exc.length + ' on their own</span></div></div></div>' +
+      (cls === 'grid' || sqKids.length ? '<div class="cbm-setblock"><div class="cbm-setlabel">4 · Tables square: how many questions</div><div class="cbm-setline">' +
+        segBtns(XT_COUNTS.map(function (n) { return [n, n]; }), 'data-xcount', state.xt.count, 'Questions') +
+        '<span class="cbm-sub">' + (state.xt.count <= 40 ? 'Fits one side of A4 at full size' : 'Fits A4: the most before the type has to shrink') + '</span></div>' +
+        '<p class="cbm-sub">' + (cls === 'grid' ? 'For the class.' : 'For ' + esc(names(sqKids)) + ': try 20 for a gentler page.') + ' Mix: <b>' +
+          (cls !== 'grid' || state.xt.per ? 'half the table they\'re learning, half the ones they\'ve got (longest unseen first)' : 'an even spread across ' + state.xt.tabs.join(', ') + '×') +
+          '</b> · every multiplier 1–12 once before any repeats · about a quarter as missing numbers (☐ × 5 = 35) and ÷ facts</p></div>' : '') + '</div>';
+  }
+  function wireBackSetup(body) {
+    var card = body.querySelector('.cbm-backset'); if (!card) return;
+    function change(fn) { var s = load(); fn(s); save(s); redraw(); }
+    card.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var d = b.dataset, row = b.closest('[data-xbpid]');
+      if (d.xkind) change(function (s) { s.xt.on = d.xkind !== 'none'; if (s.xt.on) s.xt.mode = d.xkind; });
+      else if (d.xwho) change(function (s) { s.xt.per = d.xwho === 'own'; });
+      else if (d.xtab) change(function (s) {
+        var n = +d.xtab, t = s.xt.tabs.filter(function (x) { return x !== n; });
+        if (t.length === s.xt.tabs.length) t.push(n);
+        s.xt.tabs = t.length ? t : [n];                                // never none
+      });
+      else if (d.xcount) change(function (s) { s.xt.count = +d.xcount; });
+      else if (d.xbp && row) change(function (s) { s.xb[row.dataset.xbpid] = Object.assign({}, s.xb[row.dataset.xbpid], { p: d.xbp }); });
+      else if ('xbdel' in d && row) change(function (s) { delete s.xb[row.dataset.xbpid]; });
+    });
+    var add = card.querySelector('#cbmXbAdd');
+    if (add) add.onchange = function () { if (add.value) change(function (s) { s.xb[add.value] = { p: s.xt.on && s.xt.mode === 'grid' ? 'mult' : 'grid' }; }); };
   }
 
   /* ── Set up ───────────────────────────────────────────── */
@@ -1872,20 +2063,7 @@
       '<div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy the questions from Mental Starters</button></div>' +
       '<p class="cbm-hint">Each question stays the same skill every day, with new numbers, so your marks build up skill by skill. Choose the skill on the left; the example on the right is what it looks like on the sheet, and under it the deeper question a child who is secure on it gets instead. Changes apply to sheets made from now on.</p>' +
       '<div class="cbm-picker">' + picker + '</div></div>' +
-      '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmXt"' + (state.xt.on ? ' checked' : '') + '> ×tables on the back</label>' +
-        (state.xt.on
-          ? '<div><label for="cbmXtMode">Back page</label><select id="cbmXtMode"><option value="grid"' + (state.xt.mode === 'grid' ? ' selected' : '') + '>×tables square</option><option value="mult"' + (state.xt.mode === 'mult' ? ' selected' : '') + '>Multiples of N</option></select></div>'
-          : '') +
-        (state.xt.on && state.xt.mode === 'grid'
-          ? '<label class="cbm-xton"><input type="checkbox" id="cbmXtPer"' + (state.xt.per ? ' checked' : '') + '> Each child\'s own tables</label>' +
-            (state.xt.per ? '' : '<div><label for="cbmXtPick">Tables</label><select id="cbmXtPick">' + XT_PICKS.map(function (v) {
-              return '<option value="' + v + '"' + (state.xt.pick === v ? ' selected' : '') + '>' + esc(v === 'all' ? '2, 5, 10' : v + '×') + '</option>'; }).join('') + '</select></div>') +
-            '<div><label for="cbmXtCount">Questions</label><select id="cbmXtCount">' + XT_COUNTS.map(function (n) {
-              return '<option value="' + n + '"' + (state.xt.count === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>'
-          : '') +
-      '</div><p class="cbm-hint">A page printed after each child\'s sheet, so it goes on the back when you print double-sided. ' +
-        '<b>×tables square</b>: times-tables questions, the class\'s 2, 5 and 10 — or, with <b>each child\'s own tables</b>, the table they are learning and the ones they have got, moved on by you on <b>Progress</b>. ' +
-        '<b>Multiples of N</b>: sort, a path, sequences and missing numbers for the table each child is on, ' + ORDER.join(', ') + ' in that order. You tap ✓ or ✗ for it on Today; two ✓ in a row moves a child on, and the tables they have got keep coming back every third page so they are not forgotten. Both read the same record for each child, on Progress. Neither changes the front of the sheet.</p></div>' +
+      backSetupHTML(state) +
       '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmSm"' + (state.sm ? ' checked' : '') + '> Children mark their own answers</label></div>' +
         '<p class="cbm-hint">Every child has different numbers, so the answers cannot go on the board. With this on, each child\'s own answers print as a strip at the foot of the back of their sheet (under the ×tables, if those are on), to fold under or cut off and hand back when it is time to mark. Nothing the children mark is entered or used: sheets, stepping and who is on what still go by your two marks only.</p></div>' +
       '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
@@ -1940,11 +2118,8 @@
     var yr = body.querySelector('[data-gen-year]');
     if (yr) yr.onchange = function () { var s = load(); s.yr = +yr.value; save(s); renderSetup(); };
     document.getElementById('cbmSm').onchange = function (e) { var s = load(); s.sm = e.target.checked; save(s); renderSetup(); };
-    document.getElementById('cbmXt').onchange = function (e) { var s = load(); s.xt.on = e.target.checked; save(s); renderSetup(); };
-    var xp = document.getElementById('cbmXtPick'); if (xp) xp.onchange = function () { var s = load(); s.xt.pick = xp.value; save(s); renderSetup(); };
-    var xc = document.getElementById('cbmXtCount'); if (xc) xc.onchange = function () { var s = load(); s.xt.count = +xc.value; save(s); renderSetup(); };
-    var xm = document.getElementById('cbmXtMode'); if (xm) xm.onchange = function () { var s = load(); s.xt.mode = xm.value; save(s); renderSetup(); };
-    var xr = document.getElementById('cbmXtPer'); if (xr) xr.onchange = function () { var s = load(); s.xt.per = xr.checked; save(s); renderSetup(); };
+    wireBackSetup(body);
+    wirePupilLinks(body.querySelector('.cbm-backset'));
   }
 
   window.addEventListener('tp:sync', function () { var h = host(); if (h && h.classList.contains('active')) render(); });
@@ -1956,7 +2131,7 @@
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
     stepBack: stepBack, backPath: backPath, stageOf: stageOf, canDeep: canDeep, focusSlots: focusSlots, isScored: isScored,
-    keyLabel: keyLabel, tablesFor: tablesFor, tablesState: tablesState, tableForDay: tableForDay, freezeTables: freezeTables,
+    keyLabel: keyLabel, pageOf: pageOf, onLadder: onLadder, ladderTable: ladderTable, tablesState: tablesState, tableForDay: tableForDay, freezeTables: freezeTables,
     multiplesFor: multiplesFor, squareFor: squareFor, moveOnto: moveOnto, setTables: setTables, ORDER: ORDER, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();

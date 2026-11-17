@@ -578,12 +578,20 @@ test('a made sheet can be swapped for a fresh set of questions; marks entered fo
 test('×tables on the back: off by default, turned on in Set up, one page after each child, same tables for everyone', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page);
-  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', count: 50, mode: 'grid', per: false });
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', tabs: [2, 5, 10], count: 50, mode: 'grid', per: false });
   await page.getByRole('button', { name: 'Set up' }).click();
-  await page.getByLabel('×tables on the back').check();
-  await page.locator('#cbmXtPick').selectOption('5');
-  await page.locator('#cbmXtCount').selectOption('30');
-  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: true, pick: '5', count: 30, mode: 'grid', per: false });
+  await expect(page.locator('[data-xkind="none"]')).toHaveAttribute('aria-checked', 'true');
+  await page.locator('[data-xkind="grid"]').click();
+  // the class's tables are tick-chips, any of the eleven, never none
+  await expect(page.locator('[data-xtab]')).toHaveCount(11);
+  await expect(page.locator('[data-xtab][aria-pressed="true"]')).toHaveText(['10×', '5×', '2×']);
+  await page.locator('[data-xtab="2"]').click();
+  await page.locator('[data-xtab="10"]').click();
+  await page.locator('[data-xtab="5"]').click();                         // the last one stays on
+  await expect(page.locator('[data-xtab][aria-pressed="true"]')).toHaveText(['5×']);
+  await expect(page.locator('[data-xcount]')).toHaveText(['20', '30', '40', '50']);
+  await page.locator('[data-xcount="30"]').click();
+  expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: true, pick: 'all', tabs: [5], count: 30, mode: 'grid', per: false });
 
   await page.locator('.cbm-tab[data-view="today"]').click();
   await page.getByRole('button', { name: 'Make the sheet' }).click();
@@ -986,8 +994,7 @@ test('children mark their own: each child\'s answers as a strip on the back page
   expect(await page.evaluate(() => window.CBM.load().sm)).toBe(false);
   await page.getByRole('button', { name: 'Set up' }).click();
   await page.getByLabel('Children mark their own answers').check();
-  await page.getByLabel('×tables on the back').check();
-  await page.locator('#cbmXtCount').selectOption('100');
+  await page.locator('[data-xkind="grid"]').click();
   expect(await page.evaluate(() => window.CBM.load().sm)).toBe(true);
   await page.evaluate(PAST => {
     const C = window.CBM, s = C.load(), days = eval(PAST)(3);
@@ -1091,9 +1098,8 @@ test('Multiples on the back: each child gets their own table, the mark is one ta
   const errors = collectErrors(page);
   await open(page);
   await page.getByRole('button', { name: 'Set up' }).click();
-  await page.getByLabel('×tables on the back').check();
-  await page.locator('#cbmXtMode').selectOption('mult');
-  await expect(page.locator('#cbmXtPick')).toHaveCount(0);
+  await page.locator('[data-xkind="mult"]').click();
+  await expect(page.locator('[data-xtab]')).toHaveCount(0);
   // p2 already has 10s and 5s
   await page.evaluate(() => { const s = window.CBM.load(); window.CBM.moveOnto(s, 'p2', 2); window.CBM.save(s); });
 
@@ -1140,15 +1146,164 @@ test('The square reads the same record: own tables when chosen, the class pick w
 
   await page.evaluate(() => { const s = window.CBM.load(); s.xt = { on: true, pick: 'all', count: 50, mode: 'grid', per: true }; window.CBM.save(s); });
   await page.getByRole('button', { name: 'Progress' }).click();
-  const row = page.locator('tr[data-xpid="p1"]');
-  await row.locator('[data-xon]').selectOption('4');
+  // the ladder: a column a table in the order they are learnt; choose names, then move them
+  const rung = n => page.locator(`.cbm-rung-col[data-rung-n="${n}"]`);
+  await expect(page.locator('.cbm-rung-col')).toHaveCount(6);
+  await expect(page.locator('.cbm-rung-col .cbm-rung-n')).toHaveText(['×10', '×5', '×2', '×4', '×8', '×3']);
+  await expect(rung(10).locator('.cbm-kid')).toHaveCount(ROSTER.length);
+  await expect(page.locator('.cbm-move')).toHaveCount(0);                    // nothing to move until someone is chosen
+  await rung(10).locator('[data-kid="p1"]').click();
+  await expect(page.locator('#cbmLadHint')).toContainText('1 chosen');
+  await expect(rung(10).locator('.cbm-move')).toHaveCount(0);                // not onto the table they are already on
+  await rung(4).locator('.cbm-move').click();
+  await expect(rung(4).locator('[data-kid="p1"]')).toBeVisible();
   expect(await page.evaluate(() => { const st = window.CBM.tablesState(window.CBM.load(), 'p1'); return [st.on, Object.keys(st.got).map(Number).sort((a, b) => a - b)]; })).toEqual([4, [2, 5, 10]]);
+  // every child's record: one table, one tap
+  await expect(page.locator('tr[data-xpid="p1"] .cbm-xtchip.g')).toHaveCount(3);
+  await expect(page.locator('tr[data-xpid="p1"] .cbm-xtchip.l')).toHaveAttribute('data-xgot', '4');
   await page.locator('tr[data-xpid="p1"] [data-xgot="5"]').click();
   expect(await page.evaluate(() => Object.keys(window.CBM.tablesState(window.CBM.load(), 'p1').got).map(Number).sort((a, b) => a - b))).toEqual([2, 10]);
-  await page.locator('tr[data-xpid="p2"] .cbm-xtsel').check();
-  await page.locator('tr[data-xpid="p3"] .cbm-xtsel').check();
-  await page.locator('#cbmXtBulk').selectOption('8');
-  await page.locator('#cbmXtBulkGo').click();
+  await rung(10).locator('[data-kid="p2"]').click();
+  await rung(10).locator('[data-kid="p3"]').click();
+  await rung(10).locator('[data-kid="p3"]').click();                         // tap again: unchosen
+  await rung(10).locator('[data-kid="p3"]').click();
+  await expect(page.locator('#cbmLadHint')).toContainText('2 chosen');
+  await rung(8).locator('.cbm-move').click();
   expect(await page.evaluate(() => ['p2', 'p3'].map(p => window.CBM.tablesState(window.CBM.load(), p).on))).toEqual([8, 8]);
+  await expect(page.locator('.cbm-kid.sel')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('the square: at most 50, every multiplier 1–12 once before any repeats, a quarter as missing numbers and ÷, got tables weighted to the longest unseen', async ({ page }) => {
+  await open(page);
+  const r = await page.evaluate(`(() => {
+    const C = window.CBM, d = ${PAST_DAYS}(1)[0], s = C.load();
+    const sum = sq => {
+      const by = {}; sq.qs.forEach(q => { (by[q.base] = by[q.base] || []).push(q.by); });
+      const firstRun = Object.keys(by).every(b => new Set(by[b].slice(0, 12)).size === Math.min(12, by[b].length));
+      const secondRun = Object.keys(by).every(b => new Set(by[b].slice(12, 24)).size === Math.min(12, Math.max(0, by[b].length - 12)));
+      const n = {}; Object.keys(by).forEach(b => { n[b] = by[b].length; });
+      const text = sq.qs.map(q => window.genRenderQuestion(q).replace(/<span[^>]*>.<\\/span>/g, '☐').replace(/&nbsp;/g, ' ').trim());
+      const right = sq.qs.every(q => q.t === 'times' || +q.ans === q.by);
+      return { len: sq.qs.length, n, firstRun, secondRun, miss: sq.qs.filter(q => q.f === 'miss').length, div: sq.qs.filter(q => q.f === 'div').length,
+               missText: text.find(x => /^☐ ×/.test(x)), divText: text.find(x => /÷/.test(x)), right, label: sq.label };
+    };
+    // the class's tables, the same for everyone; a count from before the limit reads as 50
+    s.xt = { on: true, mode: 'grid', per: false, tabs: [2, 5, 10], count: 100 };
+    const cls = sum(C.squareFor(s, d, 'p1')), same = JSON.stringify(C.squareFor(s, d, 'p1')) === JSON.stringify(C.squareFor(s, d, 'p2'));
+    s.xt.count = 20; const small = sum(C.squareFor(s, d, 'p1'));
+    // a child's own: learning 3; got 10 (seen longest ago), 5, 2, 4, 8 (seen most lately)
+    s.xt = { on: true, mode: 'grid', per: true, tabs: [2, 5, 10], count: 50 };
+    s.xs = { p1: { on: 3, got: [10, 5, 2, 4, 8], seen: { 10: '2026-01-05', 5: '2026-02-02', 2: '2026-03-02', 4: '2026-04-06', 8: '2026-05-04' }, at: '2026-05-04' } };
+    const a = C.squareFor(s, d, 'p1'), own = sum(a), again = JSON.stringify(C.squareFor(s, d, 'p1')) === JSON.stringify(a);
+    s.xs.p2 = { on: 10, got: [], seen: {}, at: '2026-05-04' };
+    const first = sum(C.squareFor(s, d, 'p2'));
+    return { cls, same, small, own, again, first };
+  })()`);
+  expect(r.cls.len).toBe(50);                                   // never more than 50, whatever was stored
+  expect(r.cls.n).toEqual({ 2: 17, 5: 17, 10: 16 });            // an even spread
+  expect(r.cls.firstRun && r.cls.secondRun).toBe(true);         // 1–12 once each before any repeat, and again
+  expect(r.cls.miss + r.cls.div).toBe(13);                      // about a quarter the other way round
+  expect(Math.abs(r.cls.miss - r.cls.div)).toBeLessThanOrEqual(1);
+  expect(r.cls.missText).toMatch(/^☐ × \d+ = \d+$/);
+  expect(r.cls.divText).toMatch(/^\d+ ÷ \d+ =$/);
+  expect(r.cls.right).toBe(true);
+  expect(r.same).toBe(true);                                    // one square for the class
+  expect(r.small.len).toBe(20);
+  expect(r.small.miss + r.small.div).toBe(5);
+  expect(r.own.len).toBe(50);
+  expect(r.own.n[3]).toBe(25);                                  // half the table being learned
+  expect([r.own.n[10], r.own.n[5], r.own.n[2], r.own.n[4], r.own.n[8]]).toEqual([8, 7, 5, 3, 2]);   // the longest unseen gets the most
+  expect(r.own.firstRun && r.own.secondRun).toBe(true);
+  expect(r.own.label).toBe('3×, 10×, 5×, 2×, 4×, 8×');
+  expect(r.again).toBe(true);                                   // a reprint is identical
+  expect(r.first.n).toEqual({ 10: 50 });                        // nothing got yet: all the table being learned
+});
+
+test('the back page is chosen for each child; ✓ / ✗ for a square moves the same ladder as Multiples; the square is fitted to one side of A4', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('[data-xkind="mult"]').click();
+  // p1 on the tables square, from Set up; p2 on nothing, from their panel; p3 back onto the class page
+  await page.locator('#cbmXbAdd').selectOption('p1');
+  await expect(page.locator('[data-xbpid="p1"] [data-xbp="grid"]')).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#cbmXbAdd').selectOption('p3');
+  await page.locator('[data-xbpid="p3"] [data-xbdel]').click();
+  await page.locator('#cbmXbAdd').selectOption('p2');
+  await page.locator('[data-xbpid="p2"] [data-pupil="p2"]').click();
+  const panel = page.locator('#cbmPanel .cbm-panel');
+  await expect(panel.getByLabel('Tables square')).toBeChecked();
+  await panel.getByLabel('Nothing').check();
+  await page.keyboard.press('Escape');
+  await page.locator('[data-xbpid="p1"] [data-pupil="p1"]').click();
+  await panel.locator('#cbmBackN').selectOption('20');
+  await page.keyboard.press('Escape');
+  expect(await page.evaluate(() => window.CBM.load().xb)).toEqual({ p1: { p: 'grid', n: 20 }, p2: { p: 'none' } });
+  await expect(page.locator('.cbm-exc-add')).toContainText(`${ROSTER.length - 2} on the class page · 2 on their own`);
+  expect(await page.evaluate(() => { const C = window.CBM, s = C.load(); return ['p1', 'p2', 'p3'].map(p => [C.pageOf(s, p), C.onLadder(s, p)]); }))
+    .toEqual([['grid', true], ['none', false], ['mult', true]]);
+
+  // two earlier days: p1 got ✓ ✓ on their square, p3 ✓ ✓ on Multiples: both move from 10 to 5
+  const on = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load();
+    eval(PAST)(2).forEach(iso => { const d = C.makeDay(s, iso); C.freezeTables(s, iso); d.xm = { p1: 1, p3: 1 }; });
+    C.save(s);
+    const d0 = eval(PAST)(2)[0];
+    return { mt: s.days[d0].mt, on: ['p1', 'p2', 'p3', 'p4'].map(p => C.tablesState(s, p).on) };
+  }, PAST_DAYS);
+  expect(on.mt.p1).toBe(10);
+  expect(on.mt.p2).toBeUndefined();                              // no page, nothing to mark
+  expect(on.on).toEqual([5, 10, 5, 10]);
+
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await expect(page.locator('tr[data-pid="p1"] .cbm-xmt')).toHaveText('×5');
+  await expect(page.locator('tr[data-pid="p1"] .cbm-xm')).toHaveCount(2);        // the same ✓ ✗ as a Multiples child
+  await expect(page.locator('tr[data-pid="p3"] .cbm-xm')).toHaveCount(2);
+  await expect(page.locator('tr[data-pid="p2"] .cbm-xm')).toHaveCount(0);
+  await page.locator('tr[data-pid="p1"] .cbm-xm[data-v="1"]').click();
+  expect(await page.evaluate(() => { const s = window.CBM.load(), d = Object.keys(s.days).sort().pop(); return [s.days[d].mt.p1, s.days[d].xm.p1]; })).toEqual([5, 1]);
+
+  await page.evaluate(() => { window.print = () => {}; });
+  await page.locator('#cbmPrintAll').click();
+  const pages = await page.locator('#starterPrint .cbm-paper > .gen-day').evaluateAll(els => els.map(e => e.classList.contains('cbm-mpage') ? 'mult' : e.classList.contains('cbm-square') ? 'square' : 'sheet'));
+  expect(pages.slice(0, 5)).toEqual(['sheet', 'square', 'sheet', 'sheet', 'mult']);        // p1 a square, p2 nothing, p3 Multiples
+  expect(pages.filter(x => x === 'mult')).toHaveLength(ROSTER.length - 2);
+  const sq = page.locator('#starterPrint .cbm-square');
+  await expect(sq).toHaveCount(1);
+  await expect(sq).toHaveClass(/cbm-backpage/);                                    // so fitSheets measures it
+  await expect(sq.locator('.gen-q')).toHaveCount(20);
+  await expect(sq.locator('.gen-heading')).toContainText('Times tables — 5×, 10×');
+  await page.locator('#cbmPrintXt').click();
+  await expect(page.locator('#starterPrint .cbm-paper > .gen-day')).toHaveCount(ROSTER.length - 1);
+
+  // 50 questions and an answer strip under them still come out as one side of A4
+  await page.evaluate(() => { const s = window.CBM.load(); s.sm = true; s.xb.p1.n = 50; window.CBM.save(s); window.cbmRender(); });
+  await page.locator('#cbmPrintAll').click();
+  const fit = await page.evaluate(() => {
+    const c = document.getElementById('starterPrint'), was = c.getAttribute('style') || '';
+    c.setAttribute('style', 'display:block !important;position:absolute;left:-20000px;top:0');
+    const mm = (() => { const r = document.createElement('div'); r.style.cssText = 'height:100mm;width:1px'; c.appendChild(r); const h = r.getBoundingClientRect().height / 100; c.removeChild(r); return h; })();
+    const el = c.querySelector('.cbm-square'), out = { h: el.getBoundingClientRect().height / mm, n: el.querySelectorAll('.gen-grid-tables .gen-q').length, strip: !!el.querySelector('.cbm-strip') };
+    c.setAttribute('style', was); return out;
+  });
+  expect(fit.n).toBe(50);
+  expect(fit.strip).toBe(true);
+  expect(fit.h).toBeLessThanOrEqual(279);
+
+  // Progress › ×tables says who is on what, and what this week did
+  await page.locator('.cbm-tab[data-view="progress"]').click();
+  await page.locator('[data-pview="tables"]').click();
+  await expect(page.locator('.cbm-ladline')).toContainText('Back page: Multiples of N');
+  await expect(page.locator('.cbm-ladline')).toContainText('Ava on the tables square');
+  await expect(page.locator('.cbm-ladline')).toContainText('Ben with nothing');
+  await expect(page.locator('.cbm-rung-col[data-rung-n="5"] [data-kid="p1"] .cbm-kid-n')).toHaveText('square');
+  await expect(page.locator('.cbm-rung-col[data-rung-n="10"] [data-kid="p2"] .cbm-kid-n')).toHaveText('no page');
+  await expect(page.locator('.cbm-ladstats .cbm-stat')).toHaveCount(4);
+  await expect(page.locator('.cbm-ladstats .cbm-stat').nth(1)).toContainText('Ava');          // one ✓ so far on ×5
+  await expect(page.locator('tr[data-xpid="p1"] .cbm-rec-last')).toContainText('10✓ 10✓ 5✓');
+  await page.locator('.cbm-ladline [data-goto="setup"]').click();
+  await expect(page.locator('.cbm-backset')).toBeVisible();
   expect(errors).toEqual([]);
 });
