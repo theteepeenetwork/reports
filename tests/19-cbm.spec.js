@@ -33,6 +33,9 @@ async function open(page, extra) {
   await page.evaluate(() => { if (location.hash !== '#cbm') location.hash = '#cbm'; window.cbmRender(); });
 }
 
+/* One button of a child's ✓ ✗ – switch: j is which of the two questions, v is 1 right, 0 wrong, -1 blank. */
+const mark = (page, pid, j, v) => page.locator(`tr[data-pid="${pid}"] .cbm-mark[data-aj="${j}"][data-v="${v}"]`);
+
 /* The last n school days before today, oldest first, built in the page. */
 const PAST_DAYS = `(n => { const out = []; const x = new Date(); x.setHours(0,0,0,0);
   while (out.length < n) { x.setDate(x.getDate() - 1); if (x.getDay() % 6) out.unshift(x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0')); }
@@ -51,13 +54,12 @@ test('a separate nav row; entry is two taps or Absent, nothing typed, no score k
 
   await page.getByRole('button', { name: 'Make the sheet' }).click();
   await expect(page.locator('.cbm-table input')).toHaveCount(0);
-  const mark = (pid, j) => page.locator(`tr[data-pid="${pid}"] .cbm-mark`).nth(j);
-  await mark('p1', 0).click();                                  // ✓
-  await mark('p1', 1).click(); await mark('p1', 1).click();     // ✗
+  await mark(page, 'p1', 0, 1).click();                         // ✓
+  await mark(page, 'p1', 1, 0).click();                         // ✗
   await page.locator('tr[data-pid="p2"] .cbm-abs').click();
-  await expect(mark('p2', 0)).toBeDisabled();
-  await mark('p3', 0).click();                                  // one mark only: not an entry yet
-  await expect(page.locator('#cbmCount')).toHaveText(`2 of ${ROSTER.length} entered`);
+  await expect(mark(page, 'p2', 0, 1)).toBeDisabled();
+  await mark(page, 'p3', 0, 1).click();                         // one mark only: not an entry yet
+  await expect(page.locator('#cbmCount')).toHaveText(`2 of ${ROSTER.length} marked`);
   // each child's own answer sits beside the mark
   await expect(page.locator('tr[data-pid="p1"] .cbm-markans')).toHaveCount(2);
 
@@ -82,22 +84,96 @@ test('a separate nav row; entry is two taps or Absent, nothing typed, no score k
   expect(errors).toEqual([]);
 });
 
-test('a mark cycles right, wrong, blank, clear; one mark alone is kept but is not a result', async ({ page }) => {
+test('each mark is a ✓ ✗ – switch: one tap sets it, the same tap again clears it; one mark alone is kept but is not a result', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Make the sheet' }).click();
-  const first = page.locator('tr[data-pid="p1"] .cbm-mark').first();
-  await first.click();
-  await expect(first).toHaveText('✓');
-  await first.click(); await expect(first).toHaveText('✗');
-  await first.click(); await expect(first).toHaveText('–');
+  const seg = page.locator('tr[data-pid="p1"] .cbm-markcell').first().locator('.cbm-seg');
+  await expect(seg.locator('.cbm-mark')).toHaveText(['✓', '✗', '–']);           // every choice on screen, nothing to cycle through
+  await expect(seg.locator('.cbm-mark[aria-pressed="true"]')).toHaveCount(0);
+  await mark(page, 'p1', 0, 1).click();
+  await expect(mark(page, 'p1', 0, 1)).toHaveClass(/yes/);
+  await mark(page, 'p1', 0, -1).click();                                         // straight to blank: no stop at wrong on the way
+  await expect(mark(page, 'p1', 0, -1)).toHaveClass(/blank/);
+  await expect(seg.locator('.cbm-mark[aria-pressed="true"]')).toHaveCount(1);
   const r = await page.evaluate(() => {
     const s = window.CBM.load(), d = Object.keys(s.days)[0];
     return { mark: s.days[d].marks.p1, sessions: window.CBM.sessions(s, 'p1', '9999-01-01', 5).length };
   });
   expect(r.mark).toEqual({ a: [-1, null] });
   expect(r.sessions).toBe(0);
-  await first.click(); await expect(first).toHaveText('·');
+  await mark(page, 'p1', 0, -1).click();                                         // the one in force, tapped again: off
+  await expect(seg.locator('.cbm-mark[aria-pressed="true"]')).toHaveCount(0);
   expect(await page.evaluate(() => { const s = window.CBM.load(); return s.days[Object.keys(s.days)[0]].marks.p1; })).toBeUndefined();
+});
+
+test('Today is the routine: Print, Mark, Teach with a status each; chips filter the marking; print and board sit beside it; Sheet options holds the rest', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await expect(page.locator('.cbm-menu')).toHaveCount(0);                        // nothing to regenerate or delete before there is a sheet
+  await page.getByRole('button', { name: 'Make the sheet' }).click();
+  await page.evaluate(() => { window.print = () => {}; });
+  const steps = page.locator('#cbmSteps .cbm-step');
+  await expect(steps).toHaveCount(3);
+  await expect(steps.nth(0)).toContainText('1 · Print');
+  await expect(steps.nth(0)).toContainText('Not printed yet');
+  await expect(steps.nth(0)).toHaveAttribute('aria-current', 'step');
+  await expect(steps.nth(1)).toContainText(`0 of ${ROSTER.length} marked`);
+  await expect(steps.nth(2)).toContainText('3 · Teach');
+  await page.locator('#cbmPrintAll').click();
+  await expect(steps.nth(0)).toContainText('Class set printed');
+  await expect(steps.nth(0)).toHaveClass(/is-done/);
+  await expect(steps.nth(1)).toHaveAttribute('aria-current', 'step');
+
+  // the side column: print and the board, not a row of buttons above the marks
+  await expect(page.locator('.cbm-side #cbmPrintAll')).toContainText(`${ROSTER.length} sheets`);
+  await expect(page.locator('.cbm-side #cbmPrintMark')).toBeVisible();
+  await expect(page.locator('.cbm-side #cbmPrintOne')).toBeVisible();
+  await expect(page.locator('.cbm-side #cbmBoard')).toContainText('On the board');
+  await expect(page.locator('.cbm-markcard #cbmPrintAll')).toHaveCount(0);
+
+  await mark(page, 'p1', 0, 1).click(); await mark(page, 'p1', 1, 0).click();     // ✓ ✗
+  await mark(page, 'p2', 0, 1).click(); await mark(page, 'p2', 1, 1).click();     // ✓ ✓
+  await page.locator('tr[data-pid="p3"] .cbm-abs').click();
+  await expect(page.locator('#cbmCount')).toHaveText(`3 of ${ROSTER.length} marked`);
+  await expect(page.locator('#cbmSteps [role="progressbar"]')).toHaveAttribute('aria-valuenow', '3');
+  const chip = f => page.locator(`.cbm-filter[data-filter="${f}"]`);
+  await expect(chip('all')).toHaveText(`Everyone · ${ROSTER.length}`);
+  await expect(chip('todo')).toHaveText(`Not marked · ${ROSTER.length - 3}`);
+  await expect(chip('wrong')).toHaveText('Got one wrong · 1');
+  await expect(chip('absent')).toHaveText('Absent · 1');
+  const shown = () => page.locator('.cbm-table tbody tr:visible').evaluateAll(trs => trs.map(tr => tr.dataset.pid));
+  await chip('wrong').click();
+  await expect(chip('wrong')).toHaveAttribute('aria-pressed', 'true');
+  expect(await shown()).toEqual(['p1']);
+  await expect(page.locator('#cbmShown')).toHaveText(`Showing 1 of ${ROSTER.length}`);
+  await chip('absent').click();
+  expect(await shown()).toEqual(['p3']);
+  await chip('todo').click();
+  expect(await shown()).toEqual(['p4', 'p5', 'p6']);
+  await mark(page, 'p4', 0, 1).click();                                          // one mark is not a result: still to do
+  expect(await shown()).toEqual(['p4', 'p5', 'p6']);
+  await mark(page, 'p4', 1, 1).click();                                          // both in: off the to-do list
+  expect(await shown()).toEqual(['p5', 'p6']);
+  await expect(chip('todo')).toHaveText(`Not marked · ${ROSTER.length - 4}`);
+  await chip('all').click();
+  expect(await shown()).toHaveLength(ROSTER.length);
+
+  // everyone marked: the routine moves on to Teach
+  for (const pid of ['p5', 'p6']) { await mark(page, pid, 0, 1).click(); await mark(page, pid, 1, 1).click(); }
+  await expect(steps.nth(1)).toHaveClass(/is-done/);
+  await expect(steps.nth(2)).toHaveAttribute('aria-current', 'step');
+
+  // regenerate, rebuild and delete live in Sheet options, closed until asked for
+  const menu = page.locator('.cbm-menu');
+  await expect(menu.locator('#cbmRegen')).toBeHidden();
+  await menu.locator('summary').click();
+  await expect(menu.locator('#cbmRetarget')).toBeVisible();
+  await expect(menu.locator('#cbmRegen')).toBeVisible();
+  page.once('dialog', d => d.accept());
+  await menu.locator('#cbmDelete').click();
+  await expect(page.getByRole('button', { name: 'Make the sheet' })).toBeVisible();
+  expect(await page.evaluate(() => Object.keys(window.CBM.load().days))).toEqual([]);
+  expect(errors).toEqual([]);
 });
 
 test('audit rotation, the practice box and inferred estimates, from marks alone', async ({ page }) => {
@@ -332,9 +408,9 @@ test('a day made before individual sheets still renders and still counts', async
   expect(r.p2k).toEqual(['fd:add10', 'fd:add10']);
   expect(r.sess).toMatchObject({ len: 8, num: true, wrong: 1, late: true });
   expect(r.p3).toBe(true);
-  await expect(page.locator('#cbmCount')).toHaveText(`3 of ${ROSTER.length} entered`);
+  await expect(page.locator('#cbmCount')).toHaveText(`3 of ${ROSTER.length} marked`);
   await expect(page.locator('tr[data-pid="p2"] .cbm-sup')).toHaveText('8 Qs');
-  await expect(page.locator('tr[data-pid="p1"] .cbm-mark').first()).toHaveText('✓');
+  await expect(mark(page, 'p1', 0, 1)).toHaveClass(/yes/);
   await expect(page.locator('tr[data-pid="p1"] .cbm-markans')).toHaveCount(0);     // shared numbers: the answer is in the heading
   await page.locator('.cbm-tab[data-view="progress"]').click();
   await expect(page.locator('.cbm-grid')).toBeVisible();
@@ -374,7 +450,7 @@ test('class set: one personalised A4 page per child, identical on reprint; the m
   await page.getByRole('button', { name: 'Print class set' }).click();
   expect(await page.locator('#starterPrint').innerHTML()).toBe(first);
 
-  await page.getByRole('button', { name: 'Print marking list' }).click();
+  await page.locator('#cbmPrintMark').click();
   await expect(page.locator('#starterPrint .cbm-marklist tbody tr')).toHaveCount(ROSTER.length);
   const list = await page.locator('#starterPrint .cbm-marklist tbody tr').evaluateAll(trs => trs.map(tr => [...tr.querySelectorAll('b')].map(b => b.textContent)));
   const want = await page.evaluate(() => {
@@ -426,7 +502,12 @@ test('the board models the skills the class gets wrong, weakest first, with its 
   const want = await page.evaluate(PAST => {
     const C = window.CBM, s = C.load(), days = eval(PAST)(2);
     // day 0: everyone wrong on the first mark; day 1: half wrong on the first mark
-    days.forEach((d, n) => { const day = C.makeDay(s, d); roster.forEach((p, i) => { day.marks[p.id] = { a: [n === 0 ? 0 : i % 2, 1] }; }); });
+    days.forEach((d, n) => {
+      const day = C.makeDay(s, d);
+      // across a weekend the same slot can be picked on both days: this test needs two different skills
+      if (n === 1 && day.audit[0] === s.days[days[0]].audit[0]) day.audit[0] = (day.audit[0] + 1) % 10;
+      roster.forEach((p, i) => { day.marks[p.id] = { a: [n === 0 ? 0 : i % 2, 1] }; });
+    });
     const today = C.makeDay(s, new Date().toLocaleDateString('en-CA'));
     C.save(s);
     window.__board = null; window.hubOpenBoard = o => { window.__board = o; };
@@ -435,24 +516,23 @@ test('the board models the skills the class gets wrong, weakest first, with its 
     return { k0, k1, onToday: today.qs.some(q => q.k === k0) };
   }, PAST_DAYS);
   expect(want.onToday).toBe(true);
-  await expect(page.locator('.cbm-focus .cbm-chip').first()).toContainText('0%');
-  await page.getByRole('button', { name: 'Model the focus skills' }).click();
+  await expect(page.locator('#cbmBoard .cbm-focus .cbm-bar-row').first()).toContainText('0%');
+  await page.locator('#cbmWbFocus').click();
   const b = await page.evaluate(() => ({ ks: window.__board.qs.map(q => q.k), key: window.__board.key, iso: window.__board.iso }));
   expect(b.ks[0]).toBe(want.k0);
   expect(b.ks[1]).toBe(want.k1);
   expect(b.key).toBe('cbm:' + b.iso + ':focus');
-  await page.getByRole('button', { name: 'All 20 on the board' }).click();
+  await page.getByRole('button', { name: 'Show all 20 questions' }).click();
   expect(await page.evaluate(() => ({ n: window.__board.qs.length, key: window.__board.key === 'cbm:' + window.__board.iso }))).toEqual({ n: 20, key: true });
 });
 
 test('a made sheet can be swapped for a fresh set of questions; marks entered for it are cleared', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Make the sheet' }).click();
-  const m = page.locator('tr[data-pid="p1"] .cbm-mark');
-  await m.nth(0).click(); await m.nth(1).click();
+  await mark(page, 'p1', 0, 1).click(); await mark(page, 'p1', 1, 1).click();
   const before = await page.evaluate(() => { const s = window.CBM.load(), d = Object.keys(s.days)[0]; return JSON.stringify(s.days[d].qs); });
   page.once('dialog', d => d.accept());
-  await page.locator('.cbm-qlist summary').click();
+  await page.locator('.cbm-menu summary').click();
   await page.getByRole('button', { name: 'Make a new set of questions' }).click();
   const after = await page.evaluate(() => { const s = window.CBM.load(), d = Object.keys(s.days)[0]; return { qs: s.days[d].qs, v: s.days[d].v, marks: s.days[d].marks }; });
   expect(after.v).toBe(1);
@@ -460,7 +540,7 @@ test('a made sheet can be swapped for a fresh set of questions; marks entered fo
   expect(JSON.stringify(after.qs)).not.toBe(before);
   expect(after.qs.map(q => q.k)).toEqual(JSON.parse(before).map(q => q.k));   // same skills, new numbers
   expect(after.marks).toEqual({});
-  await expect(page.locator('tr[data-pid="p1"] .cbm-mark').first()).toHaveText('·');
+  await expect(page.locator('tr[data-pid="p1"] .cbm-mark[aria-pressed="true"]')).toHaveCount(0);
 });
 
 test('×tables on the back: off by default, turned on in Set up, one page after each child, same tables for everyone', async ({ page }) => {
@@ -487,7 +567,7 @@ test('×tables on the back: off by default, turned on in Set up, one page after 
   const grids = await tables.evaluateAll(els => els.map(e => e.innerHTML));
   expect(new Set(grids).size).toBe(1);
 
-  await page.getByRole('button', { name: 'Print ×tables only' }).click();
+  await page.locator('#cbmPrintXt').click();
   await expect(page.locator('#starterPrint .gen-grid-tables')).toHaveCount(1);
   expect(await page.locator('#starterPrint .gen-grid-tables').innerHTML()).toBe(grids[0]);
   expect(errors).toEqual([]);
@@ -527,7 +607,7 @@ test('the number of questions is yours to choose, up to 20; made days keep their
 
   await page.locator('.cbm-tab[data-view="today"]').click();
   await page.getByRole('button', { name: 'Make the sheet' }).click();
-  await expect(page.getByRole('button', { name: 'All 12 on the board' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show all 12 questions' })).toBeVisible();
   const made = await page.evaluate(() => {
     const C = window.CBM, s = C.load(), iso = Object.keys(s.days)[0], d = s.days[iso];
     return { n: d.qs.length, audit: d.audit, mine: C.sheetQs(d, iso, 'p1').length };
@@ -775,7 +855,7 @@ test('who is on what: colours on Progress only, by the next sheet, with a letter
   await page.evaluate(() => { window.print = () => {}; });
   await page.getByRole('button', { name: 'Print class set' }).click();
   expect(await page.evaluate(() => document.body.innerHTML.includes('cbm-stage'))).toBe(false);
-  await page.getByRole('button', { name: 'Print marking list' }).click();
+  await page.locator('#cbmPrintMark').click();
   expect(await page.evaluate(() => document.body.innerHTML.includes('cbm-stage'))).toBe(false);
   expect(errors).toEqual([]);
 });
@@ -858,7 +938,7 @@ test('printing: an ordinary sheet is not shrunk', async ({ page }) => {
   await open(page);
   await page.getByRole('button', { name: 'Make the sheet' }).click();
   await page.evaluate(() => { window.print = () => {}; });
-  await page.getByRole('button', { name: 'Print one blank sheet' }).click();
+  await page.locator('#cbmPrintOne').click();
   const k = await page.evaluate(() => document.querySelector('#starterPrint .cbm-sheet').style.getPropertyValue('--k'));
   expect(k).toBe('');
 });
@@ -908,7 +988,7 @@ test('children mark their own: each child\'s answers as a strip on the back page
   await expect(page.locator('#starterPrint .cbm-backpage')).toHaveCount(ROSTER.length);
   await expect(page.locator('#starterPrint .gen-grid-tables')).toHaveCount(0);
   await expect(page.locator('#starterPrint .cbm-backpage').first()).toContainText('Mental Starter answers');
-  await page.getByRole('button', { name: 'Print one blank sheet' }).click();
+  await page.locator('#cbmPrintOne').click();
   await expect(page.locator('#starterPrint .cbm-strip')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -985,13 +1065,13 @@ test('Multiples on the back: each child gets their own table, the mark is one ta
   await page.getByRole('button', { name: 'Make the sheet' }).click();
   await expect(page.locator('tr[data-pid="p1"] .cbm-xmt')).toHaveText('×10');
   await expect(page.locator('tr[data-pid="p2"] .cbm-xmt')).toHaveText('×2');
-  const xm = page.locator('tr[data-pid="p1"] .cbm-xm');
-  await xm.click(); await expect(xm).toHaveText('✓');
-  await xm.click(); await expect(xm).toHaveText('✗');
-  await xm.click(); await expect(xm).toHaveText('·');
-  await xm.click();
+  const xm = v => page.locator(`tr[data-pid="p1"] .cbm-xm[data-v="${v}"]`);
+  await expect(page.locator('tr[data-pid="p1"] .cbm-xm')).toHaveText(['✓', '✗']);   // got it / not yet: no blank for a whole page
+  await xm(0).click(); await expect(xm(0)).toHaveClass(/no/);
+  await xm(0).click(); await expect(page.locator('tr[data-pid="p1"] .cbm-xm[aria-pressed="true"]')).toHaveCount(0);
+  await xm(1).click(); await expect(xm(1)).toHaveClass(/yes/);
   // a Multiples mark is not one of the teacher's two
-  await expect(page.locator('#cbmCount')).toHaveText(`0 of ${ROSTER.length} entered`);
+  await expect(page.locator('#cbmCount')).toHaveText(`0 of ${ROSTER.length} marked`);
 
   await page.evaluate(() => { window.print = () => {}; });
   await page.getByRole('button', { name: 'Print class set' }).click();
@@ -999,7 +1079,7 @@ test('Multiples on the back: each child gets their own table, the mark is one ta
   await expect(page.locator('#starterPrint .cbm-paper > .gen-day').nth(1)).toContainText('Multiples of TEN');
   const tabs = await page.locator('#starterPrint .cbm-mpage').evaluateAll(els => els.map(e => e.dataset.table));
   expect(tabs).toContain('2');
-  await page.getByRole('button', { name: 'Print marking list' }).click();
+  await page.locator('#cbmPrintMark').click();
   await expect(page.locator('#starterPrint .cbm-mkey')).toHaveCount(new Set(tabs).size);
   expect(errors).toEqual([]);
 });
