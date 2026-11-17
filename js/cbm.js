@@ -1780,9 +1780,13 @@
     if (!p) { panelPid = null; if (el) el.parentNode.removeChild(el); return; }
     if (!el) { el = document.createElement('div'); el.id = 'cbmPanel'; h.appendChild(el); wirePanel(el); }
     var top = el.querySelector('.cbm-panel'), y = top && !focus ? top.scrollTop : 0;
+    // the panel is redrawn after every change: keep the keyboard where it was, or Esc stops closing it
+    var act = document.activeElement, had = el.contains(act);
+    var key = !had ? null : act.id ? '#' + act.id : act.name ? '[name="' + act.name + '"][value="' + act.value + '"]' : act.dataset.rung ? '[data-rung="' + act.dataset.rung + '"]' : null;
     el.innerHTML = panelHTML(load(), p);
     top = el.querySelector('.cbm-panel'); top.scrollTop = y;
-    if (focus) top.focus();
+    var again = !focus && key ? el.querySelector(key) : null;
+    if (again) again.focus(); else if (focus || had) top.focus();
   }
   function wirePanel(el) {
     function change(fn) { var s = load(), o = supportOf(s, panelPid); fn(s, o); s.support[panelPid] = o; save(s); redraw(); }

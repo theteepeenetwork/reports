@@ -517,6 +517,11 @@ test('progress: who is stepped back and to what; the setting sticks; back to cla
   await panel.getByLabel('Always the class questions').check();
   await expect(panel.locator('.cbm-pnext')).toContainText('the class questions');
   expect(await page.evaluate(() => window.CBM.load().support.p4.mode)).toBe('full');
+  // a change redraws the panel: the keyboard stays inside it, on the same control, so Esc still closes it
+  await expect(panel.getByLabel('Always the class questions')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#cbmPanel')).toHaveCount(0);
+  await page.locator('.cbm-grid [data-pupil="p4"]').click();
   await panel.getByRole('button', { name: 'Close panel' }).click();
   await expect(page.locator('#cbmPanel')).toHaveCount(0);
 
