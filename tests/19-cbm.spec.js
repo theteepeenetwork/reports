@@ -1355,6 +1355,18 @@ test('Set up is four sections: Questions, Back page, Marking, How it works; the 
   await expect(sec('back')).toContainText('1 on their own');
   expect(await page.evaluate(() => window.CBM.nextPages({ on: null, got: { 10: '2026-01-01', 5: '2026-02-01' }, since: 0 }, 3))).toEqual([{ n: 10, r: true }, { n: 5, r: true }, { n: 10, r: true }]);
 
+  // after a ✗ on a revisit the preview shows what will print: that table again, until it is marked
+  const owed = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), d = eval(PAST)(1)[0];
+    s.xs.p1 = { on: 2, got: [10, 5], seen: { 10: '2020-01-06', 5: '2020-01-06' }, at: '2020-01-06' };   // learning ×2 since long before the page
+    C.makeDay(s, d); s.days[d].mt = { p1: 10 }; s.days[d].xm = { p1: 0 };
+    const st = C.tablesState(s, 'p1'), tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    return { owed: st.owed, next: C.nextPages(st, 3), real: C.tableForDay(s, tomorrow.toLocaleDateString('en-CA'), 'p1') };
+  }, PAST_DAYS);
+  expect(owed.owed).toBe(10);
+  expect(owed.real).toEqual({ n: 10, r: true });
+  expect(owed.next).toEqual([{ n: 10, r: true }, { n: 10, r: true }, { n: 10, r: true }]);
+
   await sec('mark').click();
   await expect(page.locator('.cbm-backset, .cbm-picker')).toHaveCount(0);
   await expect(sec('mark')).toContainText('You mark two');

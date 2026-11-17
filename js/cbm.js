@@ -2043,12 +2043,15 @@
         '<span class="cbm-sub">You tap ✓ / ✗ for the back page on Today: the same for both page types.</span></div>' + tomorrowHTML(state) + '</div>' : '') + '</div>';
   }
   /* A child's next n Multiples pages if nothing is marked: the table being
-     learned, with the one got longest ago back on every third. */
+     learned, with the one got longest ago back on every third; or, after a
+     ✗ on a revisit, that table until it is marked again. */
   function nextPages(st, n) {
     var got = {}, since = st.since, out = [];
     Object.keys(st.got).forEach(function (k) { got[k] = st.got[k]; });
     for (var i = 0; i < n; i++) {
       var cur = { on: st.on, got: got }, list = gotList(cur);
+      // a ✗ on a revisit: that table comes back on every page until it is marked again (tableForDay)
+      if (st.owed && got[st.owed]) { out.push({ n: st.owed, r: true }); continue; }
       if (!st.on || (list.length && since >= REVISIT_EVERY - 1)) { var o = oldestGot(cur) || 10; out.push({ n: o, r: true }); got[o] = '9999-' + ('0' + i).slice(-2); since = 0; }
       else { out.push({ n: st.on, r: false }); since++; }
     }
