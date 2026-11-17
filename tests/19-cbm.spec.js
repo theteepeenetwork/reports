@@ -1272,8 +1272,11 @@ test('the back page is chosen for each child; ✓ / ✗ for a square moves the s
 
   await page.evaluate(() => { window.print = () => {}; });
   await page.locator('#cbmPrintAll').click();
-  const pages = await page.locator('#starterPrint .cbm-paper > .gen-day').evaluateAll(els => els.map(e => e.classList.contains('cbm-mpage') ? 'mult' : e.classList.contains('cbm-square') ? 'square' : 'sheet'));
-  expect(pages.slice(0, 5)).toEqual(['sheet', 'square', 'sheet', 'sheet', 'mult']);        // p1 a square, p2 nothing, p3 Multiples
+  const pages = await page.locator('#starterPrint .cbm-paper > .gen-day').evaluateAll(els => els.map(e => e.classList.contains('cbm-mpage') ? 'mult' : e.classList.contains('cbm-square') ? 'square' : e.classList.contains('cbm-blankback') ? 'blank' : 'sheet'));
+  // p1 a square, p2 nothing, p3 Multiples. p2 still takes two sides, or p3's sheet would print on the back of p2's
+  expect(pages.slice(0, 6)).toEqual(['sheet', 'square', 'sheet', 'blank', 'sheet', 'mult']);
+  expect(pages).toHaveLength(ROSTER.length * 2);
+  expect(pages.every((x, i) => (x === 'sheet') === (i % 2 === 0))).toBe(true);             // every front on a front
   expect(pages.filter(x => x === 'mult')).toHaveLength(ROSTER.length - 2);
   const sq = page.locator('#starterPrint .cbm-square');
   await expect(sq).toHaveCount(1);

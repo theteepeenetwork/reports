@@ -1576,7 +1576,12 @@
   function printSheets(personal) {
     var s = load(), day = s.days[curDay]; if (!day) return;
     // each child's ×tables page follows their sheet, so it prints double-sided onto the back
-    var html = '', back = function (name, pid, tg) { return backHTML(day, curDay, s, name, pid, tg); };
+    /* A child with nothing on the back still takes two sides when anyone else in the set
+       has a back page: without a blank one the next child's sheet would print on the reverse
+       of theirs, and every sheet after it would be out of step. */
+    var duplex = s.sm || roster.some(function (p) { return pageOf(s, p.id) !== 'none'; });
+    var BLANK = '<div class="card gen-sheet gen-day cbm-backpage cbm-blankback" aria-hidden="true">&nbsp;</div>';
+    var html = '', back = function (name, pid, tg) { return backHTML(day, curDay, s, name, pid, tg) || (pid && duplex ? BLANK : ''); };
     if (personal) {
       if (!day.tg || !Object.keys(day.tg).length) freezeTargets(s, curDay);
       freezeTables(s, curDay);
