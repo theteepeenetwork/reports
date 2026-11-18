@@ -77,6 +77,7 @@ test('Hundred Words shows the active class from the hub and saves under that cla
 test('Hundred Words on the default class reads the un-suffixed roster', async ({ page }) => {
   const frame = await openHW(page, twoClasses('default'));
   await expect(frame.locator('#cls')).toHaveText('Year 2');
+  await frame.locator('#nav button', { hasText: 'Class' }).click();
   await expect(frame.locator('#main')).toContainText('Ava Bell');
   await expect(frame.locator('#main')).not.toContainText('Kit Marlow');
 });
@@ -110,7 +111,7 @@ test('Quick check saves each tap, so switching pupil and back keeps the marks', 
   await expect(again.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
 });
 
-test('Groups: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
+test('This week: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
   /* x1 has all of words 1–40 → on 41–50; x2 has all 100 HFW → on the 200 list */
   const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
   const extra = twoClasses('b');
@@ -131,6 +132,55 @@ test('Groups: sets of ten in order across the three lists, and a whole-class tes
   expect(plan[1]).toEqual({ title: 'Group · 200 HFW 1–10', n: 10, target: 1 });
   /* 409 words: 100 + 200 + 109 Year 3/4 common exception words */
   expect(await page.frameLocator('#hwFrame').locator('body').evaluate(() => [WORDS.length, SENT.length, NSETS])).toEqual([409, 409, 41]);
+
+  /* This week is the opening tab: the routine strip, then a card per test,
+     the whole-class one first and marked out */
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await expect(frame.locator('.routine .step')).toHaveCount(4);
+  await expect(frame.locator('.routine .step.now')).toContainText('2 tests below');
+  await expect(frame.locator('.routine')).toContainText('0 of 3 entered');
+  const cards = frame.locator('.tests .test');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0)).toHaveClass(/whole/);
+  await expect(cards.nth(0)).toContainText('100 HFW 41–60');
+  await expect(cards.nth(0)).toContainText('current set for 2 of 3');
+  await expect(cards.nth(0).locator('.wchip')).toHaveCount(20);
+  await expect(cards.nth(1)).toContainText('Nell');
+  for (const label of ['Enter results', 'Answer sheets', 'Dictation script']) {
+    await expect(cards.nth(1).getByRole('button', { name: label })).toBeVisible();
+  }
+  await expect(frame.locator('#main')).toContainText('Teach to the whole class');
+  await expect(frame.locator('#main')).toContainText('Needs you');
+  await expect(frame.locator('#main')).toContainText('Since last check');
+
+  /* the print buttons call the existing generators with that test */
+  await frame.locator('body').evaluate(() => { window.__calls = []; PDF.testSheets = t => window.__calls.push(['sheets', t.title]); PDF.testScript = t => window.__calls.push(['script', t.title]); });
+  await cards.nth(1).getByRole('button', { name: 'Answer sheets' }).click();
+  await cards.nth(0).getByRole('button', { name: 'Dictation script' }).click();
+  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([['sheets', 'Group · 200 HFW 1–10'], ['script', 'Whole class · 100 HFW 41–60']]);
+
+  /* Enter results opens Mark with that test loaded */
+  await cards.nth(0).getByRole('button', { name: 'Enter results' }).click();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Mark');
+  await expect(frame.locator('#main')).toContainText('Whole class · 100 HFW 41–60');
+});
+
+test('This week: Needs you lists plans due, no gain and children not assessed', async ({ page }) => {
+  const words = (n, wrong) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-09-01': { pupilId: 'x1', date: '2026-09-01', kind: 'spelling', words: words(10, [4, 5]) },
+    'x1_2026-09-20': { pupilId: 'x1', date: '2026-09-20', kind: 'spelling', words: words(10, [4, 5]) }
+  }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  const needs = frame.locator('section[aria-labelledby="needH"]');
+  await expect(needs).toContainText('1 plan due a review');
+  await expect(needs).toContainText('Kit — no gain since last check');
+  await expect(needs).toContainText('2 not assessed yet');
+  await expect(frame.locator('section[aria-labelledby="teachH"]')).toContainText('“sed” for said ×2');
+  await needs.getByRole('button', { name: /no gain/ }).click();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Pupils');
 });
 
 test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
