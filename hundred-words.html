@@ -66,7 +66,7 @@ nav.tabs button:hover{color:var(--ink)}
 .badge{background:var(--rev-soft);color:var(--rev-ink);border-radius:999px;font-size:12px;padding:0 7px;min-width:20px;text-align:center}
 .banner{margin-top:14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
 .banner:empty{display:none}
-main{margin-top:20px;display:grid;gap:20px}
+main{margin-top:20px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
 h2{font-weight:800;font-size:20px;letter-spacing:-.005em;margin:0;text-wrap:balance}
 h3{font-weight:800;font-size:17px;margin:0}
 p{margin:0}
@@ -127,6 +127,46 @@ button.li:hover span:first-child{text-decoration:underline}
 .linkbtn{background:none;border:0;padding:0;min-height:44px;color:var(--accent-text);font-weight:600;font-size:14px;cursor:pointer;text-align:left;display:inline-flex;align-items:center}
 .linkbtn:hover{text-decoration:underline}
 .wd{font-family:var(--f-word)}
+/* mark */
+.markbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.markbar label{font-size:14px;font-weight:600}
+.markbar select{flex:0 1 auto;min-width:0;max-width:100%}
+.marklay{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.plist{flex:1 1 240px;max-width:270px;min-width:0;padding:12px}
+.plist .phead{display:flex;justify-content:space-between;align-items:baseline;padding:6px 12px 10px;font-size:14px}
+.pls{display:flex;flex-direction:column;gap:2px;max-height:72vh;overflow-y:auto}
+.pl{width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:8px 12px;min-height:44px;border:0;border-radius:10px;background:transparent;cursor:pointer;font-size:14px;color:var(--ink);flex:none}
+.pl:hover{background:var(--line-2)}
+.pl[aria-current="true"]{background:var(--accent-soft);font-weight:700}
+.pl .st{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent-text);white-space:nowrap}
+.pl .st.done{color:var(--ok-ink)}
+.markcard{flex:999 1 520px;min-width:0;padding:24px;display:flex;flex-direction:column;gap:18px}
+.markcard h2{font-size:26px}
+.score{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.score small{font-size:16px;color:var(--muted);font-weight:800}
+.tiles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:84px;min-width:0;padding:16px 4px 6px;border-radius:12px;border:2px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink)}
+.tile .wd{font-size:clamp(17px,2vw,26px);line-height:1.2;max-width:100%;overflow-wrap:anywhere}
+.tile.long .wd{font-size:clamp(13px,1.3vw,18px)}
+.tile .hint{font-size:11px;font-weight:600;color:var(--muted);min-height:14px}
+.tile .n{position:absolute;top:5px;left:9px;font-size:11px;font-weight:700;color:var(--muted)}
+.tile .tk{position:absolute;top:3px;right:9px;font-weight:800;font-size:16px}
+.tile.focus{border-color:var(--accent-mid)}
+.tile.c{border-color:var(--ok-strong);background:var(--ok-soft)}
+.tile.c .tk{color:var(--ok-ink)}
+.tile.x{border-color:var(--no);background:var(--no-soft)}
+.tile.x .tk{color:var(--no-ink)}
+.wrote{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.wrote label{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
+.wrote input{font-family:var(--f-word);font-size:16px;width:100%}
+@media (max-width:760px){
+  .plist{max-width:none;flex-basis:100%}
+  .pls{flex-direction:row;overflow-x:auto;max-height:none;gap:6px;padding-bottom:4px}
+  .pl{width:auto;white-space:nowrap;border:1px solid var(--line)}
+  .markcard{padding:16px}
+  .tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tile .wd{font-size:20px}.tile.long .wd{font-size:14px}
+}
 /* grid */
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
@@ -185,12 +225,6 @@ td.score small{display:block;font-size:11px;line-height:1}
 .pill.rev{background:var(--rev-soft);color:var(--rev-ink)}
 .pill.blue{background:var(--accent-soft);color:var(--accent-text)}
 .gtab{width:100%;border-collapse:collapse}.gtab th{text-align:left;white-space:nowrap;padding:8px 12px 8px 0;vertical-align:top;font-weight:700}.gtab td{padding:6px 0;line-height:2.2}.gtab tr+tr{border-top:1px solid var(--line)}
-.qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
-.qgrid button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 4px;cursor:pointer;font-family:var(--f-word);font-size:17px;display:grid;line-height:1.1}
-.qgrid button small{font-family:var(--f-ui);font-size:11px;color:var(--muted)}
-.qgrid button.q-c{background:var(--ok-soft);border-color:var(--ok)}
-.qgrid button.q-focus{box-shadow:inset 0 0 0 2px var(--accent)}
-.qgrid button.q-x{background:var(--no-soft);border-color:var(--no)}
 /* review */
 .rv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:18px}
 @media (max-width:760px){.rv{grid-template-columns:1fr}}
@@ -295,7 +329,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"week",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading",list:null,only:null,group:null},list:null,cell:null,pupil:null,confirm:null,
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,pupil:null,confirm:null,
       print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
@@ -390,8 +424,9 @@ function bannerHtml(){
 }
 const bandDot=b=>`<span class="dot" style="--band:${b>=NSETS?"var(--ok)":BANDS[b%10].c}"></span>`;
 function levelLabel(sm){if(!sm.sessions.length)return "Not assessed yet";if(sm.level>=NSETS)return "Every list complete";return `${BANDS[sm.level%10].n} · ${setLabel(sm.level)} (${sm.setDone}/${setWords(sm.level).length})`}
-/* list picker shared by Tracker, Print and Quick check */
-function listSeg(cur,action){return `<div class="seg">${LISTS.map((l,k)=>`<button data-a="${action}" data-k="${k}" aria-pressed="${cur===k}" title="${esc(l.name)}">${esc(l.short)}</button>`).join("")}</div>`}
+/* list picker shared by Class, Print and Mark */
+const LIST_TAB=["100 HFW","Next 200 HFW","Y3/4 exception words"];
+function listSeg(cur,action){return `<div class="seg" role="group" aria-label="Word list">${LISTS.map((l,k)=>`<button type="button" data-a="${action}" data-k="${k}" aria-pressed="${cur===k}" title="${esc(l.name)}">${LIST_TAB[k]||esc(l.short)}</button>`).join("")}</div>`}
 /* the list most of the class is working in */
 function classList(){const c=LISTS.map(()=>0);for(const id of pupilIds())c[curList(summary(id))]++;return c.indexOf(Math.max(...c))}
 
@@ -615,19 +650,18 @@ VIEWS.week=function(){
   return h;
 };
 
-/* ----- Assess ----- */
+/* ----- Mark (was Assess and Quick check) -----
+   Classroom Hub: by hand only. Photo marking is not offered yet;
+   photoView() is kept, unreachable, for when it comes back. */
 VIEWS.mark=function(){
-  /* Classroom Hub: Quick check only. Photo marking is not offered yet;
-     photoView() is kept, unreachable, for when it comes back. */
-  let h=`<div class="row" style="justify-content:space-between"><h2>Mark</h2></div>`;
-  if(!pupilIds().length)return h+`<div class="panel empty"><p>Add pupils on the Pupils page first.</p>${window.hwHub?`<button class="btn" data-a="hubPupils">Go to Pupils</button>`:""}</div>`;
-  return h+quickView();
+  if(!pupilIds().length)return `<div class="panel empty"><p>Add pupils on the Pupils page first.</p>${window.hwHub?`<button type="button" class="btn" data-a="hubPupils">Go to Pupils</button>`:""}</div>`;
+  return markView();
 };
 function photoView(){
   const canPhoto=sampleApi&&imgLimits;
   let h=`<div class="panel stack">
   <div class="row"><label for="aDate"><b>Assessment date</b></label><input type="date" id="aDate" data-c="date" value="${S.ui.date}"></div>`;
-  if(!canPhoto)h+=`<p class="muted">Photo marking isn’t available in Classroom Hub. Use <a href="#" data-a="amode" data-k="quick">Quick check</a> to enter marks by hand.</p>`;
+  if(!canPhoto)h+=`<p class="muted">Photo marking isn’t available in Classroom Hub. Enter marks by hand in Mark.</p>`;
   else h+=`<div class="drop" id="drop"><h3>Add photos of answer sheets</h3><p class="muted small" style="max-width:56ch">One photo per sheet, taken from above in good light with the whole page in frame. Claude reads each child’s writing exactly as written, marks it against the word list, and sends anything unclear to Review.</p><button class="btn primary" data-a="pick">Choose photos</button></div>`;
   h+=`</div>`;
   const jobs=S.ui.jobs;
@@ -656,7 +690,7 @@ function jobHtml(j){
   return `<div class="job"><img src="${j.url}" alt="Answer sheet photo"><div class="stack">${body}</div></div>`;
 }
 function pickQuick(pid){const q=S.ui.quick;q.pid=pid;q.marks={};q.list=null;S.ui.confirm=null;const ses=S.sessions[quickSid()];if(ses&&ses.kind)q.kind=ses.kind}
-/* Quick check reads and writes the session for (pupil, date) directly. */
+/* Mark reads and writes the session for (pupil, date) directly. */
 function quickSid(){return S.ui.quick.pid+"_"+S.ui.date}
 function quickWords(){const ses=S.sessions[quickSid()];return {...((ses&&ses.words)||{})}}
 function saveQuickWords(words){
@@ -664,27 +698,61 @@ function saveQuickWords(words){
   if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
   saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
 }
-/* the words Quick check is showing: a test's words, or one whole list */
+/* the words Mark is showing: a test's words, or one whole list */
 function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list==null?curList(summary(q.pid)):q.list;return listWords(LISTS[li])}
-function quickView(){
-  const q=S.ui.quick,ids=pupilIds();
-  const opts=ids.map(id=>`<option value="${id}" ${q.pid===id?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("");
-  let h=`<div class="panel stack"><p class="muted">Use this for a reading check (the child reads each word aloud) or to type in marks from a paper grid. Tap once for correct, twice for not yet, three times to clear. Every tap is saved straight away.</p>
-  <div class="row"><select id="qPupil" data-c="quickPupil"><option value="">Choose pupil…</option>${opts}</select>
-  <input type="date" id="qDate" data-c="date" value="${S.ui.date}">
-  <div class="seg"><button data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button><button data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button></div></div>`;
-  if(q.pid&&S.pupils[q.pid]){
-    /* Classroom Hub: the grid shows the saved session for this pupil and
-       date, and every tap writes to it — no draft to lose by switching
-       pupil. "before" is everything up to the day before. */
-    const cur=quickWords(),n=Object.keys(cur).length,before=wordStates(q.pid,{before:S.ui.date}),sm=summary(q.pid);
-    const li=q.list==null?curList(sm):q.list,shown=quickShown(),focus=new Set(sm.level<NSETS?setWords(sm.level):[]);
-    if(q.group&&q.group.length)h+=`<div class="chips">${q.group.filter(id=>S.pupils[id]).map(id=>`<button class="wchip" data-a="qPick" data-id="${id}" style="font-family:var(--f-ui);font-size:14px;cursor:pointer;${id===q.pid?"border-color:var(--accent);background:var(--accent-soft)":""}">${esc(S.pupils[id].name)}</button>`).join("")}</div>`;
-    h+=q.only?`<div class="row" style="justify-content:space-between"><span class="small"><b>${esc(q.onlyLabel||"Test words")}</b> · ${q.only.length} words</span><a href="#" class="small" data-a="qWhole">Show the whole list</a></div>`:`<div class="row" style="justify-content:space-between"><span class="small muted">${esc(levelLabel(sm))}. Their current set is outlined.</span>${listSeg(li,"qList")}</div>`;
-    h+=`<div class="qgrid">${shown.map(i=>{const w=WORDS[i],m=cur[i]&&cur[i].s;const prev=before[i].st;return `<button class="${m?"q-"+m:""}${focus.has(i)?" q-focus":""}" data-a="qmark" data-i="${i}"><small>${q.only?"":num(i)}${prev!=="none"?(q.only?"":" · ")+(isKnown(prev)?"✓ before":"✗ before"):""}</small>${esc(w)}</button>`}).join("")}</div>
-    <div class="row"><span class="muted small">${n?`${n} word${n===1?"":"s"} marked for ${esc(S.pupils[q.pid].name)} on ${fmtShort(S.ui.date)} · saved`:"Nothing marked for this date yet"}</span><button class="btn ghost" data-a="qAll" data-s="c">Mark the rest of these correct</button>${q.group&&q.group.indexOf(q.pid)<q.group.length-1?`<button class="btn primary" data-a="qNext">Next child</button>`:""}<button class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button></div>`;
-  }
-  return h+`</div>`;
+/* Load a test from testPlan() into Mark. The words and children are copied
+   here, because the plan moves on as soon as children get 10/10 and the
+   test being marked must not change under the teacher. */
+function loadTest(t){const q=S.ui.quick;Object.assign(q,{test:"test",only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
+function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
+function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
+function markView(){
+  const q=S.ui.quick,tests=testPlan().tests;
+  if(!q.test){if(tests.length)loadTest(tests[0]);else markOne()}
+  const list=markPupils();
+  if(!q.pid||!list.includes(q.pid))pickQuick(list[0]);
+  const date=S.ui.date,cur=quickWords(),before=wordStates(q.pid,{before:date}),sm=summary(q.pid);
+  const li=q.list==null?curList(sm):q.list,shown=quickShown(),focus=new Set(sm.level<NSETS?setWords(sm.level):[]);
+  const tk=q.only?tests.findIndex(t=>t.title===q.onlyLabel):-1;
+  /* each child's status for this test and date */
+  const status=id=>{const w=(S.sessions[id+"_"+date]||{}).words||{};
+    if(q.only){const m=q.only.filter(i=>w[i]).length;return m===q.only.length?["✓ done",true]:[m?`${m}/${q.only.length}`:"",false]}
+    const n=Object.keys(w).length;return [n?`${n} marked`:"",false]};
+  const sts=list.map(id=>[id,...status(id)]),doneN=sts.filter(x=>x[2]).length;
+  const right=shown.filter(i=>cur[i]&&cur[i].s==="c").length,wrong=shown.filter(i=>cur[i]&&cur[i].s==="x"),marked=right+wrong.length,n=Object.keys(cur).length;
+  const k=list.indexOf(q.pid),next=list[k+1];
+  let h=`<div class="markbar">
+    <label for="mTest">Marking</label>
+    <select id="mTest" data-c="markTest">${tests.map((t,j)=>`<option value="${j}" ${j===tk?"selected":""}>${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&tk<0?`<option value="cur" selected>${esc(q.onlyLabel)} · in progress</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
+    <input type="date" id="qDate" data-c="date" value="${date}" aria-label="Date">
+    <div class="seg" role="group" aria-label="Kind of check"><button type="button" data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button><button type="button" data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button></div>
+    <span style="flex:1"></span><span class="muted small">Saved as you tap</span>
+  </div>
+  <div class="marklay">
+   <section class="panel plist" aria-label="Pupils in this test">
+    <div class="phead"><b>${list.length} pupil${list.length===1?"":"s"}</b><span class="muted small">${q.only?`${doneN} done`:""}</span></div>
+    <div class="pls">${sts.map(([id,st,done])=>{const s2=summary(id);return `<button type="button" class="pl" data-a="qPick" data-id="${id}" aria-current="${id===q.pid}">${s2.sessions.length?bandDot(s2.level):'<span class="dot" style="--band:transparent"></span>'}<span>${esc(S.pupils[id].name)}</span><span class="st${done?" done":""}">${st}</span></button>`}).join("")}</div>
+   </section>
+   <section class="panel markcard" aria-labelledby="who">
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+     <div><h2 id="who">${esc(S.pupils[q.pid].name)}</h2><div class="row small" style="gap:8px;margin-top:6px;color:var(--ink-2);font-size:14px">${sm.sessions.length?bandDot(sm.level):""}${esc(levelLabel(sm))}</div></div>
+     <div style="text-align:right"><div class="score" id="mScore">${right}<small>/${shown.length}</small></div><div class="muted small">${marked} marked · ${wrong.length} not yet</div></div>
+    </div>
+    <p class="note" style="font-size:14px;padding:10px 14px">Tap once: <b class="up">✓ correct</b> · twice: <b class="down">✗ not yet</b> · three times: clear. Blue outline = the set they’re on.</p>
+    ${q.only?"":`<div class="row" style="justify-content:space-between"><span class="small muted">Any word from the list. Each tap is saved for ${fmtShort(date)}.</span>${listSeg(li,"qList")}</div>`}
+    <div class="tiles">${shown.map((i,j)=>{const w=WORDS[i],m=cur[i]&&cur[i].s,prev=before[i].st;
+      return `<button type="button" class="tile${m==="c"?" c":m==="x"?" x":""}${focus.has(i)?" focus":""}${w.length>8?" long":""}" data-a="qmark" data-i="${i}" aria-label="${esc(w)}, ${m==="c"?"correct":m==="x"?"not yet":"not marked"}"><span class="n">${q.only?j+1:num(i)}</span><span class="tk" aria-hidden="true">${m==="c"?"✓":m==="x"?"✗":""}</span><span class="wd">${esc(w)}</span><span class="hint">${prev==="none"?"":isKnown(prev)?"✓ last time":"✗ last time"}</span></button>`}).join("")}</div>
+    ${q.wrote?`<div class="stack"><h3>What ${esc(shortName(q.pid))} wrote</h3>${wrong.length?`<div class="wrote">${wrong.map(i=>`<label for="wr${i}"><span>for <b class="wd" style="font-size:16px;color:var(--ink)">${esc(WORDS[i])}</b></span><input type="text" id="wr${i}" data-c="qWrote" data-i="${i}" value="${esc(cur[i].r||"")}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>`).join("")}</div><p class="muted small">Type exactly what they wrote. It is saved when you leave each box, and feeds “What they wrote” and the child’s plan.</p>`:'<p class="muted small">Mark a word ✗ not yet first, then type what they wrote for it.</p>'}</div>`:""}
+    <div class="row">
+     <button type="button" class="btn" data-a="qAll" data-s="c">Mark the rest correct</button>
+     <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
+     <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
+     <span style="flex:1"></span>
+     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="week">Back to This week</button>`}
+    </div>
+   </section>
+  </div>`;
+  return h;
 }
 
 /* ----- Review ----- */
@@ -1548,15 +1616,15 @@ const A={
   qmark:el=>{const cur=quickWords(),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveQuickWords(cur)},
   qAll:()=>{const cur=quickWords();for(const i of quickShown())if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
   qList:el=>{S.ui.quick.list=+el.dataset.k},
-  qWhole:(el,e)=>{e.preventDefault();Object.assign(S.ui.quick,{only:null,onlyLabel:"",group:null})},
   qPick:el=>{pickQuick(el.dataset.id)},
-  qNext:()=>{const q=S.ui.quick,k=q.group.indexOf(q.pid);if(k>=0&&k<q.group.length-1)pickQuick(q.group[k+1])},
+  qNext:()=>{const q=S.ui.quick,l=markPupils(),k=l.indexOf(q.pid);if(k>=0&&k<l.length-1)pickQuick(l[k+1]);window.scrollTo({top:0})},
+  qWroteToggle:()=>{S.ui.quick.wrote=!S.ui.quick.wrote},
   list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null},
   moreWords:el=>{S.ui.showAll[el.dataset.k]=true},
   goFilter:el=>{S.ui.pfilter=el.dataset.f;setTab("pupils");window.scrollTo({top:0})},
-  checkReady:()=>{const ids=classNeeds().ready;if(!ids.length)return;Object.assign(S.ui.quick,{only:null,onlyLabel:"",group:ids,list:null});pickQuick(ids[0]);setTab("mark");window.scrollTo({top:0})},
+  checkReady:()=>{const ids=classNeeds().ready;if(!ids.length)return;markOne(ids);pickQuick(ids[0]);setTab("mark");window.scrollTo({top:0})},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
-  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;Object.assign(S.ui.quick,{only:t.words,onlyLabel:t.title,group:t.pids,kind:"spelling",list:null});pickQuick(t.pids[0]);setTab("mark");window.scrollTo({top:0})},
+  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;loadTest(t);setTab("mark");window.scrollTo({top:0})},
   testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
   testScript:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testScript(t);return "skip"},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
@@ -1632,7 +1700,8 @@ document.addEventListener("change",e=>{
   switch(c){
     case "date":S.ui.date=el.value||localDate();break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "quickPupil":pickQuick(el.value);break;
+    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=testPlan().tests[+v];if(t)loadTest(t)}break}
+    case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
     case "printPage":P.pages=toggle(P.pages,+el.value);break;
     case "printLevel":P.levels=toggle(P.levels,+el.value);break;
     case "printPid":P.pids=toggle(P.pids,el.value);break;
