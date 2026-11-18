@@ -87,17 +87,25 @@ or writes `tp_starters` / `tp_starter_*` except to copy `tp_starter_cfg` (slots,
 teacher asks, and to keep its board ink in `tp_starter_ann` under `cbm:<iso>:…` (the focus-skills list
 under `cbm:<iso>:focus:…`; `window.hubOpenBoard` takes the ink key as `opts.key`).
 One per-class key, **`tp_cbm`** (in `DATA_KEYS` and `TP_PER_CLASS`):
-`{ ht, slots:(stepId|null)[20], n?:6-20, sm?:true, yr?:1-6, xt?:{ on, pick:'2'|'5'|'10'|'all', count, mode?:'grid'|'mult', per?:true }, xs?:{ [pid]:{ on, got, seen, at } }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg, mt?:{ [pid]:n }, xm?:{ [pid]:1|0 } } } }`.
+`{ ht, slots:(stepId|null)[20], n?:6-20, sm?:true, yr?:1-6, xt?:{ on, mode?:'grid'|'mult', per?:true, tabs?:number[], count:20|30|40|50, pick:'2'|'5'|'10'|'all' }, xb?:{ [pid]:{ p:'grid'|'mult'|'none', n?:20|30|40|50 } }, xs?:{ [pid]:{ on, got, seen, at } }, support:{ [pid]:{ mode:'auto'|'full'|'num', rung?, rungAt?, lv?, lvAt? } }, lv:{ [pid]:{ [class skill]: steps back } }, days:{ [iso]:{ qs, audit:[i,j], ind?:1, sheets, marks:{ [pid]: {a} | {x:1} }, tg, mt?:{ [pid]:n }, xm?:{ [pid]:1|0 } } } }`.
 `a` is the teacher's two marks (1 right, 0 wrong, -1 blank, null not given) for the slots in `audit`;
 `{x:1}` absent. An entry is complete when both marks are given. No score is kept: marks from before
 Nov 2026 also carry `s` (the child's own score; `w`, the wrong questions, in the first version), which
 still counts as an entry and is otherwise ignored. `support[pid].mode` `'support'` (the old "always
-shorter sheet") reads as `'num'`. `xt` is the optional back page (missing = off). `xt.mode` `'grid'` (missing) is the ×tables square, seeded on the
-date so nothing is stored per day; `xt.per` makes the square each child's own (their learning table and the ones
-they have got). `'mult'` is the Multiples of N page, seeded on date + table. One times-tables record per child is
+shorter sheet") reads as `'num'`. `xt` is the class's back page (missing = off). `xt.mode` `'grid'` (missing) is the ×tables square;
+`'mult'` is the Multiples of N page, seeded on date + table. A square is seeded on the date, its tables and its length, so nothing is
+stored per day. `xt.per` makes the square each child's own (half the table they are learning, the rest the ones they have got, the
+longest unseen weighted most); without it the square is the same for everyone, an even spread over `xt.tabs` (Nov 2026; missing =
+read from `xt.pick`: `'all'` is 2, 5, 10). `xt.pick` is Mental Starters' own setting, still written so "Copy from Mental Starters"
+round-trips; nothing else reads it. `xt.count` is the square's length: 20, 30, 40 or 50, and an older 60, 80 or 100 reads as 50.
+**`xb[pid]`** (Nov 2026; missing = the class's page) gives one child a different back page: `p` `'grid'` (a square of their own
+tables, `n` questions, missing = `xt.count`), `'mult'` or `'none'`. It applies whatever `xt` says, including when `xt.on` is false.
+A child is **on the ladder** when their page follows their own record: every Multiples page, and a square of their own tables
+(`xt.per`, or `xb[pid].p === 'grid'`). One times-tables record per child is
 worked out, never stored: `xs[pid]` = `{ on (0 = all got), got:[n], seen:{ [n]: iso }, at }` (the teacher's last
-change; missing = learning 10, nothing got) replayed with each later day's `mt[pid]` (the table printed, fixed at
-print or first mark) and `xm[pid]` (1 got it / 0 not yet; not one of the two marks, never in `marks`).
+change; missing = learning 10, nothing got) replayed with each later day's `mt[pid]` (the table the page was marked for, fixed at
+print or first mark; for a square, the table being learned) and `xm[pid]` (1 got it / 0 not yet; not one of the two marks, never
+in `marks`). Both page types write `mt` / `xm` and move the record by the same rule; a child not on the ladder has neither.
 Skill keys also take the form `dp:<class skill>` (the same step asked as a reasoning question, on the
 sheet; `js/cbmdeep.js`) and `do:<class skill>` (the same in the practice box, where an open answer is
 allowed); never rename those prefixes. `lv[pid][skill]` is `-1` for a skill that may be asked deeper
