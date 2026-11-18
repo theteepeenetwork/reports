@@ -45,7 +45,7 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   await expect(frame.locator('#main')).not.toContainText('Mark photos');
   await expect(frame.locator('#nav button', { hasText: 'Practise' }), 'no practice games in the hub').toHaveCount(0);
   await expect(frame.locator('#nav button', { hasText: 'Review' }), 'no photo review queue in the hub').toHaveCount(0);
-  await expect(frame.locator('#qPupil option', { hasText: 'Kit Marlow' })).toHaveCount(1);
+  await expect(frame.locator('.pl', { hasText: 'Kit Marlow' })).toHaveCount(1);
   await frame.locator('#nav button', { hasText: 'Class' }).click();
   await expect(frame.locator('#main')).toContainText('Kit Marlow');
   await expect(frame.locator('#main')).toContainText('Nell Gwyn');
@@ -82,33 +82,101 @@ test('Hundred Words on the default class reads the un-suffixed roster', async ({
   await expect(frame.locator('#main')).not.toContainText('Kit Marlow');
 });
 
-test('Quick check saves each tap, so switching pupil and back keeps the marks', async ({ page }) => {
+test('Mark saves each tap, so switching pupil and back keeps the marks', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   await frame.locator('#nav button', { hasText: 'Mark' }).click();
-  await frame.locator('#qPupil').selectOption('x1');
-  const said = frame.locator('.qgrid button[data-i="4"]');
+  /* nobody is assessed, so the whole-class test on words 1–20 is loaded */
+  await expect(frame.locator('#mTest option:checked')).toHaveText('Whole class · 100 HFW 1–20 (20 words)');
+  await expect(frame.locator('.tile')).toHaveCount(20);
+  await frame.locator('.pl[data-id="x1"]').click();
+  const said = frame.locator('.tile[data-i="4"]');
   await said.click();
-  await expect(said).toHaveClass(/q-c/);
-  await frame.locator('.qgrid button[data-i="5"]').click();
-  await frame.locator('.qgrid button[data-i="5"]').click();     // twice = not yet
+  await expect(said).toHaveClass(/\bc\b/);
+  await frame.locator('.tile[data-i="5"]').click();
+  await frame.locator('.tile[data-i="5"]').click();     // twice = not yet
 
-  await frame.locator('#qPupil').selectOption('x2');
-  await expect(frame.locator('.qgrid button[data-i="4"]')).not.toHaveClass(/q-c/);
-  await frame.locator('#qPupil').selectOption('x1');
-  await expect(frame.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
-  await expect(frame.locator('.qgrid button[data-i="5"]')).toHaveClass(/q-x/);
+  await frame.locator('.pl[data-id="x2"]').click();
+  await expect(frame.locator('.tile[data-i="4"]')).not.toHaveClass(/\bc\b/);
+  await frame.locator('.pl[data-id="x1"]').click();
+  await expect(frame.locator('.tile[data-i="4"]')).toHaveClass(/\bc\b/);
+  await expect(frame.locator('.tile[data-i="5"]')).toHaveClass(/\bx\b/);
+  await expect(frame.locator('.pl[data-id="x1"] .st')).toHaveText('2/20');
 
   const doc = JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
   const ses = Object.values(doc.sessions).find(x => x.pupilId === 'x1');
   expect(ses.words['4'].s).toBe('c');
   expect(ses.words['5'].s).toBe('x');
+  expect(ses.kind).toBe('spelling');
+  /* the record is the shape it always was */
+  expect(Object.keys(ses).sort()).toEqual(['date', 'kind', 'photos', 'pupilId', 'updatedAt', 'words']);
 
   /* and it survives a reload */
   await page.reload();
   const again = page.frameLocator('#hwFrame');
   await again.locator('#nav button', { hasText: 'Mark' }).click();
-  await again.locator('#qPupil').selectOption('x1');
-  await expect(again.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
+  await again.locator('.pl[data-id="x1"]').click();
+  await expect(again.locator('.tile[data-i="4"]')).toHaveClass(/\bc\b/);
+});
+
+test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupil', async ({ page }) => {
+  const frame = await openHW(page, twoClasses('b'));
+  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')) || '{"sessions":{}}').sessions;
+  const tile = frame.locator('.tile[data-i="0"]');
+  await expect(frame.locator('#who')).toHaveText('Kit Marlow');
+
+  /* once: correct · twice: not yet · three times: clear */
+  await expect(tile).toHaveAttribute('aria-label', 'the, not marked');
+  await tile.click();
+  await expect(tile).toHaveAttribute('aria-label', 'the, correct');
+  await expect(frame.locator('#mScore')).toHaveText('1/20');
+  await tile.click();
+  await expect(tile).toHaveAttribute('aria-label', 'the, not yet');
+  await expect(frame.locator('#mScore')).toHaveText('0/20');
+  await tile.click();
+  await expect(tile).toHaveAttribute('aria-label', 'the, not marked');
+  await expect.poll(async () => Object.keys(await stored()).length, 'a session with nothing in it is removed').toBe(0);
+
+  /* the words of the set the child is on are outlined */
+  await expect(frame.locator('.tile.focus')).toHaveCount(10);
+
+  /* said is wrong and they wrote "sed"; the rest are right */
+  const said = frame.locator('.tile[data-i="4"]');
+  await said.click(); await said.click();
+  await frame.getByRole('button', { name: 'Add what they wrote' }).click();
+  await frame.locator('#wr4').fill('sed');
+  await frame.locator('#wr4').blur();
+  await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
+  await expect(frame.locator('#mScore')).toHaveText('19/20');
+  await expect(frame.locator('.tile.c')).toHaveCount(19);
+  await expect(said, 'the rest, not the ones already marked').toHaveClass(/\bx\b/);
+  await expect(frame.locator('.pl[data-id="x1"] .st')).toHaveText('✓ done');
+  const ses = Object.values(await stored())[0];
+  expect(ses.words['4']).toEqual({ s: 'x', src: 'manual', r: 'sed' });
+  expect(Object.keys(ses.words).length).toBe(20);
+
+  /* Next pupil; the last child's button goes back to This week */
+  await frame.getByRole('button', { name: 'Next: Nell →' }).click();
+  await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
+  await expect(frame.locator('.pl[data-id="x2"]')).toHaveAttribute('aria-current', 'true');
+  await expect(frame.locator('#mScore')).toHaveText('0/20');
+  await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(0);
+  await expect(frame.locator('.plist .phead')).toContainText('1 done');
+  await frame.getByRole('button', { name: 'Back to This week' }).click();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await expect(frame.locator('.routine')).toContainText('1 of 2 entered');
+
+  /* Kit got 9/10 on 1–10, so is still on it: "✗ last time" shows from tomorrow's check */
+  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  await frame.locator('#mTest').selectOption('one');
+  await expect(frame.locator('.tile')).toHaveCount(100);
+  await frame.locator('#qDate').fill('2030-01-01');
+  await frame.locator('.pl[data-id="x1"]').click();
+  await expect(frame.locator('.tile[data-i="4"] .hint')).toHaveText('✗ last time');
+  await expect(frame.locator('.tile[data-i="3"] .hint')).toHaveText('✓ last time');
+  await frame.getByRole('button', { name: 'Reading' }).click();
+  await frame.locator('.tile[data-i="4"]').click();
+  expect((await stored())['x1_2030-01-01']).toMatchObject({ kind: 'reading', date: '2030-01-01', pupilId: 'x1' });
 });
 
 test('This week: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
