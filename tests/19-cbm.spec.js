@@ -585,6 +585,7 @@ test('×tables on the back: off by default, turned on in Set up, one page after 
   await open(page);
   expect(await page.evaluate(() => window.CBM.load().xt)).toEqual({ on: false, pick: 'all', tabs: [2, 5, 10], count: 50, mode: 'grid', per: false });
   await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('[data-sec="back"]').click();
   await expect(page.locator('[data-xkind="none"]')).toHaveAttribute('aria-checked', 'true');
   await page.locator('[data-xkind="grid"]').click();
   // the class's tables are tick-chips, any of the eleven, never none
@@ -998,7 +999,9 @@ test('children mark their own: each child\'s answers as a strip on the back page
   await open(page);
   expect(await page.evaluate(() => window.CBM.load().sm)).toBe(false);
   await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('[data-sec="mark"]').click();
   await page.getByLabel('Children mark their own answers').check();
+  await page.locator('[data-sec="back"]').click();
   await page.locator('[data-xkind="grid"]').click();
   expect(await page.evaluate(() => window.CBM.load().sm)).toBe(true);
   await page.evaluate(PAST => {
@@ -1103,6 +1106,7 @@ test('Multiples on the back: each child gets their own table, the mark is one ta
   const errors = collectErrors(page);
   await open(page);
   await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('[data-sec="back"]').click();
   await page.locator('[data-xkind="mult"]').click();
   await expect(page.locator('[data-xtab]')).toHaveCount(0);
   // p2 already has 10s and 5s
@@ -1229,6 +1233,7 @@ test('the back page is chosen for each child; ✓ / ✗ for a square moves the s
   const errors = collectErrors(page);
   await open(page);
   await page.getByRole('button', { name: 'Set up' }).click();
+  await page.locator('[data-sec="back"]').click();
   await page.locator('[data-xkind="mult"]').click();
   // p1 on the tables square, from Set up; p2 on nothing, from their panel; p3 back onto the class page
   await page.locator('#cbmXbAdd').selectOption('p1');
@@ -1313,5 +1318,72 @@ test('the back page is chosen for each child; ✓ / ✗ for a square moves the s
   await expect(page.locator('tr[data-xpid="p1"] .cbm-rec-last')).toContainText('10✓ 10✓ 5✓');
   await page.locator('.cbm-ladline [data-goto="setup"]').click();
   await expect(page.locator('.cbm-backset')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('Set up is four sections: Questions, Back page, Marking, How it works; the research is out of the way of the settings', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.getByRole('button', { name: 'Set up' }).click();
+  const sec = id => page.locator(`.cbm-secs [data-sec="${id}"]`);
+  await expect(page.locator('.cbm-secs .cbm-sec span')).toHaveText(['Questions', 'Back page', 'Marking', 'How it works']);
+  // Questions first: the half term, the length and the list, and nothing else
+  await expect(sec('q')).toHaveAttribute('aria-current', 'page');
+  await expect(sec('q')).toContainText('20 skills');
+  await expect(page.locator('#cbmHT')).toBeVisible();
+  await expect(page.locator('#cbmCopy')).toBeVisible();
+  await expect(page.locator('.cbm-picker .gen-slot')).toHaveCount(20);
+  await expect(page.locator('.cbm-backset, #cbmSm, .cbm-why')).toHaveCount(0);
+
+  await sec('back').click();
+  await expect(sec('back')).toHaveAttribute('aria-current', 'page');
+  await expect(sec('back')).toContainText('Nothing');
+  await expect(page.locator('.cbm-picker, #cbmSm')).toHaveCount(0);
+  await expect(page.locator('.cbm-kind')).toHaveCount(3);
+  await expect(page.locator('.cbm-backinfo')).toHaveCount(0);              // no one on the ladder yet: nothing to explain
+  await page.locator('.cbm-kind[data-xkind="mult"]').click();
+  await expect(page.locator('.cbm-kind[data-xkind="mult"]')).toHaveAttribute('aria-checked', 'true');
+  await expect(sec('back')).toContainText('Multiples of N');
+  await expect(page.locator('.cbm-moveon')).toContainText('10 → 5 → 2 → 4 → 8 → 3 → 6 → 9 → 7 → 11 → 12');
+  // tomorrow's back pages: everyone starts on ×10, and one child's next six, a revisit on every third once there is a table to revisit
+  await expect(page.locator('.cbm-tomorrow .cbm-chip').first()).toHaveText(`×10 ${ROSTER.length}`);
+  await expect(page.locator('.cbm-tomorrow .cbm-pg')).toHaveText(['10', '10', '10', '10', '10', '10']);
+  await page.evaluate(() => { const C = window.CBM, s = C.load(); C.moveOnto(s, 'p1', 2); s.xb = { p2: { p: 'none' } }; C.save(s); window.cbmRender(); });
+  await expect(page.locator('.cbm-tomorrow')).toContainText("Ava's next 6 pages");
+  await expect(page.locator('.cbm-tomorrow .cbm-pg')).toHaveText(['2', '2', '10↻', '2', '2', '5↻']);
+  await expect(page.locator('.cbm-tomorrow .cbm-chip')).toHaveText(['×10 4', '×2 1', '1 nothing']);
+  await expect(sec('back')).toContainText('1 on their own');
+  expect(await page.evaluate(() => window.CBM.nextPages({ on: null, got: { 10: '2026-01-01', 5: '2026-02-01' }, since: 0 }, 3))).toEqual([{ n: 10, r: true }, { n: 5, r: true }, { n: 10, r: true }]);
+
+  // after a ✗ on a revisit the preview shows what will print: that table again, until it is marked
+  const owed = await page.evaluate(PAST => {
+    const C = window.CBM, s = C.load(), d = eval(PAST)(1)[0];
+    s.xs.p1 = { on: 2, got: [10, 5], seen: { 10: '2020-01-06', 5: '2020-01-06' }, at: '2020-01-06' };   // learning ×2 since long before the page
+    C.makeDay(s, d); s.days[d].mt = { p1: 10 }; s.days[d].xm = { p1: 0 };
+    const st = C.tablesState(s, 'p1'), tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    return { owed: st.owed, next: C.nextPages(st, 3), real: C.tableForDay(s, tomorrow.toLocaleDateString('en-CA'), 'p1') };
+  }, PAST_DAYS);
+  expect(owed.owed).toBe(10);
+  expect(owed.real).toEqual({ n: 10, r: true });
+  expect(owed.next).toEqual([{ n: 10, r: true }, { n: 10, r: true }, { n: 10, r: true }]);
+
+  await sec('mark').click();
+  await expect(page.locator('.cbm-backset, .cbm-picker')).toHaveCount(0);
+  await expect(sec('mark')).toContainText('You mark two');
+  await page.getByLabel('Children mark their own answers').check();
+  expect(await page.evaluate(() => window.CBM.load().sm)).toBe(true);
+  await expect(sec('mark')).toContainText('children mark their own');
+
+  await sec('how').click();
+  await expect(page.locator('.cbm-how')).toHaveCount(4);
+  await expect(page.locator('.cbm-why summary')).toBeVisible();
+  await expect(page.locator('.cbm-why li').first()).toBeHidden();             // the research is there, folded away
+  await page.locator('.cbm-why summary').click();
+  await expect(page.locator('.cbm-why')).toContainText('Deno, 1985');
+
+  // the section stays put while you move between the tabs
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.locator('.cbm-tab[data-view="setup"]').click();
+  await expect(sec('how')).toHaveAttribute('aria-current', 'page');
   expect(errors).toEqual([]);
 });

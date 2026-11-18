@@ -1191,7 +1191,7 @@
   /* ===================================================================
      SCREEN
      =================================================================== */
-  var view = 'today', curDay = null, windowDays = 14;
+  var view = 'today', curDay = null, windowDays = 14, setupSec = 'q';
 
   function GRQ(q) { return typeof window.genRenderQuestion === 'function' ? window.genRenderQuestion(q) : esc(q.s || ''); }
   function ans(q, iso) { return typeof window.genAnswer === 'function' ? window.genAnswer(q, iso) : (q.ans || ''); }
@@ -1996,7 +1996,6 @@
 
   /* Set up › the back page: the class's page, whose tables a square has,
      the children on a different page, and how long a square is. */
-  var setupSec = 'q';
   function segBtns(items, attr, cur, label, radio) {
     return '<div class="cbm-sg" role="' + (radio ? 'radiogroup' : 'group') + '" aria-label="' + esc(label) + '">' + items.map(function (it) {
       var on = it[0] === cur;
@@ -2010,7 +2009,11 @@
     var NOTE = { grid: 'quick facts on their own tables', mult: 'Multiples, whatever the class has', none: 'single-sided' };
     return '<div class="card cbm-backset"><h2>Back page · times tables</h2><p class="cbm-hint">Printed after each child\'s sheet, so it lands on the back when you print double-sided.</p>' +
       '<div class="cbm-setblock"><div class="cbm-setlabel">1 · The class\'s back page</div>' +
-        segBtns([['none', 'Nothing'], ['grid', 'Tables square'], ['mult', 'Multiples of N']], 'data-xkind', cls, 'What goes on the back', true) + '</div>' +
+        '<div class="cbm-kinds" role="radiogroup" aria-label="What goes on the back">' + [['none', 'Nothing', 'Single-sided sheets.'],
+          ['grid', 'Tables square', 'A grid of quick-fire facts. Good for fluency once a table is known.'],
+          ['mult', 'Multiples of N', 'Sort, a path, sequences and missing numbers for one table. Good for learning a new one.']].map(function (k) {
+            return '<button type="button" role="radio" aria-checked="' + (cls === k[0]) + '" class="cbm-kind' + (cls === k[0] ? ' on' : '') + '" data-xkind="' + k[0] + '">' +
+              '<span class="cbm-thumb cbm-thumb-' + k[0] + '" aria-hidden="true"></span><span><b>' + k[1] + '</b><span class="cbm-sub">' + k[2] + '</span></span></button>'; }).join('') + '</div></div>' +
       (cls === 'none' ? '' : '<div class="cbm-setblock"><div class="cbm-setlabel">2 · Whose tables</div>' +
         (cls === 'mult' ? '<p class="cbm-sub">Each child\'s own: the page follows their place on the <b>×tables ladder</b> (Progress › ×tables). Children on the same table get the same page, so one answer key covers them.</p>'
           : '<div class="cbm-setline">' + segBtns([['own', 'Each child\'s own'], ['class', 'The same for everyone']], 'data-xwho', state.xt.per ? 'own' : 'class', 'Whose tables') +
@@ -2032,7 +2035,45 @@
         '<span class="cbm-sub">' + (state.xt.count <= 40 ? 'Fits one side of A4 at full size' : 'Fits A4: the most before the type has to shrink') + '</span></div>' +
         '<p class="cbm-sub">' + (cls === 'grid' ? 'For the class.' : 'For ' + esc(names(sqKids)) + ': try 20 for a gentler page.') + ' Mix: <b>' +
           (cls !== 'grid' || state.xt.per ? 'half the table they\'re learning, half the ones they\'ve got (longest unseen first)' : 'an even spread across ' + state.xt.tabs.join(', ') + '×') +
-          '</b> · every multiplier 1–12 once before any repeats · about a quarter as missing numbers (☐ × 5 = 35) and ÷ facts</p></div>' : '') + '</div>';
+          '</b> · every multiplier 1–12 once before any repeats · about a quarter as missing numbers (☐ × 5 = 35) and ÷ facts</p></div>' : '') +
+      (roster.some(function (p) { return onLadder(state, p.id); }) ? '<div class="cbm-backinfo"><div class="cbm-moveon"><b>How children move on</b><ul>' +
+        '<li>Order: ' + ORDER.join(' → ') + '</li><li><b>' + (MOVE_ON === 2 ? 'Two' : MOVE_ON) + ' ✓ in a row</b> on the table they\'re learning → got it, next table</li>' +
+        '<li><b>Every ' + (REVISIT_EVERY === 3 ? '3rd' : REVISIT_EVERY + 'th') + ' Multiples page</b> brings back the table they got longest ago (↻)</li>' +
+        '<li>✗ on a ↻ → it comes back next time; <b>✗ twice</b> → learn it again</li></ul>' +
+        '<span class="cbm-sub">You tap ✓ / ✗ for the back page on Today: the same for both page types.</span></div>' + tomorrowHTML(state) + '</div>' : '') + '</div>';
+  }
+  /* A child's next n Multiples pages if nothing is marked: the table being
+     learned, with the one got longest ago back on every third; or, after a
+     ✗ on a revisit, that table until it is marked again. */
+  function nextPages(st, n) {
+    var got = {}, since = st.since, out = [];
+    Object.keys(st.got).forEach(function (k) { got[k] = st.got[k]; });
+    for (var i = 0; i < n; i++) {
+      var cur = { on: st.on, got: got }, list = gotList(cur);
+      // a ✗ on a revisit: that table comes back on every page until it is marked again (tableForDay)
+      if (st.owed && got[st.owed]) { out.push({ n: st.owed, r: true }); continue; }
+      if (!st.on || (list.length && since >= REVISIT_EVERY - 1)) { var o = oldestGot(cur) || 10; out.push({ n: o, r: true }); got[o] = '9999-' + ('0' + i).slice(-2); since = 0; }
+      else { out.push({ n: st.on, r: false }); since++; }
+    }
+    return out;
+  }
+  function tomorrowHTML(state) {
+    var next = addDays(todayISO(), 1), by = {}, rev = 0, sq = 0, none = 0, eg = null;
+    sortedRoster().forEach(function (p) {
+      var pg = pageOf(state, p.id);
+      if (pg === 'none') { none++; return; }
+      if (pg === 'grid') { sq++; return; }
+      var t = tableForDay(state, next, p.id), st = tablesState(state, p.id);
+      if (t.r) rev++; else by[t.n] = (by[t.n] || 0) + 1;
+      if (st.on && (!eg || (!gotList(eg.st).length && gotList(st).length))) eg = { p: p, st: st };
+    });
+    var other = [sq ? plural(sq, 'tables square') : '', none ? none + ' nothing' : ''].filter(Boolean).join(' · ');
+    return '<div class="cbm-tomorrow"><b>Tomorrow\'s back pages</b><div class="cbm-chips">' +
+      ORDER.filter(function (n) { return by[n]; }).map(function (n) { return '<span class="cbm-chip deep"><b>×' + n + '</b> ' + by[n] + '</span>'; }).join('') +
+      (rev ? '<span class="cbm-chip mid"><b>↻</b> ' + plural(rev, 'revisit') + '</span>' : '') + (other ? '<span class="cbm-chip grey">' + other + '</span>' : '') + '</div>' +
+      (eg ? '<div class="cbm-sub">' + esc(firstName(eg.p)) + '\'s next 6 pages</div><div class="cbm-pgs">' + nextPages(eg.st, 6).map(function (x) {
+          return '<span class="cbm-pg' + (x.r ? ' rv' : '') + '">' + x.n + (x.r ? '↻' : '') + '</span>'; }).join('') + '</div>' +
+        '<span class="cbm-sub">Changes as you mark: two ✓ on ×' + eg.st.on + ' and they move on.</span>' : '') + '</div>';
   }
   function wireBackSetup(body) {
     var card = body.querySelector('.cbm-backset'); if (!card) return;
@@ -2056,22 +2097,45 @@
   }
 
   /* ── Set up ───────────────────────────────────────────── */
+  /* Four sections, one on screen at a time: the questions, the back page,
+     marking, and how it all works (the research lives there, out of the way
+     of the settings). */
+  var SECS = [['q', 'Questions'], ['back', 'Back page'], ['mark', 'Marking'], ['how', 'How it works']];
   function renderSetup() {
     var state = load(), body = document.getElementById('cbmBody'), ht = htOf(state);
-    var picker = typeof window.genStepPicker === 'function' ? window.genStepPicker(state.slots, ht, state.yr) : '';
-    var nOpts = ''; for (var n = N_MIN; n <= N; n++) nOpts += '<option value="' + n + '"' + (state.n === n ? ' selected' : '') + '>' + n + '</option>';
-    body.innerHTML =
-      '<div class="card"><div class="cbm-setrow"><div><label for="cbmHT">Half term</label><select id="cbmHT">' +
-        '<option value="">Work it out from the date (' + esc(halfTermFor(todayISO())) + ')</option>' +
-        HALF_TERMS.map(function (h) { return '<option' + (state.ht === h ? ' selected' : '') + '>' + h + '</option>'; }).join('') +
-      '</select></div><div><label for="cbmN">Questions on the sheet</label><select id="cbmN">' + nOpts + '</select></div>' +
-      '<div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy the questions from Mental Starters</button></div>' +
-      '<p class="cbm-hint">Each question stays the same skill every day, with new numbers, so your marks build up skill by skill. Choose the skill on the left; the example on the right is what it looks like on the sheet, and under it the deeper question a child who is secure on it gets instead. Changes apply to sheets made from now on.</p>' +
-      '<div class="cbm-picker">' + picker + '</div></div>' +
-      backSetupHTML(state) +
-      '<div class="card"><div class="cbm-setrow"><label class="cbm-xton"><input type="checkbox" id="cbmSm"' + (state.sm ? ' checked' : '') + '> Children mark their own answers</label></div>' +
-        '<p class="cbm-hint">Every child has different numbers, so the answers cannot go on the board. With this on, each child\'s own answers print as a strip at the foot of the back of their sheet (under the ×tables, if those are on), to fold under or cut off and hand back when it is time to mark. Nothing the children mark is entered or used: sheets, stepping and who is on what still go by your two marks only.</p></div>' +
-      '<details class="card cbm-why"><summary>How it decides, and the research behind it</summary>' +
+    if (!SECS.some(function (s) { return s[0] === setupSec; })) setupSec = 'q';
+    var cls = state.xt.on ? state.xt.mode : 'none', nExc = Object.keys(state.xb).length;
+    var subs = { q: state.n + ' skills · ' + ht, back: (cls === 'none' ? 'Nothing' : PAGE_NAME[cls]) + (nExc ? ' · ' + nExc + ' on their own' : ''),
+                 mark: state.sm ? 'You mark two; children mark their own' : 'You mark two', how: 'The routine and research' };
+    var nav = '<nav class="cbm-secs" aria-label="Set up sections">' + SECS.map(function (s) {
+      var on = s[0] === setupSec;
+      return '<button type="button" class="cbm-sec' + (on ? ' on' : '') + '" data-sec="' + s[0] + '"' + (on ? ' aria-current="page"' : '') + '><span>' + s[1] + '</span><small>' + esc(subs[s[0]]) + '</small></button>'; }).join('') + '</nav>';
+    var main = '';
+    if (setupSec === 'q') {
+      var picker = typeof window.genStepPicker === 'function' ? window.genStepPicker(state.slots, ht, state.yr) : '';
+      var nOpts = ''; for (var n = N_MIN; n <= N; n++) nOpts += '<option value="' + n + '"' + (state.n === n ? ' selected' : '') + '>' + n + '</option>';
+      main = '<section class="card cbm-setcard" aria-labelledby="cbmSetQ"><h2 id="cbmSetQ">The questions</h2>' +
+        '<p class="cbm-hint">Each question is the same skill every day with new numbers, so your marks build up skill by skill. Choose the skill on the left; beside it is what it looks like on the sheet, and under that the deeper question a child who is secure on it gets instead. Changes apply from the next sheet.</p>' +
+        '<div class="cbm-setrow"><div><label for="cbmHT">Half term</label><select id="cbmHT">' +
+          '<option value="">From the date (' + esc(halfTermFor(todayISO())) + ')</option>' +
+          HALF_TERMS.map(function (h) { return '<option' + (state.ht === h ? ' selected' : '') + '>' + h + '</option>'; }).join('') +
+        '</select></div><div><label for="cbmN">Questions per sheet</label><select id="cbmN">' + nOpts + '</select></div>' +
+        '<div class="grow"></div><button type="button" class="secondary" id="cbmCopy">Copy from Mental Starters</button></div></section>' +
+        '<section class="card cbm-setcard" aria-label="Question list"><div class="cbm-picker">' + picker + '</div></section>';
+    } else if (setupSec === 'back') main = backSetupHTML(state);
+    else if (setupSec === 'mark') {
+      main = '<section class="card cbm-setcard" aria-labelledby="cbmSetM"><h2 id="cbmSetM">Marking</h2>' +
+        '<p class="cbm-hint">You mark the same two questions in every book and tap them in on Today. Nothing else is entered and no score is kept.</p>' +
+        '<label class="cbm-opt' + (state.sm ? ' on' : '') + '"><input type="checkbox" id="cbmSm"' + (state.sm ? ' checked' : '') + '><span><b>Children mark their own answers</b>' +
+        '<span class="cbm-sub">Every child has different numbers, so the answers cannot go on the board. With this on, each child\'s answers print as a strip at the foot of the back page (under the ×tables, if those are on), to fold under or cut off. Nothing the children mark is entered or used: your two marks still decide everything.</span></span></label></section>';
+    } else {
+      var step = function (t, says) { return '<div class="cbm-how"><b>' + t + '</b><span>' + says + '</span></div>'; };
+      main = '<section class="card cbm-setcard" aria-labelledby="cbmSetH"><h2 id="cbmSetH">How it works</h2><div class="cbm-hows">' +
+        step('1 · Same skills', 'Everyone does the same ' + state.n + ' skills, each with their own numbers: nothing to copy.') +
+        step('2 · Mark two', 'You mark the same two questions in every book. A different pair each day.') +
+        step('3 · It adapts', 'A wrong mark steps that skill back; right moves it on; blanks mean a shorter sheet.') +
+        step('4 · You teach', 'The board shows the skills the class gets wrong first, as worked models.') + '</div>' +
+        '<details class="cbm-why"><summary>How it decides, and the research behind it</summary>' +
         '<ul>' +
         '<li><b>The sheet is a CBM probe:</b> short, mixed and frequent (Deno, 1985; Fuchs &amp; Fuchs, 1986).</li>' +
         '<li><b>Two marks a day, a different two each day:</b> matrix sampling (Shoemaker, 1973). After a fortnight every skill has been checked across the class, and every child has a growing record of checked answers — for two taps each.</li>' +
@@ -2085,7 +2149,15 @@
         '<li><b>The board:</b> a model version of each question, the ones the class gets wrong first, for you to work through — worked examples are how a method is best shown (Sweller &amp; Cooper, 1985; Rosenshine, 2012).</li>' +
         '<li><b>Numbers only</b> (a setting on Progress, for a child who cannot read the questions yet): numbers and symbols only, because a child who cannot read the question cannot show the maths they know (Fuchs, Fuchs &amp; Prentice, 2004). Fluent number facts come first (EEF, 2017; DfE ready-to-progress criteria, 2020), in the order children learn them: counting, add or take 1, facts within 5, within 10, bonds to 10, doubles, teen numbers, add or take 10, then across 10 (Baroody, 2006). About a third of the sheet is the step they are learning; the rest is the steps just below it, half as missing numbers (? + 3 = 7) — mostly known with a few new (Burns, 2004; Codding, Burns &amp; Lukito, 2011), starting with ones they know (Skinner, 2002).</li>' +
         '<li><b>Your two questions:</b> one from each half of the sheet, so a blank on the second shows who is not getting that far; within each half, skills the class gets wrong, never the same slot twice in a week.</li>' +
-        '</ul></details>';
+        '</ul></details></section>';
+    }
+    body.innerHTML = '<div class="cbm-setup">' + nav + '<div class="cbm-setmain">' + main + '</div></div>';
+    body.querySelectorAll('[data-sec]').forEach(function (b) {
+      b.onclick = function () { setupSec = b.dataset.sec; renderSetup(); var on = body.querySelector('[data-sec="' + setupSec + '"]'); if (on) on.focus(); };
+    });
+    if (setupSec === 'back') { wireBackSetup(body); wirePupilLinks(body.querySelector('.cbm-backset')); return; }
+    if (setupSec === 'mark') { document.getElementById('cbmSm').onchange = function (e) { var s = load(); s.sm = e.target.checked; save(s); renderSetup(); }; return; }
+    if (setupSec !== 'q') return;
     /* The picker is Mental Starters' (js/generator.js), shown here as a list:
        only the questions this sheet has, each with an example beside it. The
        example's numbers are fixed, so it changes only when its skill does. */
@@ -2122,9 +2194,6 @@
     if (clr) clr.onclick = function () { var s = load(); s.slots = normSlots([]); save(s); renderSetup(); };
     var yr = body.querySelector('[data-gen-year]');
     if (yr) yr.onchange = function () { var s = load(); s.yr = +yr.value; save(s); renderSetup(); };
-    document.getElementById('cbmSm').onchange = function (e) { var s = load(); s.sm = e.target.checked; save(s); renderSetup(); };
-    wireBackSetup(body);
-    wirePupilLinks(body.querySelector('.cbm-backset'));
   }
 
   window.addEventListener('tp:sync', function () { var h = host(); if (h && h.classList.contains('active')) render(); });
@@ -2136,7 +2205,7 @@
     results: results, sessions: sessions, analyse: analyse, estimate: estimate, openState: openState,
     chooseTargets: chooseTargets, planFor: planFor, planSheets: planSheets, sheetPlan: sheetPlan, sheetQs: sheetQs,
     stepBack: stepBack, backPath: backPath, stageOf: stageOf, canDeep: canDeep, focusSlots: focusSlots, isScored: isScored,
-    keyLabel: keyLabel, pageOf: pageOf, onLadder: onLadder, ladderTable: ladderTable, tablesState: tablesState, tableForDay: tableForDay, freezeTables: freezeTables,
+    keyLabel: keyLabel, pageOf: pageOf, onLadder: onLadder, nextPages: nextPages, ladderTable: ladderTable, tablesState: tablesState, tableForDay: tableForDay, freezeTables: freezeTables,
     multiplesFor: multiplesFor, squareFor: squareFor, moveOnto: moveOnto, setTables: setTables, ORDER: ORDER, halfTermFor: halfTermFor, load: load, save: save, buildKey: buildKey, FD: FD, LADDER: LADDER, rungOf: rungOf, fdQ: fdQ
   };
 })();
