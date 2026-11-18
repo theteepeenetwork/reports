@@ -1150,6 +1150,7 @@
     h.querySelectorAll('[data-view]').forEach(function (b) { b.onclick = function () { view = b.dataset.view; render(); }; });
     if (!roster.length) { document.getElementById('cbmBody').innerHTML = '<div class="card empty">Add pupils on the Pupils page first.</div>'; return; }
     if (view === 'progress') renderProgress(); else if (view === 'setup') renderSetup(); else renderToday();
+    paintPanel();
   }
 
   /* ── Today ────────────────────────────────────────────── */
@@ -1249,6 +1250,7 @@
         '</ol></details></aside></div></div>';
     wireNav(body);
     wireToday(body.firstElementChild);
+    wirePupilLinks(body.firstElementChild);
     paintFilters(day);
     document.getElementById('cbmPrintAll').onclick = function () { printSheets(true); };
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
@@ -1283,7 +1285,7 @@
     });
     box.innerHTML = FILTERS.map(function (f) {
       return '<button type="button" class="cbm-filter' + (todayFilter === f[0] ? ' on' : '') + '" data-filter="' + f[0] + '" aria-pressed="' + (todayFilter === f[0]) + '">' + f[1] + ' · ' + counts[f[0]] + '</button>'; }).join('');
-    document.getElementById('cbmShown').textContent = 'Showing ' + shown + ' of ' + roster.length;
+    document.getElementById('cbmShown').textContent = 'Showing ' + shown + ' of ' + roster.length + ' · tap a name for that child\'s panel';
   }
 
   /* The board's ink for a day (tp_starter_ann, 'cbm:<iso>:…') belongs to that day's questions:
@@ -1346,7 +1348,7 @@
   }
   function nameCell(day, p) {
     var tags = tagsHTML(day, p.id);
-    return '<span class="cbm-pname">' + esc(p.name) + '</span>' + (tags ? '<span class="cbm-tags">' + tags + '</span>' : '');
+    return '<button type="button" class="cbm-pname cbm-plainlink" data-pupil="' + p.id + '">' + esc(p.name) + '</button>' + (tags ? '<span class="cbm-tags">' + tags + '</span>' : '');
   }
   function rowHTML(state, day, p) {
     return '<tr data-pid="' + p.id + '"><td class="name">' + nameCell(day, p) + '</td>' +
@@ -1547,10 +1549,19 @@
   }
 
   /* ── Progress ─────────────────────────────────────────── */
+  /* Opens on four answers (what to reteach, what is secure, who is stepped
+     back, who is working deeper), then who is on what tomorrow, then the
+     grid. Everything about one child, and every setting for them, is in
+     the pupil panel, which opens from any name. */
+  var progView = 'skills';
+  function firstName(p) { return String(p.name).split(' ')[0]; }
   function renderProgress() {
     var state = load(), body = document.getElementById('cbmBody');
     var dates = Object.keys(state.days).sort(), last = dates.filter(function (d) { return d <= todayISO(); }).pop();
-    if (!last) { body.innerHTML = '<div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>' + tablesCard(state); wireTablesCard(body); return; }
+    if (!last) {
+      body.innerHTML = '<div class="cbm-progress"><div class="card empty">No sheets yet. Make one on <b>Today</b>.</div>' + (tablesCard(state, true) ? '<section class="card cbm-gridcard"><div class="cbm-gridhead"><h2>Times tables</h2></div>' + tablesCard(state, true) + '</section>' : '') + '</div>';
+      wireTablesCard(body); wirePupilLinks(body.firstElementChild); return;
+    }
     var an = analyse(state, todayISO(), windowDays);
     var latest = state.days[last], keys = latest.qs.map(function (q) { return q.k; });
     // other class skills checked in the window; not the steps back or the number facts individual children were given
@@ -1558,61 +1569,88 @@
     dates.forEach(function (d) { state.days[d].qs.forEach(function (q) { wasClass[q.k] = 1; }); });
     Object.keys(an.cls).forEach(function (k) { if (keys.indexOf(k) < 0 && wasClass[k]) keys.push(k); });
     keys = keys.filter(function (k, i) { return keys.indexOf(k) === i; });
-    var checked = keys.filter(function (k) { return an.cls[k]; }).length;
+    var checked = keys.filter(function (k) { return an.cls[k]; }).length, marks = 0;
+    keys.forEach(function (k) { if (an.cls[k]) marks += an.cls[k].n; });
     function depth(pid, k) { return supportOf(state, pid).mode === 'auto' ? ((state.lv[pid] || {})[k] || 0) : 0; }
 
     var reteach = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate < RETEACH; }).sort(function (a, b) { return an.cls[a].rate - an.cls[b].rate; });
     var secure = keys.filter(function (k) { var c = an.cls[k]; return c && c.n >= 5 && c.rate >= SECURE; });
-    var back = sortedRoster().map(function (p) { return { p: p, n: keys.filter(function (k) { return depth(p.id, k) > 0; }).length }; }).filter(function (x) { return x.n; });
+    var back = sortedRoster().map(function (p) {
+      return { p: p, num: supportOf(state, p.id).mode === 'num', n: keys.filter(function (k) { return depth(p.id, k) > 0; }).length }; }).filter(function (x) { return x.n || x.num; });
     var deepKids = sortedRoster().map(function (p) { return { p: p, n: keys.filter(function (k) { return depth(p.id, k) < 0 && canDeep(k); }).length }; }).filter(function (x) { return x.n; });
     var stages = stagesFor(state);
-    function chips(list, empty, fmt) { return list.length ? list.map(fmt).join('') : '<span class="muted small">' + empty + '</span>'; }
+    function tile(tone, title, n, says, list, empty, fmt) {
+      return '<div class="card cbm-tile t-' + tone + '"><h3>' + title + ' <span class="cbm-big">' + n + '</span></h3><div class="cbm-sub">' + says + '</div>' +
+        '<div class="cbm-chips">' + (list.length ? list.map(fmt).join('') : '<span class="cbm-sub">' + empty + '</span>') + '</div></div>';
+    }
+    function kidChip(tone, x, note) {
+      return '<button type="button" class="cbm-chip ' + tone + '" data-pupil="' + x.p.id + '" title="Open ' + esc(x.p.name) + '">' + esc(firstName(x.p)) + ' · ' + note + '</button>';
+    }
+    var tiles = '<section class="cbm-tiles" aria-label="What to do next">' +
+      tile('rose', 'Reteach to the class', reteach.length, 'Under ' + pct(RETEACH) + ' right', reteach, 'Nothing below ' + pct(RETEACH) + '.', function (k) {
+        return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }) +
+      tile('green', 'Secure', secure.length, pct(SECURE) + '+ right: ready for a harder step', secure, 'Nothing secure yet.', function (k) {
+        return '<span class="cbm-chip sec" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + '</span>'; }) +
+      tile('amber', 'Stepped back', back.length, 'Children on an earlier step', back, 'No one.', function (x) { return kidChip('mid', x, x.num ? 'numbers' : x.n); }) +
+      tile('blue', 'Working deeper', deepKids.length, 'Reasoning questions instead', deepKids, 'No one yet.', function (x) { return kidChip('deep', x, x.n); }) + '</section>';
 
-    var head = '<tr><th class="name">Pupil</th>' + keys.map(function (k) {
-      return '<th class="cbm-hk" title="' + esc(keyTitle(k)) + '"><span>' + esc(keyLabel(k)) + '</span></th>';
-    }).join('') + '<th title="How many of your marks were right">Your marks</th><th>Practice box next</th></tr>';
-    var classRow = '<tr class="cbm-classrow"><td class="name">Class</td>' + keys.map(function (k) {
-      var c = an.cls[k], n = roster.filter(function (p) { return depth(p.id, k) > 0; }).length;
-      var tip = keyLabel(k) + ': ' + (c ? c.ok + ' of ' + c.n + ' checked answers right' : 'not checked yet') + (n ? ' · ' + n + ' working a step or more back' : '');
-      return '<td class="cbm-cell' + (c ? ' b-' + band(c.rate) : '') + '" title="' + esc(tip) + '">' + (c ? pct(c.rate) : '·') + '</td>';
-    }).join('') + '<td></td><td></td></tr>';
-    var rows = sortedRoster().filter(function (p) { return !stageFilter || stages[p.id].id === stageFilter; }).map(function (p) {
-      var kd = kidOf(an, p.id);
-      var cells = keys.map(function (k) {
-        if (!kd.aN) return '<td class="cbm-cell">·</td>';
-        var d = depth(p.id, k), e = estimate(an, p.id, k, k), o = openState(an, p.id, k);
-        var tip = p.name + ' · ' + keyLabel(k) + ': ' + (e.n ? e.right + ' of ' + e.n + ' checked right, ' : 'not checked yet, ') + 'about ' + pct(e.p) + ' likely' +
-          (d > 0 ? ' — working ' + d + ' step' + (d > 1 ? 's' : '') + ' back: ' + keyLabel(stepBack(k, d) || k) : d < 0 ? ' — on deeper questions for this skill' : '') + (o.open ? ' — in their practice box' : '');
-        return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (o.open ? ' is-open' : '') + (d > 0 ? ' is-back' : d < 0 ? ' is-deep' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + (d > 0 ? '<i class="cbm-back">↓' + d + '</i>' : d < 0 ? '<i class="cbm-back cbm-up">↑</i>' : '') + '</td>';
+    var who = '<section class="card cbm-stages" aria-labelledby="cbmWhoH"><div class="cbm-cardhead"><h2 id="cbmWhoH">Who is on what tomorrow</h2>' +
+      '<span class="cbm-sub">Only shown here, never on a sheet. Tap a group to filter the grid.</span></div><div class="cbm-st-cols">' + STAGES.map(function (x) {
+        var kids = sortedRoster().filter(function (p) { return stages[p.id].id === x[0]; }), on = stageFilter === x[0];
+        return '<button type="button" class="cbm-st-col cbm-st-' + x[0] + (on ? ' is-on' : '') + '" data-stagepick="' + x[0] + '" aria-pressed="' + on + '">' +
+          '<span class="cbm-st-top"><span class="cbm-st-title">' + (x[2] ? '<b>' + x[2] + '</b>' : '') + esc(x[1]) + '</span><span class="cbm-st-count">' + kids.length + '</span></span>' +
+          '<span class="cbm-st-says">' + esc(STAGE_SAYS[x[0]]) + '</span>' +
+          '<span class="cbm-st-names">' + (kids.length ? kids.map(function (p) { var note = stageNote(stages[p.id]); return '<span data-stage="' + x[0] + '">' + esc(firstName(p)) + (note ? ' <i>' + esc(note) + '</i>' : '') + '</span>'; }).join(', ') : 'No one') + '</span></button>';
+      }).join('') + '</div></section>';
+
+    var grid = '';
+    if (progView === 'skills') {
+      var head = '<tr><th class="name" scope="col">Pupil</th>' + keys.map(function (k) {
+        return '<th class="cbm-hk" scope="col" title="' + esc(keyTitle(k)) + '"><span>' + esc(keyLabel(k)) + '</span></th>'; }).join('') + '<th scope="col" title="How many of your marks were right">Your marks</th></tr>';
+      var classRow = '<tr class="cbm-classrow"><td class="name">Whole class</td>' + keys.map(function (k) {
+        var c = an.cls[k], n = roster.filter(function (p) { return depth(p.id, k) > 0; }).length;
+        var tip = keyLabel(k) + ': ' + (c ? c.ok + ' of ' + c.n + ' checked answers right' : 'not checked yet') + (n ? ' · ' + n + ' working a step or more back' : '');
+        return '<td class="cbm-cell' + (c ? ' b-' + band(c.rate) : '') + '" title="' + esc(tip) + '">' + (c ? pct(c.rate) : '·') + '</td>';
+      }).join('') + '<td></td></tr>';
+      var rows = sortedRoster().filter(function (p) { return !stageFilter || stages[p.id].id === stageFilter; }).map(function (p) {
+        var kd = kidOf(an, p.id), st = stages[p.id], meta = STAGES.filter(function (x) { return x[0] === st.id; })[0];
+        var cells = keys.map(function (k) {
+          if (!kd.aN) return '<td class="cbm-cell">·</td>';
+          var d = depth(p.id, k), e = estimate(an, p.id, k, k), o = openState(an, p.id, k);
+          var tip = p.name + ' · ' + keyLabel(k) + ': ' + (e.n ? e.right + ' of ' + e.n + ' checked right, ' : 'not checked yet, ') + 'about ' + pct(e.p) + ' likely' +
+            (d > 0 ? ' — working ' + d + ' step' + (d > 1 ? 's' : '') + ' back: ' + keyLabel(stepBack(k, d) || k) : d < 0 ? ' — on deeper questions for this skill' : '') + (o.open ? ' — in their practice box' : '');
+          return '<td class="cbm-cell b-' + band(e.p) + (e.n ? '' : ' is-guess') + (d > 0 ? ' is-back' : d < 0 ? ' is-deep' : '') + '" title="' + esc(tip) + '">' + (e.n ? e.right + '/' + e.n : pct(e.p)) + (d > 0 ? '<i class="cbm-back">↓' + d + '</i>' : d < 0 ? '<i class="cbm-back cbm-up">↑</i>' : '') + '</td>';
+        }).join('');
+        return '<tr data-gpid="' + p.id + '"><td class="name"><button type="button" class="cbm-plainlink" data-pupil="' + p.id + '">' + esc(p.name) + '</button>' +
+          (meta[2] ? ' <b class="cbm-badge cbm-stage-' + st.id + '" data-stage="' + st.id + '" title="' + esc(meta[1] + ': ' + st.why) + '">' + meta[2] + '</b>' : '') + '</td>' + cells +
+          '<td class="cbm-trust">' + (kd.aN ? kd.aOk + '/' + kd.aN : '—') + '</td></tr>';
       }).join('');
-      var tg = targetsFor(an, latest, p.id);
-      return '<tr><td class="name">' + stagePill(p.name, stages[p.id]) + '</td>' + cells +
-        '<td class="cbm-trust">' + (kd.aN ? kd.aOk + '/' + kd.aN : '—') + '</td>' +
-        '<td class="cbm-box-cell">' + (tg.length ? tg.map(function (x) { return '<span class="cbm-tg cbm-tg-' + x.y + '" title="' + esc(WHY[x.y]) + '">' + esc(keyLabel(x.k)) + '</span>'; }).join('') : '<span class="muted small">—</span>') + '</td></tr>';
-    }).join('');
+      grid = '<div class="table-wrap cbm-gridwrap"><table class="cbm-grid"><thead>' + head + '</thead><tbody>' + classRow + rows + '</tbody></table></div>' +
+        '<p class="cbm-gridnote"><b>3/4</b> = your marks on that skill (right / checked). <i>70%</i> = estimated from the class and the child; each mark firms it up. <b>↓2</b> working two steps back · <b>↑</b> deeper questions. Tap a name for the full picture and settings.</p>';
+    } else grid = tablesCard(state) || '<p class="cbm-gridnote">Times tables are not on the back page. Turn them on in <b>Set up</b>.</p>';
 
-    body.innerHTML =
-      '<div class="cbm-daynav"><label for="cbmWin">Looking at</label><select id="cbmWin">' +
+    var fl = stageFilter ? STAGES.filter(function (x) { return x[0] === stageFilter; })[0][1] : '';
+    body.innerHTML = '<div class="cbm-progress">' +
+      '<div class="cbm-winbar"><label for="cbmWin">Looking at</label><select id="cbmWin">' +
         [[7, 'the last week'], [14, 'the last 2 weeks'], [28, 'the last 4 weeks'], [91, 'the last term']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === windowDays ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') +
-      '</select><span class="muted small">' + checked + ' of ' + keys.length + ' skills checked so far</span></div>' +
-      stageCard(stages) +
-      tablesCard(state) +
-      supportHTML(state, latest, stages) +
-      '<div class="cbm-cards">' +
-        '<div class="card cbm-card"><h3>Reteach to the class</h3><p class="cbm-hint">Under ' + pct(RETEACH) + ' of your marks right across the class.</p>' + chips(reteach, 'Nothing below ' + pct(RETEACH) + '.', function (k) { return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }) + '</div>' +
-        '<div class="card cbm-card"><h3>Secure</h3><p class="cbm-hint">' + pct(SECURE) + ' or more right. Could leave the sheet for a harder step.</p>' + chips(secure, 'Nothing secure yet.', function (k) { return '<span class="cbm-chip sec" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + '</span>'; }) + '</div>' +
-        '<div class="card cbm-card"><h3>Working a step or more back</h3><p class="cbm-hint">Children whose sheet has an earlier step in place of a class question.</p>' + chips(back, 'No one.', function (x) { return '<span class="cbm-chip mid">' + esc(x.p.name) + ' · ' + x.n + ' skill' + (x.n > 1 ? 's' : '') + '</span>'; }) + '</div>' +
-        '<div class="card cbm-card"><h3>Working deeper</h3><p class="cbm-hint">Children whose sheet has a reasoning question in place of a class question they are secure on.</p>' + chips(deepKids, 'No one yet.', function (x) { return '<span class="cbm-chip sec">' + esc(x.p.name) + ' · ' + x.n + ' skill' + (x.n > 1 ? 's' : '') + '</span>'; }) + '</div>' +
-      '</div>' +
-      '<div class="card"><div class="cbm-entryhead"><h3>Skill by skill</h3><span class="cbm-legend"><i class="b-low"></i>under 60% <i class="b-mid"></i>60–74% <i class="b-ok"></i>75–89% <i class="b-sec"></i>90%+ <i class="is-open"></i>in practice box</span></div>' +
-        '<p class="cbm-hint"><b>3/4</b> = your marks on that skill (right/checked). A pale <i>70%</i> = not checked yet for that child; worked out from how hard the class finds it and how they compare with the class. <b>↓2</b> = that child is working two steps back on it; <b>↑</b> = on deeper questions for it. Each mark you make firms it up.</p>' +
-        '<div class="table-wrap"><table class="cbm-grid"><thead>' + head + '</thead><tbody>' + classRow + rows + '</tbody></table></div></div>';
+      '</select><span class="cbm-daysum">' + checked + ' of ' + keys.length + ' skills checked · ' + plural(marks, 'mark') + ' from you</span></div>' +
+      tiles + who +
+      '<section class="card cbm-gridcard" aria-labelledby="cbmGridH"><div class="cbm-gridhead"><div class="cbm-gridtools"><h2 id="cbmGridH">' + (progView === 'skills' ? 'Skill by skill' : 'Times tables') + '</h2>' +
+        '<div class="cbm-sg" role="group" aria-label="View">' + [['skills', 'Skills'], ['tables', '×tables']].map(function (v) {
+          return '<button type="button" data-pview="' + v[0] + '" class="' + (progView === v[0] ? 'on' : '') + '" aria-pressed="' + (progView === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>' +
+        (stageFilter ? '<span class="cbm-chip deep">Showing: ' + esc(fl) + ' <button type="button" class="cbm-x" data-stageclear aria-label="Show everyone">✕</button></span>' : '') + '</div>' +
+        (progView === 'skills' ? '<div class="cbm-legend"><span><i class="b-low"></i>under 60%</span><span><i class="b-mid"></i>60–74%</span><span><i class="b-ok"></i>75–89%</span><span><i class="b-sec"></i>90%+</span><span><em>pale = estimated</em></span></div>' : '') +
+      '</div>' + grid + '</section></div>';
+    var root = body.firstElementChild;
     document.getElementById('cbmWin').onchange = function (e) { windowDays = +e.target.value; renderProgress(); };
     wireTablesCard(body);
-    body.querySelectorAll('[data-stagepick]').forEach(function (b) {
-      b.onclick = function () { stageFilter = stageFilter === b.dataset.stagepick ? null : b.dataset.stagepick; renderProgress(); };
+    wirePupilLinks(root);
+    root.addEventListener('click', function (e) {
+      var sp = e.target.closest('[data-stagepick]'), pv = e.target.closest('[data-pview]');
+      if (sp) { stageFilter = stageFilter === sp.dataset.stagepick ? null : sp.dataset.stagepick; renderProgress(); }
+      else if (e.target.closest('[data-stageclear]')) { stageFilter = null; renderProgress(); }
+      else if (pv) { progView = pv.dataset.pview; renderProgress(); }
     });
-    wireSupport(body, latest);
   }
 
   /* What stage a child's NEXT sheet is at, for the teacher's eyes only: this
@@ -1638,22 +1676,14 @@
       : 'The class questions' + (back ? ', ' + back + ' a step back' : '') + (deep ? ', ' + deep + ' deeper' : '');
     return { id: id, back: back, deep: deep, n: plan.n, short: short, num: plan.mode === 'num', why: why };
   }
-  function stagePill(name, st) {
-    var meta = STAGES.filter(function (x) { return x[0] === st.id; })[0];
-    var extra = (st.id !== 'easier' && st.back ? '<i class="cbm-st-x">↓' + st.back + '</i>' : '') + (st.id !== 'deeper' && st.deep ? '<i class="cbm-st-x">↑' + st.deep + '</i>' : '') +
-      (st.id === 'easier' && st.short ? '<i class="cbm-st-x">' + st.n + ' Qs</i>' : '');
-    return '<span class="cbm-stage cbm-stage-' + st.id + '" data-stage="' + st.id + '" title="' + esc(meta[1] + ': ' + st.why) + '">' + esc(name) + (meta[2] ? '<b>' + meta[2] + '</b>' : '') + '</span>' + extra;
-  }
   var stageFilter = null;
   function stagesFor(state) {
     var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), keys = nextKeys(state), out = {};
     roster.forEach(function (p) { out[p.id] = stageOf(planFor(state, p.id, next, an, keys), keys); });
     return out;
   }
-  /* One column a stage, a name a line: who is on what at a glance. The
-     heading of a column is also the filter for the tables underneath. */
-  var STAGE_SAYS = { easier: 'Numbers only, or ' + STAGE_AT + ' or more questions a step back', fewer: 'Not finishing: a shorter sheet',
-                     'class': 'The class questions', deeper: STAGE_AT + ' or more deeper questions' };
+  var STAGE_SAYS = { easier: 'Numbers only, or ' + STAGE_AT + '+ steps back', fewer: 'Not finishing: a shorter sheet',
+                     'class': 'The full class sheet', deeper: STAGE_AT + '+ deeper questions' };
   function stageNote(st) {
     var bits = [];
     if (st.id === 'easier') bits.push(st.num ? 'numbers only' : st.back + ' back');
@@ -1662,88 +1692,126 @@
     if (st.id !== 'deeper' && st.deep) bits.push('↑' + st.deep);
     return bits.join(' · ');
   }
-  function stageCard(stages) {
-    var cols = STAGES.map(function (x) {
-      var kids = sortedRoster().filter(function (p) { return stages[p.id].id === x[0]; });
-      return '<div class="cbm-st-col cbm-st-' + x[0] + (stageFilter === x[0] ? ' is-on' : '') + '">' +
-        '<button type="button" class="cbm-st-head" data-stagepick="' + x[0] + '" aria-pressed="' + (stageFilter === x[0]) + '" title="Show only these children in the tables below">' +
-          '<span class="cbm-st-title">' + (x[2] ? '<b>' + x[2] + '</b>' : '') + esc(x[1]) + '</span><span class="cbm-st-count">' + kids.length + '</span></button>' +
-        '<p class="cbm-st-says">' + esc(STAGE_SAYS[x[0]]) + '</p>' +
-        (kids.length ? '<ul>' + kids.map(function (p) {
-          var st = stages[p.id], note = stageNote(st);
-          return '<li data-stage="' + st.id + '" title="' + esc(st.why) + '"><span>' + esc(p.name) + '</span>' + (note ? '<i>' + esc(note) + '</i>' : '') + '</li>'; }).join('') + '</ul>'
-          : '<p class="cbm-st-none">No one</p>') + '</div>';
-    }).join('');
-    return '<div class="card cbm-stages"><div class="cbm-entryhead"><h3>Who is on what</h3><span class="muted small">their next sheet · only shown here, never on a sheet</span></div>' +
-      '<div class="cbm-st-cols">' + cols + '</div>' +
-      '<p class="cbm-hint">Beside a name: <b>8 Qs</b> the length of their sheet, <b>↓2</b> questions a step back, <b>↑1</b> deeper questions. Tap a heading to show only those children in the tables below' + (stageFilter ? '; tap it again to show everyone' : '') + '.</p></div>';
-  }
-
-  /* Whose next sheet is not simply the class's, and why. */
   function nextKeys(state) { return buildDay(state, addDays(todayISO(), 1)).map(function (q) { return q.k; }); }
-  function supportHTML(state, latest, stages) {
-    var next = addDays(todayISO(), 1), an = analyse(state, todayISO(), 28), classKeys = nextKeys(state);
-    var busy = Object.keys(state.days).filter(function (d) { return d <= todayISO() && daysBetween(d, todayISO()) < 10 && enteredCount(state.days[d]) >= roster.length / 2; });
-    var rows = sortedRoster().map(function (p) {
-      var recent = sessions(state, p.id, next, 5), plan = planFor(state, p.id, next, an, classKeys);
-      var stepped = classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i && plan.lv[c] > 0; });
-      var deeper = plan.mode === 'num' ? [] : classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i && plan.lv[c] < 0 && canDeep(c); });
-      var missing = busy.filter(function (d) { return !isScored(state.days[d].marks[p.id]); }).length;
-      if (!(plan.mode !== 'auto' || stepped.length || deeper.length || plan.n < classKeys.length || missing >= 2)) return '';
-      if (stageFilter && stages && stages[p.id].id !== stageFilter) return '';
-      var hist = recent.slice().reverse().map(function (x) {
-        var t = new Array(x.right + 1).join('✓') + new Array(x.wrong + 1).join('✗') + (x.blank ? '–' : '');
-        return '<span class="cbm-sess' + (x.wrong || x.late ? ' hard' : x.right === 2 ? ' good' : '') + '" title="' + esc(shortDate(x.d) + ': ' + x.len + ' questions' + (x.late ? ', your second question left blank' : '')) + '">' + (t || '·') + '</span>';
-      }).join('');
-      var nextTxt = '<b>' + plan.n + ' questions</b> · ' + (plan.mode === 'num' ? 'numbers only · ' + esc(rungLabel(plan.rung))
-        : stepped.length ? stepped.length + ' skill' + (stepped.length > 1 ? 's' : '') + ' a step or more back' : 'the class questions') +
-        (deeper.length ? ' · ' + Math.min(deeper.length, deepCap(classKeys.length)) + ' deeper' + (deeper.length > deepCap(classKeys.length) ? ' (from ' + deeper.length + ' skills, a different few each day)' : '') : '');
-      var list = stepped.length ? '<ul class="cbm-steplist">' + stepped.map(function (c) {
-        return '<li>' + esc(keyLabel(c)) + ' → <b>' + esc(keyLabel(stepBack(c, plan.lv[c]) || c)) + '</b>' + (plan.lv[c] > 1 ? ' <span class="muted">(' + plan.lv[c] + ' steps)</span>' : '') + '</li>'; }).join('') + '</ul>' : '';
-      if (deeper.length) list += '<ul class="cbm-steplist cbm-deeplist">' + deeper.map(function (c) { return '<li>' + esc(keyLabel(c)) + ' <b>↑ deeper</b></li>'; }).join('') + '</ul>';
-      return '<tr data-spid="' + p.id + '"><td class="name">' + (stages ? stagePill(p.name, stages[p.id]) : esc(p.name)) + '</td><td>' + (hist || '<span class="muted small">no marks</span>') +
-        (missing >= 2 ? ' <span class="cbm-flag" title="Days most of the class were marked and this child was not">not marked ' + missing + '×</span>' : '') + '</td>' +
-        '<td>' + nextTxt + (plan.why ? '<div class="cbm-why1">' + esc(plan.why) + '</div>' : '') + list + '</td>' +
-        '<td class="cbm-supctl"><select data-mode aria-label="Sheet for ' + esc(p.name) + '">' +
-          [['auto', 'Automatic'], ['full', 'Always the class questions'], ['num', 'Numbers only']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === plan.mode ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>' +
-          (plan.mode === 'num' ? '<button type="button" class="secondary small" data-rung="-1" title="Simpler calculations">Easier</button><button type="button" class="secondary small" data-rung="1" title="Harder calculations">Harder</button>' : '') +
-          (stepped.length || deeper.length ? '<button type="button" class="secondary small" data-reset title="Put every skill back to the class question">Back to class questions</button>' : '') +
-        '</td></tr>';
-    }).join('');
-    var all = '<details class="cbm-supall"><summary>Change another child\'s setting</summary><div class="cbm-setrow"><select id="cbmSupPid" aria-label="Pupil">' +
-      sortedRoster().map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select><select id="cbmSupMode" aria-label="Setting">' +
-      '<option value="auto">Automatic</option><option value="full">Always the class questions</option><option value="num">Numbers only</option></select>' +
-      '<button type="button" class="secondary small" id="cbmSupSet">Set</button></div></details>';
-    return '<div class="card cbm-support"><div class="cbm-entryhead"><h3>Stepped back, shorter, deeper, or numbers only</h3></div>' +
-      '<p class="cbm-hint">Only your two marks decide this. <b>A wrong answer</b> steps that skill back one small step along the White Rose order — never more than one step between sheets, no more than ' + MAX_DOWN + ' skills at once, and never past ' + MAX_BACK + ' steps — and right answers on the easier step bring it forward again (two running, if they were wrong on the step above), as do ' + RECOVER_SHEETS + ' sheets with no further wrong mark on that skill. Skills you have not marked follow how the child is doing overall. ' +
-      '<b>Your second question left blank</b> on two of the last three sheets means not finishing: two fewer questions, put back after two sheets with no blanks. <b>Deeper</b>: a child with ' + DEEP_MARKS + ' or more marks, ' + pct(DEEP_RATE) + ' of them right, gets up to ' + MAX_UP + ' of the class questions as reasoning questions on the same skill (spot the mistake, true or false, work backwards), different ones each day, and keeps them while ' + pct(DEEP_STAY) + ' of their marks are right. A skill whose last mark was wrong stays as the class question. <b>Numbers only</b> is for a child who cannot read the questions yet. Changes here apply to the next sheet you make.</p>' +
-      (rows ? '<div class="table-wrap"><table class="cbm-suptable"><thead><tr><th class="name">Pupil</th><th>Last marks</th><th>Next sheet</th><th>Setting</th></tr></thead><tbody>' + rows + '</tbody></table></div>'
-            : '<p class="muted small">' + (stageFilter ? 'No one at this stage has anything to show here.' : 'Everyone is on the class questions, all ' + classKeys.length + '.') + '</p>') + all + '</div>';
+
+  /* ── The pupil panel ──────────────────────────────────── */
+  /* One child: what tomorrow's sheet will be and why, the last marks, what
+     is stepped back or deeper, the practice box, their times tables, and
+     the settings that used to sit in a table on Progress. It opens from a
+     name on Today or Progress and stays open while the page behind redraws. */
+  var panelPid = null;
+  function wirePupilLinks(root) {
+    if (!root) return;
+    root.addEventListener('click', function (e) { var b = e.target.closest('[data-pupil]'); if (b) openPanel(b.dataset.pupil); });
   }
-  function wireSupport(body, latest) {
-    function setMode(pid, mode) { var s = load(), o = supportOf(s, pid); o.mode = mode; s.support[pid] = o; save(s); renderProgress(); }
-    body.querySelectorAll('tr[data-spid]').forEach(function (tr) {
-      var pid = tr.dataset.spid, sel = tr.querySelector('[data-mode]');
-      sel.onchange = function () { setMode(pid, sel.value); };
-      tr.querySelectorAll('[data-rung]').forEach(function (b) {
-        b.onclick = function () {
-          var s = load(), next = addDays(todayISO(), 1), o = supportOf(s, pid);
-          var plan = planFor(s, pid, next, analyse(s, todayISO(), 28), nextKeys(s));
-          o.rung = clampRung(plan.rung + +b.dataset.rung); o.lv = LV; o.rungAt = todayISO(); s.support[pid] = o; save(s); renderProgress();
-        };
+  function openPanel(pid) { panelPid = pid; paintPanel(true); }
+  function closePanel() {
+    var pid = panelPid; panelPid = null; paintPanel();
+    var back = pid && host().querySelector('[data-pupil="' + pid + '"]'); if (back) back.focus();
+  }
+  function redraw() { if (view === 'progress') renderProgress(); else if (view === 'setup') renderSetup(); else renderToday(); paintPanel(); }
+  function panelHTML(state, p) {
+    var pid = p.id, today = todayISO(), next = addDays(today, 1), an = analyse(state, today, 28), classKeys = nextKeys(state);
+    var plan = planFor(state, pid, next, an, classKeys), st = stageOf(plan, classKeys), meta = STAGES.filter(function (x) { return x[0] === st.id; })[0];
+    var uniq = classKeys.filter(function (c, i) { return classKeys.indexOf(c) === i; });
+    var stepped = uniq.filter(function (c) { return plan.lv[c] > 0; });
+    var deeper = plan.mode === 'num' ? [] : uniq.filter(function (c) { return plan.lv[c] < 0 && canDeep(c); });
+    var cap = deepCap(classKeys.length), kd = kidOf(an, pid), recent = sessions(state, pid, next, 5).reverse();
+    var busy = Object.keys(state.days).filter(function (d) { return d <= today && daysBetween(d, today) < 10 && enteredCount(state.days[d]) >= roster.length / 2; });
+    var missing = busy.filter(function (d) { return !isScored(state.days[d].marks[pid]); }).length;
+    var dates = Object.keys(state.days).sort(), last = dates.filter(function (d) { return d <= today; }).pop();
+    var tg = last ? targetsFor(an, state.days[last], pid) : [];
+    var sum = plural(plan.n, 'question') + ', ' + (plan.mode === 'num' ? 'numbers only: ' + esc(rungLabel(plan.rung).toLowerCase())
+      : stepped.length ? stepped.length + ' a step or more back' : 'the class questions') +
+      (deeper.length ? ', ' + Math.min(deeper.length, cap) + ' deeper' + (deeper.length > cap ? ' (from ' + deeper.length + ' skills, a different few each day)' : '') : '') + '.';
+    function sec(id, title, inner) { return '<section class="cbm-psec" aria-labelledby="cbmP' + id + '"><h3 id="cbmP' + id + '">' + title + '</h3>' + inner + '</section>'; }
+    var hist = recent.length ? '<div class="cbm-sesses">' + recent.map(function (x) {
+      var t = new Array(x.right + 1).join('✓') + new Array(x.wrong + 1).join('✗') + (x.blank ? '–' : '');
+      return '<div><div class="cbm-sess' + (x.wrong >= 2 ? ' hard' : x.wrong || x.blank ? ' mixed' : x.right === 2 ? ' good' : '') + '" title="' + esc(x.len + ' questions' + (x.late ? ', your second question left blank' : '')) + '">' + (t || '·') + '</div>' +
+        '<div class="cbm-sess-d">' + esc(shortDate(x.d)) + '</div></div>'; }).join('') + '</div>' +
+      '<div class="cbm-sub">' + (kd.aN ? kd.aOk + ' of ' + kd.aN + ' checked answers right' : 'No checked answers yet') + (kd.blanks ? ' · ' + plural(kd.blanks, 'blank') : '') +
+        (missing >= 2 ? ' · <span class="cbm-flag" title="Days most of the class were marked and this child was not">not marked ' + missing + '×</span>' : '') + '</div>'
+      : '<div class="cbm-sub">No marks yet.</div>';
+    var opt = function (name, val, on, title, says, extra) {
+      return '<label class="cbm-opt' + (on ? ' on' : '') + '"><input type="radio" name="' + name + '" value="' + val + '"' + (on ? ' checked' : '') + '><span><b>' + title + '</b><span class="cbm-sub">' + says + '</span>' + (extra || '') + '</span></label>';
+    };
+    var order = sortedRoster(), at = order.map(function (x) { return x.id; }).indexOf(pid);
+    var xtSec = '';
+    if (state.xt.on && (state.xt.mode === 'mult' || state.xt.per)) {
+      var ts = tablesState(state, pid), pages = [];
+      dates.slice().reverse().forEach(function (d) {
+        var day = state.days[d], n = day.mt && day.mt[pid];
+        if (n && pages.length < 4) pages.push(n + (day.xm && day.xm[pid] === 1 ? '✓' : day.xm && day.xm[pid] === 0 ? '✗' : '·'));
       });
-      var rs = tr.querySelector('[data-reset]');
+      xtSec = sec('X', 'Times tables', '<div class="cbm-chips">' + ORDER.map(function (n) {
+          return '<span class="cbm-chip ' + (ts.got[n] ? 'sec' : n === ts.on ? 'deep' : 'grey') + '">' + (n === ts.on ? 'Learning ' : '') + n + '×</span>'; }).join('') + '</div>' +
+        '<div class="cbm-sub">' + (pages.length ? 'Last pages: ' + pages.reverse().join(' · ') : 'No back pages marked yet') +
+          (ts.on && ts.streak === MOVE_ON - 1 ? '. One more ✓ on ×' + ts.on + ' moves them on.' : '') + '</div>');
+    }
+    return '<div class="cbm-scrim" data-pclose></div><aside class="cbm-panel" role="dialog" aria-modal="true" aria-label="' + esc(p.name) + ' — Mental Starter" tabindex="-1">' +
+      '<div class="cbm-ptop"><div class="cbm-pnav"><div><button type="button" class="secondary" data-pgo="' + order[(at + order.length - 1) % order.length].id + '" aria-label="Previous pupil">‹</button>' +
+        '<button type="button" class="secondary" data-pgo="' + order[(at + 1) % order.length].id + '" aria-label="Next pupil">›</button></div>' +
+        '<button type="button" class="cbm-quiet" data-pclose aria-label="Close panel">✕</button></div>' +
+      '<div class="cbm-pwho"><span class="cbm-avatar cbm-stage-' + st.id + '" aria-hidden="true">' + esc(String(p.name).charAt(0).toUpperCase()) + '</span><div><h2>' + esc(p.name) + '</h2>' +
+        '<span class="cbm-chip cbm-stage-' + st.id + '" data-stage="' + st.id + '">' + esc(meta[1]) + '</span></div></div>' +
+      '<div class="cbm-pnext"><b>Tomorrow\'s sheet:</b> ' + sum + (plan.why ? '<div class="cbm-sub">' + esc(plan.why) + '</div>' : '') + '</div></div>' +
+      sec('H', 'Last ' + (recent.length > 1 ? recent.length + ' sheets' : 'sheet') + ' · your two marks', hist) +
+      (stepped.length || deeper.length ? sec('S', stepped.length ? 'Stepped back' : 'Working deeper',
+        (stepped.length ? '<ul class="cbm-steplist">' + stepped.map(function (c) {
+          return '<li><span>' + esc(keyLabel(c)) + ' → <b>' + esc(keyLabel(stepBack(c, plan.lv[c]) || c)) + '</b></span><span class="cbm-sub">' + plural(plan.lv[c], 'step') + '</span></li>'; }).join('') + '</ul>' : '') +
+        (deeper.length ? '<ul class="cbm-steplist cbm-deeplist">' + deeper.map(function (c) { return '<li><span>' + esc(keyLabel(c)) + '</span><span class="cbm-sub"><b>↑</b> deeper</span></li>'; }).join('') + '</ul>' : '') +
+        '<button type="button" class="secondary" data-reset>Back to class questions</button>') : '') +
+      sec('B', 'Practice box on their next sheet', tg.length
+        ? '<div class="cbm-chips">' + tg.map(function (x) { return '<span class="cbm-tg cbm-tg-' + x.y + '" title="' + esc(keyTitle(x.k) + ' — ' + WHY[x.y]) + '">' + esc(keyLabel(x.k)) + '</span>'; }).join('') + '</div>' +
+          '<div class="cbm-sub">What you mark wrong stays for their next ' + KEEP_SHEETS + ' sheets, spaced out.</div>'
+        : '<div class="cbm-sub">Filled in after your first marks.</div>') +
+      xtSec +
+      sec('M', 'Their sheet', '<div role="radiogroup" aria-labelledby="cbmPM" class="cbm-opts">' +
+        opt('cbmMode', 'auto', plan.mode === 'auto', 'Automatic', 'Your marks step skills back or deeper') +
+        opt('cbmMode', 'full', plan.mode === 'full', 'Always the class questions', 'No stepping back or deeper') +
+        opt('cbmMode', 'num', plan.mode === 'num', 'Numbers only', 'For a child who can\'t read the questions yet',
+          plan.mode === 'num' ? '<span class="cbm-rung"><button type="button" class="secondary small" data-rung="-1" title="Simpler calculations">Easier</button><button type="button" class="secondary small" data-rung="1" title="Harder calculations">Harder</button></span>' : '') +
+        '</div><div class="cbm-sub">Changes apply to the next sheet you make.</div>') +
+      '</aside>';
+  }
+  function paintPanel(focus) {
+    var h = host(), el = document.getElementById('cbmPanel'); if (!h) return;
+    var p = panelPid && roster.filter(function (x) { return x.id === panelPid; })[0];
+    if (!p) { panelPid = null; if (el) el.parentNode.removeChild(el); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'cbmPanel'; h.appendChild(el); wirePanel(el); }
+    var top = el.querySelector('.cbm-panel'), y = top && !focus ? top.scrollTop : 0;
+    // the panel is redrawn after every change: keep the keyboard where it was, or Esc stops closing it
+    var act = document.activeElement, had = el.contains(act);
+    var key = !had ? null : act.id ? '#' + act.id : act.name ? '[name="' + act.name + '"][value="' + act.value + '"]' : act.dataset.rung ? '[data-rung="' + act.dataset.rung + '"]' : null;
+    el.innerHTML = panelHTML(load(), p);
+    top = el.querySelector('.cbm-panel'); top.scrollTop = y;
+    var again = !focus && key ? el.querySelector(key) : null;
+    if (again) again.focus(); else if (focus || had) top.focus();
+  }
+  function wirePanel(el) {
+    function change(fn) { var s = load(), o = supportOf(s, panelPid); fn(s, o); s.support[panelPid] = o; save(s); redraw(); }
+    el.addEventListener('click', function (e) {
+      var go = e.target.closest('[data-pgo]'), rung = e.target.closest('[data-rung]');
+      if (e.target.closest('[data-pclose]')) closePanel();
+      else if (go) { panelPid = go.dataset.pgo; paintPanel(true); }
       // lvAt: the marks already in must not step them straight back again
-      if (rs) rs.onclick = function () { var s = load(), o = supportOf(s, pid); delete s.lv[pid]; o.lvAt = todayISO(); s.support[pid] = o; save(s); renderProgress(); };
+      else if (e.target.closest('[data-reset]')) change(function (s, o) { delete s.lv[panelPid]; o.lvAt = todayISO(); });
+      else if (rung) change(function (s, o) {
+        var plan = planFor(s, panelPid, addDays(todayISO(), 1), analyse(s, todayISO(), 28), nextKeys(s));
+        o.rung = clampRung(plan.rung + +rung.dataset.rung); o.lv = LV; o.rungAt = todayISO();
+      });
     });
-    var set = document.getElementById('cbmSupSet');
-    if (set) set.onclick = function () { setMode(document.getElementById('cbmSupPid').value, document.getElementById('cbmSupMode').value); };
+    el.addEventListener('change', function (e) {
+      if (e.target.name === 'cbmMode') change(function (s, o) { o.mode = e.target.value; });
+    });
+    el.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
   }
 
   /* ── Times tables: each child's record ────────────────── */
   var FADE_DAYS = 21;   // an achieved table not seen for this long shows faded
-  function tablesCard(state) {
+  function tablesCard(state, always) {
     if (!state.xt.on || (state.xt.mode !== 'mult' && !state.xt.per)) return '';
+    if (progView !== 'tables' && !always) return '';
     var today = todayISO(), opts = function (sel) {
       return ORDER.map(function (n) { return '<option value="' + n + '"' + (sel === n ? ' selected' : '') + '>' + n + '×</option>'; }).join('') +
         '<option value="0"' + (sel === null ? ' selected' : '') + '>All got: revisiting</option>';
@@ -1763,7 +1831,7 @@
         '<td><select data-xon aria-label="Learning, for ' + esc(p.name) + '">' + opts(st.on) + '</select></td><td class="cbm-xtchips">' + chips + '</td>' +
         '<td class="cbm-xtrecs">' + (recent.reverse().join(' ') || '<span class="muted small">—</span>') + '</td></tr>';
     }).join('');
-    return '<div class="card cbm-xtcard"><div class="cbm-entryhead"><h3>Times tables</h3></div>' +
+    return '<div class="cbm-xtcard">' +
       '<p class="cbm-hint">Each child\'s record: the table they are <b>learning</b> and the ones they have <b>got</b> (filled; faded when not seen for ' + FADE_DAYS + ' days). ' +
       (state.xt.mode === 'mult'
         ? 'Your Multiples marks move it on: two ✓ in a row on the learning table and it is got, and the next of ' + ORDER.join(', ') + ' starts. Every ' + (REVISIT_EVERY === 3 ? 'third' : REVISIT_EVERY + 'th') + ' page brings back the table they got longest ago; a ✗ on it brings it back next time, and a second ✗ means learning it again. '

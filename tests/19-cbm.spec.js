@@ -145,7 +145,7 @@ test('Today is the routine: Print, Mark, Teach with a status each; chips filter 
   await chip('wrong').click();
   await expect(chip('wrong')).toHaveAttribute('aria-pressed', 'true');
   expect(await shown()).toEqual(['p1']);
-  await expect(page.locator('#cbmShown')).toHaveText(`Showing 1 of ${ROSTER.length}`);
+  await expect(page.locator('#cbmShown')).toContainText(`Showing 1 of ${ROSTER.length}`);
   await chip('absent').click();
   expect(await shown()).toEqual(['p3']);
   await chip('todo').click();
@@ -474,26 +474,63 @@ test('progress: who is stepped back and to what; the setting sticks; back to cla
     C.save(s);
   }, [PAST_DAYS, WR_SLOTS]);
   await page.locator('.cbm-tab[data-view="progress"]').click();
-  const row = page.locator('tr[data-spid="p2"]');
-  await expect(row).toContainText('Ben Cross');
-  await expect(row).toContainText('20 questions');
-  await expect(row).toContainText('a step or more back');
-  await expect(row.locator('.cbm-steplist li').first()).toContainText('→');
+  // the four answers the page opens on
+  const tiles = page.locator('.cbm-tiles .cbm-tile');
+  await expect(tiles).toHaveCount(4);
+  await expect(tiles.nth(0)).toContainText('Reteach to the class');
+  await expect(tiles.nth(1)).toContainText('Secure');
+  await expect(tiles.nth(2)).toContainText('Stepped back');
+  await expect(tiles.nth(3)).toContainText('Working deeper');
+  await expect(tiles.nth(2).locator('.cbm-big')).toHaveText('1');
   await expect(page.locator('.cbm-grid .cbm-back').first()).toBeVisible();
+  // the support table is gone: a child's detail and settings are in their panel, from any name
+  await expect(page.locator('.cbm-suptable')).toHaveCount(0);
+  await expect(page.locator('#cbmPanel')).toHaveCount(0);
+  await tiles.nth(2).locator('[data-pupil="p2"]').click();
+  const panel = page.locator('#cbmPanel .cbm-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('h2')).toHaveText('Ben Cross');
+  await expect(panel.locator('.cbm-pnext')).toContainText('20 questions');
+  await expect(panel.locator('.cbm-pnext')).toContainText('a step or more back');
+  await expect(panel.locator('.cbm-steplist li').first()).toContainText('→');
+  await expect(panel.locator('.cbm-sess')).toHaveCount(4);
+  await expect(panel.locator('.cbm-sess').first()).toHaveText('✗✗');
 
-  await row.getByRole('button', { name: 'Back to class questions' }).click();
+  await panel.getByRole('button', { name: 'Back to class questions' }).click();
   expect(await page.evaluate(() => window.CBM.load().lv.p2)).toBeUndefined();
+  await expect(panel.locator('.cbm-steplist')).toHaveCount(0);            // the panel stays open and shows the change
+  await expect(tiles.nth(2).locator('.cbm-big')).toHaveText('0');         // and so does the page behind it
 
-  // a child who is not listed can still be set
-  await page.locator('.cbm-supall summary').click();
-  await page.locator('#cbmSupPid').selectOption('p4');
-  await page.locator('#cbmSupMode').selectOption('num');
-  await page.locator('#cbmSupSet').click();
-  const p4 = page.locator('tr[data-spid="p4"]');
-  await expect(p4).toContainText('numbers only');
-  await p4.getByLabel('Sheet for Dev Patel').selectOption('full');
-  await expect(page.locator('tr[data-spid="p4"]')).toContainText('the class questions');
+  // next and previous walk the class; any child can be set, listed anywhere or not
+  await panel.getByRole('button', { name: 'Next pupil' }).click();
+  await expect(panel.locator('h2')).toHaveText('Cleo Dunn');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#cbmPanel')).toHaveCount(0);
+  await page.locator('.cbm-grid [data-pupil="p4"]').click();
+  await expect(panel.locator('h2')).toHaveText('Dev Patel');
+  await panel.getByLabel('Numbers only').check();
+  await expect(panel.locator('.cbm-pnext')).toContainText('numbers only');
+  expect(await page.evaluate(() => window.CBM.load().support.p4.mode)).toBe('num');
+  await expect(panel.getByRole('button', { name: 'Easier' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Harder' }).click();
+  expect(await page.evaluate(() => window.CBM.load().support.p4.rung)).toBeGreaterThan(0);
+  await panel.getByLabel('Always the class questions').check();
+  await expect(panel.locator('.cbm-pnext')).toContainText('the class questions');
   expect(await page.evaluate(() => window.CBM.load().support.p4.mode)).toBe('full');
+  // a change redraws the panel: the keyboard stays inside it, on the same control, so Esc still closes it
+  await expect(panel.getByLabel('Always the class questions')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#cbmPanel')).toHaveCount(0);
+  await page.locator('.cbm-grid [data-pupil="p4"]').click();
+  await panel.getByRole('button', { name: 'Close panel' }).click();
+  await expect(page.locator('#cbmPanel')).toHaveCount(0);
+
+  // the same panel opens from a name on Today
+  await page.evaluate(() => { const C = window.CBM, s = C.load(); C.makeDay(s, new Date().toLocaleDateString('en-CA')); C.save(s); });
+  await page.locator('.cbm-tab[data-view="today"]').click();
+  await page.locator('tr[data-pid="p1"] [data-pupil="p1"]').click();
+  await expect(panel.locator('h2')).toHaveText('Ava Bell');
+  await expect(panel).toContainText('Practice box on their next sheet');
   expect(errors).toEqual([]);
 });
 
@@ -826,27 +863,31 @@ test('who is on what: colours on Progress only, by the next sheet, with a letter
   await expect(page.locator('.cbm-stage')).toHaveCount(0);               // Today: nothing coloured
   await page.locator('.cbm-tab[data-view="progress"]').click();
   const card = page.locator('.cbm-stages');
-  await expect(card.locator('.cbm-st-col')).toHaveCount(4);                 // a column a stage, a name a line
-  await expect(card.locator('.cbm-st-col li')).toHaveCount(ROSTER.length);
+  await expect(card).toContainText('Who is on what tomorrow');
+  await expect(card.locator('.cbm-st-col')).toHaveCount(4);                 // a button a stage, the names inside it
+  await expect(card.locator('.cbm-st-names [data-stage]')).toHaveCount(ROSTER.length);
   await expect(card.locator('.cbm-st-easier .cbm-st-title')).toHaveText('EEasier questions');
   await expect(card.locator('.cbm-st-fewer .cbm-st-title')).toHaveText('FFewer questions');
   await expect(card.locator('.cbm-st-deeper .cbm-st-title')).toHaveText('CChallenge');
-  await expect(card.locator('.cbm-st-easier li')).toHaveCount(1);
-  await expect(card.locator('.cbm-st-easier li i')).toContainText('numbers only');
-  await expect(card.locator('.cbm-st-fewer li')).toHaveCount(1);
-  await expect(card.locator('.cbm-st-fewer li i')).toContainText('Qs');
-  expect(await card.locator('.cbm-st-deeper li').count()).toBeGreaterThan(0);
+  await expect(card.locator('.cbm-st-easier .cbm-st-names [data-stage]')).toHaveCount(1);
+  await expect(card.locator('.cbm-st-easier .cbm-st-names i')).toContainText('numbers only');
+  await expect(card.locator('.cbm-st-fewer .cbm-st-names [data-stage]')).toHaveCount(1);
+  await expect(card.locator('.cbm-st-fewer .cbm-st-names i')).toContainText('Qs');
+  expect(await card.locator('.cbm-st-deeper .cbm-st-names [data-stage]').count()).toBeGreaterThan(0);
   const counts = await card.locator('.cbm-st-count').evaluateAll(els => els.map(e => +e.textContent));
   expect(counts.reduce((a, b) => a + b, 0)).toBe(ROSTER.length);
-  /* a heading keeps its own colour whatever the app's buttons do */
-  const head = card.locator('.cbm-st-easier .cbm-st-head');
+  /* a group keeps its own colours whatever the app's buttons do */
+  const head = card.locator('.cbm-st-easier');
   await head.hover();
-  expect(await head.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(251, 213, 213)');
-  await head.click();                                                       // the tables below: only those children
+  expect(await head.evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)');
+  expect(await head.locator('.cbm-st-count').evaluate(e => getComputedStyle(e).color)).toBe('rgb(159, 18, 57)');
+  await head.click();                                                       // the grid below: only those children
+  await expect(head).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.cbm-grid tbody tr')).toHaveCount(2);          // the class row and that child
-  await expect(page.locator('.cbm-stages .cbm-st-col li')).toHaveCount(ROSTER.length);
-  expect(await page.locator('.cbm-stages .cbm-st-easier .cbm-st-head').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(251, 213, 213)');
-  await page.locator('.cbm-stages .cbm-st-easier .cbm-st-head').click();
+  await expect(page.locator('.cbm-grid tbody tr .cbm-badge')).toHaveText('E');   // a letter as well as a colour
+  await expect(page.locator('.cbm-gridhead')).toContainText('Showing: Easier questions');
+  await expect(card.locator('.cbm-st-names [data-stage]')).toHaveCount(ROSTER.length);
+  await page.locator('[data-stageclear]').click();
   await expect(page.locator('.cbm-grid tbody tr')).toHaveCount(ROSTER.length + 1);
 
   /* nothing a child sees carries it: the sheets, the marking list, Today */
