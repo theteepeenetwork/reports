@@ -467,6 +467,127 @@ test('Pupil panel: opens from any name, steps to the next child, and holds the p
   await expect(panel).toBeHidden();
 });
 
+test('Print: eight things in three groups, one set of options at a time, each calling its generator', async ({ page }) => {
+  /* x1 on 41–50 with x3 (whole class), x2 on the next 200; x1 has practised "some" to the top of the ladder */
+  const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    x1_2026: { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: all(40) },
+    x2_2026: { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: all(100) },
+    x3_2026: { pupilId: 'x3', date: '2026-10-01', kind: 'spelling', words: all(45) }
+  }, practice: { x1: { boxes: { 40: 3 }, log: [] } }, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  await frame.locator('#nav button', { hasText: 'Print' }).click();
+
+  await expect(frame.locator('.pmenu .grp')).toHaveText(['For Thursday’s test', 'For practice', 'For the wall and records']);
+  await expect(frame.locator('.pmenu .it b')).toHaveText(['Answer sheets', 'Dictation script', 'Targeted check sheets',
+    'Daily practice books', 'Flash cards', 'Practice sheets', 'Word of the day', 'Class record']);
+
+  /* every generator is replaced by a recorder: nothing here changes how a PDF is made */
+  const body = frame.locator('body');
+  await body.evaluate(() => { window.__calls = []; const rec = (k, f) => { PDF[k] = (...a) => window.__calls.push([k, ...f(...a)]); };
+    rec('testSheets', t => [t.title]); rec('testScript', t => [t.title]); rec('sheets', () => [S.ui.print.list, S.ui.print.pages.slice(), S.ui.print.named, S.ui.print.pids.slice()]);
+    rec('script', () => [S.ui.print.list]); rec('targeted', p => [p, S.ui.print.targetN]); rec('books', (p, f) => [p, f, S.ui.print.bookDays]);
+    rec('stackLevels', (l, f) => [l, f]); rec('stackPupils', (p, f) => [p, f]); rec('cards', (g, f) => [g.map(x => x.label), f, S.ui.print.cardSize, S.ui.print.cardSent]);
+    rec('acts', (g, f) => [g.map(x => x.label), f, S.ui.print.acts.slice()]); rec('wotd', () => []); rec('grid', () => [S.ui.print.list]); rec('csv', () => []); });
+  const calls = async () => body.evaluate(() => window.__calls.splice(0));
+  const pick = name => frame.locator('.pmenu .it', { hasText: name }).click();
+  const opt = (group, name) => frame.locator(`#popts [role="group"][aria-label="${group}"]`).getByRole('button', { name, exact: true }).click();
+  const labels = () => frame.locator('#popts .optl');
+  const go = () => frame.locator('#printGo').click();
+
+  /* Answer sheets: a test, every test, or pages of a whole list */
+  await expect(frame.locator('.pmenu .it[aria-current="true"] b')).toHaveText('Answer sheets');
+  await expect(labels()).toHaveText(['Which test']);
+  await expect(frame.locator('#pout')).toContainText('3 sheets, each with a child’s name · 100 HFW 41–60');
+  await expect(frame.locator('#ppaper')).toHaveText('A4 · boxes numbered 1–20');
+  await go();
+  expect(await calls()).toEqual([['testSheets', 'Whole class · 100 HFW 41–60']]);
+  await opt('Which test', 'All 2');
+  await go();
+  expect(await calls()).toEqual([['testSheets', 'Whole class · 100 HFW 41–60'], ['testSheets', 'Group · 200 HFW 1–10']]);
+  await opt('Which test', 'A whole list');
+  await expect(labels()).toHaveText(['Which test', 'Word list', 'Pages', 'Names']);
+  await opt('Pages', 'Words 1–20');                      // off
+  await opt('Names', 'Each child’s name on');
+  await expect(labels()).toHaveText(['Which test', 'Word list', 'Pages', 'Names', 'Who']);
+  await expect(frame.locator('#pout')).toContainText('12 sheets · 4 pages for each of 3 children');
+  await go();
+  expect(await calls()).toEqual([['sheets', 0, [1, 2, 3, 4], true, ['x1', 'x2', 'x3']]]);
+
+  /* Dictation script */
+  await pick('Dictation script');
+  await expect(labels()).toHaveText(['Which test']);
+  await opt('Which test', 'Group · 200 HFW 1–10');
+  await go();
+  await opt('Which test', 'A whole list');
+  await frame.locator('#popts .seg[aria-label="Word list"] button', { hasText: 'Next 200 HFW' }).click();
+  await go();
+  expect(await calls()).toEqual([['testScript', 'Group · 200 HFW 1–10'], ['script', 1]]);
+
+  /* Targeted check sheets: opens on the children ready to re-check */
+  await pick('Targeted check sheets');
+  await expect(labels()).toHaveText(['Who', 'Words each']);
+  await expect(frame.locator('#pout')).toHaveText('1 sheet, each with its script');
+  await opt('Words each', '20');
+  await go();
+  await opt('Who', 'Choose children');
+  await opt('Children', 'Nell Gwyn');
+  await opt('Children', 'Tam Lin');
+  await go();
+  expect(await calls()).toEqual([['targeted', ['x1'], 20], ['targeted', ['x2', 'x3'], 20]]);
+
+  /* Daily practice books */
+  await pick('Daily practice books');
+  await expect(labels()).toHaveText(['Who', 'How long']);
+  await expect(frame.locator('#pout')).toHaveText('3 books · 1 week');
+  await expect(frame.locator('#ppaper')).toHaveText('A4, cut to A5 · stack and cut');
+  await opt('How long', '2 weeks');
+  await go();
+  expect(await calls()).toEqual([['books', ['x1', 'x2', 'x3'], 'practice-books.pdf', 10]]);
+
+  /* Flash cards: by band or by child, stacked or sheet by sheet */
+  await pick('Flash cards');
+  await opt('Whose words', 'A band');
+  await expect(labels()).toHaveText(['Whose words', 'Word list', 'Bands', 'Layout', 'Per page', 'Sentence on the card']);
+  await frame.locator('#popts .seg[aria-label="Word list"] button', { hasText: '100 HFW' }).first().click();
+  await go();
+  await opt('Whose words', 'Each child’s focus');
+  await expect(labels()).toHaveText(['Whose words', 'Who', 'Cards per child', 'Layout', 'Per page', 'Sentence on the card']);
+  await go();
+  await opt('Layout', 'Sheet by sheet');
+  await opt('Per page', '4 large');
+  await opt('Sentence on the card', 'Yes');
+  await go();
+  expect(await calls()).toEqual([['stackLevels', [0], 'level-flash-cards-stack-and-cut.pdf'], ['stackPupils', ['x1', 'x2', 'x3'], 'flash-cards-stack-and-cut.pdf'],
+    ['cards', ['Kit', 'Nell', 'Tam'], 'pupil-flash-cards.pdf', 4, true]]);
+
+  /* Practice sheets */
+  await pick('Practice sheets');
+  await expect(labels()).toHaveText(['Activities', 'Whose words', 'Who']);
+  await opt('Activities', 'Word search');                // off
+  await go();
+  expect(await calls()).toEqual([['acts', ['Kit Marlow', 'Nell Gwyn', 'Tam Lin'], 'practice-sheets.pdf', ['lcwc', 'trace', 'missing', 'sentences']]]);
+
+  /* Word of the day has nothing to set */
+  await pick('Word of the day');
+  await expect(labels()).toHaveCount(0);
+  await expect(frame.locator('#ppaper')).toHaveText('A4 landscape');
+  await go();
+  expect(await calls()).toEqual([['wotd']]);
+
+  /* Class record: A3 or CSV */
+  await pick('Class record');
+  await expect(labels()).toHaveText(['Word list', 'Format']);
+  await expect(frame.locator('#printGo')).toHaveText('Download PDF');
+  await go();
+  await opt('Format', 'Spreadsheet (CSV)');
+  await expect(frame.locator('#printGo')).toHaveText('Download CSV');
+  await go();
+  expect(await calls()).toEqual([['grid', 0], ['csv']]);
+});
+
 test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');
