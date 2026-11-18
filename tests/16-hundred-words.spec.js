@@ -38,13 +38,15 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   const frame = await openHW(page, twoClasses('b'));
 
   await expect(frame.locator('#cls')).toHaveText('Year 3');
-  /* Assess is Quick check only: no photo marking in the hub for now */
-  await frame.locator('#nav button', { hasText: 'Assess' }).click();
+  /* five tabs and a settings cog */
+  await expect(frame.locator('#nav button')).toHaveText(['This week', 'Mark', 'Class', 'Pupils', 'Print']);
+  /* Mark is by hand only: no photo marking in the hub for now */
+  await frame.locator('#nav button', { hasText: 'Mark' }).click();
   await expect(frame.locator('#main')).not.toContainText('Mark photos');
   await expect(frame.locator('#nav button', { hasText: 'Practise' }), 'no practice games in the hub').toHaveCount(0);
   await expect(frame.locator('#nav button', { hasText: 'Review' }), 'no photo review queue in the hub').toHaveCount(0);
   await expect(frame.locator('#qPupil option', { hasText: 'Kit Marlow' })).toHaveCount(1);
-  await frame.locator('#nav button', { hasText: 'Tracker' }).click();
+  await frame.locator('#nav button', { hasText: 'Class' }).click();
   await expect(frame.locator('#main')).toContainText('Kit Marlow');
   await expect(frame.locator('#main')).toContainText('Nell Gwyn');
   await expect(frame.locator('#main')).not.toContainText('Ava Bell');   // the default class's roster
@@ -58,7 +60,10 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   /* `storage` events only reach OTHER documents, which the frame is */
   await expect(frame.locator('#main')).toContainText('Tam Lin');
 
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  /* the settings cog holds what the Class tab used to */
+  await frame.locator('#cog').click();
+  await expect(frame.locator('#cog')).toHaveAttribute('aria-current', 'page');
+  await expect(frame.locator('#clsName')).toHaveValue('Year 3');
   await frame.locator('[data-c="strictCaps"]').check();
   const saved = await page.waitForFunction(() => localStorage.getItem('tp_hundred_words::b'));
   const doc = JSON.parse(await saved.jsonValue());
@@ -78,7 +83,7 @@ test('Hundred Words on the default class reads the un-suffixed roster', async ({
 
 test('Quick check saves each tap, so switching pupil and back keeps the marks', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
-  await frame.locator('#nav button', { hasText: 'Assess' }).click();
+  await frame.locator('#nav button', { hasText: 'Mark' }).click();
   await frame.locator('#qPupil').selectOption('x1');
   const said = frame.locator('.qgrid button[data-i="4"]');
   await said.click();
@@ -100,7 +105,7 @@ test('Quick check saves each tap, so switching pupil and back keeps the marks', 
   /* and it survives a reload */
   await page.reload();
   const again = page.frameLocator('#hwFrame');
-  await again.locator('#nav button', { hasText: 'Assess' }).click();
+  await again.locator('#nav button', { hasText: 'Mark' }).click();
   await again.locator('#qPupil').selectOption('x1');
   await expect(again.locator('.qgrid button[data-i="4"]')).toHaveClass(/q-c/);
 });
@@ -117,7 +122,7 @@ test('Groups: sets of ten in order across the three lists, and a whole-class tes
   }, practice: {}, plans: {}, settings: {} });
   const frame = await openHW(page, extra);
   await expect(page.locator('#planApp .nav-link[data-page="hundred-words"]')).toContainText('Spellings');
-  await frame.locator('#nav button', { hasText: 'Groups' }).click();
+  await frame.locator('#nav button', { hasText: 'This week' }).click();
   const plan = await page.frameLocator('#hwFrame').locator('body').evaluate(() =>
     testPlan().tests.map(t => ({ title: t.title, n: t.words.length, target: t.target.length })));
   /* x1 and x3 are both on 41–50: that is the whole-class test; x2 is tested
@@ -126,4 +131,28 @@ test('Groups: sets of ten in order across the three lists, and a whole-class tes
   expect(plan[1]).toEqual({ title: 'Group · 200 HFW 1–10', n: 10, target: 1 });
   /* 409 words: 100 + 200 + 109 Year 3/4 common exception words */
   expect(await page.frameLocator('#hwFrame').locator('body').evaluate(() => [WORDS.length, SENT.length, NSETS])).toEqual([409, 409, 41]);
+});
+
+test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
+  const frame = await openHW(page, twoClasses('b'));
+  const body = frame.locator('body');
+  const land = id => body.evaluate((_, id) => { setTab(id); return S.tab; }, id);
+  expect(await land('tracker')).toBe('class');
+  expect(await land('groups')).toBe('week');
+  expect(await land('assess')).toBe('mark');
+  expect(await land('plans')).toBe('pupils');
+  expect(await land('print')).toBe('print');
+  const home = await body.evaluate(() => DEFAULT_TAB);
+  expect(await land('practise')).toBe(home);
+  expect(await land('review')).toBe(home);
+  expect(await land('nonsense')).toBe(home);
+
+  /* and a link with an old id in it */
+  await blockExternal(page);
+  await page.goto('/hundred-words.html#groups');
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await page.goto('/hundred-words.html#practise');
+  await page.reload();
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('#main')).not.toContainText('Choose a game');
 });
