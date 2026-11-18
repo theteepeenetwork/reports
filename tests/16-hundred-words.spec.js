@@ -326,6 +326,56 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual(['grid:1', 'csv']);
 });
 
+test('Pupils: a card each, the four filters, and practice books for everyone', async ({ page }) => {
+  /* Kit: no gain, wrote "sed", plan overdue · Nell: gaining, practised "the" to the top of the ladder · Tam: not assessed */
+  const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-09-01': { pupilId: 'x1', date: '2026-09-01', kind: 'spelling', words: words(10, [4, 5]) },
+    'x1_2026-09-20': { pupilId: 'x1', date: '2026-09-20', kind: 'spelling', words: words(10, [4, 5]) },
+    'x2_2026-09-01': { pupilId: 'x2', date: '2026-09-01', kind: 'spelling', words: words(10, [0, 1, 2]) },
+    'x2_2026-09-20': { pupilId: 'x2', date: '2026-09-20', kind: 'spelling', words: words(20, [0, 15]) }
+  }, practice: { x2: { boxes: { 0: 3 }, log: [] } }, plans: { x2: { reviewDate: '2099-01-01' } }, settings: {} });
+  const frame = await openHW(page, extra);
+  await frame.locator('#nav button', { hasText: 'Pupils' }).click();
+
+  const filters = frame.locator('.f');
+  await expect(filters).toHaveText(['Everyone · 3', 'Review due · 1', 'No gain · 1', 'Ready to re-check · 1']);
+  const cards = frame.locator('.pcards .pc');
+  await expect(cards).toHaveCount(3);
+  await expect(cards.locator('.pn')).toHaveText(['Kit Marlow', 'Nell Gwyn', 'Tam Lin']);
+
+  const kit = cards.nth(0);
+  await expect(kit).toContainText('Review due');
+  await expect(kit).toContainText('Pink · 1–10 · 8/10 · 8/100 no gain');
+  await expect(kit.locator('.wchip')).toHaveText(['said', 'in', 'was']);     // focus shrinks to 3 after no gain
+  await expect(kit).toContainText('Most common: Sounded out or another attempt');
+  const nell = cards.nth(1);
+  await expect(nell).toContainText('Review 1 Jan');
+  await expect(nell).toContainText('18/100 +11');
+  await expect(nell.locator('.wchip').first()).toHaveText('the');
+  await expect(cards.nth(2)).toContainText('Not assessed yet');
+
+  await filters.nth(1).click();
+  await expect(filters.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  await expect(cards.locator('.pn')).toHaveText(['Kit Marlow']);
+  await filters.nth(2).click();
+  await expect(cards.locator('.pn')).toHaveText(['Kit Marlow']);
+  await filters.nth(3).click();
+  await expect(cards.locator('.pn')).toHaveText(['Nell Gwyn']);
+  await filters.nth(0).click();
+  await expect(cards).toHaveCount(3);
+
+  await frame.locator('body').evaluate(() => { window.__calls = []; PDF.books = (pids, f) => window.__calls.push([pids, f]); });
+  await frame.getByRole('button', { name: 'Practice books for everyone' }).click();
+  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([[['x1', 'x2', 'x3'], 'practice-books.pdf']]);
+
+  /* a card opens that child */
+  await nell.click();
+  await expect(frame.locator('#drawer')).toContainText('Nell Gwyn');
+});
+
 test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');
