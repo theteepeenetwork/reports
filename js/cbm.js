@@ -1143,24 +1143,75 @@
     var h = host(); if (!h) return;
     if (!curDay) curDay = todayISO();
     h.innerHTML =
-      '<div class="page-header"><h1>Mental Starter (CBM)</h1>' +
-      '<p>The same skills for everyone, with different numbers on every child\'s sheet. You mark the same two questions in every book and tap them in. From those marks alone the app works out who can do what, steps a question back for a child who is not ready for it, and picks each child\'s practice questions.</p></div>' +
-      '<div class="cbm-tabs">' + [['today', 'Today'], ['progress', 'Progress'], ['setup', 'Set up']].map(function (t) {
-        return '<button type="button" class="cbm-tab' + (view === t[0] ? ' active' : '') + '" data-view="' + t[0] + '">' + t[1] + '</button>';
-      }).join('') + '</div><div id="cbmBody"></div>';
+      '<header class="cbm-head"><div><div class="cbm-eyebrow">Morning starter · ' + esc(htOf(load(), curDay)) + '</div><h1>Mental Starter</h1></div>' +
+      '<nav class="cbm-tabs" aria-label="Mental Starter">' + [['today', 'Today'], ['progress', 'Progress'], ['setup', 'Set up']].map(function (t) {
+        return '<button type="button" class="cbm-tab' + (view === t[0] ? ' active' : '') + '" data-view="' + t[0] + '"' + (view === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + '</button>';
+      }).join('') + '</nav></header><div id="cbmBody"></div>';
     h.querySelectorAll('[data-view]').forEach(function (b) { b.onclick = function () { view = b.dataset.view; render(); }; });
     if (!roster.length) { document.getElementById('cbmBody').innerHTML = '<div class="card empty">Add pupils on the Pupils page first.</div>'; return; }
     if (view === 'progress') renderProgress(); else if (view === 'setup') renderSetup(); else renderToday();
   }
 
   /* ── Today ────────────────────────────────────────────── */
+  /* The page follows the routine: print, mark two, teach. The marks are the
+     main column; printing and the board sit beside them; the things that
+     change or remove the sheet are tucked into Sheet options. */
+  var todayFilter = 'all';
+  var FILTERS = [['all', 'Everyone'], ['todo', 'Not marked'], ['wrong', 'Got one wrong'], ['absent', 'Absent']];
+  var ICON = {
+    print: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+    dots: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+    tick: '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+  };
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+  function dayBar(state, day) {
+    var sum = day ? day.qs.length + ' questions · ' + (day.ind ? 'different numbers for each child' : 'the same numbers for everyone') + (state.xt.on ? ' · ×tables on the back' : '') : '';
+    return '<div class="cbm-daybar"><div class="cbm-daynav"><button type="button" class="secondary" data-shift="-1" aria-label="Previous school day">‹</button>' +
+      '<input type="date" id="cbmDate" value="' + curDay + '" aria-label="Day"><button type="button" class="secondary" data-shift="1" aria-label="Next school day">›</button></div>' +
+      '<b class="cbm-dayname">' + esc(fullDate(curDay)) + '</b>' + (curDay === todayISO() ? '<span class="cbm-pill">Today</span>' : '') +
+      '<span class="cbm-daysum">' + esc(sum) + '</span>' +
+      (day ? '<details class="cbm-menu"><summary aria-label="Sheet options: new set of questions, rebuild, delete">' + ICON.dots + 'Sheet options</summary><div class="cbm-menu-pop">' +
+        (day.ind ? '<button type="button" id="cbmRetarget">Rebuild sheets and practice boxes<small>for children with nothing entered yet</small></button>' : '') +
+        '<button type="button" id="cbmRegen">Make a new set of questions<small>same skills, new numbers</small></button>' +
+        '<button type="button" class="is-danger" id="cbmDelete">Delete this sheet</button></div></details>' : '') + '</div>';
+  }
+  function isPrinted(day) { return !!(day.tg && Object.keys(day.tg).length); }
+  /* Print → Mark → Teach, each with where it has got to. One step is the current one. */
+  function stepsHTML(day, focus) {
+    var n = roster.length, marked = enteredCount(day), printed = isPrinted(day);
+    var cur = marked >= n ? 3 : (!printed && !marked) ? 1 : 2;
+    function step(i, title, done, inner) {
+      return '<div class="cbm-step' + (cur === i ? ' is-cur' : '') + (done ? ' is-done' : '') + '"' + (cur === i ? ' aria-current="step"' : '') + '>' +
+        '<span class="cbm-dot">' + (done ? ICON.tick : i) + '</span><div class="cbm-step-body"><div class="cbm-step-t">' + i + ' · ' + title + '</div>' + inner + '</div></div>';
+    }
+    var sub = function (t) { return '<div class="cbm-step-s">' + t + '</div>'; };
+    return step(1, 'Print', printed, sub(printed ? 'Class set printed' : 'Not printed yet')) +
+      step(2, 'Mark two questions', marked >= n, '<div class="cbm-step-s cbm-count" id="cbmCount">' + marked + ' of ' + n + ' marked</div>' +
+        '<div class="cbm-prog" role="progressbar" aria-label="Children marked" aria-valuemin="0" aria-valuemax="' + n + '" aria-valuenow="' + marked + '"><i style="width:' + Math.round(marked / Math.max(1, n) * 100) + '%"></i></div>') +
+      step(3, 'Teach', false, sub(focus.length ? plural(focus.length, 'skill') + ' to model on the board' : 'Nothing to model yet'));
+  }
+  /* The board is for teaching: the skills the class gets wrong, weakest first. */
+  function boardHTML(day, an, focus) {
+    var board = typeof window.hubOpenBoard === 'function';
+    return '<h2>On the board</h2><p class="cbm-sub">Model versions: numbers no child has.</p>' +
+      (focus.length ? '<div class="cbm-focus">' + focus.map(function (i) {
+        var k = day.qs[i].k, r = an.cls[k].rate, low = r < RETEACH;
+        return '<div class="cbm-bar-row" title="' + esc(keyTitle(k)) + '"><div class="cbm-bar-top"><span>' + esc(keyLabel(k)) + '</span><span class="' + (low ? 'is-low' : 'is-mid') + '">' + pct(r) + '</span></div>' +
+          '<div class="cbm-bar"><i class="' + (low ? 'is-low' : 'is-mid') + '" style="width:' + Math.max(2, Math.round(r * 100)) + '%"></i></div></div>'; }).join('') + '</div>'
+        : '<p class="cbm-none">Your marks will show which skills to model.</p>') +
+      (board ? '<div class="cbm-stack">' + (focus.length ? '<button type="button" class="secondary" id="cbmWbFocus">Model ' + (focus.length === 1 ? 'this skill' : 'these ' + focus.length + ' skills') + '</button>' : '') +
+        '<button type="button" class="cbm-quiet" id="cbmWb">Show all ' + day.qs.length + ' questions</button></div>' : '');
+  }
+  function rowState(day, pid) {
+    var m = day.marks[pid], x = !!(m && m.x);
+    return { absent: x, done: isScored(m), wrong: !!(m && !x && m.a && (m.a[0] === 0 || m.a[1] === 0)) };
+  }
+  function passes(st, f) { return f === 'all' || (f === 'todo' && !st.done) || (f === 'wrong' && st.wrong) || (f === 'absent' && st.absent); }
+
   function renderToday() {
     var state = load(), day = state.days[curDay], body = document.getElementById('cbmBody');
-    var nav = '<div class="cbm-daynav"><button type="button" class="secondary small" data-shift="-1" aria-label="Previous day">‹</button>' +
-      '<input type="date" id="cbmDate" value="' + curDay + '"><button type="button" class="secondary small" data-shift="1" aria-label="Next day">›</button>' +
-      '<b>' + esc(fullDate(curDay)) + '</b>' + (curDay === todayISO() ? '<span class="cbm-pill">Today</span>' : '') + '</div>';
     if (!day) {
-      body.innerHTML = nav + '<div class="card cbm-empty"><h3>No sheet for this day yet</h3>' +
+      body.innerHTML = dayBar(state, null) + '<div class="card cbm-empty"><h3>No sheet for this day yet</h3>' +
         '<p>Making it builds the ' + state.n + ' questions from <b>Set up</b> (' + esc(htOf(state, curDay)) + ') with different numbers for every child, picks the two you will mark, and steps a question back for any child your marks show is not ready for it.</p>' +
         '<button type="button" id="cbmMake">Make the sheet</button></div>';
       wireNav(body);
@@ -1168,49 +1219,40 @@
       return;
     }
     var a = day.audit, qa = qNums(day), an = analyse(state, curDay, 14), focus = focusSlots(an, day);
-    var mult = state.xt.on && state.xt.mode === 'mult';
+    var ladder = state.xt.on && state.xt.mode === 'mult';
     var rows = sortedRoster().map(function (p) { return rowHTML(state, day, p); }).join('');
-    var board = typeof window.hubOpenBoard === 'function';
-    body.innerHTML = nav +
-      '<div class="cbm-audit"><div><div class="cbm-k">Mark these two in every book — don\'t tell the class which</div>' +
-        '<div class="cbm-auditq">' + a.map(function (i) { return '<span><b>Q' + (i + 1) + '</b> ' + esc(keyLabel(day.qs[i].k)) + (day.ind ? '' : ' <em>' + esc(ans(day.qs[i], curDay)) + '</em>') + '</span>'; }).join('') + '</div>' +
-        (day.ind ? '<div class="cbm-supq">Every child has their own numbers. Their two answers are beside their name below, and on the marking list.</div>' : '') +
-        (focus.length ? '<div class="cbm-focus"><span class="cbm-k">Model on the board</span>' + focus.map(function (i) {
-          var k = day.qs[i].k; return '<span class="cbm-chip low" title="' + esc(keyTitle(k)) + '">' + esc(keyLabel(k)) + ' · ' + pct(an.cls[k].rate) + '</span>'; }).join('') + '</div>' : '') +
-        '</div><div class="cbm-actions">' +
-          '<button type="button" id="cbmPrintAll">Print class set</button>' +
-          '<button type="button" class="secondary" id="cbmPrintMark">Print marking list</button>' +
-          (board && focus.length ? '<button type="button" class="secondary" id="cbmWbFocus">Model the focus skills</button>' : '') +
-          (board ? '<button type="button" class="secondary" id="cbmWb">All ' + day.qs.length + ' on the board</button>' : '') +
-          '<button type="button" class="secondary" id="cbmPrintOne">Print one blank sheet</button>' +
-          (state.xt.on ? '<button type="button" class="secondary" id="cbmPrintXt">' + (state.xt.mode === 'mult' ? 'Print Multiples pages only' : 'Print ×tables only') + '</button>' : '') +
-        '</div></div>' +
-      '<div class="card"><div class="cbm-entryhead"><h3>Your marks</h3><span class="cbm-count" id="cbmCount">' + enteredCount(day) + ' of ' + roster.length + ' entered</span></div>' +
-        '<p class="cbm-hint">Tap each mark: <b>✓</b> right, <b>✗</b> wrong, <b>–</b> left blank. The answer beside it is that child\'s own. Nothing else is entered.</p>' +
-        (mult ? '<p class="cbm-hint"><b>Multiples</b>: tap <b>✓</b> when they got it (all or nearly all right), <b>✗</b> not yet. Two ✓ in a row on the table they are learning moves them on; <b>↻</b> is a table they have already got, coming back so it is not forgotten.</p>' : '') +
-        '<div class="table-wrap"><table class="cbm-table"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + '</th><th>' + qa[1] + '</th><th></th><th>Practice box</th>' + (mult ? '<th>Multiples</th>' : '') + '</tr></thead>' +
-        '<tbody>' + rows + '</tbody></table></div></div>' +
-      '<details class="card cbm-qlist"><summary>Today\'s ' + day.qs.length + ' questions — the model version, with answers</summary>' +
-        '<p class="cbm-hint">The same skills as every child\'s sheet, with numbers nobody has. This is what goes on the board.</p><ol>' +
-        day.qs.map(function (q, i) { return '<li' + (a.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '><span class="cbm-qtext">' + GRQ(q) + '</span><span class="cbm-qans">' + esc(ans(q, curDay)) + '</span><span class="cbm-qskill" title="' + esc(keyTitle(q.k)) + '">' + esc(keyLabel(q.k)) + '</span></li>'; }).join('') +
-      '</ol><div class="cbm-qtools">' + (day.ind ? '<button type="button" class="secondary small" id="cbmRetarget" title="For children with nothing entered yet">Rebuild sheets and practice boxes</button>' : '') +
-        '<button type="button" class="secondary small" id="cbmRegen">Make a new set of questions</button>' +
-        '<button type="button" class="danger small" id="cbmDelete">Delete this sheet</button></div></details>';
+    var backs = !state.xt.on ? '' : state.xt.mode === 'mult' ? ['Multiples pages only', plural(roster.length, 'page')]
+      : ['×tables backs only', state.xt.per ? plural(roster.length, 'page') : '1 page'];
+    body.innerHTML = '<div class="cbm-today">' + dayBar(state, day) +
+      '<section class="card cbm-steps" id="cbmSteps" aria-label="Today\'s routine">' + stepsHTML(day, focus) + '</section>' +
+      '<div class="cbm-cols"><section class="card cbm-markcard" aria-labelledby="cbmMarkH">' +
+        '<div class="cbm-cardpad"><div class="cbm-cardhead"><h2 id="cbmMarkH">Mark these two in every book</h2><span class="cbm-sub">Don\'t tell the class which</span></div>' +
+        '<div class="cbm-auditq">' + a.map(function (i, j) {
+          return '<div class="cbm-aq"><b>Q' + (i + 1) + '</b><div><div class="cbm-aq-skill" title="' + esc(keyTitle(day.qs[i].k)) + '">' + esc(keyLabel(day.qs[i].k)) + (day.ind ? '' : ' <em>' + esc(ans(day.qs[i], curDay)) + '</em>') + '</div>' +
+            '<div class="cbm-aq-note">' + (j ? 'Second half: a blank means not finishing' : 'First half of the sheet') + '</div></div></div>'; }).join('') + '</div>' +
+        '<div class="cbm-filters"><div role="group" aria-label="Show" id="cbmFilters"></div><span class="grow"></span><span class="cbm-sub">✓ right · ✗ wrong · – left blank</span></div></div>' +
+        '<div class="table-wrap"><table class="cbm-table' + (ladder ? ' has-back' : '') + '"><thead><tr><th class="name">Pupil</th><th>' + qa[0] + ' · their answer</th><th>' + qa[1] + ' · their answer</th><th></th><th class="cbm-box-cell">Practice box</th>' +
+          (ladder ? '<th title="✓ got it (all or nearly all right), ✗ not yet. ↻ is a table they have already got, back so it is not forgotten.">Back page</th>' : '') + '</tr></thead>' +
+        '<tbody>' + rows + '</tbody></table></div>' +
+        '<div class="cbm-foot"><span id="cbmShown"></span><span>Saved automatically</span></div></section>' +
+      '<aside class="cbm-side">' +
+        '<section class="card cbm-sidecard" aria-labelledby="cbmPrintH"><h2 id="cbmPrintH">Print</h2>' +
+          '<p class="cbm-sub">' + (state.xt.on || state.sm ? 'Print double-sided: ' + (state.xt.on ? '×tables' : 'the answers') + ' go on the back.' : 'One side of A4 for each child.') + '</p>' +
+          '<button type="button" class="cbm-wide" id="cbmPrintAll">' + ICON.print + 'Print class set · ' + plural(roster.length, 'sheet') + '</button>' +
+          '<div class="cbm-plinks"><button type="button" class="cbm-plink" id="cbmPrintMark"><span>Marking list</span><small>each child\'s two answers</small></button>' +
+            '<button type="button" class="cbm-plink" id="cbmPrintOne"><span>One blank sheet</span><small>spare / visitor</small></button>' +
+            (backs ? '<button type="button" class="cbm-plink" id="cbmPrintXt"><span>' + backs[0] + '</span><small>' + backs[1] + '</small></button>' : '') + '</div></section>' +
+        '<section class="card cbm-sidecard" id="cbmBoard" aria-label="On the board">' + boardHTML(day, an, focus) + '</section>' +
+        '<details class="card cbm-qlist"><summary>Today\'s ' + day.qs.length + ' questions, with answers</summary>' +
+          '<p class="cbm-hint">The model version: the same skills as every child\'s sheet, with numbers nobody has.</p><ol>' +
+          day.qs.map(function (q, i) { return '<li' + (a.indexOf(i) >= 0 ? ' class="is-audit"' : '') + '><span class="cbm-qtext">' + GRQ(q) + '</span><span class="cbm-qans">' + esc(ans(q, curDay)) + '</span><span class="cbm-qskill" title="' + esc(keyTitle(q.k)) + '">' + esc(keyLabel(q.k)) + '</span></li>'; }).join('') +
+        '</ol></details></aside></div></div>';
     wireNav(body);
-    wireRows(body);
+    wireToday(body.firstElementChild);
+    paintFilters(day);
     document.getElementById('cbmPrintAll').onclick = function () { printSheets(true); };
     document.getElementById('cbmPrintOne').onclick = function () { printSheets(false); };
     document.getElementById('cbmPrintMark').onclick = printMarking;
-    /* The Mental Starters whiteboard: one at a time on squared paper, pen and rubber, then the
-       answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'); the focus list keeps
-       its own, because its question 1 is not the sheet's question 1. */
-    function openBoard(qs, key, title) {
-      window.hubOpenBoard({ qs: qs, iso: curDay, key: key, title: title + ' · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
-    }
-    var wb = document.getElementById('cbmWb'); if (wb) wb.onclick = function () { openBoard(day.qs, 'cbm:' + curDay, 'Mental Starter (CBM)'); };
-    var wf = document.getElementById('cbmWbFocus'); if (wf) wf.onclick = function () {
-      openBoard(focus.map(function (i) { return day.qs[i]; }), 'cbm:' + curDay + ':focus', 'Focus skills');
-    };
     var px = document.getElementById('cbmPrintXt'); if (px) px.onclick = printBacks;
     var rt = document.getElementById('cbmRetarget'); if (rt) rt.onclick = function () {
       var s = load(), d = s.days[curDay];
@@ -1228,6 +1270,20 @@
       if (!confirm('Delete the sheet for ' + fullDate(curDay) + (has ? ' and the marks entered for ' + has + ' children' : '') + '?')) return;
       var s = load(); delete s.days[curDay]; save(s); clearBoardInk(curDay); renderToday();
     };
+  }
+  /* The filter chips, their counts, and which rows show. */
+  function paintFilters(day) {
+    var box = document.getElementById('cbmFilters'); if (!box) return;
+    var counts = { all: 0, todo: 0, wrong: 0, absent: 0 }, shown = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.cbm-table tbody tr[data-pid]'), function (tr) {
+      var st = rowState(day, tr.dataset.pid);
+      FILTERS.forEach(function (f) { if (passes(st, f[0])) counts[f[0]]++; });
+      tr.hidden = !passes(st, todayFilter); if (!tr.hidden) shown++;
+      tr.classList.toggle('is-absent', st.absent);
+    });
+    box.innerHTML = FILTERS.map(function (f) {
+      return '<button type="button" class="cbm-filter' + (todayFilter === f[0] ? ' on' : '') + '" data-filter="' + f[0] + '" aria-pressed="' + (todayFilter === f[0]) + '">' + f[1] + ' · ' + counts[f[0]] + '</button>'; }).join('');
+    document.getElementById('cbmShown').textContent = 'Showing ' + shown + ' of ' + roster.length;
   }
 
   /* The board's ink for a day (tp_starter_ann, 'cbm:<iso>:…') belongs to that day's questions:
@@ -1253,16 +1309,22 @@
   }
 
   function enteredCount(day) { return roster.filter(function (p) { return isScored(day.marks[p.id]); }).length; }
-  var MARK = { '1': ['yes', '✓'], '0': ['no', '✗'], '-1': ['blank', '–'] };
-  /* one of the teacher's two for one child: the tap button, and that child's own answer */
+  var MARK = { '1': ['yes', '✓', 'Right'], '0': ['no', '✗', 'Wrong'], '-1': ['blank', '–', 'Left blank'] };
+  /* A switch, not a button to cycle: every choice is on screen, the one in
+     force is filled, and tapping it again takes it off. */
+  function segHTML(vals, cur, attrs, label, off) {
+    return '<div class="cbm-seg" role="group" aria-label="' + esc(label) + '">' + vals.map(function (v) {
+      var mk = MARK[String(v)], on = cur === v;
+      return '<button type="button" class="cbm-mark' + (on ? ' ' + mk[0] : '') + '" ' + attrs + ' data-v="' + v + '" aria-pressed="' + on + '" aria-label="' + mk[2] + '"' + (off ? ' disabled' : '') + '>' + mk[1] + '</button>'; }).join('') + '</div>';
+  }
+  /* one of the teacher's two for one child: that child's own answer, and the switch */
   function auditBtn(day, pid, j) {
-    var m = day.marks[pid], pl = sheetPlan(day, pid), pos = pl.audit[j], v = m && !m.x && m.a ? m.a[j] : null, mk = MARK[String(v)];
+    var m = day.marks[pid], pl = sheetPlan(day, pid), pos = pl.audit[j], v = m && !m.x && m.a ? m.a[j] : null;
     if (pos == null) return '';
     var q = pl.own ? sheetQs(day, curDay, pid)[pos] : null;
-    return '<button type="button" class="cbm-mark' + (mk ? ' ' + mk[0] : '') + '" data-aj="' + j + '"' + (m && m.x ? ' disabled' : '') +
-      ' aria-label="Your mark for Q' + (pos + 1) + '">' + (mk ? mk[1] : '·') + '</button>' +
-      (pos !== day.audit[j] ? '<span class="cbm-markq">Q' + (pos + 1) + '</span>' : '') +
-      (q ? '<span class="cbm-markans" title="' + esc(keyTitle(q.k)) + '">' + esc(ans(q, curDay)) + '</span>' : '');
+    return '<div class="cbm-markwrap">' + (q ? '<span class="cbm-markans" title="' + esc(keyTitle(q.k)) + '">' + esc(ans(q, curDay)) + '</span>' : '') +
+      segHTML([1, 0, -1], v, 'data-aj="' + j + '"', 'Your mark for Q' + (pos + 1), m && m.x) +
+      (pos !== day.audit[j] ? '<span class="cbm-markq">Q' + (pos + 1) + '</span>' : '') + '</div>';
   }
   function absBtn(day, pid) {
     var x = !!(day.marks[pid] && day.marks[pid].x);
@@ -1273,26 +1335,30 @@
     if (!tg.length) return '<span class="muted small">after your first marks</span>';
     return tg.map(function (t) { return '<span class="cbm-tg cbm-tg-' + t.y + '" title="' + esc(keyTitle(t.k) + ' — ' + WHY[t.y]) + '">' + esc(keyLabel(t.k)) + '</span>'; }).join('');
   }
-  /* what is different about this child's sheet, beside their name */
+  /* what is different about this child's sheet, under their name */
   function tagsHTML(day, pid) {
     var pl = sheetPlan(day, pid), out = '';
-    if (pl.num) return ' <span class="cbm-sup" title="' + esc((pl.why ? pl.why + ' · ' : '') + rungLabel(pl.rung)) + '">' + (day.ind ? 'numbers · ' : '') + pl.slots.length + ' Qs</span>';
-    if (pl.slots.length < day.qs.length) out += ' <span class="cbm-sup" title="' + esc(pl.why) + '">' + pl.slots.length + ' Qs</span>';
+    if (pl.num) return '<span class="cbm-sup" title="' + esc((pl.why ? pl.why + ' · ' : '') + rungLabel(pl.rung)) + '">' + (day.ind ? 'numbers · ' : '') + pl.slots.length + ' Qs</span>';
+    if (pl.slots.length < day.qs.length) out += '<span class="cbm-sup" title="' + esc(pl.why) + '">' + pl.slots.length + ' Qs</span>';
     var st = pl.slots.filter(function (x) { return x.k !== x.c; });
-    if (st.length) out += ' <span class="cbm-sup cbm-stepped" title="' + esc(st.map(function (x) { return 'Q' + (pl.slots.indexOf(x) + 1) + ' ' + keyLabel(x.c) + ' → ' + keyLabel(x.k); }).join('\n')) + '">' + st.length + ' stepped back</span>';
+    if (st.length) out += '<span class="cbm-sup cbm-stepped" title="' + esc(st.map(function (x) { return 'Q' + (pl.slots.indexOf(x) + 1) + ' ' + keyLabel(x.c) + ' → ' + keyLabel(x.k); }).join('\n')) + '">' + st.length + ' stepped back</span>';
     return out;
   }
+  function nameCell(day, p) {
+    var tags = tagsHTML(day, p.id);
+    return '<span class="cbm-pname">' + esc(p.name) + '</span>' + (tags ? '<span class="cbm-tags">' + tags + '</span>' : '');
+  }
   function rowHTML(state, day, p) {
-    return '<tr data-pid="' + p.id + '"><td class="name">' + esc(p.name) + tagsHTML(day, p.id) + '</td>' +
+    return '<tr data-pid="' + p.id + '"><td class="name">' + nameCell(day, p) + '</td>' +
       '<td class="cbm-markcell">' + auditBtn(day, p.id, 0) + '</td><td class="cbm-markcell">' + auditBtn(day, p.id, 1) + '</td>' +
       '<td class="cbm-abscell">' + absBtn(day, p.id) + '</td><td class="cbm-box-cell">' + boxHTML(state, day, p.id) + '</td>' +
       (state.xt.on && state.xt.mode === 'mult' ? '<td class="cbm-xmcell">' + xmBtn(state, day, p.id) + '</td>' : '') + '</tr>';
   }
-  /* the Multiples page's one mark: · → ✓ → ✗ → · */
+  /* the back page's one mark: got it, or not yet */
   function xmBtn(state, day, pid) {
-    var t = tableForDay(state, curDay, pid), v = day.xm ? day.xm[pid] : undefined, mk = MARK[String(v)], x = !!(day.marks[pid] && day.marks[pid].x);
-    return '<span class="cbm-xmt" title="' + (t.r ? 'A table they have already got, back so it is not forgotten' : 'The table they are learning') + '">×' + t.n + (t.r ? ' ↻' : '') + '</span>' +
-      '<button type="button" class="cbm-mark cbm-xm' + (mk ? ' ' + mk[0] : '') + '"' + (x ? ' disabled' : '') + ' aria-label="Multiples of ' + t.n + '">' + (mk ? mk[1] : '·') + '</button>';
+    var t = tableForDay(state, curDay, pid), v = day.xm ? day.xm[pid] : null, x = !!(day.marks[pid] && day.marks[pid].x);
+    return '<div class="cbm-markwrap"><span class="cbm-xmt" title="' + (t.r ? 'A table they have already got, back so it is not forgotten' : 'The table they are learning') + '">×' + t.n + (t.r ? ' ↻' : '') + '</span>' +
+      segHTML([1, 0], v == null ? null : v, 'data-xm', 'Multiples of ' + t.n, x).replace(/class="cbm-mark/g, 'class="cbm-mark cbm-xm') + '</div>';
   }
   /* just the back pages: the class's square, or each child's own */
   function printBacks() {
@@ -1304,37 +1370,60 @@
     }).join(''));
   }
 
-  function wireRows(body) {
-    function refresh(tr) {
+  /* One listener for the whole Today screen: the marks, Absent, the filter
+     chips and the board buttons (which are redrawn as marks come in). */
+  function wireToday(root) {
+    function refresh(tr, key) {
       var s = load(), day = s.days[curDay], pid = tr.dataset.pid, td = tr.children;
       td[1].innerHTML = auditBtn(day, pid, 0); td[2].innerHTML = auditBtn(day, pid, 1);
       td[3].innerHTML = absBtn(day, pid); td[4].innerHTML = boxHTML(s, day, pid);
       if (td[5]) td[5].innerHTML = xmBtn(s, day, pid);
-      document.getElementById('cbmCount').textContent = enteredCount(day) + ' of ' + roster.length + ' entered';
+      var an = analyse(s, curDay, 14), focus = focusSlots(an, day);
+      document.getElementById('cbmSteps').innerHTML = stepsHTML(day, focus);
+      document.getElementById('cbmBoard').innerHTML = boardHTML(day, an, focus);
+      paintFilters(day);
+      var again = key && !tr.hidden ? tr.querySelector(key) : null; if (again) again.focus();   // the switch was redrawn: keep the keyboard where it was
     }
-    body.querySelectorAll('.cbm-table tbody').forEach(function (tb) {
-      tb.addEventListener('click', function (e) {
-        var b = e.target.closest('.cbm-mark, .cbm-abs'); if (!b || b.disabled) return;
-        var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], m = day.marks[pid];
-        if (b.classList.contains('cbm-xm')) {
-          // the mark is for the table on their page: fix it now if it was not printed
-          day.mt = day.mt || {}; if (!day.mt[pid]) day.mt[pid] = tableForDay(s, curDay, pid).n;
-          day.xm = day.xm || {};
-          var xv = day.xm[pid];
-          if (xv === 1) day.xm[pid] = 0; else if (xv === 0) delete day.xm[pid]; else day.xm[pid] = 1;
-        } else if (b.classList.contains('cbm-abs')) {
-          if (m && m.x) delete day.marks[pid]; else day.marks[pid] = { x: 1 };
-        } else {
-          var j = +b.dataset.aj;
-          if (!m) m = day.marks[pid] = { a: [null, null] };
-          if (!m.a) m.a = [null, null];
-          var v = m.a[j];
-          m.a[j] = v === 1 ? 0 : v === 0 ? -1 : v === -1 ? null : 1;    // · → ✓ → ✗ → blank → ·
-          if (m.a[0] == null && m.a[1] == null && typeof m.s !== 'number' && !Array.isArray(m.w)) delete day.marks[pid];
-        }
-        save(s); refresh(tr);
-      });
+    /* The Mental Starters whiteboard: one at a time on squared paper, pen and rubber, then the
+       answers page. Ink is kept per day (tp_starter_ann, 'cbm:<iso>:…'); the focus list keeps
+       its own, because its question 1 is not the sheet's question 1. */
+    function openBoard(qs, key, title) {
+      window.hubOpenBoard({ qs: qs, iso: curDay, key: key, title: title + ' · ' + shortDate(curDay), sub: fullDate(curDay), onClose: renderToday });
+    }
+    root.addEventListener('click', function (e) {
+      var f = e.target.closest('[data-filter]');
+      if (f) { todayFilter = f.dataset.filter; paintFilters(load().days[curDay]); var on = root.querySelector('[data-filter="' + todayFilter + '"]'); if (on) on.focus(); return; }
+      var wb = e.target.closest('#cbmWb, #cbmWbFocus');
+      if (wb) {
+        var st = load(), d = st.days[curDay];
+        if (wb.id === 'cbmWb') openBoard(d.qs, 'cbm:' + curDay, 'Mental Starter (CBM)');
+        else openBoard(focusSlots(analyse(st, curDay, 14), d).map(function (i) { return d.qs[i]; }), 'cbm:' + curDay + ':focus', 'Focus skills');
+        return;
+      }
+      var b = e.target.closest('.cbm-mark, .cbm-abs'); if (!b || b.disabled) return;
+      var tr = b.closest('tr'), pid = tr.dataset.pid, s = load(), day = s.days[curDay], m = day.marks[pid], v = +b.dataset.v, key;
+      if (b.classList.contains('cbm-xm')) {
+        // the mark is for the table on their page: fix it now if it was not printed
+        day.mt = day.mt || {}; if (!day.mt[pid]) day.mt[pid] = tableForDay(s, curDay, pid).n;
+        day.xm = day.xm || {};
+        if (day.xm[pid] === v) delete day.xm[pid]; else day.xm[pid] = v;
+        key = '.cbm-xm[data-v="' + v + '"]';
+      } else if (b.classList.contains('cbm-abs')) {
+        if (m && m.x) delete day.marks[pid]; else day.marks[pid] = { x: 1 };
+        key = '.cbm-abs';
+      } else {
+        var j = +b.dataset.aj;
+        if (!m) m = day.marks[pid] = { a: [null, null] };
+        if (!m.a) m.a = [null, null];
+        m.a[j] = m.a[j] === v ? null : v;                              // tapping the one in force takes it off
+        if (m.a[0] == null && m.a[1] == null && typeof m.s !== 'number' && !Array.isArray(m.w)) delete day.marks[pid];
+        key = '[data-aj="' + j + '"][data-v="' + v + '"]';
+      }
+      save(s); refresh(tr, key);
     });
+    /* Sheet options closes when you tap away from it. */
+    var menu = root.querySelector('.cbm-menu');
+    if (menu) root.addEventListener('click', function (e) { if (menu.open && !e.target.closest('.cbm-menu')) menu.open = false; });
   }
 
   /* ── Print ────────────────────────────────────────────── */
