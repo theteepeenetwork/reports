@@ -324,6 +324,7 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   await frame.getByRole('button', { name: 'A3 class grid' }).click();
   await frame.getByRole('button', { name: 'Spreadsheet (CSV)' }).click();
   expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual(['grid:1', 'csv']);
+  expect(await frame.locator('body').evaluate(() => S.ui.print.list), 'Print keeps its own list, so its pages and bands still match it').toBe(0);
 });
 
 test('Pupils: a card each, the four filters, and practice books for everyone', async ({ page }) => {

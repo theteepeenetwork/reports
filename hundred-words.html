@@ -1654,7 +1654,8 @@ const A={
   cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
   sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.cell=null},
   closeSq:()=>{S.ui.sq=null;S.ui.cell=null},
-  classGrid:el=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}S.ui.print.list=+el.dataset.k;PDF.grid();return "skip"},
+  classGrid:el=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}/* the grid prints the list on show here; Print keeps its own list, with the pages and bands that go with it */
+    const P=S.ui.print,keep=P.list;P.list=+el.dataset.k;try{PDF.grid()}finally{P.list=keep}return "skip"},
   closeCell:()=>{S.ui.cell=null},
   setCell:el=>{const {p,i}=S.ui.cell;const sid=p+"_"+localDate(),old=S.sessions[sid];const words={...((old&&old.words)||{})};words[i]={s:el.dataset.s,src:"manual"};
     saveDoc("sessions",sid,{pupilId:p,date:localDate(),kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});toast(`${WORDS[i]} marked ${el.dataset.s==="c"?"correct":"not yet"} for today`)},
