@@ -80,6 +80,13 @@ one JSON value, `{ sessions, practice, plans, settings }`, under the per-class k
 **`tp_hundred_words`** (in `DATA_KEYS` and `TP_PER_CLASS`). Writes go through the hub window's
 `localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are read from the
 active class's `tp_roster`, and every record is keyed by roster pupil id.
+The Nov 2026 redesign (tabs This week · Mark · Class · Pupils · Print, a settings cog, one pupil
+panel) changed layout and navigation only: no key, collection or record shape changed, so there is no
+migration. A session is still `{ pupilId, date, kind, words:{ [index]:{ s:'c'|'x'|'?', src, r? } }, photos, updatedAt }`
+under `<pupilId>_<date>`; `r` (what the child wrote), once only written by photo marking, is now also
+typed in on Mark. A plan is `{ focusN?, reviewDate?, notes?, updated }`; settings may hold `wholeN`
+and `cardsPerChild`. Which tab is open is never stored; the old tab ids (`tracker`, `groups`, `assess`,
+`plans`) still resolve, in the URL hash too (`TAB_ALIAS` in `hundred-words.html`).
 
 ## Mental Starter (CBM): `tp_cbm` (Oct 2026; individual sheets Nov 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads

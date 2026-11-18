@@ -188,6 +188,28 @@ details.more>summary{list-style:none}
 details.more>summary::-webkit-details-marker{display:none}
 details.more .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:grid;gap:2px;min-width:230px}
 details.more .menu .btn{justify-content:flex-start;border-color:transparent}
+/* print */
+.printlay{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.pmenu{flex:1 1 300px;max-width:340px;min-width:0;padding:8px}
+.grp{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--muted);padding:14px 12px 4px;text-transform:uppercase}
+.it{width:100%;text-align:left;display:flex;gap:12px;align-items:center;padding:10px 12px;min-height:56px;border:0;border-radius:10px;background:transparent;cursor:pointer;color:var(--ink)}
+.it:hover{background:var(--line-2)}
+.it[aria-current="true"]{background:var(--accent-soft)}
+.it .ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;font-weight:800;font-size:13px}
+.ic.blue{background:var(--accent-soft);color:var(--accent-text)}
+.it[aria-current="true"] .ic.blue{background:var(--card)}
+.ic.green{background:var(--ok-soft);color:var(--ok-ink)}
+.ic.amber{background:var(--rev-soft);color:var(--rev-ink)}
+.it b{display:block;font-size:14px}
+.it small{font-size:12px;color:var(--muted)}
+.pcfg{flex:999 1 480px;min-width:0;padding:24px;display:flex;flex-direction:column;gap:20px}
+.pcfg h2{font-size:22px}
+.popt{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.optl{font-size:13px;font-weight:700;color:var(--ink-2)}
+.f.sq{border-radius:10px;display:inline-flex;align-items:center;gap:6px}
+.outbar{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:16px;border-radius:12px;background:var(--paper)}
+.sheet{width:62px;height:84px;border-radius:4px;background:#fff;border:1px solid var(--ctl);box-shadow:3px 3px 0 var(--line),6px 6px 0 var(--line-2);flex:none}
+@media (max-width:760px){.pmenu{max-width:none;flex-basis:100%}.pcfg{padding:16px}}
 /* class */
 .stat4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 @media (max-width:900px){.stat4{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -385,7 +407,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"week",
   ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,
-      print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
+      print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
 let memo={};
@@ -968,47 +990,106 @@ function finishAct(a){
   saveDoc("practice",a.pid,{boxes,log});
 }
 
-/* ----- Print ----- */
-VIEWS.print=function(){
-  const P=S.ui.print,ids=pupilIds();
-  const pupilPick=(key)=>`<div class="chips">${ids.map(id=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPid" value="${id}" ${P.pids.includes(id)?"checked":""}>${esc(S.pupils[id].name)}</label>`).join("")}</div><div class="row small"><a href="#" data-a="pidsAll">Select all</a><a href="#" data-a="pidsNone">Select none</a></div>`;
-  const ok=!!dl;
-  const PL=LISTS[P.list||0],pages=Math.ceil((PL.b-PL.a)/20),levelChips=listSets(PL).map(l=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printLevel" value="${l}" ${P.levels.includes(l)?"checked":""}>${bandDot(l)}${BANDS[l%10].n} ${esc(setLabel(l).replace(/^.* /,""))}</label>`).join("");
-  return `<div class="row" style="justify-content:space-between"><h2>Print</h2><div class="row small"><b>Word list</b>${listSeg(P.list||0,"printList")}</div></div>${ok?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}
-  <div class="cols">
-   <div class="panel stack"><h3>Spelling answer sheets</h3><p class="muted small">For the word list chosen above. 20 numbered boxes per A4 page with handwriting lines. Read each word aloud (use the dictation script) and children write it in the matching box.</p>
-    <div class="chips">${Array.from({length:pages},(_,p)=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printPage" value="${p}" ${P.pages.includes(p)?"checked":""}>Words ${p*20+1}–${Math.min(p*20+20,PL.b-PL.a)}</label>`).join("")}</div>
-    <label class="chk"><input type="checkbox" data-c="printNamed" ${P.named?"checked":""}>Print a set for each pupil with their name on</label>
-    ${P.named?pupilPick():""}
-    <div class="row"><button class="btn primary" data-a="pdfSheets">Download answer sheets</button><button class="btn" data-a="pdfScript">Download dictation script</button></div></div>
-   <div class="panel stack"><h3>Flash cards</h3><p class="muted small">Colour-coded by level, with the word number on each card. “Each pupil” uses their plan’s focus words first, then revisit and next-up words.</p>
-    <div class="row"><label for="cpc" class="small"><b>Cards per child</b></label><select id="cpc" data-c="cardsPerChild">${[3,4,5,6,8,10,12,15,20].map(v=>`<option value="${v}" ${cardsPerChild()===v?"selected":""}>${v}</option>`).join("")}</select><span class="muted small">Applies to every child, here, in practice packs and in the pupil panel.</span></div>
-    <div class="seg"><button data-a="cardLayout" data-k="stack" aria-pressed="${P.cardLayout==="stack"}">Stack and cut</button><button data-a="cardLayout" data-k="sheet" aria-pressed="${P.cardLayout==="sheet"}">Sheet by sheet</button></div>
-    <p class="small">${P.cardLayout==="stack"?(P.cardsFor==="levels"?"Each sheet repeats one word in every space. Print, square the stack and cut once: every pile is a complete, identical pack for a group.":"Each space on the sheet belongs to one child, and sheet 1 is their name card. Print, square the stack and cut once: every pile is one child’s complete set with their name on top. Up to "+cardGrid(+P.cardSize).per+" children per stack."):"Cards fill each sheet in order. Best for one child or a single level."} <span class="muted">${cutHelp(+P.cardSize)}</span></p>
-    ${P.stackNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(P.stackNote)}</p>`:""}
-    <div class="seg"><button data-a="cardsFor" data-k="levels" aria-pressed="${P.cardsFor==="levels"}">By level</button><button data-a="cardsFor" data-k="pupils" aria-pressed="${P.cardsFor==="pupils"}">Each pupil’s next words</button></div>
-    ${P.cardsFor==="levels"?`<div class="chips">${levelChips}</div>`:pupilPick()}
-    <div class="row"><label for="cSize" class="small"><b>Size</b></label><select id="cSize" data-c="cardSize"><option value="10" ${P.cardSize==10?"selected":""}>10 per page</option><option value="4" ${P.cardSize==4?"selected":""}>4 large per page</option></select>
-    <label class="chk small"><input type="checkbox" data-c="cardSent" ${P.cardSent?"checked":""}>Add the dictation sentence</label></div>
-    <button class="btn primary" data-a="pdfCards">Download flash cards</button></div>
-   <div class="panel stack"><h3>Daily practice books</h3><p class="muted small">A5 look-say-cover-write-check pages from each child’s progression plan: a single day, or a 5 or 10-day book with a cover and tick chart. Laid out to stack and cut: print, square the stack, one cut across the middle, and the piles are complete books.</p>
-    ${pupilPick()}
-    <div class="row"><select id="bDays2" data-c="bookDays" aria-label="Days"><option value="1" ${P.bookDays==1?"selected":""}>1 day</option><option value="5" ${P.bookDays==5?"selected":""}>1 week (5 days)</option><option value="10" ${P.bookDays==10?"selected":""}>2 weeks (10 days)</option></select><button class="btn primary" data-a="pdfBooksSel">Download books</button></div>${S.ui.print.bookNote?`<p class="small pill ok" style="border-radius:8px;padding:8px 10px;font-weight:400">${esc(S.ui.print.bookNote)}</p>`:""}</div>
-   <div class="panel stack"><h3>Practice sheets</h3><p class="muted small">Printable activities made from each child’s focus words, or from a whole level. The sheets ticked here also go into practice packs.</p>
-    <div class="chips">${Object.entries(ACTS).map(([k,a])=>`<label class="chk wchip" style="font-family:var(--f-ui);font-size:14px"><input type="checkbox" data-c="printAct" value="${k}" ${P.acts.includes(k)?"checked":""}>${a.name}</label>`).join("")}</div>
-    <div class="seg"><button data-a="actsFor" data-k="pupils" aria-pressed="${P.actsFor==="pupils"}">Each pupil’s focus words</button><button data-a="actsFor" data-k="levels" aria-pressed="${P.actsFor==="levels"}">By level</button></div>
-    ${P.actsFor==="levels"?`<div class="chips">${levelChips}</div>`:pupilPick()}
-    <button class="btn primary" data-a="pdfActs">Download practice sheets</button></div>
-   <div class="panel stack"><h3>Targeted check sheets</h3><p class="muted small">For 1:1 re-checks: one sheet per pupil listing only words they haven’t got yet, plus your script for those words.</p>
-    ${P.named?"":pupilPick()}
-    <div class="row"><label for="tN" class="small">Words per pupil</label><select id="tN" data-c="targetN"><option value="10" ${P.targetN==10?"selected":""}>10</option><option value="20" ${P.targetN==20?"selected":""}>20</option></select></div>
-    <button class="btn primary" data-a="pdfTargeted">Download check sheets</button></div>
-   <div class="panel stack"><h3>Word of the day</h3><p class="muted small">A week of A4 posters for the classroom wall, Monday to Friday: one word a day, from the five words the most pupils in the class are still misspelling.</p>
-    <button class="btn primary" data-a="pdfWotd">Download this week’s posters</button></div>
-   <div class="panel stack"><h3>Class record</h3><p class="muted small">Your A3 class grid for the word list chosen above (100 words per sheet), filled in with the latest results and colour-coded. Or a spreadsheet of the same.</p>
-    <div class="row"><button class="btn primary" data-a="pdfGrid">Download A3 class grid</button><button class="btn" data-a="csv">Download spreadsheet (CSV)</button></div></div>
-  </div>`;
-};
+/* ----- Print -----
+   Eight things in three groups. Picking one shows only its options, a line
+   saying what will print and on what paper, and one Download button. The
+   options and the PDF functions are the ones Print always had. */
+const PRINT_GROUPS=[["For Thursday’s test",["answer","script","check"]],["For practice",["books","cards","acts"]],["For the wall and records",["wotd","grid"]]];
+const PRINT_ITEMS={
+  answer:{ab:"Aa",tone:"blue",name:"Answer sheets",sub:"20 numbered boxes a page"},
+  script:{ab:"“ ”",tone:"blue",name:"Dictation script",sub:"Word, sentence, word"},
+  check:{ab:"1:1",tone:"blue",name:"Targeted check sheets",sub:"Only words not got yet"},
+  books:{ab:"A5",tone:"green",name:"Daily practice books",sub:"Look, say, cover, write, check"},
+  cards:{ab:"▭",tone:"green",name:"Flash cards",sub:"Colour-coded by band"},
+  acts:{ab:"✎",tone:"green",name:"Practice sheets",sub:"Trace, missing letters, word search…"},
+  wotd:{ab:"W",tone:"amber",name:"Word of the day",sub:"A week of wall posters"},
+  grid:{ab:"A3",tone:"amber",name:"Class record",sub:"A3 grid or spreadsheet"}};
+/* who an item prints for: everyone, a Needs-you group, or hand-picked */
+function whoKey(item){const w=S.ui.print.who[item];if(w)return w;return item==="check"&&classNeeds().ready.length?"ready":"all"}
+function whoPids(item){const w=whoKey(item),N=classNeeds();return (w==="ready"?N.ready:w==="review"?N.due:w==="pick"?S.ui.print.pids:pupilIds()).filter(id=>S.pupils[id])}
+/* which test an item prints: an index into testPlan().tests, "all", or "list" (a whole word list) */
+function printTest(key){const n=testPlan().tests.length,v=S.ui.print[key];if(v==="list"||(v==="all"&&n>1))return v;return n?String(Math.min(+v||0,n-1)):"list"}
+function printView(){
+  const P=S.ui.print,item=PRINT_ITEMS[P.item]?P.item:"answer",I=PRINT_ITEMS[item],ids=pupilIds(),tests=testPlan().tests,N=classNeeds();
+  const plural=(n,w)=>`${n} ${n===1?w:w==="activity"?"activities":w+"s"}`;
+  const seg=(label,key,cur,choices,flag="")=>`<div class="popt"><span class="optl">${label}</span><div class="seg" role="group" aria-label="${label}">${choices.map(([v,t])=>`<button type="button" data-a="pset" data-key="${key}" data-v="${v}" ${flag} aria-pressed="${String(cur)===String(v)}">${t}</button>`).join("")}</div></div>`;
+  const toggles=(label,key,cur,choices,flag="")=>`<div class="popt"><span class="optl">${label}</span><div class="row" role="group" aria-label="${label}" style="gap:6px">${choices.map(([v,t])=>`<button type="button" class="f sq" data-a="ptoggle" data-key="${key}" data-v="${v}" ${flag} aria-pressed="${cur.includes(v)}">${t}</button>`).join("")}</div></div>`;
+  const who=(choices)=>{const w=whoKey(item);return seg("Who","who."+item,w,choices)+(w==="pick"?toggles("Children","pids",P.pids,ids.map(id=>[id,esc(S.pupils[id].name)]))+`<div class="row small" style="gap:4px 18px;margin-top:-12px"><button type="button" class="linkbtn small" data-a="pidsAll">Select all</button><button type="button" class="linkbtn small" data-a="pidsNone">Select none</button></div>`:"")};
+  const everyone=["all",`Everyone (${ids.length})`],pick=["pick","Choose children"];
+  const PL=LISTS[P.list||0],listOpt=`<div class="popt"><span class="optl">Word list</span>${listSeg(P.list||0,"printList")}</div>`;
+  const bands=()=>toggles("Bands","levels",P.levels,listSets(PL).map(l=>[l,`${bandDot(l)}${BANDS[l%10].n} ${esc(setLabel(l).replace(/^.* /,""))}`]),'data-n="1"');
+  const testChoices=[...tests.map((t,k)=>[k,esc(t.title)]),...(tests.length>1?[["all",`All ${tests.length}`]]:[]),["list","A whole list"]];
+  const npick=whoPids(item).length;
+  let desc="",opts="",out="",paper="A4",go="Download PDF",note="";
+  if(item==="answer"){const v=printTest("ans");
+    desc="Read each word aloud from the dictation script; children write it in the box with the same number.";
+    opts=seg("Which test","ans",v,testChoices);
+    if(v==="list"){const pages=Math.ceil((PL.b-PL.a)/20);
+      opts+=listOpt+toggles("Pages","pages",P.pages,Array.from({length:pages},(_,k)=>[k,`Words ${k*20+1}–${Math.min(k*20+20,PL.b-PL.a)}`]),'data-n="1"')+seg("Names","named",P.named,[[false,"Blank"],[true,"Each child’s name on"]],'data-b="1"')+(P.named?who([everyone,pick]):"");
+      out=P.named?`${plural(npick*P.pages.length,"sheet")} · ${plural(P.pages.length,"page")} for each of ${npick===1?"1 child":npick+" children"}`:`${plural(P.pages.length,"blank sheet")} to copy`;paper="A4 · 20 boxes a page"}
+    else if(v==="all"){out=`${plural(tests.reduce((n,t)=>n+t.pids.length,0),"named sheet")} in ${tests.length} PDFs, one for each test`;paper="A4 · boxes numbered to match each script"}
+    else{const t=tests[+v];out=`${plural(t.pids.length,"sheet")}, each with a child’s name · ${esc(setsLabel(t.sets))}`;paper=`A4 · boxes numbered 1–${t.words.length}`}}
+  else if(item==="script"){const v=printTest("scr");
+    desc="What you read aloud: each word, a sentence with it, then the word again.";
+    opts=seg("Which test","scr",v,testChoices)+(v==="list"?listOpt:"");
+    out=v==="list"?`1 script · all ${PL.b-PL.a} words of ${esc(LIST_TAB[P.list||0])}`:v==="all"?`${tests.length} scripts, one for each test`:`1 script · ${tests[+v].words.length} words · ${esc(setsLabel(tests[+v].sets))}`;paper="A4 · for you"}
+  else if(item==="check"){
+    desc="For 1:1 re-checks: each child’s sheet lists only the words they haven’t got yet, followed by your script for those words.";
+    opts=who([["ready",`Ready to re-check (${N.ready.length})`],everyone,pick])+seg("Words each","targetN",P.targetN,[[10,"10"],[20,"20"]],'data-n="1"');
+    out=`${plural(npick,"sheet")}, each with its script`}
+  else if(item==="books"){const d=+P.bookDays;
+    desc="Each child’s own A5 book from their plan: a cover with their words and a tick chart, then a page a day. Print, stack and cut once.";
+    opts=who([everyone,["review",`Review due (${N.due.length})`],pick])+seg("How long","bookDays",d,[[1,"1 day"],[5,"1 week"],[10,"2 weeks"]],'data-n="1"');
+    out=`${plural(npick,d>1?"book":"page")} · ${d===1?"1 day":d===5?"1 week":"2 weeks"}`;paper="A4, cut to A5 · stack and cut";note=P.bookNote}
+  else if(item==="cards"){const lv=P.cardsFor==="levels",stack=P.cardLayout==="stack",per=cardGrid(+P.cardSize).per;
+    desc="Cards in book-band colours with the word number on each. “Each child’s focus” uses their plan’s focus words first, then revisit and next-up words.";
+    opts=seg("Whose words","cardsFor",P.cardsFor,[["pupils","Each child’s focus"],["levels","A band"]])+(lv?listOpt+bands():who([everyone,pick])+`<div class="popt"><label class="optl" for="cpc">Cards per child</label><select id="cpc" data-c="cardsPerChild">${[3,4,5,6,8,10,12,15,20].map(v=>`<option value="${v}" ${cardsPerChild()===v?"selected":""}>${v}</option>`).join("")}</select></div>`)
+      +seg("Layout","cardLayout",P.cardLayout,[["stack","Stack and cut"],["sheet","Sheet by sheet"]])+seg("Per page","cardSize",P.cardSize,[[10,"10"],[4,"4 large"]],'data-n="1"')+seg("Sentence on the card","cardSent",P.cardSent,[[false,"No"],[true,"Yes"]],'data-b="1"')
+      +`<p class="muted small" style="max-width:70ch">${stack?(lv?"Each sheet repeats one word in every space. Print, square the stack and cut once: every pile is a complete, identical pack for a group.":`Each space on the sheet belongs to one child, and sheet 1 is their name card. Print, square the stack and cut once: every pile is one child’s set with their name on top. Up to ${per} children per stack.`):"Cards fill each sheet in order. Best for one child or a single band."} ${cutHelp(+P.cardSize)}</p>`;
+    out=lv?`${plural(P.levels.length*10,"card")} · ${plural(P.levels.length,"band")}${stack?` · ${per} identical packs`:""}`:`${cardsPerChild()} cards each for ${npick===1?"1 child":npick+" children"}`;paper=`A4 · ${per} to a page${stack?" · stack and cut":""}`;note=P.stackNote}
+  else if(item==="acts"){const lv=P.actsFor==="levels";
+    desc="Printable activities made from each child’s focus words, or from a whole band. The ones ticked here also go into practice packs.";
+    opts=toggles("Activities","acts",P.acts,Object.entries(ACTS).map(([k,a])=>[k,a.name]))+seg("Whose words","actsFor",P.actsFor,[["pupils","Each child’s focus"],["levels","A band"]])+(lv?listOpt+bands():who([everyone,pick]));
+    out=lv?`${plural(P.acts.length,"activity")} for ${plural(P.levels.length,"band")}`:`${plural(npick,"pack")} · ${plural(P.acts.length,"activity")} each`}
+  else if(item==="wotd"){const top=classMissed(ids.map(id=>[id,summary(id)])).slice(0,5);
+    desc=`Monday to Friday, one poster a day, from the five words most of the class still gets wrong${top.length?`: <span class="wd">${top.map(([i])=>esc(WORDS[i])).join(", ")}</span>.`:". They appear once a test has been marked."}`;
+    out=plural(top.length,"poster");paper="A4 landscape"}
+  else{const csv=P.gridFmt==="csv";
+    desc="Every child and every word, colour-coded with the latest results: the word-by-word record behind the Class tab.";
+    opts=(csv?"":listOpt)+seg("Format","gridFmt",P.gridFmt,[["pdf","A3 PDF"],["csv","Spreadsheet (CSV)"]]);
+    out=csv?"1 spreadsheet · every list":`1 class grid · ${plural(Math.ceil((PL.b-PL.a)/100),"sheet")}`;paper=csv?"CSV, opens in Excel or Sheets":"A3 landscape · 100 words a sheet";if(csv)go="Download CSV"}
+  return `${dl?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}<div class="printlay">
+   <nav class="panel pmenu" aria-label="What to print">${PRINT_GROUPS.map(([g,keys])=>`<div class="grp">${g}</div>${keys.map(k=>{const x=PRINT_ITEMS[k];return `<button type="button" class="it" data-a="pitem" data-k="${k}" aria-current="${k===item}"><span class="ic ${x.tone}" aria-hidden="true">${x.ab}</span><span><b>${x.name}</b><small>${x.sub}</small></span></button>`}).join("")}`).join("")}</nav>
+   <section class="panel pcfg" aria-labelledby="cfgH"><div><h2 id="cfgH">${I.name}</h2><p style="margin-top:6px;font-size:14px;color:var(--ink-2);max-width:70ch">${desc}</p></div>
+    <div id="popts" class="stack" style="gap:20px">${opts}</div>
+    <div class="outbar"><div class="sheet" aria-hidden="true"></div><div style="flex:1;min-width:200px"><div id="pout" style="font-size:16px;font-weight:700">${out}</div><div class="muted small" id="ppaper">${paper}</div></div><button type="button" class="btn primary" id="printGo" data-a="printGo">${go}</button></div>
+    ${note?`<p class="note">${esc(note)}</p>`:""}
+   </section></div>`;
+}
+VIEWS.print=function(){return printView()};
+/* Download: hand the chosen options to the PDF function that item always used. */
+function printGo(){
+  const P=S.ui.print,item=PRINT_ITEMS[P.item]?P.item:"answer",tests=testPlan().tests,pids=whoPids(item);
+  const lv=()=>P.levels.slice().sort((a,b)=>a-b);
+  if(item==="answer"){const v=printTest("ans");
+    if(v==="list"){const keep=P.pids;P.pids=pids;try{PDF.sheets()}finally{P.pids=keep}}
+    else (v==="all"?tests:[tests[+v]]).forEach(t=>PDF.testSheets(t))}
+  else if(item==="script"){const v=printTest("scr");if(v==="list")PDF.script();else (v==="all"?tests:[tests[+v]]).forEach(t=>PDF.testScript(t))}
+  else if(item==="check")PDF.targeted(pids);
+  else if(item==="books"){S.ui.printed=true;PDF.books(pids,"practice-books.pdf")}
+  else if(item==="cards"){
+    if(P.cardsFor==="levels"){const l=lv();if(!l.length){toast("Choose at least one band");return}
+      if(P.cardLayout==="stack")PDF.stackLevels(l,"level-flash-cards-stack-and-cut.pdf");else PDF.cards(l.map(g=>({label:"",items:setWords(g)})),"flash-cards.pdf")}
+    else if(P.cardLayout==="stack")PDF.stackPupils(pids,"flash-cards-stack-and-cut.pdf");
+    else{const g=pids.map(id=>({label:S.pupils[id].name.split(" ")[0],items:childCards(id)}));if(!g.length){toast("Choose the pupils to print for");return}PDF.cards(g,"pupil-flash-cards.pdf")}}
+  else if(item==="acts"){let g;
+    if(P.actsFor==="levels"){g=lv().map(l=>({label:"",items:setWords(l)}));if(!g.length){toast("Choose at least one band");return}}
+    else{g=pids.map(id=>({label:S.pupils[id].name,items:planWords(id)}));if(!g.length){toast("Choose the pupils to print for");return}}
+    PDF.acts(g,"practice-sheets.pdf")}
+  else if(item==="wotd")PDF.wotd();
+  else if(P.gridFmt==="csv")PDF.csv();
+  else{if(!pupilIds().length){toast("Add pupils first");return}PDF.grid()}
+}
 
 /* ----- Settings (the cog; was the Class tab) ----- */
 VIEWS.settings=function(){
@@ -1710,35 +1791,22 @@ const A={
   buildPeek:()=>{const a=S.ui.act;a.first=false;toast(WORDS[a.items[a.i]])},
   lcwc:el=>{S.ui.act.phase=el.dataset.k},
   lcwcRes:el=>{nextItem(el.dataset.v==="1");return "skip"},
-  cardsFor:el=>{S.ui.print.cardsFor=el.dataset.k},
+  pitem:el=>{S.ui.print.item=el.dataset.k},
+  pset:el=>{const P=S.ui.print,d=el.dataset,v=d.b?d.v==="true":d.n?+d.v:d.v;if(d.key.startsWith("who."))P.who[d.key.slice(4)]=v;else P[d.key]=v;P.bookNote="";P.stackNote=""},
+  ptoggle:el=>{const P=S.ui.print,d=el.dataset,v=d.n?+d.v:d.v,a=P[d.key];P[d.key]=a.includes(v)?a.filter(x=>x!==v):[...a,v]},
+  printGo:()=>{printGo()},
   pidsAll:(el,e)=>{e.preventDefault();S.ui.print.pids=pupilIds()},
   pidsNone:(el,e)=>{e.preventDefault();S.ui.print.pids=[]},
-  pdfSheets:()=>{PDF.sheets();return "skip"},
-  pdfScript:()=>{PDF.script();return "skip"},
   pdfWotd:()=>{PDF.wotd();return "skip"},
-  pdfTargeted:()=>{PDF.targeted(S.ui.print.pids);return "skip"},
-  pdfGrid:()=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}PDF.grid();return "skip"},
   csv:()=>{PDF.csv();return "skip"},
-  pdfCards:()=>{const P=S.ui.print;
-    if(P.cardsFor==="levels"){const lv=P.levels.slice().sort((a,b)=>a-b);if(!lv.length){toast("Choose at least one level");return "skip"}if(P.cardLayout==="stack"){PDF.stackLevels(lv,"level-flash-cards-stack-and-cut.pdf");return "skip"}PDF.cards(lv.map(l=>({label:"",items:setWords(l)})),"flash-cards.pdf")}
-    else if(P.cardLayout==="stack"){PDF.stackPupils(P.pids,"flash-cards-stack-and-cut.pdf")}
-    else{const g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name.split(" ")[0],items:childCards(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}PDF.cards(g,"pupil-flash-cards.pdf")}
-    return "skip"},
   pdfPupilCards:el=>{const id=el.dataset.id;const items=childCards(id);PDF.cards([{label:S.pupils[id].name.split(" ")[0],items}],`flash-cards-${S.pupils[id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  actsFor:el=>{S.ui.print.actsFor=el.dataset.k},
   testVoice:()=>{say("Let’s practise. said. “Hello,” said Mum. said.");return "skip"},
   voiceSettings:(el,e)=>{e.preventDefault();setTab("settings");S.ui.act=null},
-  cardLayout:el=>{S.ui.print.cardLayout=el.dataset.k;S.ui.print.stackNote=""},
   pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
-  pdfActs:()=>{const P=S.ui.print;let g;
-    if(P.actsFor==="levels"){g=P.levels.slice().sort((a,b)=>a-b).map(l=>({label:"",items:setWords(l)}));if(!g.length){toast("Choose at least one level");return "skip"}}
-    else{g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name,items:planWords(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}}
-    PDF.acts(g,"practice-sheets.pdf");return "skip"},
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfBook:el=>{S.ui.printed=true;PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfAllBooks:()=>{S.ui.printed=true;PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
-  pdfBooksSel:()=>{S.ui.printed=true;PDF.books(S.ui.print.pids,"practice-books.pdf");return "skip"},
   pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
   pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
   pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
@@ -1751,25 +1819,15 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value;if(el.dataset.bindPlan)S.ui.planDraft[el.dataset.bindPlan]=el.value});
 document.addEventListener("change",e=>{
-  const el=e.target,c=el.dataset.c;if(!c)return;const P=S.ui.print;
-  const toggle=(arr,v)=>el.checked?(arr.includes(v)?arr:[...arr,v]):arr.filter(x=>x!==v);
+  const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
     case "date":S.ui.date=el.value||localDate();break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
     case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=testPlan().tests[+v];if(t)loadTest(t)}break}
     case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
-    case "printPage":P.pages=toggle(P.pages,+el.value);break;
-    case "printLevel":P.levels=toggle(P.levels,+el.value);break;
-    case "printPid":P.pids=toggle(P.pids,el.value);break;
-    case "printNamed":P.named=el.checked;break;
-    case "targetN":P.targetN=+el.value;break;
-    case "bookDays":P.bookDays=+el.value;P.bookNote="";break;
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
-    case "cardSize":P.cardSize=+el.value;P.stackNote="";break;
     case "cardsPerChild":saveDoc("settings","main",{...S.settings,cardsPerChild:+el.value});break;
-    case "cardSent":P.cardSent=el.checked;break;
-    case "printAct":P.acts=toggle(P.acts,el.value);break;
     case "planFocus":savePlan(el.dataset.id,{focusN:el.value?+el.value:null});break;
     case "planReview":if(el.value)savePlan(el.dataset.id,{reviewDate:el.value});break;
     case "planNotes":savePlan(el.dataset.id,{notes:el.value.slice(0,2000)});delete S.ui.planDraft[el.dataset.id];break;
