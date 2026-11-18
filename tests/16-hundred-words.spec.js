@@ -251,6 +251,81 @@ test('This week: Needs you lists plans due, no gain and children not assessed', 
   await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Pupils');
 });
 
+test('Class: band columns, set by set, and a square opens its ten words', async ({ page }) => {
+  /* x1: 1–10 all right, 8/10 on 11–20 (was, you wrong); x2 has all 100; x3 not assessed */
+  const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 10 ? 'woz' : '' } : { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-10-01': { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: words(20, [10, 11]) },
+    'x2_2026-10-01': { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: words(100) }
+  }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  await frame.locator('#nav button', { hasText: 'Class' }).click();
+
+  /* the list switch and four tiles */
+  await expect(frame.locator('.seg[aria-label="Word list"] button')).toHaveText(['100 HFW', 'Next 200 HFW', 'Y3/4 exception words']);
+  const tiles = frame.locator('.stat4 .stat');
+  await expect(tiles).toHaveCount(4);
+  await expect(tiles.nth(0)).toContainText('59/100');        // (18 + 100) / 2
+  await expect(tiles.nth(3)).toContainText('Nell → Next 200 HFW');
+  await expect(frame.locator('#main')).toContainText('2 of 3 assessed');
+
+  /* where everyone is: one column per band, names open the pupil panel */
+  await expect(frame.locator('.bandcol')).toHaveCount(10);
+  await expect(frame.locator('.bandcol[data-set="1"] .nm')).toHaveText(['Kit']);
+  await expect(frame.locator('.bandcol[data-set="0"] .nm')).toHaveText(['Tam']);
+  await expect(frame.locator('#main')).toContainText('1 child has moved on past this list');
+  await expect(frame.locator('section[aria-labelledby="i2"]')).toContainText('was → “woz”');
+  await frame.locator('.bandcol[data-set="1"] .nm').click();
+  await expect(frame.locator('#drawer')).toContainText('Kit Marlow');
+  await page.keyboard.press('Escape');
+  await frame.locator('#drawer').evaluate(() => { S.ui.pupil = null; doRender(); });
+
+  /* set by set: ✓ for 10/10, n on the set they're on, empty if not reached */
+  const row = frame.locator('table.sg tbody tr', { hasText: 'Kit Marlow' });
+  await expect(row.locator('.cell')).toHaveCount(10);
+  await expect(row.locator('.cell').nth(0)).toHaveText('✓');
+  await expect(row.locator('.cell').nth(1)).toHaveText('8');
+  await expect(row.locator('.cell').nth(1)).toHaveAttribute('aria-label', 'Kit Marlow, Red 11–20: 8 out of 10, working on it');
+  await expect(row.locator('.cell').nth(2)).toHaveText('');
+  await expect(row.locator('.sc')).toContainText('18');
+  await expect(frame.locator('table.sg tbody tr', { hasText: 'Nell Gwyn' }).locator('.cell.d')).toHaveCount(10);
+  await expect(frame.locator('table.sg tbody tr', { hasText: 'Tam Lin' }).locator('.cell.n')).toHaveCount(10);
+
+  /* a square shows that set's ten words underneath, right or wrong */
+  await expect(frame.locator('#sqbar')).toHaveCount(0);
+  await row.locator('.cell').nth(1).click();
+  const bar = frame.locator('#sqbar');
+  await expect(bar).toContainText('Kit Marlow · Red 11–20 · 8/10');
+  await expect(bar.locator('button.wchip')).toHaveCount(10);
+  await expect(bar.locator('button.wchip.ok')).toHaveCount(8);
+  await expect(bar.locator('button.wchip.no')).toHaveText([/^was/, /^you/]);
+
+  /* a word there keeps the Correct today / Not yet today controls */
+  await bar.locator('button.wchip', { hasText: 'was' }).click();
+  await expect(bar.locator('.cellbar')).toContainText('wrote “woz”');
+  await bar.getByRole('button', { name: 'Correct today' }).click();
+  await expect(bar).toContainText('9/10');
+  await expect(row.locator('.cell').nth(1)).toHaveText('9');
+  const today = await frame.locator('body').evaluate(() => localDate());
+  const doc = JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  expect(doc.sessions['x1_' + today].words['10']).toEqual({ s: 'c', src: 'manual' });
+  await bar.locator('.cellbar').getByRole('button', { name: 'Close' }).click();
+  await expect(bar.locator('.cellbar')).toHaveCount(0);
+  await bar.getByRole('button', { name: 'Close' }).click();
+  await expect(frame.locator('#sqbar')).toHaveCount(0);
+
+  /* the word-by-word grid is still the A3 print and the CSV, for the list on show */
+  await frame.locator('.seg[aria-label="Word list"] button', { hasText: 'Next 200 HFW' }).click();
+  await expect(frame.locator('.bandcol')).toHaveCount(20);
+  await expect(frame.locator('.bandcol[data-set="10"] .nm')).toHaveText(['Nell']);
+  await frame.locator('body').evaluate(() => { window.__calls = []; PDF.grid = () => window.__calls.push('grid:' + S.ui.print.list); PDF.csv = () => window.__calls.push('csv'); });
+  await frame.getByRole('button', { name: 'A3 class grid' }).click();
+  await frame.getByRole('button', { name: 'Spreadsheet (CSV)' }).click();
+  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual(['grid:1', 'csv']);
+});
+
 test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');

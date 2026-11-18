@@ -168,26 +168,46 @@ button.li:hover span:first-child{text-decoration:underline}
   .tile .wd{font-size:20px}.tile.long .wd{font-size:14px}
 }
 /* grid */
-.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2)}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
-.grid-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);max-height:75vh}
-table.grid{border-collapse:separate;border-spacing:0;font-size:12px}
-table.grid th,table.grid td{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0}
-table.grid thead th{position:sticky;background:var(--card);z-index:2}
-table.grid thead tr:first-child th{top:0;height:26px}
-table.grid thead tr:nth-child(2) th{top:26px}
-th.blk{font-weight:700;font-variant-numeric:tabular-nums;border-top:5px solid var(--band)!important;border-right:2px solid var(--muted)!important}
-th.w{height:74px;width:17px;min-width:17px;vertical-align:bottom;padding-bottom:4px!important;font-weight:400;font-family:var(--f-word)}
-th.w span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-size:12px}
-th.w.be,td.be{border-right:2px solid var(--muted)!important}
-th.name-h,th.pn{position:sticky;left:0;z-index:3;background:var(--card);text-align:left;min-width:150px;max-width:180px;padding:0 8px!important}
-th.name-h{z-index:4}
-th.pn{font-weight:400;height:28px}
-th.pn button{background:none;border:0;padding:4px 0;cursor:pointer;font-weight:700;text-align:left;display:flex;gap:6px;align-items:center;max-width:100%}
-th.pn button span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--band);border:1px solid rgba(0,0,0,.18);flex:none}
-td.c{width:17px;min-width:17px;height:28px;cursor:pointer}
-td.c:hover{outline:2px solid var(--accent);outline-offset:-2px}
+/* class */
+.stat4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.stat4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat4 .stat{display:flex;flex-direction:column;gap:2px}
+.stat b small{font-size:16px;color:var(--muted);font-weight:800}
+.scrollx{overflow-x:auto;padding-bottom:2px}
+.bands{display:grid;grid-template-columns:repeat(10,minmax(92px,1fr));gap:8px}
+.bandcol{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;background:var(--paper);min-height:150px;min-width:0}
+.bandcol .bh{display:flex;align-items:center;gap:6px;font-size:13px}
+.bandcol .bh .ct{margin-left:auto;font-size:12px;font-weight:700;color:var(--muted)}
+.bandcol .rg{font-size:11px;color:var(--muted)}
+.nm{font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:0 6px;min-height:44px;color:var(--ink);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm:hover{border-color:var(--accent-mid)}
+.nm.na{border-style:dashed;color:var(--ink-2)}
+.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.three{grid-template-columns:1fr}}
+:root{--sq-d:#cdebd9;--sq-p:#f4e7c4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--sq-d:#1f4a33;--sq-p:#4a3a14}}
+:root[data-theme="dark"]{--sq-d:#1f4a33;--sq-p:#4a3a14}
+table.sg{width:100%;border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums}
+table.sg th{font-size:12px;font-weight:700;color:var(--ink-2);padding:2px;min-width:64px;line-height:1.5}
+table.sg th.pn{text-align:left;min-width:120px;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+table.sg th.pn .linkbtn{color:var(--ink)}
+table.sg td{text-align:center;padding:0}
+table.sg td.sc{font-size:14px;font-weight:700;padding-left:8px;white-space:nowrap;text-align:left}
+table.sg td.sc small{font-size:12px;font-weight:600}
+.cell{font-weight:700;font-size:13px;width:100%;min-width:44px;height:44px;border:0;border-radius:6px;cursor:pointer;padding:0}
+.cell.d{background:var(--sq-d);color:var(--ok-ink)}
+.cell.p{background:var(--sq-p);color:var(--rev-ink)}
+.cell.n{background:var(--paper);color:var(--muted)}
+.cell[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
+.sqbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;background:var(--accent-soft)}
+.sqbar button.wchip{min-height:44px;cursor:pointer;background:var(--card)}
+.sqbar button.wchip.ok{background:var(--ok-soft);border-color:var(--ok)}
+.sqbar button.wchip.no{background:var(--no-soft);border-color:var(--no-line)}
+.sqbar button.wchip[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
+.cellbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);flex-basis:100%}
 .s-known{background:var(--ok)}
 .s-secure{background:var(--ok-strong)}
 .s-notyet{background:var(--no-soft)}
@@ -198,7 +218,6 @@ th.score-h,td.score{position:sticky;right:0;background:var(--card);min-width:66p
 th.score-h{z-index:3}
 td.score b{font-size:14px}
 td.score small{display:block;font-size:11px;line-height:1}
-.cellbar{position:sticky;left:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--accent-soft)}
 /* insights */
 .ins h3{margin-bottom:8px}
 .ins ul{margin:0;padding-left:18px;display:grid;gap:4px}
@@ -329,7 +348,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"week",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,pupil:null,confirm:null,
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,
       print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
@@ -445,45 +464,63 @@ function tabId(k){k=String(k||"").replace(/^#/,"").toLowerCase();k=TAB_ALIAS[k]|
 function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"","#"+S.tab)}catch(e){}}
 S.tab=tabId(location.hash)||DEFAULT_TAB;
 window.addEventListener("hashchange",()=>{const k=tabId(location.hash);if(k&&k!==S.tab){S.tab=k;render()}});
-/* ----- Class (was Tracker) ----- */
+/* ----- Class (was Tracker) -----
+   Where everyone is, band by band, and set by set: a square per set of ten
+   instead of a square per word. The word-by-word grid is still the A3
+   class record and the CSV. */
+const fmtDay=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
 VIEWS.class=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
-  const sums=ids.map(id=>[id,summary(id)]);
-  const assessed=sums.filter(([,s])=>s.sessions.length);
-  const avg=assessed.length?Math.round(assessed.reduce((n,[,s])=>n+s.known,0)/assessed.length):0;
-  const deltas=assessed.filter(([,s])=>s.delta!=null);
-  const avgDelta=deltas.length?(deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length):null;
-  const cell=S.ui.cell;
-  const li=S.ui.list==null?classList():S.ui.list,L=LISTS[li],LW=listWords(L);
-  const avgL=assessed.length?Math.round(assessed.reduce((n,[,s])=>n+s.knownIn[li],0)/assessed.length):0;
-  let h=`<div class="row" style="justify-content:space-between;margin-bottom:10px"><h3 style="margin:0">${esc(L.name)}</h3>${listSeg(li,"list")}</div><div class="stats">
-    <div class="stat"><b>${avgL}<small class="muted" style="font-size:15px"> /${LW.length}</small></b><span>Class average correct (${esc(L.short)})</span></div>
-    <div class="stat"><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>Average change since previous check</span></div>
-    <div class="stat"><b>${assessed.length}<small class="muted" style="font-size:15px"> of ${ids.length}</small></b><span>Pupils assessed</span></div>
-  </div>
-  <div class="row" style="justify-content:space-between">
-    <div class="legend">${["known","secure","notyet","slipped"].map(k=>`<span><i class="s-${k}"></i>${STLABEL[k]}</span>`).join("")}<span><i></i>Not assessed</span></div>
-    <span class="muted small">Tap a pupil for detail, or a square to change a mark.</span>
+  const sums=ids.map(id=>[id,summary(id)]),assessed=sums.filter(([,s])=>s.sessions.length),nA=assessed.length;
+  const li=S.ui.list==null?classList():S.ui.list,L=LISTS[li],LW=listWords(L),sets=listSets(L);
+  const avgL=nA?Math.round(assessed.reduce((n,[,s])=>n+s.knownIn[li],0)/nA):0,avgSec=nA?Math.round(assessed.reduce((n,[,s])=>n+s.secure,0)/nA):0;
+  const deltas=assessed.filter(([,s])=>s.delta!=null),avgDelta=deltas.length?deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length:null;
+  const fin=assessed.filter(([,s])=>s.knownIn[li]===LW.length),last=assessed.map(([,s])=>s.lastDate).sort().pop();
+  const name=id=>esc(shortName(id)),range=g=>{const w=setWords(g);return `${num(w[0])}–${num(w[w.length-1])}`};
+  let h=`<div class="row" style="justify-content:space-between">${listSeg(li,"list")}<span class="muted small">${last?`Last check ${fmtDay(last)} · `:""}${nA} of ${ids.length} assessed</span></div>
+  <section class="stat4" aria-label="Summary">
+    <div class="stat"><span>Class average</span><b>${avgL}<small>/${LW.length}</small></b><span>correct, ${esc(LIST_TAB[li])}</span></div>
+    <div class="stat"><span>Since previous check</span><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>words per child</span></div>
+    <div class="stat"><span>Secure (right twice)</span><b>${avgSec}</b><span>words per child, average</span></div>
+    <div class="stat"><span>Finished the list</span><b>${fin.length}</b><span>${fin.length?`${fin.slice(0,3).map(([id])=>name(id)).join(", ")}${fin.length>3?` +${fin.length-3}`:""}${LISTS[li+1]?` → ${esc(LIST_TAB[li+1])}`:""}`:"nobody yet"}</span></div>
+  </section>`;
+  /* where everyone is: a column per band (set of ten) of this list */
+  const by={};for(const [id,s] of sums)(by[s.level]=by[s.level]||[]).push(id);
+  const earlier=sums.filter(([,s])=>s.level<sets[0]).length,later=sums.filter(([,s])=>s.level>sets[sets.length-1]).length;
+  h+=`<section class="panel stack" aria-labelledby="bandH"><div class="sechead"><h3 id="bandH">Where everyone is</h3><span class="muted small">Each child is on the first set of ten they haven’t got 10/10 · tap a name for their panel</span></div>
+   <div class="scrollx"><div class="bands">${sets.map(g=>{const kids=by[g]||[];return `<div class="bandcol" data-set="${g}"><div class="bh">${bandDot(g)}<b>${BANDS[g%10].n}</b><span class="ct">${kids.length||"—"}</span></div><span class="rg">${range(g)}</span>${kids.map(id=>`<button type="button" class="nm${summary(id).sessions.length?"":" na"}" data-a="openPupil" data-id="${id}" title="${esc(S.pupils[id].name)}${summary(id).sessions.length?"":" · not assessed yet"}">${name(id)}</button>`).join("")}</div>`}).join("")}</div></div>
+   ${earlier||later?`<p class="muted small">${[earlier?`${earlier===1?"1 child is":earlier+" children are"} still on an earlier list`:"",later?`${later===1?"1 child has":later+" children have"} moved on past this list`:""].filter(Boolean).join(" · ")}.</p>`:""}</section>`;
+  /* three insights */
+  const slip=Array(WORDS.length).fill(0);for(const [,s] of assessed)s.ws.forEach((w,i)=>{if(w.st==="slipped")slip[i]++});
+  const top=classMissed(assessed).slice(0,5),wrote=classWrote(assessed).slice(0,4),slips=slip.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const none=t=>`<span class="muted small">${nA?t:"This appears after the first test is marked."}</span>`;
+  h+=`<div class="three">
+   <section class="panel stack" aria-labelledby="i1" style="align-content:start"><h3 id="i1">Teach to the class</h3><div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Every assessed word is correct.")}</div>${top.length?'<p class="muted small">children still getting it wrong</p>':""}</section>
+   <section class="panel stack" aria-labelledby="i2" style="align-content:start"><h3 id="i2">What they wrote</h3>${wrote.length?`<div style="font-size:14px;line-height:1.9">${wrote.map(([i,r,n])=>`<span class="wd">${esc(WORDS[i])} → “${esc(r)}”</span> <span class="muted small">×${n}</span>`).join("<br>")}</div>`:none("Add what children wrote in Mark to see their misspellings here.")}</section>
+   <section class="panel stack" aria-labelledby="i3" style="align-content:start"><h3 id="i3">Slipping</h3><div class="chips">${slips.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Nothing has slipped.")}</div>${slips.length?'<p class="muted small">right before, wrong last time</p>':""}</section>
   </div>`;
-  if(cell&&S.pupils[cell.p]){
-    const st=summary(cell.p).ws[cell.i];
-    h+=`<div class="cellbar"><b>${esc(S.pupils[cell.p].name)}</b><span class="wchip">${esc(WORDS[cell.i])}<small>${esc(listOf(cell.i).short)} #${num(cell.i)}</small></span><span class="muted">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
-      <span class="row" style="margin-left:auto"><button class="btn sm ok" data-a="setCell" data-s="c">Correct today</button><button class="btn sm no" data-a="setCell" data-s="x">Not yet today</button><button class="btn sm ghost" data-a="closeCell">Close</button></span></div>`;
-  }
-  h+=`<div class="grid-wrap"><table class="grid"><thead><tr><th class="name-h" rowspan="2">Pupil</th>`;
-  for(const g of listSets(L)){const w=setWords(g);h+=`<th class="blk" colspan="${w.length}" style="--band:${BANDS[g%10].c}">${num(w[0])}–${num(w[w.length-1])}</th>`}
-  h+=`<th class="score-h" rowspan="2">Score<br><span class="muted small">/${LW.length}</span></th></tr><tr>`;
-  for(const i of LW)h+=`<th class="w ${i%10===9||i===L.b-1?"be":""}"><span>${esc(WORDS[i])}</span></th>`;
-  h+=`</tr></thead><tbody>`;
-  for(const [id,s] of sums){
-    h+=`<tr><th class="pn"><button data-a="openPupil" data-id="${id}" title="${esc(levelLabel(s))}">${s.sessions.length?bandDot(s.level):'<span class="dot" style="--band:transparent"></span>'}<span class="nm">${esc(S.pupils[id].name)}</span></button></th>`;
-    for(const i of LW){const st=s.ws[i].st;const sel=cell&&cell.p===id&&cell.i===i;
-      h+=`<td class="c s-${st}${i%10===9||i===L.b-1?" be":""}${sel?" sel":""}" data-a="cell" data-p="${id}" data-i="${i}" title="${esc(WORDS[i])}: ${STLABEL[st]}"></td>`}
-    h+=`<td class="score">${s.sessions.length?`<b>${s.knownIn[li]}</b>${s.delta!=null?`<small class="${s.delta>0?"up":s.delta<0?"down":"muted"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`;
-  }
-  h+=`</tbody></table></div>`;
-  h+=insightsHtml(sums);
+  /* set by set */
+  const sq=S.ui.sq&&S.pupils[S.ui.sq.p]&&sets.includes(S.ui.sq.g)?S.ui.sq:null,cell=S.ui.cell;
+  h+=`<section class="panel stack" aria-labelledby="gridH"><div class="row" style="justify-content:space-between"><h3 id="gridH">Set by set</h3>
+    <span class="legend"><span><i style="background:var(--sq-d)"></i>10/10</span><span><i style="background:var(--sq-p)"></i>working on it</span><span><i style="background:var(--paper)"></i>not reached</span></span></div>
+   <div class="scrollx"><table class="sg"><thead><tr><th scope="col" class="pn">Pupil</th>${sets.map(g=>`<th scope="col">${bandDot(g)}<br>${range(g)}</th>`).join("")}<th scope="col">Score</th></tr></thead><tbody>
+   ${sums.map(([id,s])=>`<tr><th scope="row" class="pn"><button type="button" class="linkbtn" data-a="openPupil" data-id="${id}">${esc(S.pupils[id].name)}</button></th>${sets.map(g=>{const w=setWords(g),k=w.filter(i=>isKnown(s.ws[i].st)).length,done=k===w.length,cur=s.sessions.length>0&&g===s.level;
+     return `<td><button type="button" class="cell ${done?"d":cur?"p":"n"}" data-a="sq" data-p="${id}" data-g="${g}" aria-pressed="${!!(sq&&sq.p===id&&sq.g===g)}" aria-label="${esc(S.pupils[id].name)}, ${BANDS[g%10].n} ${range(g)}: ${done?`${k} out of ${w.length}`:cur?`${k} out of ${w.length}, working on it`:"not reached"}">${done?"✓":cur?k:""}</button></td>`}).join("")}
+     <td class="sc">${s.sessions.length?`${s.knownIn[li]} ${s.delta?`<small class="${s.delta>0?"up":"down"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`).join("")}
+   </tbody></table></div>`;
+  if(sq){const s=summary(sq.p),w=setWords(sq.g),k=w.filter(i=>isKnown(s.ws[i].st)).length;
+    h+=`<div class="sqbar" id="sqbar"><b style="font-size:14px;margin-right:6px">${esc(S.pupils[sq.p].name)} · ${BANDS[sq.g%10].n} ${range(sq.g)} · ${k}/${w.length}</b>
+     ${w.map(i=>{const st=s.ws[i].st;return `<button type="button" class="wchip${isKnown(st)?" ok":st==="notyet"||st==="slipped"?" no":""}" data-a="cell" data-p="${sq.p}" data-i="${i}" aria-pressed="${!!(cell&&cell.p===sq.p&&cell.i===i)}" title="${STLABEL[st]}">${esc(WORDS[i])}<span class="small" aria-hidden="true">${isKnown(st)?"✓":st==="notyet"||st==="slipped"?"✗":""}</span></button>`}).join("")}
+     <button type="button" class="btn ghost sm" data-a="closeSq" style="margin-left:auto">Close</button>`;
+    if(cell&&cell.p===sq.p&&w.includes(cell.i)){const st=s.ws[cell.i];
+      h+=`<div class="cellbar"><span class="wchip">${esc(WORDS[cell.i])}<small>${esc(listOf(cell.i).short)} #${num(cell.i)}</small></span><span class="muted small">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
+      <span class="row" style="margin-left:auto"><button type="button" class="btn sm ok" data-a="setCell" data-s="c">Correct today</button><button type="button" class="btn sm no" data-a="setCell" data-s="x">Not yet today</button><button type="button" class="btn sm ghost" data-a="closeCell">Close</button></span></div>`}
+    h+=`</div>`}
+  h+=`<div class="row" style="justify-content:space-between"><span class="muted small">Tap a square to see the ten words. Every word, one by one, is in the A3 class grid.</span>
+    <span class="row"><button type="button" class="btn" data-a="classGrid" data-k="${li}">A3 class grid</button><button type="button" class="btn" data-a="csv">Spreadsheet (CSV)</button></span></div></section>`;
+  if(sampleApi){const ai=S.ui.ai;h+=`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Written summary</h3><button type="button" class="btn" data-a="aiSummary" ${ai&&ai.status==="thinking"?"disabled":""}>${ai&&ai.text?"Write again":"Write a summary with Claude"}</button></div>
+    <div class="ai-out" id="aiOut">${ai?(ai.text?esc(ai.text):ai.status==="thinking"?'<span class="spin"></span> Thinking…':esc(ai.err||"")):'<span class="muted">Claude reads the figures above and writes a short summary you can paste into notes or a report.</span>'}</div></div>`}
   return h;
 };
 function emptyClass(){
@@ -498,44 +535,6 @@ function classMissed(sums){
   const miss=Array(WORDS.length).fill(0),tries=Array(WORDS.length).fill(0);
   for(const [,s] of sums)if(s.sessions.length)s.ws.forEach((w,i)=>{if(w.st==="notyet"||w.st==="slipped")miss[i]++;for(const h of w.hist)if(h.s==="x")tries[i]++});
   return miss.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]||tries[b[0]]-tries[a[0]]||a[0]-b[0]);
-}
-function insightsHtml(sums){
-  const assessed=sums.filter(([,s])=>s.sessions.length);
-  if(!assessed.length)return `<div class="panel"><h3>Insights appear after the first assessment</h3><p class="muted">Print answer sheets from the Print tab, run the check, then enter each child’s results in Mark.</p></div>`;
-  // most missed
-  const slip=Array(WORDS.length).fill(0),mis={};
-  for(const [,s] of assessed)s.ws.forEach((w,i)=>{
-    if(w.st==="slipped")slip[i]++;
-    for(const h of w.hist)if(h.s==="x"&&h.r){(mis[i]=mis[i]||{})[h.r.toLowerCase()]=(mis[i][h.r.toLowerCase()]||0)+1}
-  });
-  const topMiss=classMissed(assessed).slice(0,10);
-  const slips=slip.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const pats=Object.entries(mis).flatMap(([i,m])=>Object.entries(m).map(([r,n])=>[+i,r,n])).sort((a,b)=>b[2]-a[2]).slice(0,10);
-  // groups
-  const groups={};for(const [id,s] of assessed)(groups[s.level]=groups[s.level]||[]).push(id);
-  // watch
-  const watch=assessed.filter(([,s])=>s.delta!=null&&s.delta<=0).map(([id,s])=>[id,`no gain since last check (${s.known})`]);
-  const lowest=assessed.slice().sort((a,b)=>a[1].known-b[1].known).slice(0,3).filter(([id])=>!watch.some(w=>w[0]===id)).map(([id,s])=>[id,`lowest scores (${s.known})`]);
-  const stars=assessed.filter(([,s])=>s.delta!=null&&s.delta>=10).sort((a,b)=>b[1].delta-a[1].delta).slice(0,5);
-  // ready to check from practice
-  const ready=[];for(const [id,s] of sums){const b=practiceFor(id).boxes||{};const r=Object.entries(b).filter(([i,v])=>v>=3&&!isKnown(s.ws[+i].st)).map(([i])=>+i);if(r.length)ready.push([id,r])}
-  const name=id=>esc(S.pupils[id].name);
-  let h=`<div class="cols">`;
-  h+=`<div class="panel ins"><h3>Teach to the whole class</h3><p class="muted small" style="margin-bottom:10px">Words the most pupils still can’t spell.</p>
-    <div class="chips">${topMiss.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n} of ${assessed.length}</small></span>`).join("")||'<span class="muted">Every assessed word is correct.</span>'}</div>
-    ${slips.length?`<p class="small" style="margin-top:12px"><b>Slipping:</b> ${slips.map(([i,n])=>`${esc(WORDS[i])} (${n})`).join(", ")}. These were correct before and wrong last time.</p>`:""}</div>`;
-  h+=`<div class="panel ins"><h3>Groups by set</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t got 10/10 in. This week plans the tests.</p><div class="stack">
-    ${Object.keys(groups).sort((a,b)=>a-b).map(l=>`<div><span class="band">${bandDot(+l)}${+l>=NSETS?"Every list complete":`${BANDS[l%10].n} <span class="muted small">(${setLabel(+l)})</span>`}</span><div class="small">${groups[l].map(name).join(", ")}</div></div>`).join("")}</div></div>`;
-  h+=`<div class="panel ins"><h3>Common misspellings</h3><p class="muted small" style="margin-bottom:10px">What children actually wrote. Useful for spotting phonics gaps.</p>
-    ${pats.length?`<ul>${pats.map(([i,r,n])=>`<li><b style="font-family:var(--f-word)">${esc(WORDS[i])}</b> → “${esc(r)}” <span class="muted">×${n}</span></li>`).join("")}</ul>`:'<p class="muted">Misspellings appear once marked sheets are saved.</p>'}</div>`;
-  h+=`<div class="panel ins"><h3>Pupils to look at</h3><ul>${[...watch,...lowest].map(([id,why])=>`<li><a href="#" data-a="openPupil" data-id="${id}">${name(id)}</a> <span class="muted">— ${why}</span></li>`).join("")||'<li class="muted">No concerns flagged.</li>'}</ul>
-    ${stars.length?`<p class="small" style="margin-top:10px"><b>Big gains:</b> ${stars.map(([id,s])=>`${name(id)} (+${s.delta})`).join(", ")}</p>`:""}
-    ${ready.length?`<p class="small" style="margin-top:10px"><b>Ready to check</b> (practised to the top of the ladder): ${ready.map(([id,r])=>`${name(id)} (${r.map(i=>esc(WORDS[i])).join(", ")})`).join("; ")}</p>`:""}</div>`;
-  h+=`</div>`;
-  const ai=S.ui.ai;
-  h+=`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Written summary</h3>${sampleApi?`<button class="btn" data-a="aiSummary" ${ai&&ai.status==="thinking"?"disabled":""}>${ai&&ai.text?"Write again":"Write a summary with Claude"}</button>`:""}</div>
-    <div class="ai-out" id="aiOut">${ai?(ai.text?esc(ai.text):ai.status==="thinking"?'<span class="spin"></span> Thinking…':esc(ai.err||"")):`<span class="muted">${sampleApi?"Claude reads the figures above and writes a short summary you can paste into notes or a report.":"Written summaries aren’t available in Classroom Hub."}</span>`}</div></div>`;
-  return h;
 }
 function drawerHtml(pid){
   const p=S.pupils[pid],s=summary(pid),pr=practiceFor(pid);
@@ -1598,6 +1597,9 @@ const A={
   openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null},
   closePupil:()=>{S.ui.pupil=null},
   cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
+  sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.cell=null},
+  closeSq:()=>{S.ui.sq=null;S.ui.cell=null},
+  classGrid:el=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}S.ui.print.list=+el.dataset.k;PDF.grid();return "skip"},
   closeCell:()=>{S.ui.cell=null},
   setCell:el=>{const {p,i}=S.ui.cell;const sid=p+"_"+localDate(),old=S.sessions[sid];const words={...((old&&old.words)||{})};words[i]={s:el.dataset.s,src:"manual"};
     saveDoc("sessions",sid,{pupilId:p,date:localDate(),kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});toast(`${WORDS[i]} marked ${el.dataset.s==="c"?"correct":"not yet"} for today`)},
@@ -1619,7 +1621,7 @@ const A={
   qPick:el=>{pickQuick(el.dataset.id)},
   qNext:()=>{const q=S.ui.quick,l=markPupils(),k=l.indexOf(q.pid);if(k>=0&&k<l.length-1)pickQuick(l[k+1]);window.scrollTo({top:0})},
   qWroteToggle:()=>{S.ui.quick.wrote=!S.ui.quick.wrote},
-  list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null},
+  list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null;S.ui.sq=null},
   moreWords:el=>{S.ui.showAll[el.dataset.k]=true},
   goFilter:el=>{S.ui.pfilter=el.dataset.f;setTab("pupils");window.scrollTo({top:0})},
   checkReady:()=>{const ids=classNeeds().ready;if(!ids.length)return;markOne(ids);pickQuick(ids[0]);setTab("mark");window.scrollTo({top:0})},
@@ -1728,7 +1730,7 @@ $("#fileIn").addEventListener("change",e=>{addFiles([...e.target.files]);e.targe
 document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over")});
 document.addEventListener("drop",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.remove("over");addFiles([...e.dataTransfer.files])}});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.cell)){S.ui.pupil=null;S.ui.cell=null;render()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.cell||S.ui.sq)){if(S.ui.pupil)S.ui.pupil=null;else if(S.ui.cell)S.ui.cell=null;else S.ui.sq=null;render()}});
 
 /* ---------- example class ---------- */
 let saved=null;
