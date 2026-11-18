@@ -377,6 +377,96 @@ test('Pupils: a card each, the four filters, and practice books for everyone', a
   await expect(frame.locator('#drawer')).toContainText('Nell Gwyn');
 });
 
+test('Pupil panel: opens from any name, steps to the next child, and holds the plan, prints and checks', async ({ page }) => {
+  const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-09-01': { pupilId: 'x1', date: '2026-09-01', kind: 'spelling', words: words(10, [4, 5]) },
+    'x1_2026-09-20': { pupilId: 'x1', date: '2026-09-20', kind: 'spelling', words: words(10, [4, 5]) },
+    'x2_2026-09-20': { pupilId: 'x2', date: '2026-09-20', kind: 'spelling', words: words(20, [15]) }
+  }, practice: { x1: { boxes: { 4: 2 }, log: [] } }, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  const panel = frame.locator('#drawer');
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  await expect(panel).toBeHidden();
+
+  /* from a Pupils card */
+  await frame.locator('#nav button', { hasText: 'Pupils' }).click();
+  await frame.locator('.pc', { hasText: 'Kit Marlow' }).click();
+  await expect(panel).toBeVisible();
+  await expect(panel).toHaveAttribute('role', 'dialog');
+  await expect(panel.locator('#pName')).toHaveText('Kit Marlow');
+  await expect(panel.locator('#pClose')).toBeFocused();
+  /* top: band, three stats, and why the focus set changed */
+  await expect(panel).toContainText('Pink · 100 HFW 1–10 (8/10)');
+  await expect(panel.locator('.mini')).toHaveCount(3);
+  await expect(panel.locator('.mini').nth(0)).toHaveText('8/100correct');
+  await expect(panel.locator('.mini.bad')).toHaveText('0since last check');
+  await expect(panel.locator('#pNote')).toContainText('No gain since the last check, so the focus set is down to 3 words');
+  /* focus words with the ladder, then revisit and next up */
+  await expect(panel.locator('.fw .wd')).toHaveText(['said', 'in', 'was']);
+  await expect(panel.locator('.fw').first().locator('.lad')).toHaveAttribute('aria-label', 'Practising');
+  await expect(panel.locator('section[aria-labelledby="f1"]')).toContainText('Next up');
+  /* what they wrote, and the pattern */
+  await expect(panel.locator('section[aria-labelledby="f2"] .wchip').first()).toHaveText('sedsaid');
+  await expect(panel.locator('section[aria-labelledby="f2"]')).toContainText('Pattern: sounded out or another attempt (1)');
+  /* the plan, focus size, review date, success */
+  await expect(panel.locator('section[aria-labelledby="f3"]')).toContainText('Smaller steps');
+  await expect(panel.locator('section[aria-labelledby="f3"]')).toContainText('Success looks like: Kit spells said, in, was correctly in two separate checks.');
+  await panel.locator('#pfx1').selectOption('8');
+  await expect(panel.locator('.fw')).toHaveCount(8);
+  await expect(panel.locator('#pNote')).toContainText('You set the focus size to 8 words');
+  await panel.locator('#prx1').fill('2031-02-03');
+  await panel.locator('#pn_x1').fill('TA on Tuesdays');
+  await panel.locator('#pn_x1').blur();
+  await expect.poll(async () => (await stored()).plans.x1 && (await stored()).plans.x1.notes).toBe('TA on Tuesdays');
+  const plan = (await stored()).plans.x1;
+  expect(plan).toMatchObject({ focusN: 8, reviewDate: '2031-02-03', notes: 'TA on Tuesdays' });
+  expect(Object.keys(plan).sort()).toEqual(['focusN', 'notes', 'reviewDate', 'updated']);
+
+  /* prints call the existing generators for this child */
+  await frame.locator('body').evaluate(() => { window.__calls = [];
+    PDF.books = (p, f) => window.__calls.push(['books', p, f]); PDF.cards = (g, f) => window.__calls.push(['cards', g.length, f]); PDF.targeted = p => window.__calls.push(['targeted', p]); });
+  await panel.getByRole('button', { name: 'Practice book', exact: true }).click();
+  await panel.getByRole('button', { name: 'Flash cards' }).click();
+  await panel.getByRole('button', { name: 'Check sheet' }).click();
+  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([
+    ['books', ['x1'], 'practice-book-kit-marlow.pdf'], ['cards', 1, 'flash-cards-kit-marlow.pdf'], ['targeted', ['x1']]]);
+
+  /* checks: a chart, and the list behind a disclosure, with delete */
+  await expect(panel.locator('.bars div')).toHaveCount(2);
+  const checks = panel.locator('section[aria-labelledby="f5"] details');
+  await expect(checks.locator('summary')).toHaveText('2 checks — view or delete');
+  await expect(checks.getByRole('button', { name: 'Delete' }).first()).toBeHidden();
+  await checks.locator('summary').click();
+  await checks.getByRole('button', { name: 'Delete' }).first().click();
+  await expect(checks.getByRole('button', { name: 'Confirm delete' })).toBeVisible();
+  await checks.getByRole('button', { name: 'Confirm delete' }).click();
+  await expect(checks.locator('summary')).toHaveText('1 check — view or delete');
+  expect(Object.keys((await stored()).sessions).sort()).toEqual(['x1_2026-09-01', 'x2_2026-09-20']);
+
+  /* next and previous pupil, round the class */
+  await panel.getByRole('button', { name: 'Next pupil' }).click();
+  await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
+  await panel.getByRole('button', { name: 'Next pupil' }).click();
+  await expect(panel.locator('#pName')).toHaveText('Tam Lin');
+  await expect(panel.locator('#pNote')).toContainText('Not checked yet');
+  await panel.getByRole('button', { name: 'Next pupil' }).click();
+  await expect(panel.locator('#pName')).toHaveText('Kit Marlow');
+  await panel.getByRole('button', { name: 'Previous pupil' }).click();
+  await expect(panel.locator('#pName')).toHaveText('Tam Lin');
+
+  /* closing: the button, and Escape */
+  await panel.getByRole('button', { name: 'Close' }).click();
+  await expect(panel).toBeHidden();
+  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('table.sg').getByRole('button', { name: 'Nell Gwyn', exact: true }).click();
+  await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
+  await panel.locator('#pClose').press('Escape');
+  await expect(panel).toBeHidden();
+});
+
 test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');
