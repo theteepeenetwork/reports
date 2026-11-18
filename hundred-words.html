@@ -99,6 +99,34 @@ label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .stat b{display:block;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
 .stat span{color:var(--muted);font-size:13px}
 .up{color:var(--ok-ink)} .down{color:var(--no-ink)}
+/* this week */
+.routine{display:flex;flex-wrap:wrap;padding:4px}
+.step{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;flex:1 1 200px;border-radius:10px}
+.step .num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none;background:var(--line-2);color:var(--ink-2)}
+.step b{display:block;font-weight:700}
+.step .sub{color:var(--muted);font-size:13px}
+.step.now{background:var(--accent-soft)}
+.step.now .num{background:var(--accent);color:#fff}
+.step.now .sub{color:var(--accent-text);font-weight:600}
+.step.done .num{background:var(--ok-soft);color:var(--ok-ink)}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.tests{display:flex;flex-wrap:wrap;gap:16px}
+.test{flex:1 1 260px;max-width:560px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:700px){.test{max-width:none}}
+.test.whole{flex:1.4 1 360px;max-width:none;border-top:5px solid var(--accent)}
+.test .ttl{font-size:18px;font-weight:800}
+.test .ttl span{font-weight:500;color:var(--muted);font-size:14px}
+.test .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.trio{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px}
+@media (max-width:900px){.trio{grid-template-columns:1fr}}
+.li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;min-height:48px;width:100%;border:0;border-top:1px solid var(--line-2);background:none;font-size:14px;text-align:left;color:var(--ink)}
+button.li{cursor:pointer}
+button.li:hover span:first-child{text-decoration:underline}
+.bignum{font-size:34px;font-weight:800;line-height:1.1}
+.note{font-size:13px;line-height:1.5;background:var(--paper);border-radius:10px;padding:10px 12px}
+.linkbtn{background:none;border:0;padding:0;min-height:44px;color:var(--accent-text);font-weight:600;font-size:14px;cursor:pointer;text-align:left;display:inline-flex;align-items:center}
+.linkbtn:hover{text-decoration:underline}
+.wd{font-family:var(--f-word)}
 /* grid */
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
@@ -266,7 +294,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
-  mode:"loading", tab:"class",
+  mode:"loading", tab:"week",
   ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading",list:null,only:null,group:null},list:null,cell:null,pupil:null,confirm:null,
       print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
@@ -377,7 +405,7 @@ const VIEWS={};
 const TABS=[["week","This week"],["mark","Mark"],["class","Class"],["pupils","Pupils"],["print","Print"]];
 const TAB_ALIAS={tracker:"class",groups:"week",assess:"mark",quick:"mark",plans:"pupils",plan:"pupils",settings:"settings"};
 const OPEN_TABS=new Set([...TABS.map(t=>t[0]),"settings"]);
-const DEFAULT_TAB="class";
+const DEFAULT_TAB="week";
 function tabId(k){k=String(k||"").replace(/^#/,"").toLowerCase();k=TAB_ALIAS[k]||k;return OPEN_TABS.has(k)?k:null}
 function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"","#"+S.tab)}catch(e){}}
 S.tab=tabId(location.hash)||DEFAULT_TAB;
@@ -518,19 +546,72 @@ function testPlan(){
     rest=rest.filter(id=>!pids.includes(id))}
   return {tests,lv,W};
 }
+/* What the class did as a whole, shared by This week and Class. */
+function levelOf(ws){for(let b=0;b<NSETS;b++)if(setWords(b).some(i=>!isKnown(ws[i].st)))return b;return NSETS}
+function weekStart(){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return localDate(d)}
+/* a first name, with a surname initial when two children share it */
+function shortName(id){const n=S.pupils[id].name.trim().split(/\s+/),f=n[0];
+  const dup=pupilIds().some(o=>o!==id&&S.pupils[o].name.trim().split(/\s+/)[0]===f);return dup&&n.length>1?`${f} ${n[n.length-1][0]}`:f}
+/* what children actually wrote for words they got wrong: [word index, written, how many times] */
+function classWrote(sums){const mis={};
+  for(const [,s] of sums)s.ws.forEach((w,i)=>{for(const h of w.hist)if(h.s==="x"&&h.r){const r=h.r.toLowerCase();(mis[i]=mis[i]||{})[r]=(mis[i][r]||0)+1}});
+  return Object.entries(mis).flatMap(([i,m])=>Object.entries(m).map(([r,n])=>[+i,r,n])).sort((a,b)=>b[2]-a[2]||a[0]-b[0])}
+/* who needs the teacher: plans due a review, no gain, practised to the top of the ladder, never assessed */
+function classNeeds(){
+  if(memo.needs)return memo.needs;
+  const today=localDate(),due=[],nogain=[],ready=[],unassessed=[];
+  for(const id of pupilIds()){const p=buildPlan(id);if(!p.assessed){unassessed.push(id);continue}
+    if(p.reviewDate<=today)due.push(id);if(p.plateau)nogain.push(id);if(p.ready.length)ready.push(id)}
+  return memo.needs={due,nogain,ready,unassessed};
+}
 VIEWS.week=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
-  const {tests,lv}=testPlan(),name=id=>esc(S.pupils[id].name),wn=+S.settings.wholeN||20;
-  let h=`<div class="row" style="justify-content:space-between"><h2>This week</h2><div class="row small"><label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${wn===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select></div></div>
-  <p class="muted" style="max-width:75ch">Each child works through the words in sets of ten and moves on only when they get 10/10: the 100 high frequency words, then the next 200, then the Year 3 and 4 common exception words. The tests below cover every child in as few tests as possible.</p>`;
-  h+=`<h3>Next tests</h3><div class="cols">${tests.map((t,k)=>`<div class="panel stack"${t.whole?' style="border-top:6px solid var(--accent)"':""}>
-    <div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(t.title)}</h3><span class="pill">${t.words.length} words</span></div>
-    <p class="small">${t.whole?`Everyone sits it. It is the current set for <b>${t.target.length} of ${ids.length}</b>: ${t.target.map(name).join(", ")||"–"}.`:`${t.pids.map(id=>`${name(id)} <span class="muted">(${summary(id).setDone}/${setWords(lv[id]).length})</span>`).join(", ")}`}</p>
-    <div class="chips">${t.words.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}</div>
-    <div class="row"><button class="btn primary" data-a="testEnter" data-k="${k}">Enter results</button><button class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`).join("")||'<div class="panel"><p class="muted">Every child has finished every list.</p></div>'}</div>`;
-  const by={};for(const id of ids)(by[lv[id]]=by[lv[id]]||[]).push(id);
-  h+=`<h3 style="margin-top:18px">Where everyone is</h3><div class="panel"><table class="gtab"><tbody>${Object.keys(by).map(Number).sort((a,b)=>a-b).map(g=>`<tr><th>${bandDot(g)} ${g>=NSETS?"Every list complete":esc(setLabel(g))}</th><td>${by[g].map(id=>{const sm=summary(id);return `<a href="#" class="wchip" data-a="openPupil" data-id="${id}" style="font-family:var(--f-ui);font-size:14px">${name(id)}${g<NSETS?`<small>${sm.sessions.length?sm.setDone+"/"+setWords(g).length:"not assessed"}</small>`:""}</a>`}).join(" ")}</td></tr>`).join("")}</tbody></table></div>`;
+  const {tests,lv}=testPlan(),name=id=>esc(shortName(id)),wn=+S.settings.wholeN||20,plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+  const sums=ids.map(id=>[id,summary(id)]),assessed=sums.filter(([,s])=>s.sessions.length);
+  /* the routine: where this week has got to */
+  const ws0=weekStart(),entered=ids.filter(id=>sessionsFor(id).some(x=>x.date>=ws0)).length;
+  const moved=sums.filter(([id,s])=>s.sessions.some(x=>x.date>=ws0)&&levelOf(wordStates(id,{before:ws0}))<s.level).length;
+  const now=!tests.length?0:entered===0?2:entered<ids.length?3:4;
+  const step=(n,label,sub,done)=>`<div class="step${done?" done":now===n?" now":""}"><span class="num" aria-hidden="true">${done?"✓":n}</span><div><b>${n} · ${label}</b><span class="sub">${sub}</span></div></div>`;
+  let h=`<section class="panel routine" aria-label="This week’s routine">
+    ${step(1,"Practise",S.ui.printed?"Practice books downloaded":"Practice books and flash cards are on Print",!!S.ui.printed||now>2)}
+    ${step(2,"Test",tests.length?`Thursday · ${plural(tests.length,"test")} below`:"Every list finished",now>2)}
+    ${step(3,"Mark",`${entered} of ${ids.length} entered`,entered===ids.length)}
+    ${step(4,"Move on",moved?`${moved===1?"1 child":moved+" children"} moved on to the next set`:"10/10 on a set → next set",false)}
+  </section>`;
+  /* Thursday's tests: the whole-class test first and larger */
+  h+=`<section class="stack" aria-labelledby="tH"><div class="sechead"><h2 id="tH">Thursday’s tests</h2><span class="muted small">${tests.length?`Every child covered in ${plural(tests.length,"test")} · whole-class test: ${wn} words`:""}</span></div>
+  <div class="tests">${tests.map((t,k)=>{const all=t.whole||S.ui.showAll[k]||t.words.length<=6,shown=all?t.words:t.words.slice(0,5);
+    return `<div class="panel test${t.whole?" whole":""}" data-test="${k}">
+    <div class="row" style="justify-content:space-between"><span class="pill${t.whole?" blue":""}">${t.whole?"Whole class":`${bandDot(t.sets[0])}Group · ${t.pids.length}`}</span><span class="muted small">${t.words.length} words</span></div>
+    <div class="ttl">${esc(setsLabel(t.sets))} <span>· ${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")}</span></div>
+    <p class="muted small">${t.whole?`Everyone sits it — it’s the current set for <b style="color:var(--ink)">${t.target.length} of ${ids.length}</b>.`:t.pids.map(id=>`${name(id)} ${summary(id).sessions.length?summary(id).setDone+"/"+setWords(lv[id]).length:"not assessed"}`).join(" · ")}</p>
+    <div class="chips">${shown.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${all?"":`<button type="button" class="linkbtn small" data-a="moreWords" data-k="${k}">+${t.words.length-shown.length} more</button>`}</div>
+    <div class="acts"><button type="button" class="btn${t.whole?" primary":""}" data-a="testEnter" data-k="${k}">Enter results</button><button type="button" class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button type="button" class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`}).join("")||'<div class="panel"><p class="muted">Every child has finished every list.</p></div>'}</div></section>`;
+  /* teach · needs you · since last check */
+  const top=classMissed(assessed).slice(0,6),wrote=classWrote(assessed).slice(0,2),N=classNeeds();
+  const deltas=assessed.filter(([,s])=>s.delta!=null),avgDelta=deltas.length?deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length:null;
+  const stars=deltas.filter(([,s])=>s.delta>=10).sort((a,b)=>b[1].delta-a[1].delta).slice(0,4);
+  const up=deltas.filter(([id,s])=>levelOf(wordStates(id,{before:s.lastDate}))<s.level).length;
+  const names=(a,max=3)=>a.slice(0,max).map(name).join(", ")+(a.length>max?` +${a.length-max}`:"");
+  const needs=[
+    N.due.length?`<button type="button" class="li" data-a="goFilter" data-f="review"><span>${plural(N.due.length,"plan")} due a review</span><span class="pill rev">Review</span></button>`:"",
+    N.nogain.length?`<button type="button" class="li" data-a="goFilter" data-f="nogain"><span>${names(N.nogain)} — no gain since last check</span><span class="pill no">Look</span></button>`:"",
+    N.ready.length?`<button type="button" class="li" data-a="checkReady"><span>${N.ready.length===1?"1 child":N.ready.length+" children"} ready for a 1:1 re-check</span><span class="pill blue">Check</span></button>`:"",
+    N.unassessed.length?`<div class="li"><span>${N.unassessed.length} not assessed yet</span><span class="muted small">${names(N.unassessed,4)}</span></div>`:""].join("");
+  h+=`<div class="trio">
+   <section class="panel stack" aria-labelledby="teachH"><div><h3 id="teachH">Teach to the whole class</h3><p class="muted small">Words most children still can’t spell</p></div>
+    <div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}/${assessed.length}</small></span>`).join("")||`<span class="muted small">${assessed.length?"Every assessed word is correct.":"These appear after the first test is marked."}</span>`}</div>
+    ${wrote.length?`<p class="note">Most written: ${wrote.map(([i,r,n])=>`<span class="wd">“${esc(r)}”</span> for ${esc(WORDS[i])} ×${n}`).join(" · ")}</p>`:""}
+    ${top.length?`<div><button type="button" class="btn" data-a="pdfWotd">Print these as Word of the day</button></div>`:""}</section>
+   <section class="panel" aria-labelledby="needH"><h3 id="needH" style="margin-bottom:6px">Needs you</h3>${needs||'<p class="muted small" style="padding-top:6px">Nothing needs you right now.</p>'}</section>
+   <section class="panel stack" aria-labelledby="gainH" style="align-content:start"><h3 id="gainH">Since last check</h3>
+    ${avgDelta==null?'<p class="muted small">The change shows once children have been checked twice.</p>':`<div class="row" style="align-items:baseline;gap:8px"><span class="bignum ${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta>0?"+":""}${avgDelta.toFixed(1)}</span><span class="muted small">words per child</span></div>
+    ${stars.length?`<p class="small" style="font-size:14px"><b>Big gains:</b> ${stars.map(([id,s])=>`${name(id)} +${s.delta}`).join(", ")}</p>`:""}
+    <p style="font-size:14px"><b>Moved up a band:</b> ${up===1?"1 child":up+" children"}</p>`}
+    <div><button type="button" class="linkbtn" data-a="tab" data-k="class">See the whole class →</button></div></section>
+  </div>`;
   return h;
 };
 
@@ -795,6 +876,8 @@ VIEWS.settings=function(){
    <label class="chk"><input type="checkbox" data-c="strictCaps" ${st.strictCaps?"checked":""}>Require capitals for I, I’m, Mr and Mrs</label>
    <label class="chk"><input type="checkbox" data-c="acceptNoApos" ${st.acceptNoApos?"checked":""}>Accept it’s, don’t and I’m without the apostrophe</label>
    <p class="muted small">Other capital letters are always ignored. Settings apply to sheets you mark from now on.</p>
+   <label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${(+st.wholeN||20)===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select>
+   <p class="muted small">This week covers every child in as few tests as it can: one whole-class test where most children are, then the shortest group tests for the rest.</p>
    ${voicePanel()}
    <h3 style="margin-top:8px">How levels work</h3>
    <p class="small">There are three word lists, taken in order: the 100 high frequency words, the next 200 high frequency words, then the Year 3 and 4 common exception words. Each list is split into sets of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s current set is the first set of ten they haven’t got 10/10 in; they move on when they have. A word is <b>secure</b> once it has been correct in two separate checks.</p>
@@ -1469,6 +1552,9 @@ const A={
   qPick:el=>{pickQuick(el.dataset.id)},
   qNext:()=>{const q=S.ui.quick,k=q.group.indexOf(q.pid);if(k>=0&&k<q.group.length-1)pickQuick(q.group[k+1])},
   list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null},
+  moreWords:el=>{S.ui.showAll[el.dataset.k]=true},
+  goFilter:el=>{S.ui.pfilter=el.dataset.f;setTab("pupils");window.scrollTo({top:0})},
+  checkReady:()=>{const ids=classNeeds().ready;if(!ids.length)return;Object.assign(S.ui.quick,{only:null,onlyLabel:"",group:ids,list:null});pickQuick(ids[0]);setTab("mark");window.scrollTo({top:0})},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
   testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;Object.assign(S.ui.quick,{only:t.words,onlyLabel:t.title,group:t.pids,kind:"spelling",list:null});pickQuick(t.pids[0]);setTab("mark");window.scrollTo({top:0})},
   testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
@@ -1526,9 +1612,9 @@ const A={
   closePlan:()=>{S.ui.plan=null},
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfBook:el=>{PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfAllBooks:()=>{PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
-  pdfBooksSel:()=>{PDF.books(S.ui.print.pids,"practice-books.pdf");return "skip"},
+  pdfBook:el=>{S.ui.printed=true;PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  pdfAllBooks:()=>{S.ui.printed=true;PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
+  pdfBooksSel:()=>{S.ui.printed=true;PDF.books(S.ui.print.pids,"practice-books.pdf");return "skip"},
   pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
   pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
   pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
@@ -1537,7 +1623,7 @@ const A={
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-a]");if(!el||el.disabled)return;
   const f=A[el.dataset.a];if(!f)return;
-  const r=f(el,e);if(r!=="skip")render();
+  const r=f(el,e);if(r!=="skip"||S.ui.printed)render();
 });
 document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value;if(el.dataset.bindPlan)S.ui.planDraft[el.dataset.bindPlan]=el.value});
 document.addEventListener("change",e=>{
