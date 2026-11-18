@@ -11,80 +11,94 @@
 <script src="js/hundred-words-runtime.js?v=1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Andika:wght@400;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* Layout: exercise-book page — ruled header with red margin, tabbed workspace, wide scrolling class grid */
+/* Classroom Hub look (css/app.css): Schibsted Grotesk, cobalt primary, white cards on a
+   near-white page. The words themselves stay in Andika and the book-band colours are kept. */
 :root{
-  --paper:#f6f7fb; --card:#ffffff; --ink:#1c2333; --muted:#5b6478; --line:#dde2ec; --rule:#c8d5ef; --margin:#d9606b;
-  --accent:#2747b0; --accent-ink:#ffffff; --accent-soft:#e5ebfb;
-  --ok:#6fcf97; --ok-strong:#1f7a45; --ok-soft:#d4f0de; --ok-ink:#145c33;
-  --no:#cf4b45; --no-soft:#fbdedb; --rev:#d8961a; --rev-soft:#fcefcf;
-  --shadow:0 1px 2px rgba(20,30,60,.06),0 4px 14px rgba(20,30,60,.06);
-  --f-ui:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --f-display:'Bricolage Grotesque','Atkinson Hyperlegible',system-ui,sans-serif;
+  --paper:#f5f6f8; --card:#ffffff; --ink:#14181d; --ink-2:#4a525c; --muted:#687079; --line:#e6e9ee; --line-2:#f0f2f5; --ctl:#d9dde4; --rule:#c8d0dc;
+  --accent:#2f55e0; --accent-ink:#ffffff; --accent-text:#1f3fb8; --accent-soft:#eef2fd; --accent-mid:#6b86ec;
+  --ok:#a7d8bd; --ok-strong:#1f8a5b; --ok-soft:#e9f6ef; --ok-ink:#14663f; --ok-btn:#14663f;
+  --no:#e11d48; --no-soft:#fff1f4; --no-ink:#9f1239; --no-line:#f5b5c2;
+  --rev:#b9810f; --rev-soft:#faf3e1; --rev-ink:#7a5408;
+  --shadow:0 4px 14px rgba(20,24,29,.05),0 1px 2px rgba(20,24,29,.04);
+  --f-ui:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-display:var(--f-ui);
   --f-word:'Andika','Comic Sans MS','Trebuchet MS',sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --paper:#11151e; --card:#1a2030; --ink:#e6e9f2; --muted:#9ba4b7; --line:#2b3346; --rule:#2a3a5f; --margin:#e47d86;
-  --accent:#8fa7ff; --accent-ink:#0c1120; --accent-soft:#222c4b;
-  --ok:#2f8f58; --ok-strong:#6ee09d; --ok-soft:#1b3a29; --ok-ink:#9fe9bd;
-  --no:#ee7b75; --no-soft:#41221f; --rev:#efb54a; --rev-soft:#3d3018;
+  --paper:#0f1217; --card:#181c23; --ink:#e8ebf0; --ink-2:#c3c8cf; --muted:#9aa3ae; --line:#2a303a; --line-2:#222831; --ctl:#3a414d; --rule:#3a414d;
+  --accent:#2f55e0; --accent-ink:#ffffff; --accent-text:#9db1f7; --accent-soft:#1c2647; --accent-mid:#8fa6f3;
+  --ok:#2b6b4a; --ok-strong:#4cc38a; --ok-soft:#15301f; --ok-ink:#8fe0b5; --ok-btn:#14663f;
+  --no:#f0627f; --no-soft:#3a1820; --no-ink:#ffa3b5; --no-line:#7a2e40;
+  --rev:#e0b04a; --rev-soft:#3a2e12; --rev-ink:#f0cf85;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --paper:#11151e; --card:#1a2030; --ink:#e6e9f2; --muted:#9ba4b7; --line:#2b3346; --rule:#2a3a5f; --margin:#e47d86;
-  --accent:#8fa7ff; --accent-ink:#0c1120; --accent-soft:#222c4b;
-  --ok:#2f8f58; --ok-strong:#6ee09d; --ok-soft:#1b3a29; --ok-ink:#9fe9bd;
-  --no:#ee7b75; --no-soft:#41221f; --rev:#efb54a; --rev-soft:#3d3018;
+  --paper:#0f1217; --card:#181c23; --ink:#e8ebf0; --ink-2:#c3c8cf; --muted:#9aa3ae; --line:#2a303a; --line-2:#222831; --ctl:#3a414d; --rule:#3a414d;
+  --accent:#2f55e0; --accent-ink:#ffffff; --accent-text:#9db1f7; --accent-soft:#1c2647; --accent-mid:#8fa6f3;
+  --ok:#2b6b4a; --ok-strong:#4cc38a; --ok-soft:#15301f; --ok-ink:#8fe0b5; --ok-btn:#14663f;
+  --no:#f0627f; --no-soft:#3a1820; --no-ink:#ffa3b5; --no-line:#7a2e40;
+  --rev:#e0b04a; --rev-soft:#3a2e12; --rev-ink:#f0cf85;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25); color-scheme:dark}
 *{box-sizing:border-box}
 html,body{background:var(--paper);color:var(--ink)}
-body{font-family:var(--f-ui);font-size:15px;line-height:1.45}
+body{margin:0;font-family:var(--f-ui);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:0 48px}
-header.top{position:relative;padding-block:22px 0;border-bottom:2px solid var(--rule)}
-header.top::before{content:"";position:absolute;left:-6px;top:0;bottom:0;width:2px;background:var(--margin);opacity:.8}
-.brand{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px}
-.brand h1{font-family:var(--f-display);font-weight:800;font-size:clamp(26px,4vw,34px);letter-spacing:-.02em;margin:0;text-wrap:balance}
-.brand .cls{color:var(--muted);font-size:15px}
-nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:14px;scrollbar-width:none}
-nav.tabs button{background:none;border:0;padding:10px 14px 11px;border-bottom:3px solid transparent;color:var(--muted);font-weight:700;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
+a{color:var(--accent-text)}
+:focus-visible{outline:3px solid var(--accent-mid);outline-offset:2px}
+.wrap{max-width:1152px;margin:0 auto;padding:12px 16px 48px}
+/* inside the hub the content column already has its own padding */
+.framed .wrap{padding:2px 3px 40px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 16px}
+.eyebrow{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;text-transform:uppercase}
+.brand .h1row{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-top:4px}
+.brand h1{font-weight:800;font-size:32px;letter-spacing:-.01em;line-height:1.15;margin:0}
+.brand .cls{color:var(--muted);font-size:14px}
+.topnav{display:flex;align-items:flex-end;gap:8px;min-width:0;max-width:100%}
+nav.tabs{display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line);min-width:0}
+nav.tabs button{background:none;border:0;padding:0 2px;min-height:44px;border-bottom:2px solid transparent;color:var(--muted);font-size:15px;font-weight:600;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
 nav.tabs button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
 nav.tabs button:hover{color:var(--ink)}
-.badge{background:var(--rev);color:#1d1400;border-radius:999px;font-size:12px;padding:0 7px;min-width:20px;text-align:center}
+.cog{flex:none;width:44px;height:44px;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.cog:hover{background:var(--line-2)}
+.cog[aria-current="page"]{background:var(--accent-soft);color:var(--accent-text)}
+.badge{background:var(--rev-soft);color:var(--rev-ink);border-radius:999px;font-size:12px;padding:0 7px;min-width:20px;text-align:center}
 .banner{margin-top:14px;padding:10px 14px;border-radius:10px;background:var(--accent-soft);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
 .banner:empty{display:none}
 main{margin-top:20px;display:grid;gap:20px}
-h2{font-family:var(--f-display);font-weight:800;font-size:22px;letter-spacing:-.01em;margin:0;text-wrap:balance}
-h3{font-family:var(--f-display);font-weight:600;font-size:17px;margin:0}
+h2{font-weight:800;font-size:20px;letter-spacing:-.005em;margin:0;text-wrap:balance}
+h3{font-weight:800;font-size:17px;margin:0}
 p{margin:0}
 .muted{color:var(--muted)}
 .small{font-size:13px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);min-width:0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);min-width:0}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .stack{display:grid;gap:12px}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
-.btn{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:700;display:inline-flex;gap:6px;align-items:center;justify-content:center}
-.btn:hover{border-color:var(--accent)}
+.btn{border:1px solid var(--ctl);background:var(--card);color:var(--ink);padding:0 16px;min-height:44px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;gap:8px;align-items:center;justify-content:center;text-decoration:none}
+.btn:hover{border-color:var(--accent-mid)}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.btn.ok{background:var(--ok-strong);border-color:var(--ok-strong);color:var(--card)}
-.btn.no{background:var(--card);border-color:var(--no);color:var(--no)}
-.btn.ghost{border-color:transparent;background:transparent}
+.btn.primary:hover{background:#2748c4;border-color:#2748c4}
+.btn.ok{background:var(--ok-btn);border-color:var(--ok-btn);color:#fff}
+.btn.no{background:var(--card);border-color:var(--no);color:var(--no-ink)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--line-2);border-color:transparent}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
-.btn.sm{padding:4px 10px;font-size:13px;border-radius:7px}
-input[type=text],input[type=date],select,textarea{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 10px;min-width:0}
-textarea{width:100%;min-height:140px;resize:vertical}
-label.chk{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:0;background:var(--card);padding:8px 14px;cursor:pointer;font-weight:700;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:0 12px;font-size:13px}
+input[type=text],input[type=date],select,textarea{border:1px solid var(--ctl);background:var(--card);border-radius:10px;padding:0 12px;min-height:44px;min-width:0;font-size:14px;max-width:100%}
+textarea{width:100%;min-height:140px;resize:vertical;padding:10px 12px}
+label.chk{display:inline-flex;gap:10px;align-items:center;cursor:pointer;min-height:44px}
+label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
+.seg{display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--line-2);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;padding:0 14px;min-height:44px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 /* stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
-.stat b{display:block;font-family:var(--f-display);font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
 .stat span{color:var(--muted);font-size:13px}
-.up{color:var(--ok-ink)} .down{color:var(--no)}
+.up{color:var(--ok-ink)} .down{color:var(--no-ink)}
 /* grid */
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
@@ -103,7 +117,7 @@ th.name-h{z-index:4}
 th.pn{font-weight:400;height:28px}
 th.pn button{background:none;border:0;padding:4px 0;cursor:pointer;font-weight:700;text-align:left;display:flex;gap:6px;align-items:center;max-width:100%}
 th.pn button span.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--band);border:1px solid rgba(0,0,0,.25);flex:none}
+.dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--band);border:1px solid rgba(0,0,0,.18);flex:none}
 td.c{width:17px;min-width:17px;height:28px;cursor:pointer}
 td.c:hover{outline:2px solid var(--accent);outline-offset:-2px}
 .s-known{background:var(--ok)}
@@ -120,8 +134,8 @@ td.score small{display:block;font-size:11px;line-height:1}
 /* insights */
 .ins h3{margin-bottom:8px}
 .ins ul{margin:0;padding-left:18px;display:grid;gap:4px}
-.wchip{display:inline-flex;gap:6px;align-items:baseline;border:1px solid var(--line);border-radius:8px;padding:3px 9px;background:var(--paper);font-family:var(--f-word);font-size:16px}
-.wchip small{font-family:var(--f-ui);color:var(--muted);font-size:12px}
+.wchip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:4px 10px;background:var(--paper);color:var(--ink);font-family:var(--f-word);font-size:16px;white-space:nowrap;text-decoration:none}
+.wchip small{font-family:var(--f-ui);color:var(--muted);font-size:11px;font-weight:600}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .band{display:inline-flex;align-items:center;gap:6px;font-weight:700}
 .ai-out{white-space:pre-wrap;line-height:1.55}
@@ -137,10 +151,11 @@ td.score small{display:block;font-size:11px;line-height:1}
 .mk.m-c{background:var(--ok-soft);border-color:var(--ok)}
 .mk.m-x{background:var(--no-soft);border-color:var(--no)}
 .mk.m-q{background:var(--rev-soft);border-color:var(--rev)}
-.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;background:var(--paper);border:1px solid var(--line)}
-.pill.ok{background:var(--ok-soft);border-color:var(--ok);color:var(--ok-ink)}
-.pill.no{background:var(--no-soft);border-color:var(--no)}
-.pill.rev{background:var(--rev-soft);border-color:var(--rev)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 10px;font-size:13px;font-weight:600;background:var(--line-2);color:var(--ink-2);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.pill.no{background:var(--no-soft);color:var(--no-ink)}
+.pill.rev{background:var(--rev-soft);color:var(--rev-ink)}
+.pill.blue{background:var(--accent-soft);color:var(--accent-text)}
 .gtab{width:100%;border-collapse:collapse}.gtab th{text-align:left;white-space:nowrap;padding:8px 12px 8px 0;vertical-align:top;font-weight:700}.gtab td{padding:6px 0;line-height:2.2}.gtab tr+tr{border-top:1px solid var(--line)}
 .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
 .qgrid button{border:1px solid var(--line);background:var(--paper);border-radius:8px;padding:8px 4px;cursor:pointer;font-family:var(--f-word);font-size:17px;display:grid;line-height:1.1}
@@ -181,7 +196,7 @@ td.score small{display:block;font-size:11px;line-height:1}
 .prog{color:var(--muted);font-weight:700}
 .kbtn{font-size:20px;padding:14px 26px;border-radius:14px}
 /* drawer */
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--card);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(0,0,0,.15);z-index:20;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 30px)}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--card);border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(20,24,29,.12);z-index:20;overflow-y:auto;padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 30px)}
 .drawer:empty{display:none}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:30;max-width:calc(100% - 32px)}
 .toast:empty{display:none}
@@ -199,10 +214,10 @@ td.score small{display:block;font-size:11px;line-height:1}
 
 <div class="wrap">
   <header class="top">
-    <div class="brand"><h1>Spellings</h1><span class="cls" id="cls"></span></div>
-    <nav class="tabs" id="nav" aria-label="Sections"></nav>
+    <div class="brand"><div class="eyebrow">High frequency &amp; common exception words</div><div class="h1row"><h1>Spellings</h1><span class="cls" id="cls"></span></div></div>
+    <div class="topnav"><nav class="tabs" id="nav" aria-label="Spellings"></nav><button type="button" class="cog" id="cog" data-a="tab" data-k="settings" aria-label="Spelling settings"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.2.6.77 1 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
   </header>
-  <div class="banner" id="banner"></div>
+<div class="banner" id="banner"></div>
   <main id="main">
     <div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>
   </main>
@@ -237,6 +252,7 @@ const STLABEL={none:"Not assessed",known:"Correct",secure:"Secure (correct twice
 const LADDER=["New","Learning","Practising","Ready to check"];
 
 const $=s=>document.querySelector(s);
+try{if(window.parent!==window)document.documentElement.classList.add("framed")}catch(e){document.documentElement.classList.add("framed")}
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const z2=n=>String(n).padStart(2,"0");
 const localDate=(d=new Date())=>d.getFullYear()+"-"+z2(d.getMonth()+1)+"-"+z2(d.getDate());
@@ -250,7 +266,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
-  mode:"loading", tab:"tracker",
+  mode:"loading", tab:"class",
   ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"reading",list:null,only:null,group:null},list:null,cell:null,pupil:null,confirm:null,
       print:{list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
@@ -331,10 +347,10 @@ function doRender(){
   $("#cls").textContent=S.settings.className?S.settings.className:"";
   /* Classroom Hub: no Practise (games) or Review (the photo-marking queue)
      tabs. Their views are kept, unreachable. */
-  const tabs=[["tracker","Tracker"],["groups","Groups"],["assess","Assess"],["plans","Plans"],["print","Print"],["class","Class"]];
-  $("#nav").innerHTML=tabs.map(([k,l])=>`<button data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+  $("#nav").innerHTML=TABS.map(([k,l])=>`<button type="button" data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+  const cog=$("#cog");if(S.tab==="settings")cog.setAttribute("aria-current","page");else cog.removeAttribute("aria-current");
   $("#banner").innerHTML=bannerHtml();
-  $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS.tracker)();
+  $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS[DEFAULT_TAB])();
   $("#drawer").innerHTML=S.ui.pupil&&S.pupils[S.ui.pupil]?drawerHtml(S.ui.pupil):"";
   drawCrops();
   if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
@@ -352,8 +368,22 @@ function listSeg(cur,action){return `<div class="seg">${LISTS.map((l,k)=>`<butto
 function classList(){const c=LISTS.map(()=>0);for(const id of pupilIds())c[curList(summary(id))]++;return c.indexOf(Math.max(...c))}
 
 const VIEWS={};
-/* ----- Tracker ----- */
-VIEWS.tracker=function(){
+/* ----- tabs -----
+   This week · Mark · Class · Pupils · Print, and a settings cog. The ids
+   from before the Nov 2026 redesign still work, so an old link or a tab
+   remembered from then lands on the screen that took its place. The old
+   "class" (settings) id can't be told from the new Class tab, so it opens
+   Class. Practise and Review are not in OPEN_TABS: nothing reaches them. */
+const TABS=[["week","This week"],["mark","Mark"],["class","Class"],["pupils","Pupils"],["print","Print"]];
+const TAB_ALIAS={tracker:"class",groups:"week",assess:"mark",quick:"mark",plans:"pupils",plan:"pupils",settings:"settings"};
+const OPEN_TABS=new Set([...TABS.map(t=>t[0]),"settings"]);
+const DEFAULT_TAB="class";
+function tabId(k){k=String(k||"").replace(/^#/,"").toLowerCase();k=TAB_ALIAS[k]||k;return OPEN_TABS.has(k)?k:null}
+function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"","#"+S.tab)}catch(e){}}
+S.tab=tabId(location.hash)||DEFAULT_TAB;
+window.addEventListener("hashchange",()=>{const k=tabId(location.hash);if(k&&k!==S.tab){S.tab=k;render()}});
+/* ----- Class (was Tracker) ----- */
+VIEWS.class=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const sums=ids.map(id=>[id,summary(id)]);
@@ -396,7 +426,7 @@ VIEWS.tracker=function(){
 function emptyClass(){
   return `<div class="panel empty">
     <h2>Add your class to begin</h2>
-    <p class="muted" style="max-width:52ch">This class has no pupils yet. Add them on the Pupils page and they appear here. Then print the answer sheets, run the spelling check, and enter each child’s results with Quick check in Assess.</p>
+    <p class="muted" style="max-width:52ch">This class has no pupils yet. Add them on the Pupils page and they appear here. Then print the answer sheets, run the spelling check, and enter each child’s results in Mark.</p>
     <div class="row" style="justify-content:center">${window.hwHub?`<button class="btn primary" data-a="hubPupils">Go to Pupils</button>`:""}${S.mode!=="demo"?`<button class="btn" data-a="demo">Explore an example class</button>`:""}</div>
   </div>`;
 }
@@ -408,7 +438,7 @@ function classMissed(sums){
 }
 function insightsHtml(sums){
   const assessed=sums.filter(([,s])=>s.sessions.length);
-  if(!assessed.length)return `<div class="panel"><h3>Insights appear after the first assessment</h3><p class="muted">Print answer sheets from the Print tab, run the check, then enter each child’s results with Quick check in Assess.</p></div>`;
+  if(!assessed.length)return `<div class="panel"><h3>Insights appear after the first assessment</h3><p class="muted">Print answer sheets from the Print tab, run the check, then enter each child’s results in Mark.</p></div>`;
   // most missed
   const slip=Array(WORDS.length).fill(0),mis={};
   for(const [,s] of assessed)s.ws.forEach((w,i)=>{
@@ -431,7 +461,7 @@ function insightsHtml(sums){
   h+=`<div class="panel ins"><h3>Teach to the whole class</h3><p class="muted small" style="margin-bottom:10px">Words the most pupils still can’t spell.</p>
     <div class="chips">${topMiss.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n} of ${assessed.length}</small></span>`).join("")||'<span class="muted">Every assessed word is correct.</span>'}</div>
     ${slips.length?`<p class="small" style="margin-top:12px"><b>Slipping:</b> ${slips.map(([i,n])=>`${esc(WORDS[i])} (${n})`).join(", ")}. These were correct before and wrong last time.</p>`:""}</div>`;
-  h+=`<div class="panel ins"><h3>Groups by set</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t got 10/10 in. The Groups tab plans the tests.</p><div class="stack">
+  h+=`<div class="panel ins"><h3>Groups by set</h3><p class="muted small" style="margin-bottom:10px">Grouped by the first set of ten each pupil hasn’t got 10/10 in. This week plans the tests.</p><div class="stack">
     ${Object.keys(groups).sort((a,b)=>a-b).map(l=>`<div><span class="band">${bandDot(+l)}${+l>=NSETS?"Every list complete":`${BANDS[l%10].n} <span class="muted small">(${setLabel(+l)})</span>`}</span><div class="small">${groups[l].map(name).join(", ")}</div></div>`).join("")}</div></div>`;
   h+=`<div class="panel ins"><h3>Common misspellings</h3><p class="muted small" style="margin-bottom:10px">What children actually wrote. Useful for spotting phonics gaps.</p>
     ${pats.length?`<ul>${pats.map(([i,r,n])=>`<li><b style="font-family:var(--f-word)">${esc(WORDS[i])}</b> → “${esc(r)}” <span class="muted">×${n}</span></li>`).join("")}</ul>`:'<p class="muted">Misspellings appear once marked sheets are saved.</p>'}</div>`;
@@ -488,11 +518,11 @@ function testPlan(){
     rest=rest.filter(id=>!pids.includes(id))}
   return {tests,lv,W};
 }
-VIEWS.groups=function(){
+VIEWS.week=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const {tests,lv}=testPlan(),name=id=>esc(S.pupils[id].name),wn=+S.settings.wholeN||20;
-  let h=`<div class="row" style="justify-content:space-between"><h2>Groups</h2><div class="row small"><label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${wn===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select></div></div>
+  let h=`<div class="row" style="justify-content:space-between"><h2>This week</h2><div class="row small"><label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${wn===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select></div></div>
   <p class="muted" style="max-width:75ch">Each child works through the words in sets of ten and moves on only when they get 10/10: the 100 high frequency words, then the next 200, then the Year 3 and 4 common exception words. The tests below cover every child in as few tests as possible.</p>`;
   h+=`<h3>Next tests</h3><div class="cols">${tests.map((t,k)=>`<div class="panel stack"${t.whole?' style="border-top:6px solid var(--accent)"':""}>
     <div class="row" style="justify-content:space-between"><h3 style="margin:0">${esc(t.title)}</h3><span class="pill">${t.words.length} words</span></div>
@@ -505,10 +535,10 @@ VIEWS.groups=function(){
 };
 
 /* ----- Assess ----- */
-VIEWS.assess=function(){
+VIEWS.mark=function(){
   /* Classroom Hub: Quick check only. Photo marking is not offered yet;
      photoView() is kept, unreachable, for when it comes back. */
-  let h=`<div class="row" style="justify-content:space-between"><h2>Assess</h2></div>`;
+  let h=`<div class="row" style="justify-content:space-between"><h2>Mark</h2></div>`;
   if(!pupilIds().length)return h+`<div class="panel empty"><p>Add pupils on the Pupils page first.</p>${window.hwHub?`<button class="btn" data-a="hubPupils">Go to Pupils</button>`:""}</div>`;
   return h+quickView();
 };
@@ -654,7 +684,7 @@ function rankedVoices(){return voices.slice().sort((a,b)=>voiceScore(b)-voiceSco
 function pickVoice(){const want=lsGet("hw-voice");return (want&&voices.find(v=>v.name===want))||rankedVoices()[0]||null}
 function voiceRate(){const r=parseFloat(lsGet("hw-rate"));return r>=.5&&r<=1.3?r:.9}
 function say(t){if(!canSpeak)return;try{speechSynthesis.cancel();if(!voices.length)loadVoices();const u=new SpeechSynthesisUtterance(t);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-GB";u.rate=voiceRate();u.pitch=1;speechSynthesis.speak(u)}catch(e){}}
-if(canSpeak){loadVoices();try{speechSynthesis.addEventListener("voiceschanged",()=>{loadVoices();if(S.tab==="class")render()})}catch(e){}}
+if(canSpeak){loadVoices();try{speechSynthesis.addEventListener("voiceschanged",()=>{loadVoices();if(S.tab==="settings")render()})}catch(e){}}
 function voicePanel(){
   if(!canSpeak)return `<p class="small muted">This browser can’t speak words aloud, so Listen and find is hidden.</p>`;
   const want=lsGet("hw-voice"),list=rankedVoices(),best=list[0],r=voiceRate();
@@ -756,14 +786,10 @@ VIEWS.print=function(){
   </div>`;
 };
 
-/* ----- Class ----- */
-VIEWS.class=function(){
+/* ----- Settings (the cog; was the Class tab) ----- */
+VIEWS.settings=function(){
   const ids=pupilIds(),st=S.settings;
-  return `<h2>Class</h2><div class="cols">
-  <div class="panel stack"><h3>Pupils (${ids.length})</h3>
-   <p class="muted small">This is your Classroom Hub class list. Add, rename or remove pupils on the Pupils page.</p>
-   <div class="stack">${ids.map(id=>`<div style="border-bottom:1px solid var(--line);padding-bottom:6px">${esc(S.pupils[id].name)}</div>`).join("")}</div>
-   ${window.hwHub?`<div class="row"><button class="btn" data-a="hubPupils">Go to Pupils</button></div>`:""}</div>
+  return `<h2>Spelling settings</h2><div class="cols">
   <div class="panel stack"><h3>Settings</h3>
    <label for="clsName"><b>Class name</b></label><input type="text" id="clsName" data-c="className" value="${esc(st.className)}" placeholder="e.g. Year 1 Oak">
    <label class="chk"><input type="checkbox" data-c="strictCaps" ${st.strictCaps?"checked":""}>Require capitals for I, I’m, Mr and Mrs</label>
@@ -773,7 +799,11 @@ VIEWS.class=function(){
    <h3 style="margin-top:8px">How levels work</h3>
    <p class="small">There are three word lists, taken in order: the 100 high frequency words, the next 200 high frequency words, then the Year 3 and 4 common exception words. Each list is split into sets of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s current set is the first set of ten they haven’t got 10/10 in; they move on when they have. A word is <b>secure</b> once it has been correct in two separate checks.</p>
    ${S.mode==="demo"?`<button class="btn" data-a="exitDemo">Leave example class</button>`:S.mode!=="live"?`<button class="btn" data-a="demo">Load example class</button>`:""}
-  </div></div>`;
+  </div>
+  <div class="panel stack"><h3>Pupils (${ids.length})</h3>
+   <p class="muted small">This is your Classroom Hub class list. Add, rename or remove pupils on the Pupils page.</p>
+   <div class="stack">${ids.map(id=>`<div style="border-bottom:1px solid var(--line);padding-bottom:6px">${esc(S.pupils[id].name)}</div>`).join("")}</div>
+   ${window.hwHub?`<div class="row"><button class="btn" data-a="hubPupils">Go to Pupils</button></div>`:""}</div></div>`;
 };
 
 /* ---------- photo marking ---------- */
@@ -1074,10 +1104,10 @@ function savePlan(pid,patch){saveDoc("plans",pid,{...(S.plans[pid]||{}),...patch
 function patternList(p){return Object.entries(p.pats).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>({k,label:ERR[k],n:v.n,ex:v.ex}))}
 function wordMap(s){return `<div class="wmap">${listWords(LISTS[curList(s)]).map(i=>{const w=s.ws[i];return `<i class="s-${w.st}" style="${i%10===0?`box-shadow:inset 3px 0 0 ${BANDS[(i/10)%10].c}`:""}" title="${num(i)}. ${esc(WORDS[i])}: ${STLABEL[w.st]}"></i>`}).join("")}</div>`}
 
-VIEWS.plans=function(){
+VIEWS.pupils=function(){
   if(S.ui.plan&&S.pupils[S.ui.plan])return planView(S.ui.plan);
   const ids=pupilIds();
-  if(!ids.length)return `<h2>Progression plans</h2><div class="panel empty"><p>Add pupils in the Class tab first.</p></div>`;
+  if(!ids.length)return `<h2>Progression plans</h2><div class="panel empty"><p>Add pupils on the Pupils page first.</p></div>`;
   const today=localDate();
   return `<div class="row" style="justify-content:space-between"><h2>Progression plans</h2><div class="row"><button class="btn" data-a="pdfAllPlans">All plans</button><button class="btn" data-a="pdfAllPacks">All practice packs</button><button class="btn" data-a="pdfAllCards">All flash cards (stack and cut)</button></div></div>
   <div class="panel row" style="justify-content:space-between"><div style="max-width:62ch"><h3>Daily practice books for the whole class</h3><p class="small muted">Each child gets their own A5 book: a cover with their words, target and tick chart, then a look-say-cover-write-check page for each day using their plan’s words — or just one day’s page. Two children share each A4 sheet, laid out to stack and cut: print, square the stack, cut once across the middle, and each pile is a run of complete books in page order.</p></div>
@@ -1413,7 +1443,7 @@ function decide(sid,i,s){
   saveDoc("sessions",sid,{...ses,words});
 }
 const A={
-  tab:el=>{S.tab=el.dataset.k;S.ui.cell=null;if(el.dataset.k==="plans")S.ui.plan=null;window.scrollTo({top:0})},
+  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;if(S.tab==="pupils")S.ui.plan=null;window.scrollTo({top:0})},
   openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null},
   closePupil:()=>{S.ui.pupil=null},
   cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
@@ -1440,7 +1470,7 @@ const A={
   qNext:()=>{const q=S.ui.quick,k=q.group.indexOf(q.pid);if(k>=0&&k<q.group.length-1)pickQuick(q.group[k+1])},
   list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
-  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;Object.assign(S.ui.quick,{only:t.words,onlyLabel:t.title,group:t.pids,kind:"spelling",list:null});pickQuick(t.pids[0]);S.tab="assess";window.scrollTo({top:0})},
+  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;Object.assign(S.ui.quick,{only:t.words,onlyLabel:t.title,group:t.pids,kind:"spelling",list:null});pickQuick(t.pids[0]);setTab("mark");window.scrollTo({top:0})},
   testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
   testScript:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testScript(t);return "skip"},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
@@ -1485,14 +1515,14 @@ const A={
   pdfPupilCards:el=>{const id=el.dataset.id;const items=childCards(id);PDF.cards([{label:S.pupils[id].name.split(" ")[0],items}],`flash-cards-${S.pupils[id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   actsFor:el=>{S.ui.print.actsFor=el.dataset.k},
   testVoice:()=>{say("Let’s practise. said. “Hello,” said Mum. said.");return "skip"},
-  voiceSettings:(el,e)=>{e.preventDefault();S.tab="class";S.ui.act=null},
+  voiceSettings:(el,e)=>{e.preventDefault();setTab("settings");S.ui.act=null},
   cardLayout:el=>{S.ui.print.cardLayout=el.dataset.k;S.ui.print.stackNote=""},
   pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
   pdfActs:()=>{const P=S.ui.print;let g;
     if(P.actsFor==="levels"){g=P.levels.slice().sort((a,b)=>a-b).map(l=>({label:"",items:setWords(l)}));if(!g.length){toast("Choose at least one level");return "skip"}}
     else{g=P.pids.filter(id=>S.pupils[id]).map(id=>({label:S.pupils[id].name,items:planWords(id)}));if(!g.length){toast("Choose the pupils to print for");return "skip"}}
     PDF.acts(g,"practice-sheets.pdf");return "skip"},
-  openPlan:(el,e)=>{e.preventDefault();S.ui.plan=el.dataset.id;S.ui.pupil=null;S.tab="plans";window.scrollTo({top:0})},
+  openPlan:(el,e)=>{e.preventDefault();S.ui.plan=el.dataset.id;S.ui.pupil=null;setTab("pupils");window.scrollTo({top:0})},
   closePlan:()=>{S.ui.plan=null},
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
@@ -1562,11 +1592,11 @@ function loadDemo(){
     if(k%3===0){const b={};let n=0;for(let i=0;i<100&&n<6;i++){if(sessions[id+"_2026-10-06"].words[i].s!=="c"){b[i]=1+Math.floor(rnd()*3);n++}}practice[id]={boxes:b,log:[]}}
   });
   Object.assign(S,{pupils,sessions,practice,plans:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
-  S.ui.jobs=[];S.ui.ai=null;S.tab="tracker";render();
+  S.ui.jobs=[];S.ui.ai=null;setTab(DEFAULT_TAB);render();
 }
 function exitDemo(){
   if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,settings:saved.settings,mode:saved.mode});saved=null}
-  S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;S.tab=pupilIds().length?"tracker":"class";render();
+  S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
 }
 
 /* ---------- boot ---------- */

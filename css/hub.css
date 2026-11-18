@@ -1042,8 +1042,9 @@
 .stc-legend .stc-bars i { width: 5px; }
 
 /* Spellings (#hundred-words): its own page, framed. Fills the content
-   column down to the bottom of the window. */
-.hw-frame { display: block; width: 100%; height: calc(100vh - 140px); min-height: 520px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+   column down to the bottom of the window. No border: the page inside
+   draws the hub's own cards on the hub's own background. */
+.hw-frame { display: block; width: 100%; height: calc(100vh - 140px); min-height: 520px; border: 0; background: transparent; }
 @media (max-width: 900px) { .hw-frame { height: calc(100vh - 110px); } }
 
 /* ── Settings › Classes (js/class-manager.js) ─────────────────────── */
