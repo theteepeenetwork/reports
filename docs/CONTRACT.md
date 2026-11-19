@@ -99,6 +99,8 @@ ten the same children were marked on), and one gets a record only when the teach
 teacher actions do edit sessions, all on that test's words and date only: changing a test's date moves
 its marks to `<pupilId>_<new date>`; deleting a test deletes its marks (after a confirm that says how many
 children); marking, as before. Other tab ids added since: `week` (→ Tests) and `mark` (a screen under Tests).
+Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
+Cards per child is still `settings.main.cardsPerChild`.
 
 ## Mental Starter (CBM): `tp_cbm` (Oct 2026; individual sheets Nov 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
