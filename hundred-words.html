@@ -809,7 +809,8 @@ function moveClashes(t,date){return t.pids.filter(p=>{const here=marksOn(p,t.dat
    check moveClashes() and ask first. */
 function moveTest(t,date){
   if(!date||date===t.date)return t.id;
-  const id=adoptTest(t),moved=cutMarks(t,sharedMarks(t),true);
+  /* a past test gets its record first; that record is this test, not another one sharing its marks */
+  const id=adoptTest(t),moved=cutMarks(t,sharedMarks({...t,id}),true);
   for(const [p,m] of Object.entries(moved)){const sid=p+"_"+date,b=S.sessions[sid];
     saveDoc("sessions",sid,{pupilId:p,date,kind:(b&&b.kind)||m.kind||"spelling",words:{...((b&&b.words)||{}),...m.words},photos:(b&&b.photos)||[],updatedAt:Date.now()})}
   saveTest(id,{...t,date});
