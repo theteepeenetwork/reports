@@ -598,6 +598,20 @@ test('Print: eight things in three groups, one set of options at a time, each ca
   expect(await calls()).toEqual([['grid', 0], ['csv']]);
 });
 
+test('With every list finished there is no test, and Mark is still one tap away', async ({ page }) => {
+  const extra = twoClasses('b');
+  const all = {}; for (let i = 0; i < 409; i++) all[i] = { s: 'c' };
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-10-01': { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: all },
+    'x2_2026-10-01': { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: all } }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  expect(await frame.locator('body').evaluate(() => testPlan().tests.length)).toBe(0);
+  await frame.getByRole('button', { name: 'Mark one child, any words' }).first().click();
+  await expect(frame.locator('.markcard')).toBeVisible();
+  await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
+  await expect(frame.locator('.pl')).toHaveCount(2);
+});
+
 test('Old tab ids land on the screen that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');

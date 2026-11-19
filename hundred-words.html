@@ -724,7 +724,7 @@ VIEWS.tests=function(){
     <div class="ttl">${esc(setsLabel(t.sets))} <span>· ${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")}</span></div>
     <p class="muted small">${t.whole?`Everyone sits it — it’s the current set for <b style="color:var(--ink)">${t.target.length} of ${ids.length}</b>.`:t.pids.map(id=>`${name(id)} ${summary(id).sessions.length?summary(id).setDone+"/"+setWords(lv[id]).length:"not assessed"}`).join(" · ")}</p>
     <div class="chips">${shown.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${all?"":`<button type="button" class="linkbtn small" data-a="moreWords" data-k="${k}">+${t.words.length-shown.length} more</button>`}</div>
-    <div class="acts"><button type="button" class="btn${t.whole?" primary":""}" data-a="testEnter" data-k="${k}">Enter results</button><button type="button" class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button type="button" class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`}).join("")||'<div class="panel"><p class="muted">Every child has finished every list.</p></div>'}</div></section>`;
+    <div class="acts"><button type="button" class="btn${t.whole?" primary":""}" data-a="testEnter" data-k="${k}">Enter results</button><button type="button" class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button type="button" class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`}).join("")||`<div class="panel stack" id="noTests"><p class="muted">Every child has finished every list, so there is no test to set.</p><div><button type="button" class="btn" data-a="markAny">Mark one child, any words</button></div></div>`}</div></section>`;
   /* teach · needs you · since last check */
   const top=classMissed(assessed).slice(0,6),wrote=classWrote(assessed).slice(0,2),N=classNeeds();
   const deltas=assessed.filter(([,s])=>s.delta!=null),avgDelta=deltas.length?deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length:null;
@@ -1771,6 +1771,8 @@ const A={
   testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;loadTest(t);setTab("mark");window.scrollTo({top:0})},
   testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
   testScript:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testScript(t);return "skip"},
+  /* Mark with no test: any child, any words. The way in when there is no test to open it from. */
+  markAny:()=>{markOne();setTab("mark");window.scrollTo({top:0})},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
