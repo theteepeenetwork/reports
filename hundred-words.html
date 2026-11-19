@@ -498,6 +498,8 @@ function doRender(){
   dr.innerHTML=open?panelHtml(S.ui.pupil):"";
   if(open)dr.setAttribute("aria-label",S.pupils[S.ui.pupil].name+" — spellings");
   drawCrops();
+  /* at phone width Mark's pupils are a strip: keep the child being marked in view */
+  const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
   if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
   else if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
@@ -873,6 +875,9 @@ function testDetail(t,st){
 }
 
 /* ----- Mark (was Assess and Quick check) -----
+   Opens from a test on Tests, with "← All tests" to go back; "one child,
+   any words" is the old Quick check. Re-opening a marked test shows the
+   saved marks, and they can be changed.
    Classroom Hub: by hand only. Photo marking is not offered yet;
    photoView() is kept, unreachable, for when it comes back. */
 VIEWS.mark=function(){
@@ -922,20 +927,21 @@ function saveQuickWords(words){
 }
 /* the words Mark is showing: a test's words, or one whole list */
 function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list==null?curList(summary(q.pid)):q.list;return listWords(LISTS[li])}
-/* Load a test from testPlan() into Mark. The words and children are copied
-   here, because the plan moves on as soon as children get 10/10 and the
-   test being marked must not change under the teacher. */
+/* Load a test into Mark. Its words and children are copied here; a saved
+   test is read again on each render, so an edit made on Tests shows. */
 function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;Object.assign(q,{test:"test",testId:t.id||null,only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
 function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
 function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
 function markView(){
-  const q=S.ui.quick,tests=testPlan().tests;
-  if(!q.test){if(tests.length)loadTest(tests[0]);else markOne()}
+  const q=S.ui.quick,tests=allTests();
+  /* reached without a test (an old link): the newest test still to mark, else one child */
+  if(!q.test){const t=tests.find(t=>{const st=testStats(t);return st.marked<st.n})||tests[0];if(t)loadTest(testFull(t));else markOne()}
+  const T=q.test==="test"&&q.testId?findTest(q.testId):null;
+  if(T&&T.saved){const f=testFull(T);q.only=f.words;q.onlyLabel=f.title;q.group=f.pids.slice();S.ui.date=f.date}
   const list=markPupils();
   if(!q.pid||!list.includes(q.pid))pickQuick(list[0]);
   const date=S.ui.date,cur=quickWords(),before=wordStates(q.pid,{before:date}),sm=summary(q.pid);
   const li=q.list==null?curList(sm):q.list,shown=quickShown(),focus=new Set(sm.level<NSETS?setWords(sm.level):[]);
-  const tk=q.only?tests.findIndex(t=>t.title===q.onlyLabel):-1;
   /* each child's status for this test and date */
   const status=id=>{const w=(S.sessions[id+"_"+date]||{}).words||{};
     if(q.only){const m=q.only.filter(i=>w[i]).length;return m===q.only.length?["✓ done",true]:[m?`${m}/${q.only.length}`:"",false]}
@@ -943,10 +949,11 @@ function markView(){
   const sts=list.map(id=>[id,...status(id)]),doneN=sts.filter(x=>x[2]).length;
   const right=shown.filter(i=>cur[i]&&cur[i].s==="c").length,wrong=shown.filter(i=>cur[i]&&cur[i].s==="x"),marked=right+wrong.length,n=Object.keys(cur).length;
   const k=list.indexOf(q.pid),next=list[k+1];
-  let h=`<div class="markbar">
+  let h=`<div><button type="button" class="linkbtn" id="mBack" data-a="tab" data-k="tests">← All tests</button></div>
+  <div class="markbar">
     <label for="mTest">Marking</label>
-    <select id="mTest" data-c="markTest">${tests.map((t,j)=>`<option value="${j}" ${j===tk?"selected":""}>${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&tk<0?`<option value="cur" selected>${esc(q.onlyLabel)} · in progress</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
-    <input type="date" id="qDate" data-c="date" value="${date}" aria-label="Date">
+    <select id="mTest" data-c="markTest">${tests.map(t=>`<option value="${esc(t.id)}" ${T&&t.id===T.id?"selected":""}>${fmtShort(t.date)} · ${testKind(t)} · ${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&!T?`<option value="cur" selected>${esc(q.onlyLabel)} (${q.only.length} words)</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
+    <input type="date" id="qDate" data-c="date" value="${date}" aria-label="${q.only?"Date of this test":"Date"}">
     <div class="seg" role="group" aria-label="Kind of check"><button type="button" data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button><button type="button" data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button></div>
     <span style="flex:1"></span><span class="muted small">Saved as you tap</span>
   </div>
@@ -970,7 +977,7 @@ function markView(){
      <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
      <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
      <span style="flex:1"></span>
-     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="tests">Back to Tests</button>`}
+     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="tests">Back to all tests</button>`}
     </div>
    </section>
   </div>`;
@@ -1975,11 +1982,14 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[
 document.addEventListener("change",e=>{
   const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
-    case "date":S.ui.date=el.value||localDate();break;
+    case "date":{const q=S.ui.quick,d=el.value||localDate(),t=S.tab==="mark"&&q.test==="test"&&q.testId?findTest(q.testId):null;
+      /* a test's date is the date of its marks: changing it here moves the test, as Change date does */
+      if(t&&d!==t.date){q.testId=moveTest(t,d);toast(`Test moved to ${fmtDay(d)}`)}
+      S.ui.date=d;break}
     case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
     case "tEditDate":if(S.ui.tests.edit)S.ui.tests.edit.date=el.value;break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=testPlan().tests[+v];if(t)loadTest({...t,date:null})}break}
+    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=findTest(v);if(t)loadTest(testFull(t))}break}
     case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
