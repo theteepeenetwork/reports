@@ -39,7 +39,9 @@
   function phys(base) { return typeof host.tpPhysicalKey === 'function' ? host.tpPhysicalKey(base) : base; }
   var KEY = phys(BASE), ROSTER_KEY = phys('tp_roster');
 
-  function empty() { return { sessions: {}, practice: {}, plans: {}, settings: {} }; }
+  /* `tests` (Nov 2026) is additive: a value saved before it existed has no
+     such field and reads as no tests. */
+  function empty() { return { sessions: {}, practice: {}, plans: {}, tests: {}, settings: {} }; }
   function read() {
     var d;
     try { d = JSON.parse(LS.getItem(KEY)); } catch (e) { d = null; }

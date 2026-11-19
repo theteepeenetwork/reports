@@ -87,6 +87,18 @@ under `<pupilId>_<date>`; `r` (what the child wrote), once only written by photo
 typed in on Mark. A plan is `{ focusN?, reviewDate?, notes?, updated }`; settings may hold `wholeN`
 and `cardsPerChild`. Which tab is open is never stored; the old tab ids (`tracker`, `groups`, `assess`,
 `plans`) still resolve, in the URL hash too (`TAB_ALIAS` in `hundred-words.html`).
+**`tests` (Nov 2026, additive).** The Tests tab (which replaced This week) keeps a fifth collection in the same
+value: `tests: { [id]: { date:'YYYY-MM-DD', title, whole:boolean, words:[index], pids:[roster id], createdAt } }`.
+`title` is the word range only ("100 HFW 21–40"); `whole` says whole class or group. A value saved before
+this has no `tests` field and reads as none; nothing is migrated, and `js/hundred-words-runtime.js` (`?v=2`)
+must keep the field when it reads and writes the value. **A test holds no marks.** Marks stay in the session for
+(pupil, date), so a child is marked for a test when that day's session has a mark for each of its words; one
+session can serve several tests on a date. Tests sat before the collection existed are never given records
+or rewritten: they are worked out on screen from the sessions (per date, each run of neighbouring sets of
+ten the same children were marked on), and one gets a record only when the teacher changes it. Three
+teacher actions do edit sessions, all on that test's words and date only: changing a test's date moves
+its marks to `<pupilId>_<new date>`; deleting a test deletes its marks (after a confirm that says how many
+children); marking, as before. Other tab ids added since: `week` (→ Tests) and `mark` (a screen under Tests).
 
 ## Mental Starter (CBM): `tp_cbm` (Oct 2026; individual sheets Nov 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads

@@ -8,7 +8,7 @@
      the claude.ai runtime this page was written for. Both must load before
      the page script below. -->
 <script src="js/classkeys.js?v=4"></script>
-<script src="js/hundred-words-runtime.js?v=1"></script>
+<script src="js/hundred-words-runtime.js?v=2"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Andika:wght@400;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -99,29 +99,32 @@ label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .stat b{display:block;font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.15}
 .stat span{color:var(--muted);font-size:13px}
 .up{color:var(--ok-ink)} .down{color:var(--no-ink)}
-/* this week */
-.routine{display:flex;flex-wrap:wrap;padding:4px}
-.step{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;flex:1 1 200px;border-radius:10px}
-.step .num{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none;background:var(--line-2);color:var(--ink-2)}
-.step b{display:block;font-weight:700}
-.step .sub{color:var(--muted);font-size:13px}
-.step.now{background:var(--accent-soft)}
-.step.now .num{background:var(--accent);color:#fff}
-.step.now .sub{color:var(--accent-text);font-weight:600}
-.step.done .num{background:var(--ok-soft);color:var(--ok-ink)}
+/* tests */
 .sechead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
-.tests{display:flex;flex-wrap:wrap;gap:16px}
-.test{flex:1 1 260px;max-width:560px;display:flex;flex-direction:column;gap:12px}
-@media (max-width:700px){.test{max-width:none}}
-.test.whole{flex:1.4 1 360px;max-width:none;border-top:5px solid var(--accent)}
-.test .ttl{font-size:18px;font-weight:800}
-.test .ttl span{font-weight:500;color:var(--muted);font-size:14px}
-.test .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
-.trio{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px}
-@media (max-width:900px){.trio{grid-template-columns:1fr}}
-.li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;min-height:48px;width:100%;border:0;border-top:1px solid var(--line-2);background:none;font-size:14px;text-align:left;color:var(--ink)}
-button.li{cursor:pointer}
-button.li:hover span:first-child{text-decoration:underline}
+.tbar{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+.day{padding:0;overflow:hidden}
+.dayhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px;padding:16px 20px}
+.dayhead h2{font-size:18px}
+.trow{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.2fr) 150px 286px;align-items:center;gap:8px 16px;padding:10px 20px;border-top:1px solid var(--line-2)}
+.tname{text-align:left;border:0;background:none;padding:0;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px;min-height:44px;justify-content:center;min-width:0}
+.tname b{font-size:16px}
+.tname:hover b{text-decoration:underline}
+.tprog{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);min-width:0}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.bar i.full{background:var(--ok-strong)}
+.tres{font-size:13px;color:var(--ink-2)}
+.tacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tdet{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:4px 20px 20px;background:var(--paper);border-top:1px solid var(--line-2)}
+.tdet h4{margin:14px 0 8px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.tdet .wchip{background:var(--card)}
+.tedit{grid-column:1/-1;padding-top:12px}
+.kid{border:0;min-height:44px;cursor:pointer;font-family:inherit}
+.kid:hover{text-decoration:underline}
+.pcard{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:18px 20px}
+label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600}
+@media (max-width:980px){.trow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.tname{grid-column:1/-1}.tacts{grid-column:1/-1;justify-content:flex-start}}
+@media (max-width:560px){.tdet{grid-template-columns:1fr}.dayhead,.trow{padding-left:14px;padding-right:14px}.tdet{padding:4px 14px 16px}}
 .bignum{font-size:34px;font-weight:800;line-height:1.1}
 .note{font-size:13px;line-height:1.5;background:var(--paper);border-radius:10px;padding:10px 12px}
 .linkbtn{background:none;border:0;padding:0;min-height:44px;color:var(--accent-text);font-weight:600;font-size:14px;cursor:pointer;text-align:left;display:inline-flex;align-items:center}
@@ -404,9 +407,9 @@ const bandOf=i=>BANDS[Math.floor(i/10)%10];
 const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...");
 
 /* ---------- state ---------- */
-const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
+const S={pupils:{},sessions:{},practice:{},plans:{},tests:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"tests",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,tests:{open:null,filter:"all",plan:null,edit:null,confirm:null},
       print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
@@ -416,6 +419,7 @@ function toast(msg){const t=$("#toast");t.textContent=msg;clearTimeout(toast.t);
 const writeChains={};
 function saveDoc(col,id,data){
   if(col==="settings")S.settings=data;else S[col][id]=data;
+  memo={};
   render();
   if(S.mode!=="live")return Promise.resolve();
   const path=col+"/"+id;
@@ -423,7 +427,7 @@ function saveDoc(col,id,data){
   writeChains[path]=p;return p;
 }
 function removeDoc(col,id){
-  delete S[col][id];render();
+  delete S[col][id];memo={};render();
   if(S.mode!=="live")return;
   const path=col+"/"+id;
   writeChains[path]=(writeChains[path]||Promise.resolve()).then(()=>db.doc(path).delete()).catch(e=>toast(dbErr(e)));
@@ -682,9 +686,7 @@ function testPlan(){
     rest=rest.filter(id=>!pids.includes(id))}
   return {tests,lv,W};
 }
-/* What the class did as a whole, shared by Tests and Class. */
-function levelOf(ws){for(let b=0;b<NSETS;b++)if(setWords(b).some(i=>!isKnown(ws[i].st)))return b;return NSETS}
-function weekStart(){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return localDate(d)}
+function weekStart(d=new Date()){d=new Date(d);d.setHours(12,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return localDate(d)}
 /* a first name, with a surname initial when two children share it */
 function shortName(id){const n=S.pupils[id].name.trim().split(/\s+/),f=n[0];
   const dup=pupilIds().some(o=>o!==id&&S.pupils[o].name.trim().split(/\s+/)[0]===f);return dup&&n.length>1?`${f} ${n[n.length-1][0]}`:f}
@@ -700,56 +702,175 @@ function classNeeds(){
     if(p.reviewDate<=today)due.push(id);if(p.plateau)nogain.push(id);if(p.ready.length)ready.push(id)}
   return memo.needs={due,nogain,ready,unassessed};
 }
+/* ----- Tests -----
+   Every test the class has sat or is going to sit, newest first. Nothing
+   locks and nothing moves on by itself: any test can be printed, marked or
+   re-marked at any time.
+
+   A saved test is a record in the "tests" collection:
+     { date, title, whole, words:[index], pids:[id], createdAt }
+   It holds no marks. Marks stay where they always were, in the session for
+   (pupil, date), so a test is a view over those sessions: a child is marked
+   for a test when their session that day has a mark for each of its words.
+
+   Tests sat before this collection existed have no record. They are shown
+   by reading the sessions: on each date, each run of neighbouring sets of
+   ten that the same children were marked on is one test. Sessions are
+   never rewritten to make them. */
+const byName=(a,b)=>S.pupils[a].name.localeCompare(S.pupils[b].name);
+const nextThursday=()=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+((4-d.getDay()+7)%7));return localDate(d)};
+/* "100 HFW 21–40" for a run of words in one list */
+function wordsTitle(words){
+  if(!words.length)return "No words";
+  const a=words[0],b=words[words.length-1];
+  if(listIdxOf(a)!==listIdxOf(b))return `${listOf(a).short} ${num(a)} to ${listOf(b).short} ${num(b)}`;
+  return `${listOf(a).short} ${num(a)}${b>a?`–${num(b)}`:""}${b-a+1===words.length?"":` (${words.length} words)`}`;
+}
+/* the sessions a child has for a date. Mark saves one, under <pupil>_<date>;
+   older records can have other ids, so they are found by what they hold */
+function sesIds(pid,date){
+  if(!memo.sesIdx){memo.sesIdx={};for(const [sid,x] of Object.entries(S.sessions))(memo.sesIdx[x.pupilId+"|"+x.date]=memo.sesIdx[x.pupilId+"|"+x.date]||[]).push(sid)}
+  return memo.sesIdx[pid+"|"+date]||[];
+}
+function marksOn(pid,date){const ids=sesIds(pid,date);if(ids.length===1)return S.sessions[ids[0]].words||{};return Object.assign({},...ids.map(sid=>S.sessions[sid].words||{}))}
+function allTests(){
+  if(memo.tests)return memo.tests;
+  const live=new Set(pupilIds()),out=[],claimed={};
+  for(const [id,t] of Object.entries(S.tests)){
+    if(!t||!t.date||!Array.isArray(t.words))continue;
+    const words=t.words.filter(i=>WORDS[i]!=null),pids=(t.pids||[]).filter(p=>live.has(p)).sort(byName);
+    out.push({id,saved:true,date:t.date,title:t.title||wordsTitle(words),whole:!!t.whole,words,pids,createdAt:t.createdAt||0});
+    const c=claimed[t.date]=claimed[t.date]||{};for(const p of pids){const set=c[p]=c[p]||new Set();for(const i of words)set.add(i)}
+  }
+  /* marks no saved test accounts for */
+  const by={};
+  for(const x of Object.values(S.sessions)){
+    if(!live.has(x.pupilId)||!x.date)continue;const c=(claimed[x.date]||{})[x.pupilId];
+    for(const k of Object.keys(x.words||{})){const i=+k;if(WORDS[i]==null||(c&&c.has(i)))continue;
+      const d=by[x.date]=by[x.date]||{},g=Math.floor(i/10),e=d[g]=d[g]||{pids:new Set(),words:new Set()};e.pids.add(x.pupilId);e.words.add(i)}
+  }
+  for(const [date,sets] of Object.entries(by)){
+    let run=null;
+    const flush=()=>{if(!run)return;const words=[...run.words].sort((a,b)=>a-b),pids=[...run.pids].sort(byName);
+      out.push({id:`old:${date}:${words[0]}`,saved:false,date,title:wordsTitle(words),whole:live.size>1&&pids.length*2>live.size,words,pids,createdAt:0});run=null};
+    for(const g of Object.keys(sets).map(Number).sort((a,b)=>a-b)){const e=sets[g],key=[...e.pids].sort().join(",");
+      if(run&&run.key===key&&run.last===g-1&&run.list===listIdxOf(g*10)){for(const i of e.words)run.words.add(i);run.last=g}
+      else{flush();run={key,last:g,list:listIdxOf(g*10),pids:e.pids,words:new Set(e.words)}}}
+    flush();
+  }
+  out.sort((a,b)=>b.date.localeCompare(a.date)||(b.whole-a.whole)||a.words[0]-b.words[0]||a.createdAt-b.createdAt);
+  return memo.tests=out;
+}
+const findTest=id=>allTests().find(t=>t.id===id);
+/* a child's set before and after each day they were marked: { date: [before, after] } */
+function levelsBy(pid){
+  if(memo["lv"+pid])return memo["lv"+pid];
+  const last={},out={};let lvl=0;
+  const level=()=>{for(let b=0;b<NSETS;b++)if(setWords(b).some(i=>last[i]!=="c"))return b;return NSETS};
+  for(const x of sessionsFor(pid)){const before=out[x.date]?out[x.date][0]:lvl;for(const [k,w] of Object.entries(x.words||{}))last[k]=w.s;lvl=level();out[x.date]=[before,lvl]}
+  return memo["lv"+pid]=out;
+}
+/* who is marked for a test, the average score, and who moved on from a set it covers */
+function testStats(t){
+  const done={};let marked=0,sum=0,moved=0;
+  for(const p of t.pids){const w=marksOn(p,t.date),m=t.words.filter(i=>w[i]).length;
+    done[p]=m&&m===t.words.length?2:m?1:0;
+    if(done[p]===2){marked++;sum+=t.words.filter(i=>w[i].s==="c").length;const lv=levelsBy(p)[t.date];if(lv&&lv[1]>lv[0]&&t.words.includes(lv[0]*10))moved++}}
+  return {n:t.pids.length,marked,done,avg:marked?Math.round(sum/marked):null,moved};
+}
+/* a test as Mark and the PDF functions take it: the kind goes in the title */
+const testKind=t=>t.whole?"Whole class":"Group";
+const testFull=t=>({...t,title:`${testKind(t)} · ${t.title}`});
+function saveTest(id,t){saveDoc("tests",id,{date:t.date,title:t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:t.createdAt||Date.now()})}
+/* a past test gets a record the first time the teacher changes it */
+function adoptTest(t){if(t.saved)return t.id;const id=uid();saveTest(id,t);return id}
+/* the marks children have for a test's words on its date, taken out of their sessions */
+function cutMarks(t,keepWords){
+  const out={};
+  for(const p of t.pids)for(const sid of sesIds(p,t.date)){const a=S.sessions[sid],keep={},take={};
+    for(const [k,w] of Object.entries(a.words||{}))(t.words.includes(+k)&&!(keepWords&&keepWords(p,+k))?take:keep)[k]=w;
+    if(!Object.keys(take).length)continue;
+    out[p]={kind:a.kind,words:{...((out[p]||{}).words||{}),...take}};
+    if(Object.keys(keep).length||(a.photos&&a.photos.length))saveDoc("sessions",sid,{...a,words:keep,updatedAt:Date.now()});else removeDoc("sessions",sid)}
+  return out;
+}
+/* The test was sat on another day: its marks go with it. */
+function moveTest(t,date){
+  if(!date||date===t.date)return;
+  const id=adoptTest(t),moved=cutMarks(t);
+  for(const [p,m] of Object.entries(moved)){const sid=p+"_"+date,b=S.sessions[sid];
+    saveDoc("sessions",sid,{pupilId:p,date,kind:(b&&b.kind)||m.kind||"spelling",words:{...((b&&b.words)||{}),...m.words},photos:(b&&b.photos)||[],updatedAt:Date.now()})}
+  saveTest(id,{...t,date});
+  return id;
+}
+/* Deleting a test deletes its marks too (the teacher is told how many
+   children that is), except marks another saved test that day also covers. */
+function deleteTest(t){
+  const others=allTests().filter(o=>o.saved&&o.id!==t.id&&o.date===t.date);
+  cutMarks(t,(p,i)=>others.some(o=>o.pids.includes(p)&&o.words.includes(i)));
+  if(t.saved)removeDoc("tests",t.id);
+}
+const TFILTERS=[["all","All tests"],["todo","Still to mark"],["done","Fully marked"]];
 VIEWS.tests=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
-  const {tests,lv}=testPlan(),name=id=>esc(shortName(id)),wn=+S.settings.wholeN||20,plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
-  const sums=ids.map(id=>[id,summary(id)]),assessed=sums.filter(([,s])=>s.sessions.length);
-  /* the routine: where this week has got to */
-  const ws0=weekStart(),entered=ids.filter(id=>sessionsFor(id).some(x=>x.date>=ws0)).length;
-  const moved=sums.filter(([id,s])=>s.sessions.some(x=>x.date>=ws0)&&levelOf(wordStates(id,{before:ws0}))<s.level).length;
-  const now=!tests.length?0:entered===0?2:entered<ids.length?3:4;
-  const step=(n,label,sub,done)=>`<div class="step${done?" done":now===n?" now":""}"><span class="num" aria-hidden="true">${done?"✓":n}</span><div><b>${n} · ${label}</b><span class="sub">${sub}</span></div></div>`;
-  let h=`<section class="panel routine" aria-label="The weekly routine">
-    ${step(1,"Practise",S.ui.printed?"Practice books downloaded":"Practice books and flash cards are on Print",!!S.ui.printed||now>2)}
-    ${step(2,"Test",tests.length?`Thursday · ${plural(tests.length,"test")} below`:"Every list finished",now>2)}
-    ${step(3,"Mark",`${entered} of ${ids.length} entered`,entered===ids.length)}
-    ${step(4,"Move on",moved?`${moved===1?"1 child":moved+" children"} moved on to the next set`:"10/10 on a set → next set",false)}
-  </section>`;
-  /* Thursday's tests: the whole-class test first and larger */
-  h+=`<section class="stack" aria-labelledby="tH"><div class="sechead"><h2 id="tH">Thursday’s tests</h2><span class="muted small">${tests.length?`Every child covered in ${plural(tests.length,"test")} · whole-class test: ${wn} words`:""}</span></div>
-  <div class="tests">${tests.map((t,k)=>{const all=t.whole||S.ui.showAll[k]||t.words.length<=6,shown=all?t.words:t.words.slice(0,5);
-    return `<div class="panel test${t.whole?" whole":""}" data-test="${k}">
-    <div class="row" style="justify-content:space-between"><span class="pill${t.whole?" blue":""}">${t.whole?"Whole class":`${bandDot(t.sets[0])}Group · ${t.pids.length}`}</span><span class="muted small">${t.words.length} words</span></div>
-    <div class="ttl">${esc(setsLabel(t.sets))} <span>· ${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")}</span></div>
-    <p class="muted small">${t.whole?`Everyone sits it — it’s the current set for <b style="color:var(--ink)">${t.target.length} of ${ids.length}</b>.`:t.pids.map(id=>`${name(id)} ${summary(id).sessions.length?summary(id).setDone+"/"+setWords(lv[id]).length:"not assessed"}`).join(" · ")}</p>
-    <div class="chips">${shown.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${all?"":`<button type="button" class="linkbtn small" data-a="moreWords" data-k="${k}">+${t.words.length-shown.length} more</button>`}</div>
-    <div class="acts"><button type="button" class="btn${t.whole?" primary":""}" data-a="testEnter" data-k="${k}">Enter results</button><button type="button" class="btn" data-a="testSheets" data-k="${k}">Answer sheets</button><button type="button" class="btn" data-a="testScript" data-k="${k}">Dictation script</button></div></div>`}).join("")||'<div class="panel"><p class="muted">Every child has finished every list.</p></div>'}</div></section>`;
-  /* teach · needs you · since last check */
-  const top=classMissed(assessed).slice(0,6),wrote=classWrote(assessed).slice(0,2),N=classNeeds();
-  const deltas=assessed.filter(([,s])=>s.delta!=null),avgDelta=deltas.length?deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length:null;
-  const stars=deltas.filter(([,s])=>s.delta>=10).sort((a,b)=>b[1].delta-a[1].delta).slice(0,4);
-  const up=deltas.filter(([id,s])=>levelOf(wordStates(id,{before:s.lastDate}))<s.level).length;
-  const names=(a,max=3)=>a.slice(0,max).map(name).join(", ")+(a.length>max?` +${a.length-max}`:"");
-  const needs=[
-    N.due.length?`<button type="button" class="li" data-a="goFilter" data-f="review"><span>${plural(N.due.length,"plan")} due a review</span><span class="pill rev">Review</span></button>`:"",
-    N.nogain.length?`<button type="button" class="li" data-a="goFilter" data-f="nogain"><span>${names(N.nogain)} — no gain since last check</span><span class="pill no">Look</span></button>`:"",
-    N.ready.length?`<button type="button" class="li" data-a="checkReady"><span>${N.ready.length===1?"1 child":N.ready.length+" children"} ready for a 1:1 re-check</span><span class="pill blue">Check</span></button>`:"",
-    N.unassessed.length?`<div class="li"><span>${N.unassessed.length} not assessed yet</span><span class="muted small">${names(N.unassessed,4)}</span></div>`:""].join("");
-  h+=`<div class="trio">
-   <section class="panel stack" aria-labelledby="teachH"><div><h3 id="teachH">Teach to the whole class</h3><p class="muted small">Words most children still can’t spell</p></div>
-    <div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}/${assessed.length}</small></span>`).join("")||`<span class="muted small">${assessed.length?"Every assessed word is correct.":"These appear after the first test is marked."}</span>`}</div>
-    ${wrote.length?`<p class="note">Most written: ${wrote.map(([i,r,n])=>`<span class="wd">“${esc(r)}”</span> for ${esc(WORDS[i])} ×${n}`).join(" · ")}</p>`:""}
-    ${top.length?`<div><button type="button" class="btn" data-a="pdfWotd">Print these as Word of the day</button></div>`:""}</section>
-   <section class="panel" aria-labelledby="needH"><h3 id="needH" style="margin-bottom:6px">Needs you</h3>${needs||'<p class="muted small" style="padding-top:6px">Nothing needs you right now.</p>'}</section>
-   <section class="panel stack" aria-labelledby="gainH" style="align-content:start"><h3 id="gainH">Since last check</h3>
-    ${avgDelta==null?'<p class="muted small">The change shows once children have been checked twice.</p>':`<div class="row" style="align-items:baseline;gap:8px"><span class="bignum ${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta>0?"+":""}${avgDelta.toFixed(1)}</span><span class="muted small">words per child</span></div>
-    ${stars.length?`<p class="small" style="font-size:14px"><b>Big gains:</b> ${stars.map(([id,s])=>`${name(id)} +${s.delta}`).join(", ")}</p>`:""}
-    <p style="font-size:14px"><b>Moved up a band:</b> ${up===1?"1 child":up+" children"}</p>`}
-    <div><button type="button" class="linkbtn" data-a="tab" data-k="class">See the whole class →</button></div></section>
-  </div>`;
+  const U=S.ui.tests,today=localDate(),f=TFILTERS.some(x=>x[0]===U.filter)?U.filter:"all";
+  const all=allTests().map(t=>[t,testStats(t)]),plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`,kids=n=>n===1?"1 child":n+" children";
+  const show=([,st])=>f==="all"||(f==="todo"?st.marked<st.n:st.n>0&&st.marked===st.n);
+  let h=`<div class="tbar"><div class="row" role="group" aria-label="Show" style="gap:8px">${TFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="tFilter" data-f="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
+    <span style="flex:1"></span><span class="muted small">Every test stays open — print, mark or re-mark any of them at any time</span>
+    <button type="button" class="btn primary" data-a="tPlan" aria-expanded="${!!U.plan}">+ Plan the next tests</button></div>`;
+  if(U.plan){const next=testPlan().tests;
+    h+=`<section class="panel stack" id="tPlan" aria-labelledby="tPlanH"><div class="sechead"><h2 id="tPlanH">Plan the next tests</h2><span class="muted small">One whole-class test where most children are, then the shortest group tests for the rest</span></div>
+     ${next.length?`<div class="stack" style="gap:6px">${next.map(t=>`<div class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(setsLabel(t.sets))}</b><span class="muted small">${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")} · ${t.whole?`everyone · current set for ${t.target.length}`:kids(t.pids.length)}</span></div>`).join("")}</div>
+     <div class="row" style="align-items:flex-end"><label class="fld" for="tPlanDate">Date of the tests<input type="date" id="tPlanDate" data-c="tPlanDate" value="${U.plan.date}"></label>
+      <button type="button" class="btn primary" data-a="tPlanSave">Save ${plural(next.length,"test")}</button><button type="button" class="btn ghost" data-a="tPlanCancel">Cancel</button></div>`
+     :`<p class="muted">Every child has finished every list, so there is nothing left to test.</p><div><button type="button" class="btn ghost" data-a="tPlanCancel">Close</button></div>`}</section>`}
+  if(!all.length)h+=`<div class="panel empty" id="tNone"><h2>No tests yet</h2><p class="muted" style="max-width:54ch">Plan the next tests and they are listed here with their answer sheets, dictation script and marking. They stay here afterwards, so you can come back and re-mark any of them.</p><button type="button" class="btn" data-a="tMarkOne">Mark one child, any words</button></div>`;
+  const dates=[...new Set(all.map(([t])=>t.date))];
+  const dayName=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",...(d.slice(0,4)===today.slice(0,4)?{}:{year:"numeric"})});
+  const rel=d=>{if(d===today)return "today";const w=Math.round((new Date(weekStart(new Date(d+"T12:00"))+"T12:00")-new Date(weekStart()+"T12:00"))/6048e5);return w===0?"this week":w===1?"next week":w===-1?"last week":w>1?`in ${w} weeks`:""};
+  let shown=0;
+  for(const d of dates){
+    const day=all.filter(([t])=>t.date===d),rows=day.filter(show),left=day.reduce((n,[,st])=>n+st.n-st.marked,0);
+    if(!rows.length)continue;shown+=rows.length;
+    h+=`<section class="panel day" aria-label="${dayName(d)}" data-date="${d}"><div class="dayhead"><div class="row" style="align-items:baseline"><h2>${dayName(d)}</h2><span class="muted small">${rel(d)}</span></div><span class="pill ${left?"rev":"ok"}">${left?`${left} still to mark`:"All marked"}</span></div>`;
+    for(const [t,st] of rows){
+      const open=U.open===t.id,full=st.n>0&&st.marked===st.n,pct=st.n?Math.round(st.marked/st.n*100):0;
+      const bands=[...new Set(t.words.map(i=>bandOf(i).n))],cur=t.pids.filter(p=>{const l=summary(p).level;return l<NSETS&&t.words.includes(l*10)}).length;
+      const who=t.whole?`everyone${!full&&cur?` · current set for ${cur}`:""}`:kids(st.n);
+      h+=`<div class="trow" data-test="${esc(t.id)}">
+       <button type="button" class="tname" data-a="tOpen" data-id="${esc(t.id)}" aria-expanded="${open}"><span class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(t.title)}</b></span><span class="muted small">${bands.length>3?`${bands[0]} to ${bands[bands.length-1]}`:bands.join(" &amp; ")} · ${who}</span></button>
+       <div class="tprog"><span>${!st.marked?"Not marked yet":full?`All ${st.n} marked`:`${st.marked} of ${st.n} marked`}</span><div class="bar" role="img" aria-label="${st.marked} of ${st.n} marked"><i class="${full?"full":""}" style="width:${pct}%"></i></div></div>
+       <span class="tres">${st.marked?`avg ${st.avg}/${t.words.length}${st.moved?` · ${st.moved} moved on`:""}`:"—"}</span>
+       <div class="tacts"><button type="button" class="btn sm" data-a="tSheets" data-id="${esc(t.id)}">Sheets</button><button type="button" class="btn sm" data-a="tScript" data-id="${esc(t.id)}">Script</button><button type="button" class="btn sm${full?"":" primary"}" data-a="tMark" data-id="${esc(t.id)}">${full?"Results":st.marked||Object.values(st.done).some(Boolean)?"Carry on marking":"Mark"}</button></div></div>`;
+      if(open)h+=testDetail(t,st);
+    }
+    h+=`</section>`;
+  }
+  if(all.length&&!shown)h+=`<div class="panel"><p class="muted">${f==="todo"?"Every test is fully marked.":"No test is fully marked yet."}</p></div>`;
+  h+=`<section class="panel pcard" aria-labelledby="pH"><div style="flex:1;min-width:240px"><h3 id="pH">Practice</h3><p class="muted small">Practice sheets follow each child’s plan, so print them whenever you like — they always use the latest marks.</p></div>
+    <button type="button" class="btn" data-a="goPrint" data-k="acts">Print practice sheets</button></section>`;
   return h;
 };
+/* an open test: its words and children, and changing or deleting it */
+function testDetail(t,st){
+  const U=S.ui.tests,E=U.edit&&U.edit.id===t.id?U.edit:null,some=st.marked>0||Object.values(st.done).some(Boolean),nMarks=Object.values(st.done).filter(Boolean).length;
+  const id=esc(t.id);
+  let h=`<div class="tdet" id="tDet"><div><h4>Words</h4><div class="chips">${t.words.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}</div></div>
+   <div><h4>Children</h4><div class="chips">${t.pids.map(p=>`<button type="button" class="kid pill ${st.done[p]===2?"ok":some?"rev":""}" data-a="openPupil" data-id="${p}">${esc(shortName(p))}${st.done[p]===2?" ✓":some?" — not marked":""}</button>`).join("")||'<span class="muted small">No children.</span>'}</div></div>
+   <div class="tedit">`;
+  if(E&&E.mode==="date")h+=`<div class="row" style="align-items:flex-end"><label class="fld" for="tDate">Date of this test<input type="date" id="tDate" data-c="tEditDate" value="${E.date}"></label><button type="button" class="btn primary" data-a="tDateSave">Save date</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button></div>${nMarks?`<p class="muted small">The marks ${nMarks===1?"1 child has":nMarks+" children have"} for this test move to the new date with it.</p>`:""}`;
+  else if(E&&E.mode==="edit"){const L=LISTS[E.list];
+    h+=`<div class="stack" style="gap:14px"><div class="popt"><span class="optl">Word list</span>${listSeg(E.list,"tEditList")}</div>
+     <div class="popt"><span class="optl">Sets of ten</span><div class="row" role="group" aria-label="Sets of ten" style="gap:6px">${listSets(L).map(g=>`<button type="button" class="f sq" data-a="tEditSet" data-g="${g}" aria-pressed="${E.sets.includes(g)}">${bandDot(g)}${BANDS[g%10].n} ${esc(setLabel(g).replace(/^.* /,""))}</button>`).join("")}</div></div>
+     <div class="popt"><span class="optl">Children</span><div class="row" role="group" aria-label="Children" style="gap:6px">${pupilIds().map(p=>`<button type="button" class="f sq" data-a="tEditPid" data-id="${p}" aria-pressed="${E.pids.includes(p)}">${esc(S.pupils[p].name)}</button>`).join("")}</div>
+      <div class="row small" style="gap:4px 18px"><button type="button" class="linkbtn small" data-a="tEditAll">Select all</button><button type="button" class="linkbtn small" data-a="tEditNone">Select none</button></div></div>
+     <div class="row"><button type="button" class="btn primary" data-a="tEditSave">Save test</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button><span class="muted small">${E.sets.length*10} words · ${E.pids.length===1?"1 child":E.pids.length+" children"}. Marks already entered are kept.</span></div></div>`}
+  else if(U.confirm===t.id)h+=`<div class="row"><span style="font-size:14px"><b>Delete this test?</b> ${nMarks?`The marks ${nMarks===1?"1 child has":nMarks+" children have"} for it are deleted too. This can’t be undone.`:"Nothing has been marked for it."}</span><button type="button" class="btn no" data-a="tDelete" data-id="${id}">${nMarks?"Delete test and marks":"Delete test"}</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button></div>`;
+  else h+=`<div class="row" style="gap:8px"><button type="button" class="btn sm" data-a="tEdit" data-mode="date" data-id="${id}">Change date</button><button type="button" class="btn sm" data-a="tEdit" data-mode="edit" data-id="${id}">Edit words or children</button><button type="button" class="btn sm no" data-a="tAskDelete" data-id="${id}">Delete test</button></div>`;
+  return h+`</div></div>`;
+}
 
 /* ----- Mark (was Assess and Quick check) -----
    Classroom Hub: by hand only. Photo marking is not offered yet;
@@ -804,8 +925,8 @@ function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list
 /* Load a test from testPlan() into Mark. The words and children are copied
    here, because the plan moves on as soon as children get 10/10 and the
    test being marked must not change under the teacher. */
-function loadTest(t){const q=S.ui.quick;Object.assign(q,{test:"test",only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
-function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
+function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;Object.assign(q,{test:"test",testId:t.id||null,only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
+function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
 function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
 function markView(){
   const q=S.ui.quick,tests=testPlan().tests;
@@ -1080,7 +1201,7 @@ function printGo(){
     else (v==="all"?tests:[tests[+v]]).forEach(t=>PDF.testSheets(t))}
   else if(item==="script"){const v=printTest("scr");if(v==="list")PDF.script();else (v==="all"?tests:[tests[+v]]).forEach(t=>PDF.testScript(t))}
   else if(item==="check")PDF.targeted(pids);
-  else if(item==="books"){S.ui.printed=true;PDF.books(pids,"practice-books.pdf")}
+  else if(item==="books"){PDF.books(pids,"practice-books.pdf")}
   else if(item==="cards"){
     if(P.cardsFor==="levels"){const l=lv();if(!l.length){toast("Choose at least one band");return}
       if(P.cardLayout==="stack")PDF.stackLevels(l,"level-flash-cards-stack-and-cut.pdf");else PDF.cards(l.map(g=>({label:"",items:setWords(g)})),"flash-cards.pdf")}
@@ -1105,7 +1226,7 @@ VIEWS.settings=function(){
    <label class="chk"><input type="checkbox" data-c="acceptNoApos" ${st.acceptNoApos?"checked":""}>Accept it’s, don’t and I’m without the apostrophe</label>
    <p class="muted small">Other capital letters are always ignored. Settings apply to sheets you mark from now on.</p>
    <label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${(+st.wholeN||20)===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select>
-   <p class="muted small">Tests covers every child in as few tests as it can: one whole-class test where most children are, then the shortest group tests for the rest.</p>
+   <p class="muted small">“Plan the next tests” covers every child in as few tests as it can: one whole-class test where most children are, then the shortest group tests for the rest.</p>
    ${voicePanel()}
    <h3 style="margin-top:8px">How levels work</h3>
    <p class="small">There are three word lists, taken in order: the 100 high frequency words, the next 200 high frequency words, then the Year 3 and 4 common exception words. Each list is split into sets of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s current set is the first set of ten they haven’t got 10/10 in; they move on when they have. A word is <b>secure</b> once it has been correct in two separate checks.</p>
@@ -1763,14 +1884,42 @@ const A={
   qNext:()=>{const q=S.ui.quick,l=markPupils(),k=l.indexOf(q.pid);if(k>=0&&k<l.length-1)pickQuick(l[k+1]);window.scrollTo({top:0})},
   qWroteToggle:()=>{S.ui.quick.wrote=!S.ui.quick.wrote},
   list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null;S.ui.sq=null},
-  moreWords:el=>{S.ui.showAll[el.dataset.k]=true},
   pfilter:el=>{S.ui.pfilter=el.dataset.f},
-  goFilter:el=>{S.ui.pfilter=el.dataset.f;setTab("pupils");window.scrollTo({top:0})},
-  checkReady:()=>{const ids=classNeeds().ready;if(!ids.length)return;markOne(ids);pickQuick(ids[0]);setTab("mark");window.scrollTo({top:0})},
+  goPrint:el=>{S.ui.print.item=el.dataset.k;setTab("print");window.scrollTo({top:0})},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
-  testEnter:el=>{const t=testPlan().tests[+el.dataset.k];if(!t)return;loadTest(t);setTab("mark");window.scrollTo({top:0})},
-  testSheets:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testSheets(t);return "skip"},
-  testScript:el=>{const t=testPlan().tests[+el.dataset.k];if(t)PDF.testScript(t);return "skip"},
+  tFilter:el=>{S.ui.tests.filter=el.dataset.f},
+  tOpen:el=>{const U=S.ui.tests;U.open=U.open===el.dataset.id?null:el.dataset.id;U.edit=null;U.confirm=null},
+  tMark:el=>{const t=findTest(el.dataset.id);if(!t)return;loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
+  tMarkOne:()=>{markOne();setTab("mark");window.scrollTo({top:0})},
+  tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
+  tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
+  tPlan:()=>{const U=S.ui.tests;U.plan=U.plan?null:{date:nextThursday()}},
+  tPlanCancel:()=>{S.ui.tests.plan=null},
+  /* save what testPlan() proposes as tests for the chosen date */
+  tPlanSave:()=>{const U=S.ui.tests,date=U.plan&&U.plan.date;if(!date){toast("Choose a date for the tests");return}
+    const have=allTests().filter(t=>t.saved&&t.date===date),same=(a,b)=>a.length===b.length&&a.every((v,k)=>v===b[k]);let n=0,first=null;
+    for(const t of testPlan().tests){const pids=t.pids.slice().sort(byName);if(have.some(o=>same(o.words,t.words)&&same(o.pids,pids)))continue;
+      const id=uid();saveTest(id,{date,title:setsLabel(t.sets),whole:t.whole,words:t.words,pids:t.pids,createdAt:Date.now()+n});first=first||id;n++}
+    U.plan=null;U.filter="all";if(first)U.open=null;toast(n?`Saved ${n} test${n===1?"":"s"} for ${fmtDay(date)}`:`Those tests are already planned for ${fmtDay(date)}`)},
+  tEdit:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t)return;U.confirm=null;
+    U.edit=el.dataset.mode==="date"?{id:t.id,mode:"date",date:t.date}:{id:t.id,mode:"edit",list:Math.max(0,listIdxOf(t.words[0]||0)),sets:[...new Set(t.words.map(i=>Math.floor(i/10)))],sets0:null,pids:t.pids.slice()};
+    if(U.edit.sets)U.edit.sets0=U.edit.sets.join(",")},
+  tEditCancel:()=>{S.ui.tests.edit=null;S.ui.tests.confirm=null},
+  tEditList:el=>{S.ui.tests.edit.list=+el.dataset.k},
+  tEditSet:el=>{const E=S.ui.tests.edit,g=+el.dataset.g;E.sets=E.sets.includes(g)?E.sets.filter(x=>x!==g):[...E.sets,g].sort((a,b)=>a-b)},
+  tEditPid:el=>{const E=S.ui.tests.edit,p=el.dataset.id;E.pids=E.pids.includes(p)?E.pids.filter(x=>x!==p):[...E.pids,p]},
+  tEditAll:()=>{S.ui.tests.edit.pids=pupilIds()},
+  tEditNone:()=>{S.ui.tests.edit.pids=[]},
+  tEditSave:()=>{const U=S.ui.tests,E=U.edit,t=E&&findTest(E.id);if(!t)return;
+    if(!E.sets.length){toast("Choose at least one set of ten");return}if(!E.pids.length){toast("Choose at least one child");return}
+    /* the words only change if the sets were changed, so a past test of odd words keeps them */
+    const words=E.sets.join(",")===E.sets0?t.words:E.sets.flatMap(setWords),pids=pupilIds().filter(p=>E.pids.includes(p));
+    const id=adoptTest(t);saveTest(id,{...t,words,pids,title:words===t.words?t.title:wordsTitle(words),whole:pids.length===pupilIds().length&&pids.length>1});
+    U.edit=null;U.open=id;toast("Test saved")},
+  tDateSave:()=>{const U=S.ui.tests,E=U.edit,t=E&&findTest(E.id);if(!t)return;if(!E.date){toast("Choose a date");return}
+    const id=moveTest(t,E.date)||t.id;U.edit=null;U.open=id;toast(`Test moved to ${fmtDay(E.date)}`)},
+  tAskDelete:el=>{S.ui.tests.confirm=el.dataset.id;S.ui.tests.edit=null},
+  tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;deleteTest(t);U.confirm=null;U.open=null;toast("Test deleted")},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
@@ -1810,8 +1959,8 @@ const A={
   pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfBook:el=>{S.ui.printed=true;PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfAllBooks:()=>{S.ui.printed=true;PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
+  pdfBook:el=>{PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
+  pdfAllBooks:()=>{PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
   pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
   pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
   pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
@@ -1820,15 +1969,17 @@ const A={
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-a]");if(!el||el.disabled)return;
   const f=A[el.dataset.a];if(!f)return;
-  const r=f(el,e);if(r!=="skip"||S.ui.printed)render();
+  const r=f(el,e);if(r!=="skip")render();
 });
 document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value;if(el.dataset.bindPlan)S.ui.planDraft[el.dataset.bindPlan]=el.value});
 document.addEventListener("change",e=>{
   const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
     case "date":S.ui.date=el.value||localDate();break;
+    case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
+    case "tEditDate":if(S.ui.tests.edit)S.ui.tests.edit.date=el.value;break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=testPlan().tests[+v];if(t)loadTest(t)}break}
+    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=testPlan().tests[+v];if(t)loadTest({...t,date:null})}break}
     case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
@@ -1852,7 +2003,7 @@ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.c
 /* ---------- example class ---------- */
 let saved=null;
 function loadDemo(){
-  saved={pupils:S.pupils,sessions:S.sessions,practice:S.practice,plans:S.plans,settings:S.settings,mode:S.mode};
+  saved={pupils:S.pupils,sessions:S.sessions,practice:S.practice,plans:S.plans,tests:S.tests,settings:S.settings,mode:S.mode};
   let seed=7;const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
   const names=["Ava Smith","Noah Patel","Isla Jones","Leo Brown","Amelia Khan","Oliver Wilson","Freya Taylor","Arthur Davies","Mia Evans","Theo Thomas","Ivy Roberts","Jack Walker","Poppy Wright","Muhammad Ali","Grace Hughes","Harry Green","Zara Hussain","Oscar Hall","Ruby Clarke","Alfie Lewis","Sofia Lopez","Finley Scott","Aisha Begum","Reuben Wood"];
   const MIS={4:"sed",10:"wos",11:"yoo",12:"thay",32:"wot",33:"thair",36:"hav",40:"sum",43:"wer",45:"littel",51:"wun",53:"thim",64:"dont",65:"cum",59:"its",61:"lookt",70:"childen",74:"askt",80:"abowt",82:"thier",83:"peple",86:"cud",87:"hous",94:"Im",98:"cald"};
@@ -1865,11 +2016,11 @@ function loadDemo(){
       sessions[id+"_"+d]={pupilId:id,date:d,kind:"spelling",words}});
     if(k%3===0){const b={};let n=0;for(let i=0;i<100&&n<6;i++){if(sessions[id+"_2026-10-06"].words[i].s!=="c"){b[i]=1+Math.floor(rnd()*3);n++}}practice[id]={boxes:b,log:[]}}
   });
-  Object.assign(S,{pupils,sessions,practice,plans:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
+  Object.assign(S,{pupils,sessions,practice,plans:{},tests:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
   S.ui.jobs=[];S.ui.ai=null;setTab(DEFAULT_TAB);render();
 }
 function exitDemo(){
-  if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,settings:saved.settings,mode:saved.mode});saved=null}
+  if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,tests:saved.tests,settings:saved.settings,mode:saved.mode});saved=null}
   S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
 }
 
@@ -1884,9 +2035,9 @@ function exitDemo(){
   db=d;
   const target=()=>saved||S;
   const ready={};
-  const markReady=k=>{if(!ready[k]){ready[k]=1;if(Object.keys(ready).length===5){if(saved)saved.mode="live";else S.mode="live"}}render()};
+  const markReady=k=>{if(!ready[k]){ready[k]=1;if(Object.keys(ready).length===6){if(saved)saved.mode="live";else S.mode="live"}}render()};
   const lost=()=>toast("Lost connection to your saved data. Reload to reconnect.");
-  for(const col of ["pupils","sessions","practice","plans"])db.collection(col).onSnapshot(snap=>{const o={};snap.docs.forEach(x=>o[x.id]=x.data());target()[col]=o;markReady(col)},lost);
+  for(const col of ["pupils","sessions","practice","plans","tests"])db.collection(col).onSnapshot(snap=>{const o={};snap.docs.forEach(x=>o[x.id]=x.data());target()[col]=o;markReady(col)},lost);
   db.doc("settings/main").onSnapshot(snap=>{target().settings={className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10,...(snap.exists?snap.data():{})};markReady("settings")},lost);
 })();
 </script>
