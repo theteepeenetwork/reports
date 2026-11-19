@@ -471,6 +471,48 @@ test('Tests: change the date, edit the words or children, and delete with a conf
   await expect(frame.locator('.day[data-date="2026-10-01"] .trow').nth(1).locator('.tprog')).toContainText('1 of 2 marked');
 });
 
+test('Tests: moving a test never silently replaces marks, keeps marks another test shares, and an empty test cannot be marked', async ({ page }) => {
+  const w = (a, b, v) => { const o = {}; for (let i = a; i < b; i++) o[i] = { s: v, src: 'manual' }; return o; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    /* Kit: all of 1–20 right on the 10th; 1–10 wrong on the 11th */
+    'x1_2030-01-10': { pupilId: 'x1', date: '2030-01-10', kind: 'spelling', words: w(0, 20, 'c'), photos: [], updatedAt: 1 },
+    'x1_2030-01-11': { pupilId: 'x1', date: '2030-01-11', kind: 'spelling', words: w(0, 10, 'x'), photos: [], updatedAt: 1 }
+  }, practice: {}, plans: {}, tests: {
+    a: { date: '2030-01-10', title: '100 HFW 1–10', whole: false, words: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], pids: ['x1'], createdAt: 1 },
+    b: { date: '2030-01-10', title: '100 HFW 1–20', whole: false, words: Array.from({ length: 20 }, (_, i) => i), pids: ['x1'], createdAt: 2 },
+    gone: { date: '2030-01-10', title: '100 HFW 21–30', whole: false, words: [20, 21], pids: ['left-the-class'], createdAt: 3 }
+  }, settings: {} });
+  const frame = await openHW(page, extra);
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  const row = id => frame.locator(`.trow[data-test="${id}"]`);
+  const det = frame.locator('#tDet');
+
+  /* a test whose children have all left can't be marked: Mark would otherwise offer the whole class */
+  await row('gone').locator('.tacts button').last().click();
+  await expect(frame.locator('.markcard')).toHaveCount(0);
+  await expect(frame.locator('#toast')).toContainText('This test has no children');
+
+  /* moving test "a" onto the 11th would replace Kit's marks there: it asks first */
+  await row('a').locator('.tname').click();
+  await det.getByRole('button', { name: 'Change date' }).click();
+  await frame.locator('#tDate').fill('2030-01-11');
+  await det.getByRole('button', { name: 'Save date' }).click();
+  await expect(frame.locator('#tClash')).toContainText('1 child already has marks for these words on');
+  let doc = await stored();
+  expect(doc.tests.a.date, 'nothing moved yet').toBe('2030-01-10');
+  expect(doc.sessions['x1_2030-01-11'].words['0'].s).toBe('x');
+  await det.getByRole('button', { name: 'Move and replace those marks' }).click();
+  doc = await stored();
+  expect(doc.tests.a.date).toBe('2030-01-11');
+  expect(doc.sessions['x1_2030-01-11'].words['0'].s).toBe('c');
+  /* test "b" is still on the 10th and shares words 1–10: its marks were copied, not taken */
+  expect(Object.keys(doc.sessions['x1_2030-01-10'].words).length).toBe(20);
+  await expect(row('b').locator('.tprog')).toContainText('All 1 marked');
+  await expect(row('a').locator('.tprog')).toContainText('All 1 marked');
+});
+
 test('Class: band columns, set by set, and a square opens its ten words', async ({ page }) => {
   /* x1: 1–10 all right, 8/10 on 11–20 (was, you wrong); x2 has all 100; x3 not assessed */
   const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 10 ? 'woz' : '' } : { s: 'c' }; return w; };
@@ -806,6 +848,22 @@ test('Print: eight things in three groups, one set of options at a time, each ca
   await expect(frame.locator('#printGo')).toHaveText('Download CSV');
   await go();
   expect(await calls()).toEqual([['grid', 0], ['csv']]);
+});
+
+test('With every list finished there is no test, and Mark is still one tap away', async ({ page }) => {
+  const extra = twoClasses('b');
+  const all = {}; for (let i = 0; i < 409; i++) all[i] = { s: 'c' };
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    'x1_2026-10-01': { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: all },
+    'x2_2026-10-01': { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: all } }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  expect(await frame.locator('body').evaluate(() => testPlan().tests.length)).toBe(0);
+  /* the past test is listed, so Mark opens from it, and from there for any child and any words */
+  await frame.locator('.trow').first().getByRole('button', { name: 'Results' }).click();
+  await expect(frame.locator('.markcard')).toBeVisible();
+  await frame.locator('#mTest').selectOption('one');
+  await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
+  await expect(frame.locator('.pl')).toHaveCount(2);
 });
 
 test('Old tab ids land on the screen that replaced them; Practise and Review stay unreachable', async ({ page }) => {
