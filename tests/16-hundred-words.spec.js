@@ -309,7 +309,7 @@ test('Tests: past tests are built from old sessions, and every test keeps Sheets
   /* no test was ever saved, yet 1 Oct shows its two tests: the one both children sat, and Nell's own */
   await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
   const day = frame.locator('.day[data-date="2026-10-01"]');
-  await expect(day.locator('h2')).toHaveText('Thursday 1 October');
+  await expect(day.locator('h2')).toHaveText(/^Thursday 1 October( 2026)?$/);   // the year shows once it is no longer this year
   await expect(day.locator('.dayhead .pill')).toHaveText('All marked');
   const rows = day.locator('.trow');
   await expect(rows).toHaveCount(2);
@@ -357,7 +357,7 @@ test('Tests: past tests are built from old sessions, and every test keeps Sheets
   expect((await stored()).sessions, 'planning a test touches no session').toEqual(JSON.parse(before).sessions);
 
   /* newest first, with a pill for each date, and the same three actions on a test nobody has sat */
-  await expect(frame.locator('.day h2')).toHaveText(['Thursday 10 January 2030', 'Thursday 1 October']);
+  await expect(frame.locator('.day h2')).toHaveText(['Thursday 10 January 2030', /^Thursday 1 October( 2026)?$/]);
   const next = frame.locator('.day[data-date="2030-01-10"]');
   await expect(next.locator('.dayhead .pill')).toHaveText('3 still to mark');
   await expect(next.locator('.trow').nth(0).locator('.tprog')).toContainText('Not marked yet');
@@ -376,7 +376,7 @@ test('Tests: past tests are built from old sessions, and every test keeps Sheets
   await filters.nth(1).click();
   await expect(frame.locator('.day h2')).toHaveText(['Thursday 10 January 2030']);
   await filters.nth(2).click();
-  await expect(frame.locator('.day h2')).toHaveText(['Thursday 1 October']);
+  await expect(frame.locator('.day h2')).toHaveText([/^Thursday 1 October( 2026)?$/]);
   await filters.nth(0).click();
   await expect(frame.locator('.trow')).toHaveCount(4);
 
@@ -835,6 +835,8 @@ test('Print: seven things in three groups, one set of options at a time, each ca
 
   /* Flash cards keeps every option it had */
   await pick('Flash cards');
+  await expect(frame.locator('#popts [role="group"][aria-label="Whose words"] button')).toHaveText(['Each child’s focus', 'A band']);
+  await opt('Whose words', 'Each child’s focus');
   await expect(labels()).toHaveText(['Whose words', 'Who', 'Cards per child', 'Layout', 'Size', 'Dictation sentence']);
   await expect(frame.locator('#popts [role="group"][aria-label="Cards per child"] button')).toHaveText(['3', '4', '5', '6', '8', '10', '12', '15', '20']);
   await expect(frame.locator('#popts [role="group"][aria-label="Layout"] button')).toHaveText(['Stack and cut', 'Sheet by sheet']);
@@ -884,7 +886,7 @@ test('Print: seven things in three groups, one set of options at a time, each ca
   await opt('Format', 'Spreadsheet (CSV)');
   await expect(frame.locator('#printGo')).toHaveText('Download CSV');
   await go();
-  expect(await calls()).toEqual([['grid', 0], ['csv']]);
+  expect(await calls()).toEqual([['grid', 1], ['csv']]);       // the Next 200 list is still chosen
 
   /* once tests are saved, Print offers those: the next date's */
   await body.evaluate(() => { const tp = testPlan().tests;
@@ -893,7 +895,7 @@ test('Print: seven things in three groups, one set of options at a time, each ca
     saveTest('nx2', { date: '2031-03-06', title: '200 HFW 1–10', whole: false, words: tp[1].words, pids: tp[1].pids, createdAt: 3 }); });
   await pick('Answer sheets');
   await expect(frame.locator('#popts [role="group"][aria-label="Which test"] button')).toHaveText(['Whole class · 100 HFW 41–60', 'Group · 200 HFW 1–10', 'All 2', 'A whole list']);
-  await expect(frame.locator('.pcfg')).toContainText('These are the tests for Thu 6 Mar.');
+  await expect(frame.locator('.pcfg')).toContainText(/These are the tests for Thu,? 6 Mar\./);
   await opt('Which test', 'Group · 200 HFW 1–10');
   await go();
   expect(await calls()).toEqual([['testSheets', 'Group · 200 HFW 1–10']]);
