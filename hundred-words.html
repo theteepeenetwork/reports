@@ -1214,6 +1214,9 @@ function printView(){
    </section></div>`;
 }
 VIEWS.print=function(){return printView()};
+/* Open Print › Practice sheets with each child's own words: everyone, or the children given. */
+const PRACTICE_ITEM="acts";
+function openPractice(pids){const P=S.ui.print;P.item=PRACTICE_ITEM;P.actsFor="pupils";P.who[PRACTICE_ITEM]=pids?"pick":"all";if(pids)P.pids=pids.slice();P.bookNote="";S.ui.pupil=null;setTab("print")}
 /* Download: hand the chosen options to the PDF function that item always used. */
 function printGo(){
   const P=S.ui.print,item=PRINT_ITEMS[P.item]?P.item:"answer",tests=testPlan().tests,pids=whoPids(item);
@@ -1568,9 +1571,8 @@ VIEWS.pupils=function(){
   const show=pupilFilter(f).slice().sort((a,b)=>{const A=summary(a),B=summary(b);return (!A.sessions.length)-(!B.sessions.length)||A.level-B.level||S.pupils[a].name.localeCompare(S.pupils[b].name)});
   return `<div class="row"><div class="row" role="group" aria-label="Show" style="gap:8px">${PFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="pfilter" data-f="${k}" aria-pressed="${f===k}">${l} · ${pupilFilter(k).length}</button>`).join("")}</div>
    <span style="flex:1"></span>
-   <button type="button" class="btn" data-a="pdfAllBooks">Practice books for everyone</button>
+   <button type="button" class="btn" data-a="practiceFor">Practice sheets for everyone</button>
    <details class="more"><summary class="btn ghost">More prints</summary><div class="menu"><button type="button" class="btn" data-a="pdfAllPlans">All plans</button><button type="button" class="btn" data-a="pdfAllPacks">All practice packs</button><button type="button" class="btn" data-a="pdfAllCards">All flash cards (stack and cut)</button></div></details></div>
-  ${S.ui.print.bookNote?`<p class="note">${esc(S.ui.print.bookNote)}</p>`:""}
   <p style="font-size:14px;color:var(--ink-2);max-width:80ch">Each child’s plan is built from their checks, what they wrote and their practice. The focus set shrinks to 3 when progress stalls and grows to 8 after a big gain. Tap a child to open their plan.</p>
   <div class="pcards">${show.map(id=>{const p=buildPlan(id),s=p.s,top=patternList(p)[0],due=p.assessed&&p.reviewDate<=today,li=curList(s),done=s.level>=NSETS;
     const where=!p.assessed?"Not assessed yet":done?"Every list complete":`${li?esc(LIST_TAB[li])+" · ":""}${BANDS[s.level%10].n} · ${esc(setLabel(s.level).replace(/^.* /,""))} · ${s.setDone}/${setWords(s.level).length}`;
@@ -1987,7 +1989,8 @@ const A={
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfBook:el=>{PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfAllBooks:()=>{PDF.books(pupilIds(),"practice-books.pdf");return "skip"},
+  /* Print › Practice sheets, set up for everyone, or for one child */
+  practiceFor:el=>{openPractice(el.dataset.id?[el.dataset.id]:null);window.scrollTo({top:0})},
   pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
   pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
   pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
