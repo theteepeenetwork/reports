@@ -32,16 +32,24 @@ async function openHW(page, extra) {
   await expect(frame.locator('#nav button').first()).toBeVisible();
   return frame;
 }
+/* Mark is reached from a test on the Tests tab */
+async function openMark(frame) {
+  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('.tests .test').first().getByRole('button', { name: 'Enter results' }).click();
+  await expect(frame.locator('.markcard')).toBeVisible();
+}
 
 test('Hundred Words shows the active class from the hub and saves under that class', async ({ page }) => {
   const errors = collectErrors(page);
   const frame = await openHW(page, twoClasses('b'));
 
   await expect(frame.locator('#cls')).toHaveText('Year 3');
-  /* five tabs and a settings cog */
-  await expect(frame.locator('#nav button')).toHaveText(['This week', 'Mark', 'Class', 'Pupils', 'Print']);
-  /* Mark is by hand only: no photo marking in the hub for now */
-  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  /* four tabs and a settings cog; Tests opens first */
+  await expect(frame.locator('#nav button')).toHaveText(['Tests', 'Class', 'Pupils', 'Print']);
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  /* Mark opens from a test and sits under Tests. It is by hand only: no photo marking in the hub for now */
+  await openMark(frame);
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
   await expect(frame.locator('#main')).not.toContainText('Mark photos');
   await expect(frame.locator('#nav button', { hasText: 'Practise' }), 'no practice games in the hub').toHaveCount(0);
   await expect(frame.locator('#nav button', { hasText: 'Review' }), 'no photo review queue in the hub').toHaveCount(0);
@@ -84,7 +92,7 @@ test('Hundred Words on the default class reads the un-suffixed roster', async ({
 
 test('Mark saves each tap, so switching pupil and back keeps the marks', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
-  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  await openMark(frame);
   /* nobody is assessed, so the whole-class test on words 1–20 is loaded */
   await expect(frame.locator('#mTest option:checked')).toHaveText('Whole class · 100 HFW 1–20 (20 words)');
   await expect(frame.locator('.tile')).toHaveCount(20);
@@ -113,14 +121,14 @@ test('Mark saves each tap, so switching pupil and back keeps the marks', async (
   /* and it survives a reload */
   await page.reload();
   const again = page.frameLocator('#hwFrame');
-  await again.locator('#nav button', { hasText: 'Mark' }).click();
+  await openMark(again);
   await again.locator('.pl[data-id="x1"]').click();
   await expect(again.locator('.tile[data-i="4"]')).toHaveClass(/\bc\b/);
 });
 
 test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupil', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
-  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  await openMark(frame);
   const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')) || '{"sessions":{}}').sessions;
   const tile = frame.locator('.tile[data-i="0"]');
   await expect(frame.locator('#who')).toHaveText('Kit Marlow');
@@ -155,19 +163,20 @@ test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupi
   expect(ses.words['4']).toEqual({ s: 'x', src: 'manual', r: 'sed' });
   expect(Object.keys(ses.words).length).toBe(20);
 
-  /* Next pupil; the last child's button goes back to This week */
+  /* Next pupil; the last child's button goes back to Tests */
   await frame.getByRole('button', { name: 'Next: Nell →' }).click();
   await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
   await expect(frame.locator('.pl[data-id="x2"]')).toHaveAttribute('aria-current', 'true');
   await expect(frame.locator('#mScore')).toHaveText('0/20');
   await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(0);
   await expect(frame.locator('.plist .phead')).toContainText('1 done');
-  await frame.getByRole('button', { name: 'Back to This week' }).click();
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await frame.getByRole('button', { name: 'Back to Tests' }).click();
+  await expect(frame.locator('.markcard')).toHaveCount(0);
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
   await expect(frame.locator('.routine')).toContainText('1 of 2 entered');
 
   /* Kit got 9/10 on 1–10, so is still on it: "✗ last time" shows from tomorrow's check */
-  await frame.locator('#nav button', { hasText: 'Mark' }).click();
+  await openMark(frame);
   await frame.locator('#mTest').selectOption('one');
   await expect(frame.locator('.tile')).toHaveCount(100);
   await frame.locator('#qDate').fill('2030-01-01');
@@ -179,7 +188,7 @@ test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupi
   expect((await stored())['x1_2030-01-01']).toMatchObject({ kind: 'reading', date: '2030-01-01', pupilId: 'x1' });
 });
 
-test('This week: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
+test('Tests: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
   /* x1 has all of words 1–40 → on 41–50; x2 has all 100 HFW → on the 200 list */
   const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
   const extra = twoClasses('b');
@@ -191,7 +200,7 @@ test('This week: sets of ten in order across the three lists, and a whole-class 
   }, practice: {}, plans: {}, settings: {} });
   const frame = await openHW(page, extra);
   await expect(page.locator('#planApp .nav-link[data-page="hundred-words"]')).toContainText('Spellings');
-  await frame.locator('#nav button', { hasText: 'This week' }).click();
+  await frame.locator('#nav button', { hasText: 'Tests' }).click();
   const plan = await page.frameLocator('#hwFrame').locator('body').evaluate(() =>
     testPlan().tests.map(t => ({ title: t.title, n: t.words.length, target: t.target.length })));
   /* x1 and x3 are both on 41–50: that is the whole-class test; x2 is tested
@@ -201,9 +210,9 @@ test('This week: sets of ten in order across the three lists, and a whole-class 
   /* 409 words: 100 + 200 + 109 Year 3/4 common exception words */
   expect(await page.frameLocator('#hwFrame').locator('body').evaluate(() => [WORDS.length, SENT.length, NSETS])).toEqual([409, 409, 41]);
 
-  /* This week is the opening tab: the routine strip, then a card per test,
+  /* Tests is the opening tab: the routine strip, then a card per test,
      the whole-class one first and marked out */
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
   await expect(frame.locator('.routine .step')).toHaveCount(4);
   await expect(frame.locator('.routine .step.now')).toContainText('2 tests below');
   await expect(frame.locator('.routine')).toContainText('0 of 3 entered');
@@ -229,11 +238,12 @@ test('This week: sets of ten in order across the three lists, and a whole-class 
 
   /* Enter results opens Mark with that test loaded */
   await cards.nth(0).getByRole('button', { name: 'Enter results' }).click();
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Mark');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('.markcard')).toBeVisible();
   await expect(frame.locator('#main')).toContainText('Whole class · 100 HFW 41–60');
 });
 
-test('This week: Needs you lists plans due, no gain and children not assessed', async ({ page }) => {
+test('Tests: Needs you lists plans due, no gain and children not assessed', async ({ page }) => {
   const words = (n, wrong) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
   const extra = twoClasses('b');
   extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
@@ -588,16 +598,22 @@ test('Print: eight things in three groups, one set of options at a time, each ca
   expect(await calls()).toEqual([['grid', 0], ['csv']]);
 });
 
-test('Old tab ids land on the tab that replaced them; Practise and Review stay unreachable', async ({ page }) => {
+test('Old tab ids land on the screen that replaced them; Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');
   const land = id => body.evaluate((_, id) => { setTab(id); return S.tab; }, id);
+  /* the first design's ids, and "week" from the Nov 2026 redesign */
   expect(await land('tracker')).toBe('class');
-  expect(await land('groups')).toBe('week');
+  expect(await land('groups')).toBe('tests');
+  expect(await land('week')).toBe('tests');
   expect(await land('assess')).toBe('mark');
+  expect(await land('quick')).toBe('mark');
+  expect(await land('mark')).toBe('mark');
   expect(await land('plans')).toBe('pupils');
   expect(await land('print')).toBe('print');
+  expect(await land('settings')).toBe('settings');
   const home = await body.evaluate(() => DEFAULT_TAB);
+  expect(home).toBe('tests');
   expect(await land('practise')).toBe(home);
   expect(await land('review')).toBe(home);
   expect(await land('nonsense')).toBe(home);
@@ -605,9 +621,55 @@ test('Old tab ids land on the tab that replaced them; Practise and Review stay u
   /* and a link with an old id in it */
   await blockExternal(page);
   await page.goto('/hundred-words.html#groups');
-  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('This week');
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await page.goto('/hundred-words.html#week');
+  await page.reload();
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await page.goto('/hundred-words.html#assess');
+  await page.reload();
+  await expect(page.locator('#nav button[aria-current="page"]'), 'Mark sits under Tests').toHaveText('Tests');
   await page.goto('/hundred-words.html#practise');
   await page.reload();
   await expect(page.locator('#nav button[aria-current="page"]')).toHaveCount(1);
   await expect(page.locator('#main')).not.toContainText('Choose a game');
+});
+
+/* A real account's data from before this redesign: it must load as it is, and
+   every child's results must come out exactly as they did then. */
+test('Data saved before the Tests redesign loads unchanged and gives every pupil the same results', async ({ page }) => {
+  const errors = collectErrors(page);
+  const snap = require('./data/hundred-words-before-tests.json');
+  const before = JSON.stringify(snap.data);
+  const frame = await openHW(page, { tp_hundred_words: before });
+  const body = frame.locator('body');
+  const results = () => body.evaluate(() => {
+    const out = {};
+    for (const id of pupilIds()) {
+      const s = summary(id), p = buildPlan(id);
+      out[id] = {
+        states: s.ws.map(w => ({ none: '.', known: 'k', secure: 'S', notyet: 'n', slipped: 's', review: '?' }[w.st])).join(''),
+        known: s.known, secure: s.secure, review: s.review, assessed: s.assessed, lastDate: s.lastDate, prevKnown: s.prevKnown, delta: s.delta,
+        level: s.level, knownIn: s.knownIn, setDone: s.setDone, next: s.next, checks: s.sessions.length,
+        focus: p.focus, revisit: p.revisit, nextUp: p.nextUp, focusN: p.focusN, ready: p.ready, plateau: p.plateau, gains: p.gains,
+        reviewDate: p.assessed ? p.reviewDate : null, criteria: p.criteria, patterns: Object.fromEntries(Object.entries(p.pats).map(([k, v]) => [k, v.n])),
+        cards: childCards(id), planWords: planWords(id)
+      };
+    }
+    const tp = testPlan();
+    return { pupils: out, testPlan: tp.tests.map(t => ({ whole: t.whole, title: t.title, words: t.words, pids: t.pids, target: t.target })), classMissed: classMissed(pupilIds().map(id => [id, summary(id)])).slice(0, 12) };
+  });
+  await expect(frame.locator('#main .panel').first()).toBeVisible();
+  expect(Object.keys((await results()).pupils).sort()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+  expect(await results()).toEqual(snap.expected);
+
+  /* looking at every screen writes nothing: the stored value is byte for byte what it was */
+  for (const tab of ['Class', 'Pupils', 'Print', 'Tests']) {
+    await frame.locator('#nav button', { hasText: tab }).click();
+    await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText(tab);
+  }
+  await frame.locator('#cog').click();
+  await frame.locator('.pcards, #clsName').first().waitFor();
+  expect(await page.evaluate(() => localStorage.getItem('tp_hundred_words'))).toBe(before);
+  expect(await results()).toEqual(snap.expected);
+  expect(errors).toEqual([]);
 });

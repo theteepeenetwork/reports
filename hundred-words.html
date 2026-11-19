@@ -405,7 +405,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
-  mode:"loading", tab:"week",
+  mode:"loading", tab:"tests",
   ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,
       print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing","wordsearch","sentences"],actsFor:"pupils",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
@@ -486,7 +486,7 @@ function doRender(){
   $("#cls").textContent=S.settings.className?S.settings.className:"";
   /* Classroom Hub: no Practise (games) or Review (the photo-marking queue)
      tabs. Their views are kept, unreachable. */
-  $("#nav").innerHTML=TABS.map(([k,l])=>`<button type="button" data-a="tab" data-k="${k}" ${S.tab===k?'aria-current="page"':""}>${l}</button>`).join("");
+  $("#nav").innerHTML=TABS.map(([k,l])=>`<button type="button" data-a="tab" data-k="${k}" ${tabOf(S.tab)===k?'aria-current="page"':""}>${l}</button>`).join("");
   const cog=$("#cog");if(S.tab==="settings")cog.setAttribute("aria-current","page");else cog.removeAttribute("aria-current");
   $("#banner").innerHTML=bannerHtml();
   $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS[DEFAULT_TAB])();
@@ -513,15 +513,19 @@ function classList(){const c=LISTS.map(()=>0);for(const id of pupilIds())c[curLi
 
 const VIEWS={};
 /* ----- tabs -----
-   This week · Mark · Class · Pupils · Print, and a settings cog. The ids
-   from before the Nov 2026 redesign still work, so an old link or a tab
-   remembered from then lands on the screen that took its place. The old
-   "class" (settings) id can't be told from the new Class tab, so it opens
+   Tests · Class · Pupils · Print, and a settings cog. Mark is a screen, not
+   a tab: it opens from a test and sits under Tests. Every id the page has
+   ever used still works, so an old link or a tab remembered from then
+   lands on the screen that took its place: the first design's tracker,
+   groups, assess and plans, and "week" from the Nov 2026 redesign. The old
+   "class" (settings) id can't be told from the Class tab, so it opens
    Class. Practise and Review are not in OPEN_TABS: nothing reaches them. */
-const TABS=[["week","This week"],["mark","Mark"],["class","Class"],["pupils","Pupils"],["print","Print"]];
-const TAB_ALIAS={tracker:"class",groups:"week",assess:"mark",quick:"mark",plans:"pupils",plan:"pupils",settings:"settings"};
-const OPEN_TABS=new Set([...TABS.map(t=>t[0]),"settings"]);
-const DEFAULT_TAB="week";
+const TABS=[["tests","Tests"],["class","Class"],["pupils","Pupils"],["print","Print"]];
+const TAB_ALIAS={week:"tests",groups:"tests",tracker:"class",assess:"mark",quick:"mark",plans:"pupils",plan:"pupils"};
+const OPEN_TABS=new Set([...TABS.map(t=>t[0]),"mark","settings"]);
+const DEFAULT_TAB="tests";
+/* the tab that is lit for a screen */
+const tabOf=k=>k==="mark"?"tests":k;
 function tabId(k){k=String(k||"").replace(/^#/,"").toLowerCase();k=TAB_ALIAS[k]||k;return OPEN_TABS.has(k)?k:null}
 function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"","#"+S.tab)}catch(e){}}
 S.tab=tabId(location.hash)||DEFAULT_TAB;
@@ -652,7 +656,7 @@ function panelHtml(pid){
   return h;
 }
 
-/* ----- The test plan (shown on This week) -----
+/* ----- The test plan (shown on Tests) -----
    Classroom Hub. Each child works on one set of ten at a time and moves on
    only at 10/10. The test plan covers the class in as few tests as it can:
    one whole-class test (20 words by default — enough in KS1) placed where
@@ -678,7 +682,7 @@ function testPlan(){
     rest=rest.filter(id=>!pids.includes(id))}
   return {tests,lv,W};
 }
-/* What the class did as a whole, shared by This week and Class. */
+/* What the class did as a whole, shared by Tests and Class. */
 function levelOf(ws){for(let b=0;b<NSETS;b++)if(setWords(b).some(i=>!isKnown(ws[i].st)))return b;return NSETS}
 function weekStart(){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return localDate(d)}
 /* a first name, with a surname initial when two children share it */
@@ -696,7 +700,7 @@ function classNeeds(){
     if(p.reviewDate<=today)due.push(id);if(p.plateau)nogain.push(id);if(p.ready.length)ready.push(id)}
   return memo.needs={due,nogain,ready,unassessed};
 }
-VIEWS.week=function(){
+VIEWS.tests=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const {tests,lv}=testPlan(),name=id=>esc(shortName(id)),wn=+S.settings.wholeN||20,plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
@@ -706,7 +710,7 @@ VIEWS.week=function(){
   const moved=sums.filter(([id,s])=>s.sessions.some(x=>x.date>=ws0)&&levelOf(wordStates(id,{before:ws0}))<s.level).length;
   const now=!tests.length?0:entered===0?2:entered<ids.length?3:4;
   const step=(n,label,sub,done)=>`<div class="step${done?" done":now===n?" now":""}"><span class="num" aria-hidden="true">${done?"✓":n}</span><div><b>${n} · ${label}</b><span class="sub">${sub}</span></div></div>`;
-  let h=`<section class="panel routine" aria-label="This week’s routine">
+  let h=`<section class="panel routine" aria-label="The weekly routine">
     ${step(1,"Practise",S.ui.printed?"Practice books downloaded":"Practice books and flash cards are on Print",!!S.ui.printed||now>2)}
     ${step(2,"Test",tests.length?`Thursday · ${plural(tests.length,"test")} below`:"Every list finished",now>2)}
     ${step(3,"Mark",`${entered} of ${ids.length} entered`,entered===ids.length)}
@@ -845,7 +849,7 @@ function markView(){
      <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
      <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
      <span style="flex:1"></span>
-     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="week">Back to This week</button>`}
+     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="tests">Back to Tests</button>`}
     </div>
    </section>
   </div>`;
@@ -1101,7 +1105,7 @@ VIEWS.settings=function(){
    <label class="chk"><input type="checkbox" data-c="acceptNoApos" ${st.acceptNoApos?"checked":""}>Accept it’s, don’t and I’m without the apostrophe</label>
    <p class="muted small">Other capital letters are always ignored. Settings apply to sheets you mark from now on.</p>
    <label for="wholeN"><b>Whole-class test</b></label><select id="wholeN" data-c="wholeN">${[10,20,30,40].map(v=>`<option value="${v}" ${(+st.wholeN||20)===v?"selected":""}>${v} words${v===20?" (KS1)":""}</option>`).join("")}</select>
-   <p class="muted small">This week covers every child in as few tests as it can: one whole-class test where most children are, then the shortest group tests for the rest.</p>
+   <p class="muted small">Tests covers every child in as few tests as it can: one whole-class test where most children are, then the shortest group tests for the rest.</p>
    ${voicePanel()}
    <h3 style="margin-top:8px">How levels work</h3>
    <p class="small">There are three word lists, taken in order: the 100 high frequency words, the next 200 high frequency words, then the Year 3 and 4 common exception words. Each list is split into sets of ten, in list order, with book-band colours: ${BANDS.map((b,l)=>`${bandDot(l)} ${b.n}`).join(" ")}. A pupil’s current set is the first set of ten they haven’t got 10/10 in; they move on when they have. A word is <b>secure</b> once it has been correct in two separate checks.</p>
