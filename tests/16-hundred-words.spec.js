@@ -753,12 +753,11 @@ test('Pupil panel: opens from any name, steps to the next child, and holds the p
 
   /* prints call the existing generators for this child */
   await frame.locator('body').evaluate(() => { window.__calls = [];
-    PDF.books = (p, f) => window.__calls.push(['books', p, f]); PDF.cards = (g, f) => window.__calls.push(['cards', g.length, f]); PDF.targeted = p => window.__calls.push(['targeted', p]); });
-  await panel.getByRole('button', { name: 'Practice book', exact: true }).click();
+    PDF.cards = (g, f) => window.__calls.push(['cards', g.length, f]); PDF.targeted = p => window.__calls.push(['targeted', p]); });
+  await expect(panel.locator('section[aria-labelledby="f4"] .btn')).toHaveText(['Practice sheets', 'Flash cards', 'Check sheet']);
   await panel.getByRole('button', { name: 'Flash cards' }).click();
   await panel.getByRole('button', { name: 'Check sheet' }).click();
-  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([
-    ['books', ['x1'], 'practice-book-kit-marlow.pdf'], ['cards', 1, 'flash-cards-kit-marlow.pdf'], ['targeted', ['x1']]]);
+  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([['cards', 1, 'flash-cards-kit-marlow.pdf'], ['targeted', ['x1']]]);
 
   /* checks: a chart, and the list behind a disclosure, with delete */
   await expect(panel.locator('.bars div')).toHaveCount(2);
@@ -791,6 +790,20 @@ test('Pupil panel: opens from any name, steps to the next child, and holds the p
   await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
   await panel.locator('#pClose').press('Escape');
   await expect(panel).toBeHidden();
+
+  /* from a child in an open test, too */
+  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('.trow .tname').first().click();
+  await frame.locator('#tDet .kid', { hasText: 'Nell' }).click();
+  await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
+
+  /* Practice sheets closes the panel and opens Print › Practice sheets for that child alone */
+  await panel.getByRole('button', { name: 'Practice sheets' }).click();
+  await expect(panel).toBeHidden();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Print');
+  await expect(frame.locator('#cfgH')).toHaveText('Practice sheets');
+  await expect(frame.locator('#popts [role="group"][aria-label="Who"] button[aria-pressed="true"]')).toHaveText('Choose children');
+  await expect(frame.locator('#popts [role="group"][aria-label="Children"] button[aria-pressed="true"]')).toHaveText(['Nell Gwyn']);
 });
 
 test('Print: eight things in three groups, one set of options at a time, each calling its generator', async ({ page }) => {

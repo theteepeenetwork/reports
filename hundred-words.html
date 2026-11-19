@@ -613,7 +613,9 @@ function classMissed(sums){
 /* ----- Pupil panel -----
    One side panel for a child, opened from any name: where they are, their
    focus words, what they wrote, the two-week plan, their prints and their
-   checks. It replaces the old drawer and the full-page plan. */
+   checks. It replaces the old drawer and the full-page plan. Practice
+   sheets opens Print › Practice sheets for this child, where the
+   activities are chosen; flash cards and the check sheet download here. */
 function panelHtml(pid){
   const p=buildPlan(pid),s=p.s,pl=p.pl,name=S.pupils[pid].name,first=esc(p.first),draft=S.ui.planDraft[pid];
   const li=curList(s),on=p.assessed&&s.level<NSETS,pats=patternList(p);
@@ -651,7 +653,7 @@ function panelHtml(pid){
     <p class="note" style="font-size:14px"><b>Success looks like:</b> ${esc(p.criteria)} Review by ${fmtShort(p.reviewDate)}.</p>
   </section>
   <section class="sec" aria-labelledby="f4"><h3 id="f4">Print for ${first}</h3>
-    <div class="row" style="gap:8px"><button type="button" class="btn primary" data-a="pdfBook" data-id="${pid}">Practice book</button><button type="button" class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards</button><button type="button" class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet</button></div>
+    <div class="row" style="gap:8px"><button type="button" class="btn primary" data-a="practiceFor" data-id="${pid}">Practice sheets</button><button type="button" class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards</button><button type="button" class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet</button></div>
     <div class="row" style="gap:4px 18px"><button type="button" class="linkbtn small" data-a="pdfPlan" data-id="${pid}">Plan (PDF)</button><button type="button" class="linkbtn small" data-a="pdfPack" data-id="${pid}">Practice pack</button></div>
   </section>
   <section class="sec" aria-labelledby="f5"><h3 id="f5">Checks</h3>
@@ -1988,7 +1990,6 @@ const A={
   pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
   pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfBook:el=>{PDF.books([el.dataset.id],`practice-book-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   /* Print › Practice sheets, set up for everyone, or for one child */
   practiceFor:el=>{openPractice(el.dataset.id?[el.dataset.id]:null);window.scrollTo({top:0})},
   pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
