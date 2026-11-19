@@ -256,6 +256,38 @@ test('Mark opens from a test; a fully marked test re-opens with its marks, and t
   await expect(frame.locator('.pl')).toHaveCount(2);
 });
 
+test('Mark: a past test still moves with its marks after its first word is cleared, and never onto marks already there', async ({ page }) => {
+  const extra = twoClasses('b');
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: oldSessions(), practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra);
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  /* Nell's own past test, 21–30: clear its first word, so the test worked out from the sessions now starts at 22 */
+  await frame.locator('.day[data-date="2026-10-01"] .trow').nth(1).getByRole('button', { name: 'Results' }).click();
+  await expect(frame.locator('.tile')).toHaveCount(10);
+  await frame.locator('.tile[data-i="20"]').click();      // ✓ → ✗
+  await frame.locator('.tile[data-i="20"]').click();      // → clear
+  await expect(frame.locator('.tile[data-i="20"]')).toHaveAttribute('aria-label', 'that, not marked');
+  await expect(frame.locator('.tile')).toHaveCount(10);
+  /* the date is the day both children sat 1–20: Nell has no marks for 21–30 words elsewhere, so it moves */
+  await frame.locator('#qDate').fill('2026-10-02');
+  await frame.locator('#qDate').blur();
+  await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(9);
+  let doc = await stored();
+  expect(Object.keys(doc.sessions['x2_2026-10-02'].words).length, 'the nine marks went with the test').toBe(9);
+  expect(Object.keys(doc.sessions['x2_2026-10-01'].words).length, 'and 1–20 stayed').toBe(20);
+  const rec = Object.values(doc.tests);
+  expect(rec.length).toBe(1);
+  expect(rec[0]).toMatchObject({ date: '2026-10-02', title: '100 HFW 21–30', pids: ['x2'] });
+  expect(rec[0].words.length).toBe(10);
+  /* moving it back on top of marks is refused here */
+  await frame.locator('body').evaluate(() => { S.sessions['x2_2026-10-05'] = { pupilId: 'x2', date: '2026-10-05', kind: 'spelling', words: { 25: { s: 'x', src: 'manual' } }, photos: [], updatedAt: 1 }; memo = {}; });
+  await frame.locator('#qDate').fill('2026-10-05');
+  await frame.locator('#qDate').blur();
+  await expect(frame.locator('#toast')).toContainText('Not moved');
+  await expect(frame.locator('#qDate')).toHaveValue('2026-10-02');
+  expect((await stored()).tests[Object.keys(doc.tests)[0]].date).toBe('2026-10-02');
+});
+
 test('The test plan: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
   /* x1 has all of words 1–40 → on 41–50; x2 has all 100 HFW → on the 200 list */
   const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };

@@ -940,8 +940,9 @@ function saveQuickWords(words){
 function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list==null?curList(summary(q.pid)):q.list;return listWords(LISTS[li])}
 /* Load a test into Mark. Its words and children are copied here; a saved
    test is read again on each render, so an edit made on Tests shows. */
-function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;Object.assign(q,{test:"test",testId:t.id||null,only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
-function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
+function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;/* snap: the test as it was opened. A past test has no record and is found again by its words, which marking can change. */
+  Object.assign(q,{test:"test",testId:t.id||null,snap:{id:null,saved:false,date:t.date,title:t.label||t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:0},only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
+function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,snap:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
 function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
 function markView(){
   const q=S.ui.quick,tests=allTests();
@@ -1998,9 +1999,12 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[
 document.addEventListener("change",e=>{
   const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
-    case "date":{const q=S.ui.quick,d=el.value||localDate(),t=S.tab==="mark"&&q.test==="test"&&q.testId?findTest(q.testId):null;
+    case "date":{const q=S.ui.quick,d=el.value||localDate();
       /* a test's date is the date of its marks: changing it here moves the test, as Change date does */
-      if(t&&d!==t.date){q.testId=moveTest(t,d);toast(`Test moved to ${fmtDay(d)}`)}
+      if(S.tab==="mark"&&q.test==="test"&&q.only){const t=(q.testId&&findTest(q.testId))||(q.snap&&{...q.snap,date:S.ui.date});
+        if(t&&d!==t.date){
+          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}. Change date on Tests can replace them.`);break}
+          q.testId=moveTest(t,d);if(q.snap)q.snap.date=d;toast(`Test moved to ${fmtDay(d)}`)}}
       S.ui.date=d;break}
     case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
     case "tEditDate":if(S.ui.tests.edit){S.ui.tests.edit.date=el.value;S.ui.tests.edit.clash=0}break;
