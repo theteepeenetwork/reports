@@ -784,24 +784,37 @@ function testStats(t){
 }
 /* a test as Mark and the PDF functions take it: the kind goes in the title */
 const testKind=t=>t.whole?"Whole class":"Group";
-const testFull=t=>({...t,title:`${testKind(t)} · ${t.title}`});
+const testFull=t=>({...t,label:t.title,title:`${testKind(t)} · ${t.title}`});
 function saveTest(id,t){saveDoc("tests",id,{date:t.date,title:t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:t.createdAt||Date.now()})}
 /* a past test gets a record the first time the teacher changes it */
 function adoptTest(t){if(t.saved)return t.id;const id=uid();saveTest(id,t);return id}
-/* the marks children have for a test's words on its date, taken out of their sessions */
-function cutMarks(t,keepWords){
+/* the marks another saved test on the same date also covers: (pupil, word) => true */
+function sharedMarks(t){const others=allTests().filter(o=>o.saved&&o.id!==t.id&&o.date===t.date);return (p,i)=>others.some(o=>o.pids.includes(p)&&o.words.includes(i))}
+/* The marks children have for a test's words on its date, taken out of
+   their sessions and returned. Marks `keep` says yes to stay where they
+   are; with `copyKept` they are returned as well. */
+function cutMarks(t,keep,copyKept){
   const out={};
-  for(const p of t.pids)for(const sid of sesIds(p,t.date)){const a=S.sessions[sid],keep={},take={};
-    for(const [k,w] of Object.entries(a.words||{}))(t.words.includes(+k)&&!(keepWords&&keepWords(p,+k))?take:keep)[k]=w;
-    if(!Object.keys(take).length)continue;
-    out[p]={kind:a.kind,words:{...((out[p]||{}).words||{}),...take}};
-    if(Object.keys(keep).length||(a.photos&&a.photos.length))saveDoc("sessions",sid,{...a,words:keep,updatedAt:Date.now()});else removeDoc("sessions",sid)}
+  for(const p of t.pids)for(const sid of sesIds(p,t.date)){const a=S.sessions[sid],stay={},take={};let cut=0;
+    for(const [k,w] of Object.entries(a.words||{})){
+      if(!t.words.includes(+k)){stay[k]=w;continue}
+      const kept=keep&&keep(p,+k);if(kept)stay[k]=w;else cut++;
+      if(!kept||copyKept)take[k]=w}
+    if(Object.keys(take).length)out[p]={kind:a.kind,words:{...((out[p]||{}).words||{}),...take}};
+    if(!cut)continue;
+    if(Object.keys(stay).length||(a.photos&&a.photos.length))saveDoc("sessions",sid,{...a,words:stay,updatedAt:Date.now()});else removeDoc("sessions",sid)}
   return out;
 }
-/* The test was sat on another day: its marks go with it. */
+/* children who already have marks for some of a test's words on another date */
+function moveClashes(t,date){return t.pids.filter(p=>{const here=marksOn(p,t.date),there=marksOn(p,date);return t.words.some(i=>here[i]&&there[i])})}
+/* The test was sat on another day: its marks go with it. Marks another
+   saved test still needs on the old date are copied, not taken. Marks
+   already on the new date for the same words are replaced, so callers
+   check moveClashes() and ask first. */
 function moveTest(t,date){
-  if(!date||date===t.date)return;
-  const id=adoptTest(t),moved=cutMarks(t);
+  if(!date||date===t.date)return t.id;
+  /* a past test gets its record first; that record is this test, not another one sharing its marks */
+  const id=adoptTest(t),moved=cutMarks(t,sharedMarks({...t,id}),true);
   for(const [p,m] of Object.entries(moved)){const sid=p+"_"+date,b=S.sessions[sid];
     saveDoc("sessions",sid,{pupilId:p,date,kind:(b&&b.kind)||m.kind||"spelling",words:{...((b&&b.words)||{}),...m.words},photos:(b&&b.photos)||[],updatedAt:Date.now()})}
   saveTest(id,{...t,date});
@@ -810,8 +823,7 @@ function moveTest(t,date){
 /* Deleting a test deletes its marks too (the teacher is told how many
    children that is), except marks another saved test that day also covers. */
 function deleteTest(t){
-  const others=allTests().filter(o=>o.saved&&o.id!==t.id&&o.date===t.date);
-  cutMarks(t,(p,i)=>others.some(o=>o.pids.includes(p)&&o.words.includes(i)));
+  cutMarks(t,sharedMarks(t));
   if(t.saved)removeDoc("tests",t.id);
 }
 const TFILTERS=[["all","All tests"],["todo","Still to mark"],["done","Fully marked"]];
@@ -864,7 +876,7 @@ function testDetail(t,st){
   let h=`<div class="tdet" id="tDet"><div><h4>Words</h4><div class="chips">${t.words.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}</div></div>
    <div><h4>Children</h4><div class="chips">${t.pids.map(p=>`<button type="button" class="kid pill ${st.done[p]===2?"ok":some?"rev":""}" data-a="openPupil" data-id="${p}">${esc(shortName(p))}${st.done[p]===2?" ✓":some?" — not marked":""}</button>`).join("")||'<span class="muted small">No children.</span>'}</div></div>
    <div class="tedit">`;
-  if(E&&E.mode==="date")h+=`<div class="row" style="align-items:flex-end"><label class="fld" for="tDate">Date of this test<input type="date" id="tDate" data-c="tEditDate" value="${E.date}"></label><button type="button" class="btn primary" data-a="tDateSave">Save date</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button></div>${nMarks?`<p class="muted small">The marks ${nMarks===1?"1 child has":nMarks+" children have"} for this test move to the new date with it.</p>`:""}`;
+  if(E&&E.mode==="date")h+=`<div class="row" style="align-items:flex-end"><label class="fld" for="tDate">Date of this test<input type="date" id="tDate" data-c="tEditDate" value="${E.date}"></label><button type="button" class="btn primary" data-a="tDateSave">Save date</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button></div>${E.clash?`<div class="row" id="tClash"><span style="font-size:14px"><b>${E.clash===1?"1 child already has":E.clash+" children already have"} marks for these words on ${fmtDay(E.date)}.</b> Moving this test there replaces them with this test’s marks.</span><button type="button" class="btn no" data-a="tDateSave" data-force="1">Move and replace those marks</button></div>`:""}${nMarks?`<p class="muted small">The marks ${nMarks===1?"1 child has":nMarks+" children have"} for this test move to the new date with it.</p>`:""}`;
   else if(E&&E.mode==="edit"){const L=LISTS[E.list];
     h+=`<div class="stack" style="gap:14px"><div class="popt"><span class="optl">Word list</span>${listSeg(E.list,"tEditList")}</div>
      <div class="popt"><span class="optl">Sets of ten</span><div class="row" role="group" aria-label="Sets of ten" style="gap:6px">${listSets(L).map(g=>`<button type="button" class="f sq" data-a="tEditSet" data-g="${g}" aria-pressed="${E.sets.includes(g)}">${bandDot(g)}${BANDS[g%10].n} ${esc(setLabel(g).replace(/^.* /,""))}</button>`).join("")}</div></div>
@@ -931,8 +943,9 @@ function saveQuickWords(words){
 function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list==null?curList(summary(q.pid)):q.list;return listWords(LISTS[li])}
 /* Load a test into Mark. Its words and children are copied here; a saved
    test is read again on each render, so an edit made on Tests shows. */
-function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;Object.assign(q,{test:"test",testId:t.id||null,only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
-function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
+function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;/* snap: the test as it was opened. A past test has no record and is found again by its words, which marking can change. */
+  Object.assign(q,{test:"test",testId:t.id||null,snap:{id:null,saved:false,date:t.date,title:t.label||t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:0},only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
+function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,snap:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
 function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
 function markView(){
   const q=S.ui.quick,tests=allTests();
@@ -1900,7 +1913,10 @@ const A={
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
   tFilter:el=>{S.ui.tests.filter=el.dataset.f},
   tOpen:el=>{const U=S.ui.tests;U.open=U.open===el.dataset.id?null:el.dataset.id;U.edit=null;U.confirm=null},
-  tMark:el=>{const t=findTest(el.dataset.id);if(!t)return;loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
+  tMark:el=>{const t=findTest(el.dataset.id);if(!t)return;
+    /* with nobody in the test Mark would fall back to the whole class, and mark children who never sat it */
+    if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");S.ui.tests.open=t.id;return}
+    loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
   tMarkOne:()=>{markOne();setTab("mark");window.scrollTo({top:0})},
   tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
   tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
@@ -1927,8 +1943,10 @@ const A={
     const words=E.sets.join(",")===E.sets0?t.words:E.sets.flatMap(setWords),pids=pupilIds().filter(p=>E.pids.includes(p));
     const id=adoptTest(t);saveTest(id,{...t,words,pids,title:words===t.words?t.title:wordsTitle(words),whole:pids.length===pupilIds().length&&pids.length>1});
     U.edit=null;U.open=id;toast("Test saved")},
-  tDateSave:()=>{const U=S.ui.tests,E=U.edit,t=E&&findTest(E.id);if(!t)return;if(!E.date){toast("Choose a date");return}
-    const id=moveTest(t,E.date)||t.id;U.edit=null;U.open=id;toast(`Test moved to ${fmtDay(E.date)}`)},
+  tDateSave:el=>{const U=S.ui.tests,E=U.edit,t=E&&findTest(E.id);if(!t)return;if(!E.date){toast("Choose a date");return}
+    /* marks already on that date for the same words would be replaced: say so, and move only when told to */
+    const clash=E.date===t.date?0:moveClashes(t,E.date).length;if(clash&&!el.dataset.force){E.clash=clash;return}
+    const id=moveTest(t,E.date);U.edit=null;U.open=id;toast(`Test moved to ${fmtDay(E.date)}`)},
   tAskDelete:el=>{S.ui.tests.confirm=el.dataset.id;S.ui.tests.edit=null},
   tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;deleteTest(t);U.confirm=null;U.open=null;toast("Test deleted")},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
@@ -1987,12 +2005,15 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[
 document.addEventListener("change",e=>{
   const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
-    case "date":{const q=S.ui.quick,d=el.value||localDate(),t=S.tab==="mark"&&q.test==="test"&&q.testId?findTest(q.testId):null;
+    case "date":{const q=S.ui.quick,d=el.value||localDate();
       /* a test's date is the date of its marks: changing it here moves the test, as Change date does */
-      if(t&&d!==t.date){q.testId=moveTest(t,d);toast(`Test moved to ${fmtDay(d)}`)}
+      if(S.tab==="mark"&&q.test==="test"&&q.only){const t=(q.testId&&findTest(q.testId))||(q.snap&&{...q.snap,date:S.ui.date});
+        if(t&&d!==t.date){
+          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}. Change date on Tests can replace them.`);break}
+          q.testId=moveTest(t,d);if(q.snap)q.snap.date=d;toast(`Test moved to ${fmtDay(d)}`)}}
       S.ui.date=d;break}
     case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
-    case "tEditDate":if(S.ui.tests.edit)S.ui.tests.edit.date=el.value;break;
+    case "tEditDate":if(S.ui.tests.edit){S.ui.tests.edit.date=el.value;S.ui.tests.edit.clash=0}break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
     case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=findTest(v);if(t)loadTest(testFull(t))}break}
     case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
