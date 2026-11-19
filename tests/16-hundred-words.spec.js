@@ -488,6 +488,26 @@ test('Tests: change the date, edit the words or children, and delete with a conf
   expect(doc.sessions['x1_2030-01-11']).toBeUndefined();
   expect(Object.keys(doc.sessions).sort(), 'the old sessions are as they were').toEqual(['x1_2026-10-01', 'x2_2026-10-01']);
 
+  /* a past test can be moved too: it gets a record, and its marks go with it rather than being copied */
+  const past = frame.locator('.day[data-date="2026-10-01"] .trow').nth(1);
+  await past.locator('.tname').click();
+  await det.getByRole('button', { name: 'Change date' }).click();
+  await frame.locator('#tDate').fill('2026-10-02');
+  await det.getByRole('button', { name: 'Save date' }).click();
+  doc = await stored();
+  expect(Object.keys(doc.sessions['x2_2026-10-02'].words).length).toBe(10);
+  expect(Object.keys(doc.sessions['x2_2026-10-01'].words).length, 'only 1–20 is left on the old date').toBe(20);
+  expect(Object.values(doc.tests).map(t => [t.date, t.title])).toEqual([['2026-10-02', '100 HFW 21–30']]);
+  /* put it back for the checks below */
+  await det.getByRole('button', { name: 'Change date' }).click();
+  await frame.locator('#tDate').fill('2026-10-01');
+  await det.getByRole('button', { name: 'Save date' }).click();
+  await det.getByRole('button', { name: 'Delete test' }).click();
+  await det.getByRole('button', { name: 'Delete test and marks' }).click();
+  await page.evaluate(s => { const d = JSON.parse(localStorage.getItem('tp_hundred_words::b')); d.sessions = s; d.tests = {}; localStorage.setItem('tp_hundred_words::b', JSON.stringify(d)); }, oldSessions());
+  await expect(frame.locator('.day[data-date="2026-10-01"] .trow')).toHaveCount(2);
+  doc = await stored();
+
   /* a past test gets a record only when the teacher changes it */
   expect(Object.keys(doc.tests || {})).toEqual([]);
   const old = frame.locator('.day[data-date="2026-10-01"] .trow').nth(1);
