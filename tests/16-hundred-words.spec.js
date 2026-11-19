@@ -553,7 +553,7 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   expect(await frame.locator('body').evaluate(() => S.ui.print.list), 'Print keeps its own list, so its pages and bands still match it').toBe(0);
 });
 
-test('Pupils: a card each, the four filters, and practice books for everyone', async ({ page }) => {
+test('Pupils: a card each, the four filters, and practice sheets for everyone', async ({ page }) => {
   /* Kit: no gain, wrote "sed", plan overdue · Nell: gaining, practised "the" to the top of the ladder · Tam: not assessed */
   const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
   const extra = twoClasses('b');
@@ -594,13 +594,19 @@ test('Pupils: a card each, the four filters, and practice books for everyone', a
   await filters.nth(0).click();
   await expect(cards).toHaveCount(3);
 
-  await frame.locator('body').evaluate(() => { window.__calls = []; PDF.books = (pids, f) => window.__calls.push([pids, f]); });
-  await frame.getByRole('button', { name: 'Practice books for everyone' }).click();
-  expect(await frame.locator('body').evaluate(() => window.__calls)).toEqual([[['x1', 'x2', 'x3'], 'practice-books.pdf']]);
-
   /* a card opens that child */
   await nell.click();
   await expect(frame.locator('#drawer')).toContainText('Nell Gwyn');
+  await frame.locator('#pClose').click();
+
+  /* Practice sheets for everyone opens Print › Practice sheets with everyone chosen, even after a few were picked there */
+  await frame.locator('body').evaluate(() => { S.ui.print.who.acts = 'pick'; S.ui.print.pids = ['x1']; S.ui.print.actsFor = 'levels'; });
+  await expect(frame.getByRole('button', { name: /Practice books/ }), 'Daily practice books has left Pupils').toHaveCount(0);
+  await frame.getByRole('button', { name: 'Practice sheets for everyone' }).click();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Print');
+  await expect(frame.locator('#cfgH')).toHaveText('Practice sheets');
+  await expect(frame.locator('#popts [role="group"][aria-label="Who"] button[aria-pressed="true"]')).toHaveText('Everyone (3)');
+  await expect(frame.locator('#popts [role="group"][aria-label="Whose words"] button[aria-pressed="true"]')).toHaveText('Each child’s focus');
 });
 
 test('Pupil panel: opens from any name, steps to the next child, and holds the plan, prints and checks', async ({ page }) => {
