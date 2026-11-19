@@ -22,7 +22,11 @@
          note, next, updatedAt, del? } ] }
    Only id, pupilId and date are always there; read everything else with a
    default. A deleted session keeps its record with del: 1, so a merge with
-   another device cannot bring it back. Band, strategy, fit and rating ids
+   another device cannot bring it back; Undo sets del: 0, never removes it.
+   A saved record is never rewritten: an edit retires the old record
+   (del: 1) and adds a new one under a new id, because the cloud merge keeps
+   fields one side dropped and unions word lists, which would undo a
+   correction. Band, strategy, fit and rating ids
    are permanent: add, never rename. Names are never stored, only roster ids.
    ============================================================ */
 (function () {
@@ -117,7 +121,7 @@
   var view = 'log', pupilId = null, draft = null, showGuide = false, flash = '', undoId = null;
   function blank() { return { id: null, date: todayISO(), book: '', band: '', pages: '', fit: '', blended: [], stuck: [], gpcs: [], tricky: [], strategy: '', selfCorrect: null, flu: {}, comp: {}, note: '', next: '' }; }
   function draftOf(s) {
-    var d = blank(); d.id = s.id; d.date = s.date;
+    var d = blank(); d.id = s.id; d.pid = s.pupilId; d.date = s.date;
     ['book', 'band', 'pages', 'fit', 'strategy', 'note', 'next'].forEach(function (k) { d[k] = s[k] || ''; });
     Object.keys(LISTS).forEach(function (k) { d[k] = arr(s[k]).slice(); });
     d.selfCorrect = isStep(s.selfCorrect) ? s.selfCorrect : null;
@@ -155,6 +159,8 @@
     var h = host(); if (!h) return;
     var list = pupils();
     if (!pupilId || !list.some(function (p) { return p.id === pupilId; })) pupilId = list.length ? list[0].id : null;
+    /* an edit belongs to the child it was opened for: never carry it to another */
+    if (draft && draft.id && draft.pid !== pupilId) draft = null;
     if (!draft) draft = blank();
     h.innerHTML =
       '<div class="page-header"><h1>Reading</h1>' +
@@ -280,9 +286,13 @@
   }
   function commit(andNext) {
     readInputs();
-    var state = load(), rec = toRecord(draft, pupilId), i = state.sessions.map(function (s) { return s.id; }).indexOf(rec.id);
-    var was = !!draft.id, list = pupils(), idx = list.map(function (p) { return p.id; }).indexOf(pupilId);
-    if (i >= 0) state.sessions[i] = rec; else state.sessions.push(rec);
+    var state = load(), was = draft.id, list = pupils(), idx = list.map(function (p) { return p.id; }).indexOf(pupilId);
+    if (was && draft.pid !== pupilId) { draft = blank(); render(); return; }
+    /* an edit retires the old record and adds a new one (see STORE, above) */
+    draft.id = null;
+    var rec = toRecord(draft, pupilId);
+    if (was) state.sessions.forEach(function (s) { if (s.id === was) { s.del = 1; s.updatedAt = rec.updatedAt; } });
+    state.sessions.push(rec);
     save(state);
     flash = (was ? 'Changes saved for ' : 'Saved for ') + nameOf(pupilId) + ', ' + shortD(rec.date) + '.';
     draft = blank();
@@ -330,7 +340,7 @@
     document.getElementById('rdNew').onclick = function () { draft = blank(); view = 'log'; flash = ''; undoId = null; render(); };
     var u = document.getElementById('rdUndo');
     if (u) u.onclick = function () {
-      var s = load(); s.sessions.forEach(function (x) { if (x.id === undoId) { delete x.del; x.updatedAt = Date.now(); } });
+      var s = load(); s.sessions.forEach(function (x) { if (x.id === undoId) { x.del = 0; x.updatedAt = Date.now(); } });
       save(s); undoId = null; flash = ''; renderChild();
     };
     body.querySelectorAll('[data-rdedit]').forEach(function (b) {

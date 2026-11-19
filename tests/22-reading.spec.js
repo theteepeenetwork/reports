@@ -4,8 +4,10 @@
      1. A session saves under tp_reading_log with roster ids only, empty
         fields left out, and every rating as 0 / 1 / 2.
      2. Each step says what it looks like, and the line follows the tap.
-     3. Edit rewrites the same record; delete keeps it with del: 1 (so a merge
-        cannot bring it back) and Undo restores it.
+     3. Edit retires the old record (del: 1) and adds a new one, and an edit
+        never follows a change of pupil; delete keeps the record with del: 1
+        and Undo sets del: 0. All of this is so a cloud merge, which keeps
+        dropped fields and unions word lists, cannot undo a correction.
      4. Whole class puts never-heard first, then the longest wait.
      5. Last time's next step and the words that keep coming up are shown
         before the next session starts. */
@@ -78,7 +80,7 @@ test('reading: a session saves with words, ratings and guidance', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('reading: edit rewrites the record; delete keeps it hidden and Undo restores it', async ({ page }) => {
+test('reading: edit replaces the record; delete keeps it hidden and Undo restores it', async ({ page }) => {
   const errors = collectErrors(page);
   await open(page, { [KEY]: { sessions: [
     { id: 's1', pupilId: 'p1', date: iso(9), book: 'Old Book', stuck: ['Night', 'could'], gpcs: ['igh'], flu: { pace: 0 }, next: 'Older step' },
@@ -102,9 +104,11 @@ test('reading: edit rewrites the record; delete keeps it hidden and Undo restore
   await page.locator('[data-rdrm="stuck:0"]').click();
   await page.locator('#rdSave').click();
   let s = await saved(page);
-  expect(s.sessions).toHaveLength(2);
-  const e = s.sessions.find(x => x.id === 's2');
-  expect(e.book).toBe('Newer Book');
+  expect(s.sessions).toHaveLength(3);
+  expect(s.sessions.find(x => x.id === 's2')).toMatchObject({ del: 1, book: 'New Book', stuck: ['night'] });
+  const e = s.sessions.find(x => !x.del && x.book === 'Newer Book');
+  expect(e.id).not.toBe('s2');
+  expect(e.pupilId).toBe('p1');
   expect(e.stuck).toBeUndefined();
   expect(e.band).toBe('Blue');
   await expect(page.locator('.rd-session').first()).toContainText('Newer Book');
@@ -116,7 +120,19 @@ test('reading: edit rewrites the record; delete keeps it hidden and Undo restore
   await page.locator('#rdUndo').click();
   await expect(page.locator('.rd-session')).toHaveCount(2);
   s = await saved(page);
-  expect(s.sessions.find(x => x.id === 's1').del).toBeUndefined();
+  expect(s.sessions.find(x => x.id === 's1').del).toBe(0);
+
+  /* an edit left open does not follow a change of pupil */
+  await page.locator('[data-rdedit="s1"]').click();
+  await expect(page.locator('#rdBook')).toHaveValue('Old Book');
+  await page.locator('#rdPupil').selectOption('p2');
+  await expect(page.locator('.rd-editing')).toHaveCount(0);
+  await expect(page.locator('#rdBook')).toHaveValue('');
+  await page.locator('#rdSave').click();
+  s = await saved(page);
+  expect(s.sessions.find(x => x.id === 's1')).toMatchObject({ pupilId: 'p1', book: 'Old Book', del: 0 });
+  expect(s.sessions.filter(x => x.pupilId === 'p2')).toHaveLength(1);
+  expect(s.sessions.find(x => x.pupilId === 'p2').book).toBeUndefined();
   expect(errors).toEqual([]);
 });
 

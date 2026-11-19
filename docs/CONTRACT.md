@@ -172,7 +172,9 @@ note, next, updatedAt, del? } ] }`. Only `id`, `pupilId` and `date` are always p
 Every rating is `0` not yet, `1` sometimes, `2` secure; absent = not rated. `fit` is `easy|right|hard`; `strategy` is
 `sounds|head|sight|guess`; `band` is a name from `BANDS`. These ids are permanent: add, never rename.
 A deleted session stays in the list with `del: 1` and readers skip it, because lists of `{id}` records merge by id and a
-removed record would come back from another device. Roster ids only, no names.
+removed record would come back from another device. Undo sets `del: 0`; it never removes the field. A saved record is
+never rewritten: an edit sets `del: 1` on the old record and appends a new one under a new id, because the merge keeps
+object fields one side dropped and unions lists of plain values, so a cleared note or a removed word would return. Roster ids only, no names.
 
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)
 Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes
