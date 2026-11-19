@@ -498,6 +498,8 @@ function doRender(){
   dr.innerHTML=open?panelHtml(S.ui.pupil):"";
   if(open)dr.setAttribute("aria-label",S.pupils[S.ui.pupil].name+" — spellings");
   drawCrops();
+  /* the ten words open under the grid, which can be a screen or more below the square that was tapped */
+  if(S.ui.sqShow){S.ui.sqShow=false;const b=$("#sqbar");if(b&&b.scrollIntoView)b.scrollIntoView({block:"nearest"})}
   /* at phone width Mark's pupils are a strip: keep the child being marked in view */
   const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
@@ -568,7 +570,7 @@ VIEWS.class=function(){
   const top=classMissed(assessed).slice(0,5),wrote=classWrote(assessed).slice(0,4),slips=slip.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const none=t=>`<span class="muted small">${nA?t:"This appears after the first test is marked."}</span>`;
   h+=`<div class="three">
-   <section class="panel stack" aria-labelledby="i1" style="align-content:start"><h3 id="i1">Teach to the class</h3><div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Every assessed word is correct.")}</div>${top.length?'<p class="muted small">children still getting it wrong</p>':""}</section>
+   <section class="panel stack" aria-labelledby="i1" style="align-content:start"><h3 id="i1">Teach to the class</h3><div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Every assessed word is correct.")}</div>${top.length?'<p class="muted small">children still getting it wrong</p><div><button type="button" class="linkbtn" data-a="goPrint" data-k="wotd">Print these as Word of the day →</button></div>':""}</section>
    <section class="panel stack" aria-labelledby="i2" style="align-content:start"><h3 id="i2">What they wrote</h3>${wrote.length?`<div style="font-size:14px;line-height:1.9">${wrote.map(([i,r,n])=>`<span class="wd">${esc(WORDS[i])} → “${esc(r)}”</span> <span class="muted small">×${n}</span>`).join("<br>")}</div>`:none("Add what children wrote in Mark to see their misspellings here.")}</section>
    <section class="panel stack" aria-labelledby="i3" style="align-content:start"><h3 id="i3">Slipping</h3><div class="chips">${slips.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Nothing has slipped.")}</div>${slips.length?'<p class="muted small">right before, wrong last time</p>':""}</section>
   </div>`;
@@ -1865,7 +1867,7 @@ const A={
   pStep:el=>{const ids=pupilIds(),k=ids.indexOf(S.ui.pupil);if(k<0||!ids.length)return;S.ui.pupil=ids[(k+ +el.dataset.d+ids.length)%ids.length];S.ui.confirm=null;S.ui.checksOpen=false;$("#drawer").scrollTop=0},
   toggleChecks:(el,e)=>{e.preventDefault();S.ui.checksOpen=!S.ui.checksOpen},
   cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
-  sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.cell=null},
+  sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.cell=null;S.ui.sqShow=!!S.ui.sq},
   closeSq:()=>{S.ui.sq=null;S.ui.cell=null},
   classGrid:el=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}/* the grid prints the list on show here; Print keeps its own list, with the pages and bands that go with it */
     const P=S.ui.print,keep=P.list;P.list=+el.dataset.k;try{PDF.grid()}finally{P.list=keep}return "skip"},

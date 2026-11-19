@@ -497,6 +497,11 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   await expect(frame.locator('.bandcol[data-set="0"] .nm')).toHaveText(['Tam']);
   await expect(frame.locator('#main')).toContainText('1 child has moved on past this list');
   await expect(frame.locator('section[aria-labelledby="i2"]')).toContainText('was → “woz”');
+  /* Teach to the class: classMissed(), with how many children, and the posters for those words */
+  await expect(frame.locator('section[aria-labelledby="i1"] .wchip')).toHaveText(['was1', 'you1']);
+  await frame.locator('section[aria-labelledby="i1"]').getByRole('button', { name: /Word of the day/ }).click();
+  await expect(frame.locator('#cfgH')).toHaveText('Word of the day');
+  await frame.locator('#nav button', { hasText: 'Class' }).click();
   await frame.locator('.bandcol[data-set="1"] .nm').click();
   await expect(frame.locator('#drawer')).toContainText('Kit Marlow');
   await page.keyboard.press('Escape');
@@ -518,6 +523,7 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   await row.locator('.cell').nth(1).click();
   const bar = frame.locator('#sqbar');
   await expect(bar).toContainText('Kit Marlow · Red 11–20 · 8/10');
+  await expect(bar).toBeInViewport();
   await expect(bar.locator('button.wchip')).toHaveCount(10);
   await expect(bar.locator('button.wchip.ok')).toHaveCount(8);
   await expect(bar.locator('button.wchip.no')).toHaveText([/^was/, /^you/]);
