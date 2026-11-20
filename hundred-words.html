@@ -2155,10 +2155,13 @@ function loadDemo(){
     if(k%3===0){const b={};let n=0;for(let i=0;i<100&&n<6;i++){if(sessions[id+"_2026-10-06"].words[i].s!=="c"){b[i]=1+Math.floor(rnd()*3);n++}}practice[id]={boxes:b,log:[]}}
   });
   Object.assign(S,{pupils,sessions,practice,plans:{},tests:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
+  /* a pending Undo belongs to the class that was on show: it must not write into this one */
+  toast("");S.ui.tests.confirm=null;
   S.ui.jobs=[];S.ui.ai=null;setTab(DEFAULT_TAB);render();
 }
 function exitDemo(){
   if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,tests:saved.tests,settings:saved.settings,mode:saved.mode});saved=null}
+  toast("");S.ui.tests.confirm=null;
   S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
 }
 

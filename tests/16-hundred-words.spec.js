@@ -1230,3 +1230,19 @@ test('Delete test and its marks never removes marks another test uses', async ({
   await expect(frame.locator('.trow[data-test="t1"]')).toHaveCount(1);
   expect(await stored()).toEqual(before);
 });
+
+test('An Undo from the example class is gone once the example class is left', async ({ page }) => {
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = '[]';
+  const frame = await openHW(page, extra);
+  await frame.getByRole('button', { name: 'Explore an example class' }).click();
+  await frame.locator('.trow [data-a="tMark"]').first().click();
+  await frame.locator('#mDel').click();
+  await frame.getByRole('alertdialog').getByRole('button', { name: 'Delete test and its marks' }).click();
+  await expect(frame.locator('#toast').getByRole('button', { name: 'Undo' })).toBeVisible();
+  await frame.getByRole('button', { name: 'Start my own class' }).click();
+  await expect(frame.locator('#toast')).toBeEmpty();
+  /* and nothing from the example class reached this class's own data */
+  const doc = JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')) || '{}');
+  expect(Object.keys(doc.sessions || {})).toEqual([]);
+});
