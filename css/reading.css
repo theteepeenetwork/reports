@@ -1,0 +1,91 @@
+/* reading.css — 1:1 Reading tracker, js/reading.js. Owner: Desk.
+   The three steps are always written out (Not yet / Sometimes / Secure),
+   never colour alone. */
+
+.rd-tabs { margin-bottom: 14px; }
+#page-reading .card h3 { margin: 0 0 10px; font-size: 16px; }
+#page-reading .card + .card { margin-top: 12px; }
+
+.rd-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rd-who select { width: auto; min-width: 200px; font-size: 16px; font-weight: 700; }
+.rd-who .grow { flex: 1; }
+.rd-date, .rd-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: var(--muted); }
+.rd-date { margin-left: 6px; }
+.rd-toggle { white-space: nowrap; cursor: pointer; }
+.rd-toggle input { width: auto; flex: none; margin: 0; }
+.rd-date input { width: 165px; }
+
+.rd-last { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: var(--line-2); font-size: 14px; line-height: 1.6; }
+.rd-last > div { margin-top: 4px; }
+.rd-flash { margin-top: 12px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--success); background: var(--success-50); color: var(--success); font-weight: 700; font-size: 14px; }
+.rd-editing { margin-top: 12px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--gold-100); background: var(--gold-50); color: var(--gold-600); font-weight: 700; font-size: 14px; }
+.rd-lab { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+
+.rd-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+.rd-field { margin-top: 10px; min-width: 0; }
+.rd-grid .rd-field { margin-top: 0; }
+.rd-field > label { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.rd-field input[type="text"], .rd-field select, .rd-field textarea { width: 100%; box-sizing: border-box; }
+
+.rd-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--card); }
+.rd-chips input[type="text"] { flex: 1; min-width: 140px; width: auto; border: 0; padding: 6px; background: none; box-shadow: none; outline-offset: 2px; }
+.rd-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; font-weight: 700; margin: 1px 2px 1px 0; }
+.rd-chip.ok { background: var(--success-50); border-color: var(--success); color: var(--success); }
+.rd-chip.no { background: var(--coral-50); border-color: var(--coral-500); color: var(--coral-600); }
+.rd-chip button { background: none; border: 0; padding: 0 2px; min-width: 22px; min-height: 22px; color: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+.rd-chip button:hover { background: none; transform: none; opacity: .7; }
+
+.rd-rate { display: grid; grid-template-columns: 130px auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line-2); }
+.rd-rate:first-of-type { border-top: 0; }
+.rd-rate-t { font-weight: 700; }
+.rd-steps { display: flex; flex-wrap: wrap; gap: 6px; }
+.rd-step { padding: 8px 14px; min-height: 40px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink); font-weight: 700; cursor: pointer; }
+.rd-step:hover { transform: none; background: var(--line-2); border-color: var(--muted); }
+.rd-step.active, .rd-step.active:hover { background: var(--ink); border-color: var(--ink); color: var(--card); }
+.rd-step.rd-s0.active, .rd-step.rd-s0.active:hover { background: var(--coral-50); border-color: var(--coral-500); color: var(--coral-600); }
+.rd-step.rd-s1.active, .rd-step.rd-s1.active:hover { background: var(--gold-50); border-color: var(--gold-600); color: var(--gold-600); }
+.rd-step.rd-s2.active, .rd-step.rd-s2.active:hover { background: var(--success-50); border-color: var(--success); color: var(--success); }
+.rd-guide { grid-column: 2; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.rd-guide.all span { display: block; }
+.rd-guide.all span.on { color: var(--ink); font-weight: 600; }
+.rd-guide.all b { display: inline-block; min-width: 82px; }
+
+.rd-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+.rd-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; font-weight: 700; margin: 1px 4px 1px 0; white-space: nowrap; }
+.rd-pill.rd-s0 { background: var(--coral-50); border-color: var(--coral-500); color: var(--coral-600); }
+.rd-pill.rd-s1 { background: var(--gold-50); border-color: var(--gold-600); color: var(--gold-600); }
+.rd-pill.rd-s2 { background: var(--success-50); border-color: var(--success); color: var(--success); }
+.rd-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--muted); margin-right: 5px; vertical-align: -1px; }
+.rd-arrow { color: var(--faint); margin: 0 4px 0 0; }
+
+.rd-sum { margin: 12px 0 6px; font-size: 14.5px; }
+.rd-row { margin-top: 6px; font-size: 14px; line-height: 1.7; }
+.rd-print-name { display: none; }
+.rd-session-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.rd-session-h span { color: var(--muted); font-size: 14px; }
+.rd-session-h .grow { flex: 1; }
+
+.rd-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.rd-table th { text-transform: none; letter-spacing: 0; color: var(--muted); font-size: 12.5px; }
+.rd-table th, .rd-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+.rd-table .name { text-align: left; }
+.rd-table td.name:last-child { white-space: normal; }
+.rd-name { background: none; border: 0; padding: 4px 0; color: var(--ink); font-weight: 700; cursor: pointer; }
+.rd-name:hover { background: none; transform: none; text-decoration: underline; }
+.rd-due { color: var(--gold-600); font-weight: 700; }
+.rd-late, .rd-never { color: var(--coral-600); font-weight: 700; }
+
+@media (max-width: 640px) {
+  .rd-grid { grid-template-columns: 1fr 1fr; }
+  .rd-grid .wide { grid-column: 1 / -1; }
+  .rd-rate { grid-template-columns: 1fr; }
+  .rd-guide { grid-column: 1; }
+}
+
+@media print {
+  .rd-noprint { display: none !important; }
+  #page-reading .page-header p { display: none; }
+  .rd-print-name { display: block; }
+  .rd-session { break-inside: avoid; }
+}

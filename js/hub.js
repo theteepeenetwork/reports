@@ -42,6 +42,7 @@
       bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
       type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
       pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+      book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
       ruler: '<path d="M3 15l6-6 3 3 3-3 3 3 3-3"/><path d="M3 15v4h18v-4"/><path d="M7 15v-2M11 15v-2M15 15v-2"/>'
     };
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (P[name] || '') + '</svg>';
@@ -1541,6 +1542,8 @@
     { page: 'hundred-words', label: 'Spellings', icon: 'type' },
     /* letters and joins, ticked off in Oak's order (js/handwriting.js) */
     { page: 'handwriting', label: 'Handwriting', icon: 'pen' },
+    /* hearing a child read, one to one (js/reading.js) */
+    { page: 'reading', label: 'Reading', icon: 'book' },
     { page: 'reports', label: 'Reports', icon: 'file-text' },
     { section: 'Organise' },
     { page: 'timetable', label: 'Timetable', icon: 'calendar' },
@@ -2328,6 +2331,7 @@
     else if (page === 'settings') { if (typeof renderClassManager === 'function') renderClassManager(); if (typeof renderProfile === 'function') renderProfile(); }
     else if (page === 'cbm' && typeof window.cbmRender === 'function') window.cbmRender();
     else if (page === 'handwriting' && typeof window.hwRender === 'function') window.hwRender();
+    else if (page === 'reading' && typeof window.rdRender === 'function') window.rdRender();
   }
 
   /* ===================================================================

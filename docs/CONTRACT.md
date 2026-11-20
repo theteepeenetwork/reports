@@ -163,6 +163,19 @@ stored here, only roster ids.
 no entry = not assessed; `d` the date it was assessed. Item ids are permanent: `l:<letter>`, `c:<capital>`,
 `n:<0–10>`, `j:<pair>`, `x:brk`. Add items, never rename one. Roster ids only, no names.
 
+## Reading (1:1): `tp_reading_log` (Nov 2026)
+`js/reading.js`, route `#reading`. One per-class key, **`tp_reading_log`** (in `DATA_KEYS` and `TP_PER_CLASS`). Not
+`tp_reading_groups`, which is the legacy groups-migration source.
+`{ sessions: [ { id, pupilId, date: 'YYYY-MM-DD', book, band, pages, fit, blended: [word], stuck: [word], gpcs: [grapheme],
+tricky: [word], strategy, selfCorrect, flu: { pace, expr, punct }, comp: { retell, retrieve, infer, predict, vocab },
+note, next, updatedAt, del? } ] }`. Only `id`, `pupilId` and `date` are always present; read the rest with a default.
+Every rating is `0` not yet, `1` sometimes, `2` secure; absent = not rated. `fit` is `easy|right|hard`; `strategy` is
+`sounds|head|sight|guess`; `band` is a name from `BANDS`. These ids are permanent: add, never rename.
+A deleted session stays in the list with `del: 1` and readers skip it, because lists of `{id}` records merge by id and a
+removed record would come back from another device. Undo sets `del: 0`; it never removes the field. A saved record is
+never rewritten: an edit sets `del: 1` on the old record and appends a new one under a new id, because the merge keeps
+object fields one side dropped and unions lists of plain values, so a cleared note or a removed word would return. Roster ids only, no names.
+
 ## Naming: Glow Getters vs `tp_battler` (Sep 2026)
 Glow Getters was called "the battler" internally. The rename covers files, functions, CSS classes
 and routes (`js/glow.js`, `gg*`, `.gg-*`, `#glow`) — it does NOT cover storage. The key stays
