@@ -2012,7 +2012,7 @@ const A={
     /* with nobody in the test Mark would fall back to the whole class, and mark children who never sat it */
     if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");S.ui.tests.open=t.id;return}
     S.ui.tests.confirm=null;loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
-  tMarkOne:()=>{markOne();setTab("mark");window.scrollTo({top:0})},
+  tMarkOne:()=>{/* a 1:1 check is today's, not the date of the test last opened */S.ui.date=localDate();markOne();setTab("mark");window.scrollTo({top:0})},
   tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
   tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
   tPlan:()=>{const U=S.ui.tests;U.plan=U.plan?null:{date:nextThursday()}},
