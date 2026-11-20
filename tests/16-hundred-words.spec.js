@@ -476,12 +476,12 @@ test('Tests: change the date, edit the words or children, and delete with a conf
   await expect(row('t1').locator('.tacts button').last()).toHaveText('Carry on marking');
 
   /* delete asks first, and says the marks go too */
-  await det.getByRole('button', { name: 'Delete test' }).click();
-  await expect(det).toContainText('The marks 1 child has for it are deleted too');
+  await det.getByRole('button', { name: 'Delete test', exact: true }).click();
+  await expect(det).toContainText('1 child already has marks from it');
   await det.getByRole('button', { name: 'Cancel' }).click();
   expect((await stored()).tests.t1).toBeTruthy();
-  await det.getByRole('button', { name: 'Delete test' }).click();
-  await det.getByRole('button', { name: 'Delete test and marks' }).click();
+  await det.getByRole('button', { name: 'Delete test', exact: true }).click();
+  await det.getByRole('button', { name: 'Delete test and its marks' }).click();
   await expect(row('t1')).toHaveCount(0);
   doc = await stored();
   expect(doc.tests.t1).toBeUndefined();
@@ -502,8 +502,8 @@ test('Tests: change the date, edit the words or children, and delete with a conf
   await det.getByRole('button', { name: 'Change date' }).click();
   await frame.locator('#tDate').fill('2026-10-01');
   await det.getByRole('button', { name: 'Save date' }).click();
-  await det.getByRole('button', { name: 'Delete test' }).click();
-  await det.getByRole('button', { name: 'Delete test and marks' }).click();
+  await det.getByRole('button', { name: 'Delete test', exact: true }).click();
+  await det.getByRole('button', { name: 'Delete test and its marks' }).click();
   await page.evaluate(s => { const d = JSON.parse(localStorage.getItem('tp_hundred_words::b')); d.sessions = s; d.tests = {}; localStorage.setItem('tp_hundred_words::b', JSON.stringify(d)); }, oldSessions());
   await expect(frame.locator('.day[data-date="2026-10-01"] .trow')).toHaveCount(2);
   doc = await stored();
@@ -1108,4 +1108,125 @@ test('Data saved before the Tests redesign loads unchanged and gives every pupil
   expect(await page.evaluate(() => localStorage.getItem('tp_hundred_words'))).toBe(before);
   expect(await results()).toEqual(snap.expected);
   expect(errors).toEqual([]);
+});
+
+/* ----- deleting a test: from Mark and from Tests, one shared delete ----- */
+const DEL_WORDS = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
+const delMarks = () => Object.fromEntries(DEL_WORDS.map((i, k) => [i, { s: k < 8 ? 'c' : 'x' }]));
+function delSeed(over) {
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ practice: {}, plans: {}, settings: {},
+    sessions: { 'x1_2030-01-10': { pupilId: 'x1', date: '2030-01-10', kind: 'spelling', words: delMarks(), photos: [], updatedAt: 7 } },
+    tests: { t1: { date: '2030-01-10', title: '100 HFW 21–30', whole: false, words: DEL_WORDS, pids: ['x1', 'x2'], createdAt: 5 } }, ...over });
+  return extra;
+}
+async function delOpen(page, over) {
+  const extra = delSeed(over);
+  const before = JSON.parse(extra['tp_hundred_words::b']);
+  const frame = await openHW(page, extra);
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+  const toMark = async () => { await frame.locator('.trow[data-test="t1"] [data-a="tMark"]').click(); await expect(frame.locator('.markcard')).toBeVisible(); };
+  const toDetail = async () => { await frame.locator('.trow[data-test="t1"] .tname').click(); await expect(frame.locator('#tDet')).toBeVisible(); };
+  return { frame, before, stored, toMark, toDetail, dlg: frame.getByRole('alertdialog') };
+}
+const onTests = async frame => {
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('.tbar')).toBeVisible();
+};
+
+for (const from of ['Mark', 'Tests']) {
+  test(`Delete test from ${from}: keep the marks, or delete them too, each with Undo`, async ({ page }) => {
+    const errors = collectErrors(page);
+    const { frame, before, stored, toMark, toDetail, dlg } = await delOpen(page);
+    const ask = async () => {
+      /* Cancel leaves you where you were; a delete or an Undo ends on Tests with the test closed */
+      if (from === 'Mark') { if (!(await frame.locator('.markcard').count())) await toMark(); await frame.locator('#mDel').click(); }
+      else { if (!(await frame.locator('#tDet').count())) await toDetail(); await frame.locator('#tDet').getByRole('button', { name: 'Delete test', exact: true }).click(); }
+      await expect(dlg).toBeVisible();
+    };
+
+    /* the confirm names the test and its date, and says how many children have marks */
+    await ask();
+    await expect(dlg.locator('#delH')).toHaveText(/^Delete “Group · 100 HFW 21–30” on Thu,? 10 Jan\?$/);
+    await expect(dlg).toContainText('1 child already has marks from it');
+    await expect(dlg.getByRole('button')).toHaveText(['Delete test, keep the marks', 'Delete test and its marks', 'Cancel']);
+    await expect(dlg.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    if (from === 'Mark') await expect(frame.locator('#mDel')).toHaveAttribute('aria-expanded', 'true');
+    await dlg.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dlg).toHaveCount(0);
+    expect(await stored()).toEqual(before);
+
+    /* keep the marks: only the record goes, and the session still counts */
+    await ask();
+    await dlg.getByRole('button', { name: 'Delete test, keep the marks' }).click();
+    await onTests(frame);
+    await expect(frame.locator('#toast')).toContainText('Test deleted. The marks for 1 child were kept.');
+    await expect(frame.locator('.trow[data-test="t1"]')).toHaveCount(0);
+    let doc = await stored();
+    expect(doc.tests.t1).toBeUndefined();
+    expect(doc.sessions).toEqual(before.sessions);
+    await frame.locator('#toast').getByRole('button', { name: 'Undo' }).click();
+    await expect(frame.locator('.trow[data-test="t1"]')).toHaveCount(1);
+    await expect(frame.locator('#toast')).toHaveText('Test put back');
+    expect(await stored()).toEqual(before);
+
+    /* delete the marks too */
+    await ask();
+    await dlg.getByRole('button', { name: 'Delete test and its marks' }).click();
+    await onTests(frame);
+    await expect(frame.locator('#toast')).toContainText('Test and its marks deleted.');
+    await expect(frame.locator('.trow')).toHaveCount(0);
+    doc = await stored();
+    expect(doc.tests.t1).toBeUndefined();
+    expect(doc.sessions['x1_2030-01-10']).toBeUndefined();
+    /* Undo puts back exactly what was removed: the record and the session */
+    await frame.locator('#toast').getByRole('button', { name: 'Undo' }).click();
+    await expect(frame.locator('.trow[data-test="t1"] .tprog')).toContainText('1 of 2 marked');
+    expect(await stored()).toEqual(before);
+    expect(Object.keys(await page.evaluate(() => ({ ...localStorage }))).filter(k => /hundred/.test(k)), 'no new storage keys').toEqual(['tp_hundred_words::b']);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('Delete test with nothing marked: only Delete test and Cancel, from Mark and from Tests', async ({ page }) => {
+  const { frame, before, stored, toMark, toDetail, dlg } = await delOpen(page, { sessions: {} });
+  await toDetail();
+  await frame.locator('#tDet').getByRole('button', { name: 'Delete test', exact: true }).click();
+  await expect(dlg).toContainText('Nothing has been marked for it yet.');
+  await expect(dlg.getByRole('button')).toHaveText(['Delete test', 'Cancel']);
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+
+  await toMark();
+  await frame.locator('#mDel').click();
+  await expect(dlg.getByRole('button')).toHaveText(['Delete test', 'Cancel']);
+  await dlg.getByRole('button', { name: 'Delete test' }).click();
+  await onTests(frame);
+  await expect(frame.locator('#toast')).toContainText('Test deleted.');
+  expect((await stored()).tests.t1).toBeUndefined();
+  await frame.locator('#toast').getByRole('button', { name: 'Undo' }).click();
+  await expect(frame.locator('.trow[data-test="t1"]')).toHaveCount(1);
+  expect(await stored()).toEqual(before);
+});
+
+test('Delete test and its marks never removes marks another test uses', async ({ page }) => {
+  /* t2 is on the same day and covers Kit and the same ten words; Nell is only in t1 */
+  const nell = { pupilId: 'x2', date: '2030-01-10', kind: 'spelling', words: delMarks(), photos: [], updatedAt: 8 };
+  const base = JSON.parse(delSeed()['tp_hundred_words::b']);
+  const { frame, before, stored, toMark, dlg } = await delOpen(page, {
+    sessions: { ...base.sessions, 'x2_2030-01-10': nell },
+    tests: { ...base.tests, t2: { date: '2030-01-10', title: '100 HFW 21–40', whole: false, words: [...DEL_WORDS, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], pids: ['x1', 'x3'], createdAt: 6 } } });
+  await toMark();
+  await frame.locator('#mDel').click();
+  await expect(dlg).toContainText('2 children already have marks from it');
+  await expect(dlg).toContainText('Marks another test also uses are kept either way.');
+  await dlg.getByRole('button', { name: 'Delete test and its marks' }).click();
+  await onTests(frame);
+  const doc = await stored();
+  expect(Object.keys(doc.tests)).toEqual(['t2']);
+  expect(doc.sessions['x1_2030-01-10'], 'Kit’s marks are still t2’s').toEqual(before.sessions['x1_2030-01-10']);
+  expect(doc.sessions['x2_2030-01-10']).toBeUndefined();
+  await frame.locator('#toast').getByRole('button', { name: 'Undo' }).click();
+  await expect(frame.locator('.trow[data-test="t1"]')).toHaveCount(1);
+  expect(await stored()).toEqual(before);
 });

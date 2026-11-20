@@ -348,6 +348,12 @@ td.score small{display:block;font-size:11px;line-height:1}
 .sec label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:30;max-width:calc(100% - 32px)}
 .toast:empty{display:none}
+.tundo{font:inherit;font-weight:700;color:inherit;background:none;border:0;text-decoration:underline;cursor:pointer;min-height:36px;padding:0 6px}
+.btn.danger{background:var(--no);border-color:var(--no);color:var(--card)}
+.delc{border:1.5px solid var(--no-line);background:var(--no-soft);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.delc .delh{font-size:17px;font-weight:800;color:var(--no-ink)}
+.delc .deld{font-size:14px;color:var(--ink-2);max-width:75ch}
+.markbar .mdel{color:var(--no-ink);border-color:var(--no-line)}
 .empty{text-align:center;padding:30px 16px;display:grid;gap:10px;justify-items:center}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
@@ -415,7 +421,10 @@ let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
 let memo={};
 
-function toast(msg){const t=$("#toast");t.textContent=msg;clearTimeout(toast.t);toast.t=setTimeout(()=>t.textContent="",3600)}
+/* with `undo`, the toast carries an Undo button and stays up longer */
+function toast(msg,undo){const t=$("#toast");t.textContent=msg;toast.undo=undo||null;
+  if(undo){const b=document.createElement("button");b.type="button";b.className="tundo";b.dataset.a="toastUndo";b.textContent="Undo";t.append(" ",b)}
+  clearTimeout(toast.t);toast.t=setTimeout(()=>{t.textContent="";toast.undo=null},undo?10000:3600)}
 const writeChains={};
 function saveDoc(col,id,data){
   if(col==="settings")S.settings=data;else S[col][id]=data;
@@ -503,7 +512,8 @@ function doRender(){
   /* at phone width Mark's pupils are a strip: keep the child being marked in view */
   const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
-  if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
+  if(S.ui.delFocus){S.ui.delFocus=false;const c=$("#delCancel");if(c)c.focus()}
+  else if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
   else if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
 }
 function bannerHtml(){
@@ -822,11 +832,41 @@ function moveTest(t,date){
   saveTest(id,{...t,date});
   return id;
 }
-/* Deleting a test deletes its marks too (the teacher is told how many
-   children that is), except marks another saved test that day also covers. */
-function deleteTest(t){
-  cutMarks(t,sharedMarks(t));
-  if(t.saved)removeDoc("tests",t.id);
+/* Deleting a test, from Tests or from Mark. With `keepMarks` only its
+   record goes: the sessions stay and still count towards progress.
+   Otherwise its marks go too, except marks another saved test that day
+   also covers (the rule moveTest uses). Returns the undo, which puts back
+   the record and exactly the marks that were taken. */
+function deleteTest(t,keepMarks){
+  const rec=t.saved?S.tests[t.id]:null,was={};
+  if(!keepMarks){for(const p of t.pids)for(const sid of sesIds(p,t.date))was[sid]=S.sessions[sid];cutMarks(t,sharedMarks(t))}
+  if(rec)removeDoc("tests",t.id);
+  const gone=[];
+  for(const [sid,a] of Object.entries(was)){const left=S.sessions[sid],now=(left&&left.words)||{},words={};
+    for(const [k,w] of Object.entries(a.words||{}))if(!(k in now))words[k]=w;
+    if(Object.keys(words).length)gone.push([sid,a,left,words])}
+  return ()=>{
+    if(rec)saveDoc("tests",t.id,rec);
+    /* a session nobody has touched since goes back as it was; one marked again meanwhile keeps its new marks */
+    for(const [sid,a,left,words] of gone){const b=S.sessions[sid];saveDoc("sessions",sid,b&&b!==left?{...b,words:{...words,...b.words},updatedAt:Date.now()}:a)}
+  };
+}
+/* how many children have any mark from a test */
+const testMarked=t=>Object.values(testStats(t).done).filter(Boolean).length;
+/* The inline confirm for deleting a test, the same on Tests and in Mark.
+   A past test has no record, only its marks, so it cannot be deleted and
+   its marks kept. */
+function deleteConfirm(t){
+  const n=testMarked(t),id=esc(t.id),sh=sharedMarks(t),shared=n&&t.pids.some(p=>{const w=marksOn(p,t.date);return t.words.some(i=>w[i]&&sh(p,i))});
+  const kids=n===1?"1 child already has":n+" children already have";
+  const why=!n?"Nothing has been marked for it yet."
+    :t.saved?`${kids} marks from it. Keeping the marks means they still count towards each child’s progress, and Tests goes on listing them as a past test on that date.`
+    :`${kids} marks from it. This test is made from those marks, so deleting it deletes them.`;
+  return `<div class="delc" id="delC" role="alertdialog" aria-labelledby="delH" aria-describedby="delD">
+   <div class="delh" id="delH">Delete “${esc(testKind(t))} · ${esc(t.title)}” on ${fmtDay(t.date)}?</div>
+   <div class="deld" id="delD">${why}${shared?" Marks another test also uses are kept either way.":""}</div>
+   <div class="row" style="gap:8px">${!n?`<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test</button>`
+     :`${t.saved?`<button type="button" class="btn" data-a="tDelete" data-keep="1" data-id="${id}">Delete test, keep the marks</button>`:""}<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test and its marks</button>`}<button type="button" class="btn ghost" id="delCancel" data-a="tEditCancel">Cancel</button></div></div>`;
 }
 const TFILTERS=[["all","All tests"],["todo","Still to mark"],["done","Fully marked"]];
 VIEWS.tests=function(){
@@ -885,7 +925,7 @@ function testDetail(t,st){
      <div class="popt"><span class="optl">Children</span><div class="row" role="group" aria-label="Children" style="gap:6px">${pupilIds().map(p=>`<button type="button" class="f sq" data-a="tEditPid" data-id="${p}" aria-pressed="${E.pids.includes(p)}">${esc(S.pupils[p].name)}</button>`).join("")}</div>
       <div class="row small" style="gap:4px 18px"><button type="button" class="linkbtn small" data-a="tEditAll">Select all</button><button type="button" class="linkbtn small" data-a="tEditNone">Select none</button></div></div>
      <div class="row"><button type="button" class="btn primary" data-a="tEditSave">Save test</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button><span class="muted small">${E.sets.length*10} words · ${E.pids.length===1?"1 child":E.pids.length+" children"}. Marks already entered are kept.</span></div></div>`}
-  else if(U.confirm===t.id)h+=`<div class="row"><span style="font-size:14px"><b>Delete this test?</b> ${nMarks?`The marks ${nMarks===1?"1 child has":nMarks+" children have"} for it are deleted too. This can’t be undone.`:"Nothing has been marked for it."}</span><button type="button" class="btn no" data-a="tDelete" data-id="${id}">${nMarks?"Delete test and marks":"Delete test"}</button><button type="button" class="btn ghost" data-a="tEditCancel">Cancel</button></div>`;
+  else if(U.confirm===t.id)h+=deleteConfirm(t);
   else h+=`<div class="row" style="gap:8px"><button type="button" class="btn sm" data-a="tEdit" data-mode="date" data-id="${id}">Change date</button><button type="button" class="btn sm" data-a="tEdit" data-mode="edit" data-id="${id}">Edit words or children</button><button type="button" class="btn sm no" data-a="tAskDelete" data-id="${id}">Delete test</button></div>`;
   return h+`</div></div>`;
 }
@@ -973,7 +1013,9 @@ function markView(){
     <input type="date" id="qDate" data-c="date" value="${date}" aria-label="${q.only?"Date of this test":"Date"}">
     <div class="seg" role="group" aria-label="Kind of check"><button type="button" data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button><button type="button" data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button></div>
     <span style="flex:1"></span><span class="muted small">Saved as you tap</span>
+    ${T?`<button type="button" class="btn mdel" id="mDel" data-a="tAskDelete" data-id="${esc(T.id)}" aria-expanded="${S.ui.tests.confirm===T.id}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete test</button>`:""}
   </div>
+  ${T&&S.ui.tests.confirm===T.id?deleteConfirm(T):""}
   <div class="marklay">
    <section class="panel plist" aria-label="Pupils in this test">
     <div class="phead"><b>${list.length} pupil${list.length===1?"":"s"}</b><span class="muted small">${q.only?`${doneN} done`:""}</span></div>
@@ -1928,7 +1970,7 @@ function decide(sid,i,s){
   saveDoc("sessions",sid,{...ses,words});
 }
 const A={
-  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;window.scrollTo({top:0})},
+  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;S.ui.tests.confirm=null;window.scrollTo({top:0})},
   openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null;S.ui.checksOpen=false;S.ui.panelFocus=true},
   closePupil:()=>{S.ui.pupil=null},
   pStep:el=>{const ids=pupilIds(),k=ids.indexOf(S.ui.pupil);if(k<0||!ids.length)return;S.ui.pupil=ids[(k+ +el.dataset.d+ids.length)%ids.length];S.ui.confirm=null;S.ui.checksOpen=false;$("#drawer").scrollTop=0},
@@ -1968,7 +2010,7 @@ const A={
   tMark:el=>{const t=findTest(el.dataset.id);if(!t)return;
     /* with nobody in the test Mark would fall back to the whole class, and mark children who never sat it */
     if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");S.ui.tests.open=t.id;return}
-    loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
+    S.ui.tests.confirm=null;loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
   tMarkOne:()=>{markOne();setTab("mark");window.scrollTo({top:0})},
   tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
   tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
@@ -1999,8 +2041,13 @@ const A={
     /* marks already on that date for the same words would be replaced: say so, and move only when told to */
     const clash=E.date===t.date?0:moveClashes(t,E.date).length;if(clash&&!el.dataset.force){E.clash=clash;return}
     const id=moveTest(t,E.date);U.edit=null;U.open=id;toast(`Test moved to ${fmtDay(E.date)}`)},
-  tAskDelete:el=>{S.ui.tests.confirm=el.dataset.id;S.ui.tests.edit=null},
-  tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;deleteTest(t);U.confirm=null;U.open=null;toast("Test deleted")},
+  tAskDelete:el=>{const U=S.ui.tests,on=U.confirm!==el.dataset.id;U.confirm=on?el.dataset.id:null;U.edit=null;S.ui.delFocus=on},
+  /* from Tests or from Mark; both end on Tests, with an Undo */
+  tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;
+    const n=testMarked(t),keep=!!el.dataset.keep&&t.saved,undo=deleteTest(t,keep);U.confirm=null;U.open=null;
+    if(S.tab==="mark"){S.ui.quick.test=null;setTab("tests");window.scrollTo({top:0})}
+    toast(!n?"Test deleted.":keep?`Test deleted. The marks for ${n===1?"1 child":n+" children"} were kept.`:"Test and its marks deleted.",()=>{undo();toast("Test put back")})},
+  toastUndo:()=>{const f=toast.undo;if(f)f()},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
