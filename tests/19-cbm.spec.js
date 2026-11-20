@@ -1243,7 +1243,7 @@ test('the back page is chosen for each child; ✓ / ✗ for a square moves the s
   await page.locator('#cbmXbAdd').selectOption('p2');
   await page.locator('[data-xbpid="p2"] [data-pupil="p2"]').click();
   const panel = page.locator('#cbmPanel .cbm-panel');
-  await expect(panel.getByLabel('Tables square')).toBeChecked();
+  await expect(panel.getByRole('radio', { name: /^Times tables/ })).toBeChecked();
   await panel.getByLabel('Nothing').check();
   await page.keyboard.press('Escape');
   await page.locator('[data-xbpid="p1"] [data-pupil="p1"]').click();
@@ -1309,9 +1309,9 @@ test('the back page is chosen for each child; ✓ / ✗ for a square moves the s
   await page.locator('.cbm-tab[data-view="progress"]').click();
   await page.locator('[data-pview="tables"]').click();
   await expect(page.locator('.cbm-ladline')).toContainText('Back page: Multiples of N');
-  await expect(page.locator('.cbm-ladline')).toContainText('Ava on the tables square');
+  await expect(page.locator('.cbm-ladline')).toContainText('Ava on times tables');
   await expect(page.locator('.cbm-ladline')).toContainText('Ben with nothing');
-  await expect(page.locator('.cbm-rung-col[data-rung-n="5"] [data-kid="p1"] .cbm-kid-n')).toHaveText('square');
+  await expect(page.locator('.cbm-rung-col[data-rung-n="5"] [data-kid="p1"] .cbm-kid-n')).toHaveText('tables');
   await expect(page.locator('.cbm-rung-col[data-rung-n="10"] [data-kid="p2"] .cbm-kid-n')).toHaveText('no page');
   await expect(page.locator('.cbm-ladstats .cbm-stat')).toHaveCount(4);
   await expect(page.locator('.cbm-ladstats .cbm-stat').nth(1)).toContainText('Ava');          // one ✓ so far on ×5

@@ -1816,8 +1816,8 @@
     var xo = state.xb[pid], bp = xo && PAGES.indexOf(xo.p) >= 0 ? xo.p : 'class';
     var backSec = sec('K', 'Their back page', '<div role="radiogroup" aria-labelledby="cbmPK" class="cbm-opts">' +
       opt('cbmBack', 'class', bp === 'class', 'Same as the class', PAGE_NAME[state.xt.on ? state.xt.mode : 'none']) +
-      opt('cbmBack', 'grid', bp === 'grid', 'Tables square', 'Quick facts on their own tables: gentler than Multiples',
-        bp === 'grid' ? '<span class="cbm-rung"><span class="cbm-sub">Questions</span><select id="cbmBackN" aria-label="Questions on their square">' + XT_COUNTS.map(function (n) {
+      opt('cbmBack', 'grid', bp === 'grid', 'Times tables', 'Number sentences on their own tables: gentler than Multiples',
+        bp === 'grid' ? '<span class="cbm-rung"><span class="cbm-sub">Questions</span><select id="cbmBackN" aria-label="Questions on their times tables page">' + XT_COUNTS.map(function (n) {
           return '<option' + (squareCount(state, pid) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></span>' : '') +
       opt('cbmBack', 'mult', bp === 'mult', 'Multiples of N', 'Even if the class changes') +
       opt('cbmBack', 'none', bp === 'none', 'Nothing', 'Single-sided') +
@@ -1894,7 +1894,7 @@
      table. Under it every child's record, a table a tap. */
   var FADE_DAYS = 21;   // an achieved table not seen for this long shows faded
   var ladderSel = {};
-  var PAGE_NAME = { grid: 'Tables square', mult: 'Multiples of N', none: 'Nothing' };
+  var PAGE_NAME = { grid: 'Times tables', mult: 'Multiples of N', none: 'Nothing' };
   function names(list) {
     var n = list.map(firstName);
     return n.length > 2 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n.join(' and ');
@@ -1904,7 +1904,7 @@
     var cls = state.xt.on ? state.xt.mode : 'none', by = { grid: [], mult: [], none: [] };
     sortedRoster().forEach(function (p) { var pg = pageOf(state, p.id); if (pg !== cls) by[pg].push(p); });
     var bits = [];
-    if (by.grid.length) bits.push(esc(names(by.grid)) + ' on the tables square');
+    if (by.grid.length) bits.push(esc(names(by.grid)) + ' on times tables');
     if (by.mult.length) bits.push(esc(names(by.mult)) + ' on Multiples');
     if (by.none.length) bits.push(esc(names(by.none)) + ' with nothing');
     return 'Back page: <b>' + PAGE_NAME[cls] + '</b>' + (bits.length ? ' · ' + bits.join(' · ') : '');
@@ -1950,7 +1950,7 @@
         '<span class="cbm-rung-c">' + (c.kids.length ? plural(c.kids.length, 'child', 'children') : '—') + '</span></div>' +
         '<div class="cbm-rung-bar"><i style="width:' + Math.round(c.kids.length / most * 100) + '%"></i></div>' +
         c.kids.map(function (k) {
-          var note = !k.on ? (k.pg === 'grid' ? 'class square' : 'no page') : k.again ? 'again' : k.pg === 'grid' ? 'square' : k.rev ? '↻' : k.soon ? '✓' : '';
+          var note = !k.on ? (k.pg === 'grid' ? 'class tables' : 'no page') : k.again ? 'again' : k.pg === 'grid' ? 'tables' : k.rev ? '↻' : k.soon ? '✓' : '';
           return '<button type="button" class="cbm-kid' + (ladderSel[k.p.id] ? ' sel' : '') + '" data-kid="' + k.p.id + '" aria-pressed="' + !!ladderSel[k.p.id] + '"><span>' + esc(firstName(k.p)) + '</span>' +
             (note ? '<span class="cbm-kid-n' + (note === 'again' ? ' is-again' : '') + '">' + note + '</span>' : '') + '</button>'; }).join('') +
         (canMove ? '<button type="button" class="cbm-move" data-moveto="' + c.n + '">Move here</button>' : '') + '</div>'; }).join('') + '</div>';
@@ -1969,7 +1969,7 @@
       '<section class="cbm-ladder" aria-labelledby="cbmLadH"><div class="cbm-cardhead"><h3 id="cbmLadH">The ladder: who is learning which table</h3>' +
         '<span class="cbm-sub" id="cbmLadHint" aria-live="polite">' + (sel.length ? sel.length + ' chosen. Tap “Move here” on a table, or tap a name to unchoose' : 'Tap names to choose them, then move them to another table') + '</span></div>' +
         '<div class="table-wrap">' + ladder + '</div>' +
-        '<div class="cbm-ladkey"><span><b>✓</b> one ✓ so far on this table</span><span><b>↻</b> revisit due next page</span><span><b class="is-again">again</b> learning it again</span><span><b>square</b> on the tables square, not Multiples</span>' +
+        '<div class="cbm-ladkey"><span><b>✓</b> one ✓ so far on this table</span><span><b>↻</b> revisit due next page</span><span><b class="is-again">again</b> learning it again</span><span><b>tables</b> on the times tables page, not Multiples</span>' +
           (beyond.length ? '<span>×' + beyond[0] + (beyond.length > 1 ? ' – ×' + beyond[beyond.length - 1] : '') + ': no one yet</span>' : '') + '</div></section>' +
       '<section class="cbm-recsec" aria-labelledby="cbmRecH"><div class="cbm-cardhead"><h3 id="cbmRecH">Every child\'s record</h3>' +
         '<span class="cbm-legend"><span><i class="l"></i>learning</span><span><i class="g"></i>got</span><span><i class="gf"></i>got, not seen for 3 weeks</span><span><i class="n"></i>not yet</span></span></div>' + rec +
@@ -2010,7 +2010,7 @@
     return '<div class="card cbm-backset"><h2>Back page · times tables</h2><p class="cbm-hint">Printed after each child\'s sheet, so it lands on the back when you print double-sided.</p>' +
       '<div class="cbm-setblock"><div class="cbm-setlabel">1 · The class\'s back page</div>' +
         '<div class="cbm-kinds" role="radiogroup" aria-label="What goes on the back">' + [['none', 'Nothing', 'Single-sided sheets.'],
-          ['grid', 'Tables square', 'A grid of quick-fire facts. Good for fluency once a table is known.'],
+          ['grid', 'Times tables', 'Quick-fire number sentences (5 × 3 =) from the tables you choose. Good for fluency once a table is known.'],
           ['mult', 'Multiples of N', 'Sort, a path, sequences and missing numbers for one table. Good for learning a new one.']].map(function (k) {
             return '<button type="button" role="radio" aria-checked="' + (cls === k[0]) + '" class="cbm-kind' + (cls === k[0] ? ' on' : '') + '" data-xkind="' + k[0] + '">' +
               '<span class="cbm-thumb cbm-thumb-' + k[0] + '" aria-hidden="true"></span><span><b>' + k[1] + '</b><span class="cbm-sub">' + k[2] + '</span></span></button>'; }).join('') + '</div></div>' +
@@ -2020,17 +2020,17 @@
             (state.xt.per ? '' : '<span class="cbm-tabchips"><span class="cbm-sub">Tables:</span>' + ORDER.map(function (n) {
               var on = state.xt.tabs.indexOf(n) >= 0;
               return '<button type="button" class="cbm-tc' + (on ? ' on' : '') + '" data-xtab="' + n + '" aria-pressed="' + on + '">' + n + '×</button>'; }).join('') + '</span>') + '</div>' +
-            (state.xt.per ? '<p class="cbm-sub">Follows each child\'s place on the <b>×tables ladder</b> (Progress › ×tables). Children on the same tables get the same square.</p>' : '')) + '</div>') +
+            (state.xt.per ? '<p class="cbm-sub">Follows each child\'s place on the <b>×tables ladder</b> (Progress › ×tables). Children on the same tables get the same page.</p>' : '')) + '</div>') +
       '<div class="cbm-setblock"><div class="cbm-setlabel">3 · Children on a different page <span class="cbm-sub">Also set from each child\'s panel</span></div><div class="cbm-exc">' +
         exc.map(function (p) {
           var cur = state.xb[p.id].p;
           return '<div class="cbm-exc-row" data-xbpid="' + p.id + '"><button type="button" class="cbm-plainlink" data-pupil="' + p.id + '">' + esc(p.name) + '</button>' +
-            segBtns([['grid', 'Tables square'], ['mult', 'Multiples of N'], ['none', 'Nothing']], 'data-xbp', cur, 'Back page for ' + p.name) +
+            segBtns([['grid', 'Times tables'], ['mult', 'Multiples of N'], ['none', 'Nothing']], 'data-xbp', cur, 'Back page for ' + p.name) +
             '<span class="cbm-sub grow">' + NOTE[cur] + '</span><button type="button" class="cbm-quiet" data-xbdel aria-label="Put ' + esc(p.name) + ' back on the class page">Back to class page</button></div>'; }).join('') +
         '<div class="cbm-exc-row cbm-exc-add">' + (rest.length ? '<select id="cbmXbAdd" aria-label="Add a child on a different page"><option value="">+ Add a child…</option>' +
           rest.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select>' : '') +
           '<span class="cbm-sub">' + (roster.length - exc.length) + ' on the class page · ' + exc.length + ' on their own</span></div></div></div>' +
-      (cls === 'grid' || sqKids.length ? '<div class="cbm-setblock"><div class="cbm-setlabel">4 · Tables square: how many questions</div><div class="cbm-setline">' +
+      (cls === 'grid' || sqKids.length ? '<div class="cbm-setblock"><div class="cbm-setlabel">4 · Times tables: how many questions</div><div class="cbm-setline">' +
         segBtns(XT_COUNTS.map(function (n) { return [n, n]; }), 'data-xcount', state.xt.count, 'Questions') +
         '<span class="cbm-sub">' + (state.xt.count <= 40 ? 'Fits one side of A4 at full size' : 'Fits A4: the most before the type has to shrink') + '</span></div>' +
         '<p class="cbm-sub">' + (cls === 'grid' ? 'For the class.' : 'For ' + esc(names(sqKids)) + ': try 20 for a gentler page.') + ' Mix: <b>' +
@@ -2067,7 +2067,7 @@
       if (t.r) rev++; else by[t.n] = (by[t.n] || 0) + 1;
       if (st.on && (!eg || (!gotList(eg.st).length && gotList(st).length))) eg = { p: p, st: st };
     });
-    var other = [sq ? plural(sq, 'tables square') : '', none ? none + ' nothing' : ''].filter(Boolean).join(' · ');
+    var other = [sq ? plural(sq, 'times tables page') : '', none ? none + ' nothing' : ''].filter(Boolean).join(' · ');
     return '<div class="cbm-tomorrow"><b>Tomorrow\'s back pages</b><div class="cbm-chips">' +
       ORDER.filter(function (n) { return by[n]; }).map(function (n) { return '<span class="cbm-chip deep"><b>×' + n + '</b> ' + by[n] + '</span>'; }).join('') +
       (rev ? '<span class="cbm-chip mid"><b>↻</b> ' + plural(rev, 'revisit') + '</span>' : '') + (other ? '<span class="cbm-chip grey">' + other + '</span>' : '') + '</div>' +
