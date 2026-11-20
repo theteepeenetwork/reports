@@ -877,6 +877,7 @@ VIEWS.tests=function(){
   const show=([,st])=>f==="all"||(f==="todo"?st.marked<st.n:st.n>0&&st.marked===st.n);
   let h=`<div class="tbar"><div class="row" role="group" aria-label="Show" style="gap:8px">${TFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="tFilter" data-f="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
     <span style="flex:1"></span><span class="muted small">Every test stays open — print, mark or re-mark any of them at any time</span>
+    <button type="button" class="btn" data-a="tMarkOne" title="Mark one child on any words, without a test">1:1 check</button>
     <button type="button" class="btn primary" data-a="tPlan" aria-expanded="${!!U.plan}">+ Plan the next tests</button></div>`;
   if(U.plan){const next=testPlan().tests;
     h+=`<section class="panel stack" id="tPlan" aria-labelledby="tPlanH"><div class="sechead"><h2 id="tPlanH">Plan the next tests</h2><span class="muted small">One whole-class test where most children are, then the shortest group tests for the rest</span></div>
