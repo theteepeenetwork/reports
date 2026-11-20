@@ -1031,7 +1031,12 @@ test('With every list finished there is no test, and Mark is still one tap away'
   await expect(frame.locator('.markcard')).toBeVisible();
   await frame.locator('#mTest').selectOption('one');
   await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
-  await expect(frame.locator('.pl')).toHaveCount(2);
+  await expect(frame.locator('.pl')).toHaveCount(2);  /* 1:1 check on Tests is always there, and is dated today, not the date of the test just opened */
+  await expect(frame.locator('#qDate')).toHaveValue('2026-10-01');
+  await frame.locator('#mBack').click();
+  await frame.getByRole('button', { name: '1:1 check' }).click();
+  await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
+  await expect(frame.locator('#qDate')).toHaveValue(await frame.locator('body').evaluate(() => localDate()));
 });
 
 test('Old tab ids land on the screen that replaced them; Practise and Review stay unreachable', async ({ page }) => {
