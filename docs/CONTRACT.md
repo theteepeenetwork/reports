@@ -113,8 +113,8 @@ is listed as *planned* when it has a saved test and is today or later, or is wit
 saved test still to mark; everything else (and every test worked out from old sessions) is under Earlier tests,
 where each date opens to the same rows. Deleting a test offers "keep the marks" (only the `tests` record goes;
 the sessions are untouched) or "and its marks" (its marks leave the sessions, except any another saved test on
-that date also covers). Changing a test's date is now only Mark's date field; editing a test's words or
-children is not offered.
+that date also covers). Editing a test's words or children is not offered (and, since step 4, nor is
+changing its date).
 **Plan a test (Nov 2026 rebuild, step 3: nothing stored changed, no new key).** Planning shows one column per
 set of ten in a word list, a 10 / 20 / 30 / 40 words control and the group tests for everyone the whole-class
 test does not cover. Its choices (`S.ui.tests.plan`: date, start set, length, group tests on or off, the list on
@@ -122,6 +122,14 @@ show) last for the visit and are never stored; the length opens on `settings.mai
 changed in Settings. Create writes the same `tests` records as before (`title` the word range, `whole`,
 `words`, `pids`, `createdAt`), one per test, and no session. `testPlan()` now takes `{start, len}` (the set
 the whole-class test starts on, and its length in words); with no arguments it returns what it always did.
+**Mark a test (Nov 2026 rebuild, step 4: nothing stored changed, no new key).** Marking a test shows only the
+test's children and words. Every tap writes the session for (child, the test's date) — the same
+`<pupilId>_<date>` record, and the same mark `{ s:'c'|'x', src:'manual' }`, the 1:1 check writes; clearing a
+mark removes that word from the session, and a session left with no words (and no photos) is removed. Marks
+in that session for words outside the test are left as they are, and so is `r` on a word that is not tapped.
+Which child is open is never stored. The test's date, Spelling/Reading (`kind`), and typing what a child wrote
+(`r`) are no longer offered on this screen: `kind` and `r` are still set from the 1:1 check, and an existing
+`r` is kept until that word is marked again. `moveTest()` is kept but nothing calls it from the page.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 

@@ -117,7 +117,7 @@ test('Mark saves each tap, so switching pupil and back keeps the marks', async (
   const frame = await openHW(page, twoClasses('b'));
   await openMark(frame);
   /* nobody is assessed, so the whole-class test on words 1–20 is loaded */
-  await expect(frame.locator('#mTest option:checked')).toHaveText(/ · Whole class · 100 HFW 1–20 \(20 words\)$/);
+  await expect(frame.locator('#mTitle')).toHaveText(/^Every tap saves · Thu \d+ \w+ · Whole class 100 HFW 1–20$/);
   await expect(frame.locator('.tile')).toHaveCount(20);
   await frame.locator('.pl[data-id="x1"]').click();
   const said = frame.locator('.tile[data-i="4"]');
@@ -149,65 +149,233 @@ test('Mark saves each tap, so switching pupil and back keeps the marks', async (
   await expect(again.locator('.tile[data-i="4"]')).toHaveClass(/\bc\b/);
 });
 
-test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupil', async ({ page }) => {
-  const frame = await openHW(page, twoClasses('b'));
-  await openMark(frame);
-  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')) || '{"sessions":{}}').sessions;
-  const tile = frame.locator('.tile[data-i="0"]');
+test('Mark a test: opens from a planned test, every tap saves to the session for the test’s date, and Next goes round', async ({ page }) => {
+  const errors = collectErrors(page);
+  const extra = twoClasses('b');
+  /* Kit has 1–10, so is working on 11–20; Nell is on 1–10. Kit also has a mark on the test's date that is not one of its words */
+  const ten = {}; for (let i = 0; i < 10; i++) ten[i] = { s: 'c' };
+  extra['tp_hundred_words::b'] = JSON.stringify({ practice: {}, plans: {}, settings: {}, sessions: {
+    'x1_2026-10-01': { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: ten },
+    'x1_2030-01-10': { pupilId: 'x1', date: '2030-01-10', kind: 'spelling', words: { 55: { s: 'x', src: 'manual', r: 'wot' } }, photos: [], updatedAt: 1 } },
+    tests: { t1: { date: '2030-01-10', title: '100 HFW 1–20', whole: true, words: Array.from({ length: 20 }, (_, i) => i), pids: ['x1', 'x2'], createdAt: 1 } } });
+  const frame = await openHW(page, extra);
+  const sessions = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b'))).sessions;
+  const kit = async () => (await sessions())['x1_2030-01-10'];
+  const row = frame.locator('.trow[data-test="t1"]');
+
+  /* Mark, on the planned test's row */
+  await expect(row.locator('.tprog')).toContainText('Not marked yet');
+  await row.getByRole('button', { name: 'Mark', exact: true }).click();
+  expect(await frame.locator('body').evaluate(() => [checkView(), S.tab, location.hash])).toEqual(['mark', 'mark', '#mark']);
+  /* the mode cards stay on top; then back, and what is being marked */
+  await expect(frame.locator('.modes .mode')).toHaveCount(2);
+  await expect(frame.locator('#mode-tests')).toHaveAttribute('aria-pressed', 'true');
+  await expect(frame.locator('#mBack')).toHaveText('← Back to tests');
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Thu 10 Jan · Whole class 100 HFW 1–20');
+  /* left: the children in the test */
+  const list = frame.getByRole('region', { name: 'Children in this test' });
+  await expect(list.locator('.phead')).toHaveText('2 children0 done');
+  await expect(list.locator('.pl')).toHaveText(['Kit Marlow', 'Nell Gwyn']);
+  await expect(list.locator('.pl .dot')).toHaveCount(2);
+  await expect(list.locator('.pl[data-id="x1"]')).toHaveAttribute('aria-current', 'true');
+  await expect(list.locator('.pl[data-id="x2"]')).toHaveAttribute('aria-current', 'false');
+  /* right: the child, band and set, the score, the hint, and the test's words five to a row */
   await expect(frame.locator('#who')).toHaveText('Kit Marlow');
-
-  /* once: correct · twice: not yet · three times: clear */
-  await expect(tile).toHaveAttribute('aria-label', 'the, not marked');
-  await tile.click();
-  await expect(tile).toHaveAttribute('aria-label', 'the, correct');
-  await expect(frame.locator('#mScore')).toHaveText('1/20');
-  await tile.click();
-  await expect(tile).toHaveAttribute('aria-label', 'the, not yet');
+  await expect(frame.locator('#mLevel')).toHaveText('Red · working on 100 HFW 11–20 · 0/10');
+  await expect(frame.locator('#mLevel .dot')).toHaveCount(1);
   await expect(frame.locator('#mScore')).toHaveText('0/20');
-  await tile.click();
-  await expect(tile).toHaveAttribute('aria-label', 'the, not marked');
-  await expect.poll(async () => Object.keys(await stored()).length, 'a session with nothing in it is removed').toBe(0);
+  await expect(frame.locator('#mMarked')).toHaveText('0 marked');
+  await expect(frame.locator('.markcard .note')).toHaveText('Tap once: ✓ correct · twice: ✗ not yet · three times: clear. Blue outline = the set they’re working on.');
+  const tiles = frame.locator('.tiles .tile');
+  await expect(tiles).toHaveCount(20);
+  await expect(tiles.locator('.n')).toHaveText(Array.from({ length: 20 }, (_, i) => String(i + 1)));
+  /* five to a row; three once the page is phone width (the class project's frame is under 760px) */
+  expect(await frame.locator('.tiles').evaluate(el => [getComputedStyle(el).gridTemplateColumns.split(' ').length, innerWidth > 760 ? 5 : 3])).toEqual(await frame.locator('body').evaluate(() => innerWidth > 760 ? [5, 5] : [3, 3]));
+  expect(await tiles.evaluateAll(els => els.every(e => e.tagName === 'BUTTON' && e.type === 'button' && e.getBoundingClientRect().height >= 44))).toBe(true);
+  /* nothing else: no test picker, date, kind switch, list picker, "what they wrote", delete or "last time" */
+  await expect(frame.locator('#mTest, #qDate, #mDel, .markbar, .tile .hint, .wrote, [data-a="qkind"], [data-a="qList"], [data-a="qClear"], [data-a="qWroteToggle"]')).toHaveCount(0);
+  await expect(frame.locator('.markcard button:not(.tile)')).toHaveText(['Mark the rest correct', 'Next: Nell →']);
 
-  /* the words of the set the child is on are outlined */
+  /* the blue outline: only unmarked words of the set the child is working on (Kit: 11–20) */
+  const outlined = () => frame.locator('.tile.focus').evaluateAll(els => els.map(e => +e.dataset.i));
+  expect(await outlined()).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  const blue = await frame.locator('.tile[data-i="10"]').evaluate(el => getComputedStyle(el).borderTopColor);
+  expect(await frame.locator('.tile[data-i="9"]').evaluate(el => getComputedStyle(el).borderTopColor)).not.toBe(blue);
+
+  /* once: correct — saved at once, to the session for (Kit, the test's date), in the shape a quick check writes */
+  const was = frame.locator('.tile[data-i="10"]');
+  await expect(was).toHaveAttribute('aria-label', 'was, not marked');
+  await was.click();
+  await expect(was).toHaveAttribute('aria-label', 'was, correct');
+  await expect(was.locator('.tk')).toHaveText('✓');
+  await expect(was, 'the keyboard stays on the word').toBeFocused();
+  await expect(frame.locator('#mScore')).toHaveText('1/20');
+  await expect(frame.locator('#mMarked')).toHaveText('1 marked');
+  let ses = await kit();
+  expect(Object.keys(ses).sort()).toEqual(['date', 'kind', 'photos', 'pupilId', 'updatedAt', 'words']);
+  expect(ses).toMatchObject({ pupilId: 'x1', date: '2030-01-10', kind: 'spelling', photos: [] });
+  expect(ses.words).toEqual({ 10: { s: 'c', src: 'manual' }, 55: { s: 'x', src: 'manual', r: 'wot' } });      // the mark from elsewhere that day is untouched
+  expect(Object.keys(await sessions()).sort(), 'no other session is written').toEqual(['x1_2026-10-01', 'x1_2030-01-10']);
+  expect(await outlined(), 'a marked word loses the outline').toEqual([11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  await expect(list.locator('.pl[data-id="x1"] .st')).toHaveText('1/20');
+  await expect(list.locator('.pl[data-id="x1"] .st')).not.toHaveClass(/done/);
+  /* twice: not yet */
+  await was.click();
+  await expect(was).toHaveAttribute('aria-label', 'was, not yet');
+  await expect(was.locator('.tk')).toHaveText('✗');
+  await expect(frame.locator('#mScore')).toHaveText('0/20');
+  await expect(frame.locator('#mMarked')).toHaveText('1 marked');
+  expect((await kit()).words).toEqual({ 10: { s: 'x', src: 'manual' }, 55: { s: 'x', src: 'manual', r: 'wot' } });
+  /* three times: clear — the word leaves the session, and it is outlined again */
+  await was.click();
+  await expect(was).toHaveAttribute('aria-label', 'was, not marked');
+  await expect(was.locator('.tk')).toHaveText('');
+  expect((await kit()).words).toEqual({ 55: { s: 'x', src: 'manual', r: 'wot' } });
+  expect(await outlined()).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  await expect(list.locator('.pl[data-id="x1"] .st')).toHaveText('');
+
+  /* Mark the rest correct: only the unmarked ones; what was typed for a word already marked stays */
+  await frame.locator('body').evaluate(() => { const s = S.sessions['x1_2030-01-10']; saveDoc('sessions', 'x1_2030-01-10', { ...s, words: { ...s.words, 4: { s: 'x', src: 'manual', r: 'sed' } } }); });
+  await expect(frame.locator('.tile[data-i="4"]')).toHaveClass(/\bx\b/);
+  await expect(list.locator('.pl[data-id="x1"] .st')).toHaveText('1/20');
+  await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
+  await expect(frame.locator('#mScore')).toHaveText('19/20');
+  await expect(frame.locator('#mMarked')).toHaveText('20 marked');
+  await expect(frame.locator('.tile.c')).toHaveCount(19);
+  await expect(frame.locator('.tile.focus')).toHaveCount(0);
+  ses = await kit();
+  expect(ses.words['4']).toEqual({ s: 'x', src: 'manual', r: 'sed' });
+  expect(ses.words['0']).toEqual({ s: 'c', src: 'manual' });
+  expect(ses.words['55']).toEqual({ s: 'x', src: 'manual', r: 'wot' });
+  expect(Object.keys(ses.words).length).toBe(21);
+  await expect(list.locator('.pl[data-id="x1"] .st')).toHaveText('✓ done');
+  await expect(list.locator('.pl[data-id="x1"] .st')).toHaveClass(/done/);
+  await expect(list.locator('.phead')).toContainText('1 done');
+  await expect(frame.locator('#mLevel'), 'said is not yet, so Kit is back on 1–10: the rules are the same as ever').toHaveText('Pink · working on 100 HFW 1–10 · 9/10');
+
+  /* Next moves on, and goes round from the last child */
+  await frame.getByRole('button', { name: 'Next: Nell →' }).click();
+  await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
+  await expect(list.locator('.pl[data-id="x2"]')).toHaveAttribute('aria-current', 'true');
+  await expect(frame.locator('#mLevel')).toHaveText('Pink · working on 100 HFW 1–10 · 0/10');
+  await expect(frame.locator('#mScore')).toHaveText('0/20');
+  await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(0);
+  expect(await outlined(), 'Nell is on 1–10').toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  await expect(frame.getByRole('button', { name: 'Next: Kit →' })).toBeFocused();
+  await frame.locator('.tile[data-i="0"]').click();
+  expect((await sessions())['x2_2030-01-10'].words).toEqual({ 0: { s: 'c', src: 'manual' } });
+  expect((await kit()).words['0'], 'Kit’s marks are his own').toEqual({ s: 'c', src: 'manual' });
+  await frame.getByRole('button', { name: 'Next: Kit →' }).click();
+  await expect(frame.locator('#who')).toHaveText('Kit Marlow');
+  await expect(frame.locator('#mScore')).toHaveText('19/20');
+  /* a child's button opens them */
+  await list.locator('.pl[data-id="x2"]').click();
+  await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
+  await expect(frame.locator('.tile[data-i="0"]')).toHaveClass(/\bc\b/);
+  /* clearing a child's only mark removes the session it would leave empty */
+  await frame.locator('.tile[data-i="0"]').click();
+  await frame.locator('.tile[data-i="0"]').click();
+  await expect(frame.locator('.tile[data-i="0"]')).toHaveAttribute('aria-label', 'the, not marked');
+  expect(Object.keys(await sessions()).sort(), 'a session with nothing in it is removed').toEqual(['x1_2026-10-01', 'x1_2030-01-10']);
+
+  /* back on the list the row has caught up */
+  await frame.locator('#mBack').click();
+  await expect(frame.locator('.markcard')).toHaveCount(0);
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
+  expect(await frame.locator('body').evaluate(() => [checkView(), location.hash])).toEqual(['list', '#check']);
+  await expect(row.locator('.tprog')).toContainText('1 of 2 marked');
+  await expect(row.locator('.tacts button')).toHaveText(['Print sheets', 'Carry on marking', '⋯']);
+  await expect(frame.locator('.day[data-date="2030-01-10"] .dayhead .pill')).toHaveText('1 child still to mark');
+  /* Carry on marking opens the same screen with the marks there */
+  await row.getByRole('button', { name: 'Carry on marking' }).click();
+  await expect(frame.locator('#mScore')).toHaveText('19/20');
+  await expect(frame.locator('.tile.x .wd')).toHaveText(['said']);
+  expect(errors).toEqual([]);
+});
+
+test('Marking a test, then Progress: ten out of ten on their set moves a child up a set', async ({ page }) => {
+  const errors = collectErrors(page);
+  const frame = await openHW(page, twoClasses('b'));
+  const progress = async () => { await frame.locator('#nav button', { hasText: 'Progress' }).click(); await expect(frame.locator('table.sg')).toBeVisible(); };
+  /* nobody has been checked: both children are in the first band's column, with no set done */
+  await progress();
+  await expect(frame.locator('.bandcol[data-set="0"] .nm')).toHaveText(['Kit', 'Nell']);
+  await expect(frame.locator('.bandcol[data-set="1"] .nm')).toHaveCount(0);
+  await expect(frame.locator('table.sg tbody tr', { hasText: 'Kit Marlow' }).locator('.cell.d')).toHaveCount(0);
+  const before = await frame.locator('body').evaluate(() => [summary('x1').level, summary('x2').level]);
+  expect(before).toEqual([0, 0]);
+
+  /* plan the whole-class test (1–20) and mark Kit's current set, 1–10, all correct */
+  await openMark(frame);
+  await expect(frame.locator('#who')).toHaveText('Kit Marlow');
+  await expect(frame.locator('#mLevel')).toHaveText('Pink · working on 100 HFW 1–10 · 0/10');
+  for (let i = 0; i < 9; i++) await frame.locator(`.tile[data-i="${i}"]`).click();
+  await expect(frame.locator('#mLevel'), 'nine of ten is not the set').toHaveText('Pink · working on 100 HFW 1–10 · 9/10');
+  await frame.locator('.tile[data-i="9"]').click();
+  await expect(frame.locator('#mScore')).toHaveText('10/20');
+  await expect(frame.locator('#mLevel')).toHaveText('Red · working on 100 HFW 11–20 · 0/10');
+  /* the outline follows them to the set they are on now */
+  expect(await frame.locator('.tile.focus').evaluateAll(els => els.map(e => +e.dataset.i))).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+  /* Nell gets one wrong in hers */
+  await frame.getByRole('button', { name: 'Next: Nell →' }).click();
+  for (let i = 0; i < 10; i++) await frame.locator(`.tile[data-i="${i}"]`).click();
+  await frame.locator('.tile[data-i="4"]').click();       // ✓ → ✗
+
+  /* Progress has caught up: Kit is in the next band's column, with a set done; Nell has not moved */
+  await progress();
+  await expect(frame.locator('.bandcol[data-set="1"] .nm')).toHaveText(['Kit']);
+  await expect(frame.locator('.bandcol[data-set="0"] .nm')).toHaveText(['Nell']);
+  await expect(frame.locator('table.sg tbody tr', { hasText: 'Kit Marlow' }).locator('.cell.d')).toHaveCount(1);
+  await expect(frame.locator('table.sg tbody tr', { hasText: 'Nell Gwyn' }).locator('.cell.d')).toHaveCount(0);
+  await expect(frame.locator('.stat4 .stat').nth(0)).toContainText('10/100');        // (10 + 9) / 2, rounded
+  await expect(frame.locator('#main')).toContainText('2 of 2 assessed');
+  expect(await frame.locator('body').evaluate(() => [summary('x1').level, summary('x2').level])).toEqual([1, 0]);
+  /* and the test itself counts Kit as having moved on */
+  expect(await frame.locator('body').evaluate(() => { const t = allTests()[0], lv = levelsBy('x1')[t.date]; return lv; })).toEqual([0, 1]);
+  expect(errors).toEqual([]);
+});
+
+test('Mark a test at phone width: the children are a strip, the words three to a row, and nothing runs off the side', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const frame = await openPlan(page), body = frame.locator('body');
+  await frame.locator('#tPlan').getByRole('button', { name: /^Create \d+ tests?$/ }).click();
+  await frame.locator('.trow [data-a="tMark"]').first().click();
+  await expect(frame.locator('.markcard')).toBeVisible();
+  expect(await body.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await frame.locator('.tiles').evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(3);
+  /* eight children in one row that scrolls inside its card, each a 44px target */
+  expect(await frame.locator('.pls').evaluate(e => getComputedStyle(e).flexDirection === 'row' && e.scrollWidth > e.clientWidth)).toBe(true);
+  expect(await frame.locator('.pl, .tile, .markcard .btn, #mBack').evaluateAll(els => els.every(e => e.offsetHeight >= 44 && e.offsetWidth >= 44))).toBe(true);
+  /* Next brings the open child into view in the strip */
+  for (let k = 0; k < 6; k++) await frame.locator('#mNext').click();
+  const seen = () => frame.locator('.pls').evaluate(sc => { const a = sc.getBoundingClientRect(), b = sc.querySelector('.pl[aria-current="true"]').getBoundingClientRect(); return b.left >= a.left - 1 && b.left < a.right; });
+  expect(await seen()).toBe(true);
+  await frame.locator('.tile').first().click();
+  expect(await seen()).toBe(true);
+  expect(await body.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('The 1:1 check still has the date, Spelling or Reading, what they wrote and “last time”', async ({ page }) => {
+  const extra = twoClasses('b');
+  const w = {}; for (let i = 0; i < 10; i++) w[i] = { s: i === 4 ? 'x' : 'c', src: 'manual' };
+  extra['tp_hundred_words::b'] = JSON.stringify({ practice: {}, plans: {}, settings: {}, sessions: { 'x1_2026-10-01': { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: w, photos: [], updatedAt: 1 } } });
+  const frame = await openHW(page, extra);
+  const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b'))).sessions;
+  /* Kit got 9/10 on 1–10, so is still on it: "✗ last time" shows from a later check */
+  await frame.locator('#mode-one').click();
+  await expect(frame.locator('.tile')).toHaveCount(100);
+  await frame.locator('#qDate').fill('2030-01-01');
+  await frame.locator('.pl[data-id="x1"]').click();
   await expect(frame.locator('.tile.focus')).toHaveCount(10);
-
-  /* said is wrong and they wrote "sed"; the rest are right */
+  await expect(frame.locator('.tile[data-i="4"] .hint')).toHaveText('✗ last time');
+  await expect(frame.locator('.tile[data-i="3"] .hint')).toHaveText('✓ last time');
+  await frame.getByRole('button', { name: 'Reading' }).click();
   const said = frame.locator('.tile[data-i="4"]');
   await said.click(); await said.click();
   await frame.getByRole('button', { name: 'Add what they wrote' }).click();
   await frame.locator('#wr4').fill('sed');
   await frame.locator('#wr4').blur();
-  await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
-  await expect(frame.locator('#mScore')).toHaveText('19/20');
-  await expect(frame.locator('.tile.c')).toHaveCount(19);
-  await expect(said, 'the rest, not the ones already marked').toHaveClass(/\bx\b/);
-  await expect(frame.locator('.pl[data-id="x1"] .st')).toHaveText('✓ done');
-  const ses = Object.values(await stored())[0];
-  expect(ses.words['4']).toEqual({ s: 'x', src: 'manual', r: 'sed' });
-  expect(Object.keys(ses.words).length).toBe(20);
-
-  /* Next pupil; the last child's button goes back to Tests */
-  await frame.getByRole('button', { name: 'Next: Nell →' }).click();
-  await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
-  await expect(frame.locator('.pl[data-id="x2"]')).toHaveAttribute('aria-current', 'true');
-  await expect(frame.locator('#mScore')).toHaveText('0/20');
-  await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(0);
-  await expect(frame.locator('.plist .phead')).toContainText('1 done');
-  await frame.getByRole('button', { name: 'Back to all tests' }).click();
-  await expect(frame.locator('.markcard')).toHaveCount(0);
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
-  await expect(frame.locator('.trow').first().locator('.tprog')).toContainText('1 of 2 marked');
-
-  /* Kit got 9/10 on 1–10, so is still on it: "✗ last time" shows from tomorrow's check */
-  await openMark(frame);
-  await frame.locator('#mTest').selectOption('one');
-  await expect(frame.locator('.tile')).toHaveCount(100);
-  await frame.locator('#qDate').fill('2030-01-01');
-  await frame.locator('.pl[data-id="x1"]').click();
-  await expect(frame.locator('.tile[data-i="4"] .hint')).toHaveText('✗ last time');
-  await expect(frame.locator('.tile[data-i="3"] .hint')).toHaveText('✓ last time');
-  await frame.getByRole('button', { name: 'Reading' }).click();
-  await frame.locator('.tile[data-i="4"]').click();
+  await expect.poll(async () => ((await stored())['x1_2030-01-01'] || {}).words).toEqual({ 4: { s: 'x', src: 'manual', r: 'sed' } });
   expect((await stored())['x1_2030-01-01']).toMatchObject({ kind: 'reading', date: '2030-01-01', pupilId: 'x1' });
 });
 
@@ -222,8 +390,7 @@ test('Mark opens from a test; a fully marked test re-opens with its marks, and t
   const past = (await earlier(frame, '2026-10-01')).locator('.trow').nth(0);
   await past.getByRole('button', { name: 'Results' }).click();
   await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
-  await expect(frame.locator('#mTest option:checked')).toHaveText('1 Oct · Whole class · 100 HFW 1–20 (20 words)');
-  await expect(frame.locator('#qDate')).toHaveValue('2026-10-01');
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Thu 1 Oct · Whole class 100 HFW 1–20');
   await expect(frame.locator('.pl')).toHaveCount(2);
   await expect(frame.locator('.pl .st')).toHaveText(['✓ done', '✓ done']);
   await expect(frame.locator('#who')).toHaveText('Kit Marlow');
@@ -237,29 +404,24 @@ test('Mark opens from a test; a fully marked test re-opens with its marks, and t
   expect(ses.words['4'].s).toBe('c');
   expect(ses.date).toBe('2026-10-01');
   expect(Object.keys(ses.words).length).toBe(20);
-  /* ← All tests goes back, and the test shows the new result */
+  /* ← Back to tests goes back, and the test shows the new result */
   await frame.locator('#mBack').click();
   await expect(frame.locator('.markcard')).toHaveCount(0);
   await expect(past.locator('.tprog')).toContainText('All 2 marked');
   await expect(past.locator('.tacts button')).toHaveText(['Print sheets', 'Results', '⋯']);
 
-  /* the top bar lists every test, and "one child, any words" */
-  await past.getByRole('button', { name: 'Results' }).click();
-  await expect(frame.locator('#mTest option')).toHaveText(['10 Jan · Group · 100 HFW 21–30 (10 words)', '1 Oct · Whole class · 100 HFW 1–20 (20 words)',
-    '1 Oct · Group · 100 HFW 21–30 (10 words)', 'One child, any words…']);
-  await frame.locator('#mTest').selectOption('t1');
-  await expect(frame.locator('#qDate')).toHaveValue('2030-01-10');
+  /* a planned test opens from its own row, with only its children and words */
+  await frame.locator('.trow[data-test="t1"]').getByRole('button', { name: 'Mark', exact: true }).click();
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Thu 10 Jan · Group 100 HFW 21–30');
   await expect(frame.locator('.pl')).toHaveCount(1);
   await expect(frame.locator('.tile')).toHaveCount(10);
-  /* only the last word Nell got wrong last time is flagged */
-  await expect(frame.locator('.tile[data-i="25"] .hint')).toHaveText('✗ last time');
-  await expect(frame.locator('.tile[data-i="24"] .hint')).toHaveText('✓ last time');
+  await expect(frame.locator('.tile .n')).toHaveText(['21', '22', '23', '24', '25', '26', '27', '28', '29', '30']);
+  await expect(frame.locator('.tile .hint'), 'no "last time" on a test').toHaveCount(0);
   await frame.locator('.tile[data-i="25"]').click();
   expect((await stored()).sessions['x2_2030-01-10'].words).toEqual({ 25: { s: 'c', src: 'manual' } });
-  /* the date in the bar is the test's date: changing it moves the test and its marks */
-  await frame.locator('#qDate').fill('2030-01-11');
-  await frame.locator('#qDate').blur();
-  await expect(frame.locator('#mTest option:checked')).toHaveText('11 Jan · Group · 100 HFW 21–30 (10 words)');
+  /* the test's date is no longer changed from Mark; moveTest() still moves a test and its marks, and Mark follows */
+  await frame.locator('body').evaluate(() => { moveTest(findTest('t1'), '2030-01-11'); });
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Fri 11 Jan · Group 100 HFW 21–30');
   await expect(frame.locator('.tile[data-i="25"]')).toHaveClass(/\bc\b/);
   const doc = await stored();
   expect(doc.tests.t1.date).toBe('2030-01-11');
@@ -270,7 +432,7 @@ test('Mark opens from a test; a fully marked test re-opens with its marks, and t
   await expect(frame.locator('.pl')).toHaveCount(2);
 });
 
-test('Mark: a past test still moves with its marks after its first word is cleared, and never onto marks already there', async ({ page }) => {
+test('Mark: a past test stays open and re-markable after its first word is cleared, and moveTest() still moves it with its marks', async ({ page }) => {
   const extra = twoClasses('b');
   extra['tp_hundred_words::b'] = JSON.stringify({ sessions: oldSessions(), practice: {}, plans: {}, settings: {} });
   const frame = await openHW(page, extra);
@@ -282,9 +444,19 @@ test('Mark: a past test still moves with its marks after its first word is clear
   await frame.locator('.tile[data-i="20"]').click();      // → clear
   await expect(frame.locator('.tile[data-i="20"]')).toHaveAttribute('aria-label', 'that, not marked');
   await expect(frame.locator('.tile')).toHaveCount(10);
-  /* the date is the day both children sat 1–20: Nell has no marks for 21–30 words elsewhere, so it moves */
-  await frame.locator('#qDate').fill('2026-10-02');
-  await frame.locator('#qDate').blur();
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Thu 1 Oct · Group 100 HFW 21–30');
+  /* it can be marked again, on the same date */
+  await frame.locator('.tile[data-i="20"]').click();
+  await expect(frame.locator('.tile[data-i="20"]')).toHaveAttribute('aria-label', 'that, correct');
+  expect((await stored()).sessions['x2_2026-10-01'].words['20']).toEqual({ s: 'c', src: 'manual' });
+  await frame.locator('.tile[data-i="20"]').click();
+  await frame.locator('.tile[data-i="20"]').click();      // clear again
+  await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(9);
+  expect(Object.keys((await stored()).tests || {}), 'marking a past test saves no record').toEqual([]);
+  /* Mark has no date field for a test now. moveTest() is kept: the test as it was opened moves, to the day
+     both children sat 1–20 — Nell has no marks for 21–30 words there */
+  const snap = () => frame.locator('body').evaluate(() => ({ ...S.ui.quick.snap, date: S.ui.date }));
+  await frame.locator('body').evaluate((_, t) => { S.ui.quick.testId = moveTest(t, '2026-10-02'); S.ui.date = '2026-10-02'; render(); }, await snap());
   await expect(frame.locator('.tile.c, .tile.x')).toHaveCount(9);
   let doc = await stored();
   expect(Object.keys(doc.sessions['x2_2026-10-02'].words).length, 'the nine marks went with the test').toBe(9);
@@ -293,13 +465,10 @@ test('Mark: a past test still moves with its marks after its first word is clear
   expect(rec.length).toBe(1);
   expect(rec[0]).toMatchObject({ date: '2026-10-02', title: '100 HFW 21–30', pids: ['x2'] });
   expect(rec[0].words.length).toBe(10);
-  /* moving it back on top of marks is refused here */
+  /* and moveClashes() still names the children whose marks a move would replace */
   await frame.locator('body').evaluate(() => { S.sessions['x2_2026-10-05'] = { pupilId: 'x2', date: '2026-10-05', kind: 'spelling', words: { 25: { s: 'x', src: 'manual' } }, photos: [], updatedAt: 1 }; memo = {}; });
-  await frame.locator('#qDate').fill('2026-10-05');
-  await frame.locator('#qDate').blur();
-  await expect(frame.locator('#toast')).toContainText('Not moved');
-  await expect(frame.locator('#qDate')).toHaveValue('2026-10-02');
-  expect((await stored()).tests[Object.keys(doc.tests)[0]].date).toBe('2026-10-02');
+  expect(await frame.locator('body').evaluate(() => moveClashes(findTest(S.ui.quick.testId), '2026-10-05'))).toEqual(['x2']);
+  expect(await frame.locator('body').evaluate(() => moveClashes(findTest(S.ui.quick.testId), '2026-10-06'))).toEqual([]);
 });
 
 test('The test plan: sets of ten in order across the three lists, and a whole-class test where most children are', async ({ page }) => {
@@ -455,7 +624,7 @@ test('Check: the next-test card, planned tests by date, a row from not marked to
   await group.getByRole('button', { name: 'Mark' }).click();
   await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
   await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
-  await frame.getByRole('button', { name: 'Back to all tests' }).click();
+  await frame.locator('#mBack').click();
   await expect(group.locator('.tprog')).toContainText('All 1 marked');
   await expect(group.locator('.bar i')).toHaveClass(/full/);
   await expect(group.locator('.tacts button')).toHaveText(['Print sheets', 'Results', '⋯']);
@@ -477,7 +646,7 @@ test('Check: the next-test card, planned tests by date, a row from not marked to
   await frame.getByRole('button', { name: /^Next/ }).click();
   await expect(frame.locator('#who')).toHaveText('Nell Gwyn');
   await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
-  await frame.getByRole('button', { name: 'Back to all tests' }).click();
+  await frame.locator('#mBack').click();
   await expect(whole.locator('.tprog')).toContainText('All 2 marked');
   await expect(whole.locator('.tacts button')).toHaveText(['Print sheets', 'Results', '⋯']);
   await expect(pill).toHaveText('All marked');
@@ -578,7 +747,7 @@ test('Check: the two mode cards head every Check screen, and switch at once', as
   expect(errors).toEqual([]);
 });
 
-test('Tests: moving a test in Mark never replaces marks, keeps marks another test shares, and an empty test cannot be marked', async ({ page }) => {
+test('Tests: moving a test never replaces marks, keeps marks another test shares, and an empty test cannot be marked', async ({ page }) => {
   const w = (a, b, v) => { const o = {}; for (let i = a; i < b; i++) o[i] = { s: v, src: 'manual' }; return o; };
   const extra = twoClasses('b');
   extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
@@ -601,20 +770,18 @@ test('Tests: moving a test in Mark never replaces marks, keeps marks another tes
   await expect(frame.locator('.markcard')).toHaveCount(0);
   await expect(frame.locator('#toast')).toContainText('This test has no children');
 
-  /* moving test "a" onto the 11th would replace Kit's marks there: it is refused */
+  /* moving test "a" onto the 11th would replace Kit's marks there: moveClashes() says so (Mark no longer has a date to change) */
   await row('a').getByRole('button', { name: 'Results' }).click();
-  await frame.locator('#qDate').fill('2030-01-11');
-  await frame.locator('#qDate').blur();
-  await expect(frame.locator('#toast')).toContainText('Not moved');
-  let doc = await stored();
-  expect(doc.tests.a.date, 'nothing moved').toBe('2030-01-10');
-  expect(doc.sessions['x1_2030-01-11'].words['0'].s).toBe('x');
-  /* onto a free day it moves */
-  await frame.locator('#qDate').fill('2030-01-12');
-  await frame.locator('#qDate').blur();
-  await expect(frame.locator('#toast')).toContainText('Test moved to');
-  doc = await stored();
+  await expect(frame.locator('#qDate')).toHaveCount(0);
+  expect(await frame.locator('body').evaluate(() => moveClashes(findTest('a'), '2030-01-11'))).toEqual(['x1']);
+  /* onto a free day it moves, and Mark follows it */
+  expect(await frame.locator('body').evaluate(() => moveClashes(findTest('a'), '2030-01-12'))).toEqual([]);
+  await frame.locator('body').evaluate(() => { moveTest(findTest('a'), '2030-01-12'); });
+  await expect(frame.locator('#mTitle')).toHaveText('Every tap saves · Sat 12 Jan · Group 100 HFW 1–10');
+  await expect(frame.locator('.tile.c')).toHaveCount(10);
+  const doc = await stored();
   expect(doc.tests.a.date).toBe('2030-01-12');
+  expect(doc.sessions['x1_2030-01-11'].words['0'].s).toBe('x');
   expect(Object.keys(doc.sessions['x1_2030-01-12'].words).length).toBe(10);
   /* test "b" is still on the 10th and shares words 1–10: its marks were copied, not taken */
   expect(Object.keys(doc.sessions['x1_2030-01-10'].words).length).toBe(20);
@@ -1091,17 +1258,16 @@ test('With every list finished there is no test, and Mark is still one tap away'
   /* the past test is listed, so Mark opens from it, and from there for any child and any words */
   await (await earlier(frame, '2026-10-01')).locator('.trow').first().getByRole('button', { name: 'Results' }).click();
   await expect(frame.locator('.markcard')).toBeVisible();
-  await frame.locator('#mTest').selectOption('one');
-  await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
+  await expect(frame.locator('#mLevel')).toHaveText('Every list complete');
+  await expect(frame.locator('.tile.focus')).toHaveCount(0);
+  /* the 1:1 check card is always there, and is dated today, not the date of the test just opened */
+  await frame.locator('#mode-one').click();
   await expect(frame.locator('#mode-one')).toHaveAttribute('aria-pressed', 'true');
   await expect(frame.locator('.pl')).toHaveCount(2);
-  /* the 1:1 check card is always there, and is dated today, not the date of the test just opened */
-  await expect(frame.locator('#qDate')).toHaveValue('2026-10-01');
-  await frame.locator('#mode-tests').click();
-  await expect(frame.locator('#cList')).toBeVisible();
-  await frame.locator('#mode-one').click();
   await expect(frame.locator('#mTest option:checked')).toHaveText('One child, any words…');
   await expect(frame.locator('#qDate')).toHaveValue(await frame.locator('body').evaluate(() => localDate()));
+  await frame.locator('#mode-tests').click();
+  await expect(frame.locator('#cList')).toBeVisible();
 });
 
 test('Old tab ids land on the tab that replaced them; Pupils, Practise and Review stay unreachable', async ({ page }) => {
@@ -1198,7 +1364,7 @@ test('Data saved before the Tests redesign loads unchanged and gives every pupil
   expect(errors).toEqual([]);
 });
 
-/* ----- deleting a test: from Mark and from Tests, one shared delete ----- */
+/* ----- deleting a test: under ⋯ on its row in the list (Mark has no delete) ----- */
 const DEL_WORDS = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29];
 const delMarks = () => Object.fromEntries(DEL_WORDS.map((i, k) => [i, { s: k < 8 ? 'c' : 'x' }]));
 function delSeed(over) {
@@ -1226,15 +1392,14 @@ const onTests = async frame => {
   await expect(frame.locator('#mode-tests')).toHaveAttribute('aria-pressed', 'true');
 };
 
-for (const from of ['Mark', 'Tests']) {
+for (const from of ['Tests']) {
   test(`Delete test from ${from}: keep the marks, or delete them too, each with a toast and Undo`, async ({ page }) => {
     const errors = collectErrors(page);
     const { frame, before, stored, toMark, toMenu, more, dlg } = await delOpen(page);
-    const opener = from === 'Mark' ? frame.locator('#mDel') : more;
+    const opener = more;
     const ask = async () => {
       /* Cancel leaves you where you were; a delete or an Undo ends on the list */
-      if (from === 'Mark') { if (!(await frame.locator('.markcard').count())) await toMark(); await frame.locator('#mDel').click(); }
-      else { await toMenu(); await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click(); }
+      { await toMenu(); await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click(); }
       await expect(dlg).toBeVisible();
     };
 
@@ -1285,7 +1450,7 @@ for (const from of ['Mark', 'Tests']) {
   });
 }
 
-test('Delete test with nothing marked: only Delete test and Cancel, from Mark and from Tests', async ({ page }) => {
+test('Delete test with nothing marked: only Delete test and Cancel; Mark has no delete', async ({ page }) => {
   const { frame, before, stored, toMark, toMenu, dlg } = await delOpen(page, { sessions: {} });
   await toMenu();
   await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click();
@@ -1293,8 +1458,13 @@ test('Delete test with nothing marked: only Delete test and Cancel, from Mark an
   await expect(dlg.getByRole('button')).toHaveText(['Delete test', 'Cancel']);
   await dlg.getByRole('button', { name: 'Cancel' }).click();
 
+  /* Mark does not offer it: delete lives under ⋯ */
   await toMark();
-  await frame.locator('#mDel').click();
+  await expect(frame.locator('#mDel')).toHaveCount(0);
+  await expect(frame.getByRole('button', { name: /Delete/ })).toHaveCount(0);
+  await frame.locator('#mBack').click();
+  await toMenu();
+  await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click();
   await expect(dlg.getByRole('button')).toHaveText(['Delete test', 'Cancel']);
   await dlg.getByRole('button', { name: 'Delete test' }).click();
   await onTests(frame);
@@ -1379,11 +1549,11 @@ test('Delete test and its marks never removes marks another test uses', async ({
   /* t2 is on the same day and covers Kit and the same ten words; Nell is only in t1 */
   const nell = { pupilId: 'x2', date: '2030-01-10', kind: 'spelling', words: delMarks(), photos: [], updatedAt: 8 };
   const base = JSON.parse(delSeed()['tp_hundred_words::b']);
-  const { frame, before, stored, toMark, dlg } = await delOpen(page, {
+  const { frame, before, stored, toMenu, dlg } = await delOpen(page, {
     sessions: { ...base.sessions, 'x2_2030-01-10': nell },
     tests: { ...base.tests, t2: { date: '2030-01-10', title: '100 HFW 21–40', whole: false, words: [...DEL_WORDS, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39], pids: ['x1', 'x3'], createdAt: 6 } } });
-  await toMark();
-  await frame.locator('#mDel').click();
+  await toMenu();
+  await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click();
   await expect(dlg).toContainText('2 children have marks from it');
   await expect(dlg).toContainText('Marks another test also uses are kept either way.');
   await dlg.getByRole('button', { name: 'Delete test and its marks' }).click();
@@ -1404,8 +1574,8 @@ test('An Undo from the example class is gone once the example class is left', as
   await frame.getByRole('button', { name: 'Explore an example class' }).click();
   /* its tests are all past ones, under Earlier tests */
   await frame.locator('#tEarlier .eline').first().click();
-  await frame.locator('.trow [data-a="tMark"]').first().click();
-  await frame.locator('#mDel').click();
+  await frame.locator('.trow .tmore').first().click();
+  await frame.locator('.tmenu').getByRole('button', { name: 'Delete test', exact: true }).click();
   await frame.getByRole('alertdialog').getByRole('button', { name: 'Delete test and its marks' }).click();
   await expect(frame.locator('#toast').getByRole('button', { name: 'Undo' })).toBeVisible();
   await frame.getByRole('button', { name: 'Start my own class' }).click();
