@@ -347,11 +347,16 @@ test('Mark a test at phone width: the children are a strip, the words three to a
   expect(await frame.locator('.pls').evaluate(e => getComputedStyle(e).flexDirection === 'row' && e.scrollWidth > e.clientWidth)).toBe(true);
   expect(await frame.locator('.pl, .tile, .markcard .btn, #mBack').evaluateAll(els => els.every(e => e.offsetHeight >= 44 && e.offsetWidth >= 44))).toBe(true);
   /* Next brings the open child into view in the strip */
-  for (let k = 0; k < 6; k++) await frame.locator('#mNext').click();
+  /* each Next is a render on the next frame: wait for the strip to show the child it moved to before pressing again */
+  const current = () => frame.locator('.pl[aria-current="true"]').evaluate(e => [...e.parentElement.children].indexOf(e));
   const seen = () => frame.locator('.pls').evaluate(sc => { const a = sc.getBoundingClientRect(), b = sc.querySelector('.pl[aria-current="true"]').getBoundingClientRect(); return b.left >= a.left - 1 && b.left < a.right; });
-  expect(await seen()).toBe(true);
+  for (let k = 1; k <= 6; k++) { await frame.locator('#mNext').click(); await expect.poll(current, 'Next ' + k).toBe(k); }
+  expect(await frame.locator('.pls').evaluate(sc => sc.scrollLeft), 'the strip has scrolled to them').toBeGreaterThan(0);
+  await expect.poll(seen).toBe(true);
   await frame.locator('.tile').first().click();
-  expect(await seen()).toBe(true);
+  await expect(frame.locator('.tile').first()).toHaveClass(/\bc\b/);
+  await expect.poll(current).toBe(6);
+  await expect.poll(seen).toBe(true);
   expect(await body.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
