@@ -104,6 +104,17 @@ children); marking, as before.
 how levels work); `mark` is a screen under Check. The Pupils tab has gone. Every earlier id still resolves, in
 the URL hash too (`TAB_ALIAS`): `tests`, `week`, `groups` → Check; `class`, `tracker`, `pupils`, `plans`,
 `plan` → Progress; `assess`, `quick` → the Mark screen.
+**Check (Nov 2026 rebuild, step 2: nothing stored changed, no new key).** Check has two modes, chosen by two
+cards that head every Check screen: Class & group tests (the default) and 1:1 check. The mode and the screen
+inside it live in `S.ui.check` (`{mode: "tests"|"one", view: "list"|"plan"}`) and are never stored; the hash
+stays `#check` for the list, planning and the 1:1 check, and `#mark` is still marking a test (with no test to
+mark it opens the 1:1 check). The list is a view over the `tests` collection and the sessions, as before. A date
+is listed as *planned* when it has a saved test and is today or later, or is within the last 14 days with a
+saved test still to mark; everything else (and every test worked out from old sessions) is under Earlier tests,
+where each date opens to the same rows. Deleting a test offers "keep the marks" (only the `tests` record goes;
+the sessions are untouched) or "and its marks" (its marks leave the sessions, except any another saved test on
+that date also covers). Changing a test's date is now only Mark's date field; editing a test's words or
+children is not offered.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 

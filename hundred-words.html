@@ -101,30 +101,50 @@ label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .up{color:var(--ok-ink)} .down{color:var(--no-ink)}
 /* tests */
 .sechead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
-.tbar{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:center}
+.modes{display:flex;flex-wrap:wrap;gap:12px}
+.mode{flex:1 1 300px;min-width:0;display:flex;gap:14px;align-items:center;padding:16px 18px;min-height:76px;border-radius:14px;cursor:pointer;color:var(--ink);text-align:left;border:1px solid var(--line);background:var(--card)}
+.mode:hover{border-color:var(--accent-mid)}
+.mode[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.mode .ico{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;background:var(--line-2);color:var(--ink-2)}
+.mode[aria-pressed="true"] .ico{background:var(--accent);color:var(--accent-ink)}
+.mode .mt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mode .mt b{font-size:17px}
+.mode .mt span{font-size:13px;color:var(--ink-2)}
+.tnext{display:flex;flex-wrap:wrap;align-items:center;gap:18px;border:1.5px dashed var(--accent-mid);box-shadow:none}
+.tnext h2{font-size:18px}
+.tnext p{margin:4px 0 0;font-size:14px;color:var(--ink-2);max-width:70ch}
 .day{padding:0;overflow:hidden}
 .dayhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px;padding:16px 20px}
 .dayhead h2{font-size:18px}
-.trow{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1.2fr) 150px 286px;align-items:center;gap:8px 16px;padding:10px 20px;border-top:1px solid var(--line-2)}
-.tname{text-align:left;border:0;background:none;padding:0;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;gap:2px;min-height:44px;justify-content:center;min-width:0}
+.trow{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr) minmax(330px,auto);align-items:center;gap:10px 18px;padding:14px 20px;border-top:1px solid var(--line-2)}
+.tname{display:flex;flex-direction:column;gap:3px;min-width:0}
+.tname .tk{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
 .tname b{font-size:16px}
-.tname:hover b{text-decoration:underline}
 .tprog{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--ink-2);min-width:0}
 .bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
 .bar i.full{background:var(--ok-strong)}
-.tres{font-size:13px;color:var(--ink-2)}
-.tacts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.tacts{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+.tmore{width:44px;padding:0;font-size:18px}
+.tmenu{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;padding:0 20px 14px}
+.tconf{padding:0 20px 14px}
+.tfoot{padding:6px 20px;border-top:1px solid var(--line-2)}
+.eday{border-top:1px solid var(--line-2)}
+.eline{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 12px;padding:8px 20px;min-height:48px;border:0;background:none;color:var(--ink);font-size:14px;text-align:left;cursor:pointer}
+.eline:hover{background:var(--line-2)}
+.eline .et{flex:1 1 220px;min-width:0}
+.eline .er{display:inline-flex;align-items:center;gap:10px}
+.eline .chev{color:var(--muted);transition:transform .15s}
+.eline[aria-expanded="true"] .chev{transform:rotate(180deg)}
 .tdet{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:4px 20px 20px;background:var(--paper);border-top:1px solid var(--line-2)}
 .tdet h4{margin:14px 0 8px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .tdet .wchip{background:var(--card)}
 .tedit{grid-column:1/-1;padding-top:12px}
 .kid{border:0;min-height:44px;cursor:pointer;font-family:inherit}
 .kid:hover{text-decoration:underline}
-.pcard{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:18px 20px}
 label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600}
-@media (max-width:980px){.trow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.tname{grid-column:1/-1}.tacts{grid-column:1/-1;justify-content:flex-start}}
-@media (max-width:560px){.tdet{grid-template-columns:1fr}.dayhead,.trow{padding-left:14px;padding-right:14px}.tdet{padding:4px 14px 16px}}
+@media (max-width:980px){.trow{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}.tacts,.tmenu{grid-column:1/-1;justify-content:flex-start}}
+@media (max-width:560px){.tdet{grid-template-columns:1fr}.trow{grid-template-columns:minmax(0,1fr)}.dayhead,.trow,.eline{padding-left:14px;padding-right:14px}.tmenu,.tconf{padding-left:14px;padding-right:14px}.tfoot{padding-left:14px;padding-right:14px}.tdet{padding:4px 14px 16px}.mode{padding:14px}}
 .bignum{font-size:34px;font-weight:800;line-height:1.1}
 .note{font-size:13px;line-height:1.5;background:var(--paper);border-radius:10px;padding:10px 12px}
 .linkbtn{background:none;border:0;padding:0;min-height:44px;color:var(--accent-text);font-weight:600;font-size:14px;cursor:pointer;text-align:left;display:inline-flex;align-items:center}
@@ -415,7 +435,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},tests:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"check",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,tests:{open:null,filter:"all",plan:null,edit:null,confirm:null},
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,check:{mode:"tests",view:"list"},tests:{open:null,early:null,plan:null,edit:null,confirm:null},
       print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing"],actsFor:"pupils",practiceLayout:"a5",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
@@ -512,7 +532,8 @@ function doRender(){
   /* at phone width Mark's pupils are a strip: keep the child being marked in view */
   const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
-  if(S.ui.delFocus){S.ui.delFocus=false;const c=$("#delCancel");if(c)c.focus()}
+  if(S.ui.delFocus){S.ui.delFocus=false;S.ui.focusId=null;const c=$("#delCancel");if(c)c.focus()}
+  else if(S.ui.focusId){const el=document.getElementById(S.ui.focusId);S.ui.focusId=null;if(el)el.focus()}
   else if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
   else if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
 }
@@ -859,61 +880,122 @@ const testMarked=t=>Object.values(testStats(t).done).filter(Boolean).length;
    its marks kept. */
 function deleteConfirm(t){
   const n=testMarked(t),id=esc(t.id),sh=sharedMarks(t),shared=n&&t.pids.some(p=>{const w=marksOn(p,t.date);return t.words.some(i=>w[i]&&sh(p,i))});
-  const kids=n===1?"1 child already has":n+" children already have";
-  const why=!n?"Nothing has been marked for it yet."
-    :t.saved?`${kids} marks from it. Keeping the marks means they still count towards each child’s progress, and Check goes on listing them as a past test on that date.`
-    :`${kids} marks from it. This test is made from those marks, so deleting it deletes them.`;
-  return `<div class="delc" id="delC" role="alertdialog" aria-labelledby="delH" aria-describedby="delD">
-   <div class="delh" id="delH">Delete “${esc(testKind(t))} · ${esc(t.title)}” on ${fmtDay(t.date)}?</div>
-   <div class="deld" id="delD">${why}${shared?" Marks another test also uses are kept either way.":""}</div>
+  const head=!n?"Nothing has been marked for it yet.":`${n===1?"1 child has":n+" children have"} marks from it.`;
+  const why=!n?"":t.saved?"Keeping the marks means they still count towards each child’s progress, and the test is listed under Earlier tests from those marks."
+    :"This test is made from those marks, so deleting it deletes them.";
+  return `<div class="delc" id="delC" role="alertdialog" aria-labelledby="delH"${why||shared?' aria-describedby="delD"':""}>
+   <div class="delh" id="delH">Delete “${esc(t.title)}”? ${head}</div>
+   ${why||shared?`<div class="deld" id="delD">${why}${shared?" Marks another test also uses are kept either way.":""}</div>`:""}
    <div class="row" style="gap:8px">${!n?`<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test</button>`
-     :`${t.saved?`<button type="button" class="btn" data-a="tDelete" data-keep="1" data-id="${id}">Delete test, keep the marks</button>`:""}<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test and its marks</button>`}<button type="button" class="btn ghost" id="delCancel" data-a="tEditCancel">Cancel</button></div></div>`;
+     :`${t.saved?`<button type="button" class="btn" data-a="tDelete" data-keep="1" data-id="${id}">Delete test, keep the marks</button>`:""}<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test and its marks</button>`}<button type="button" class="btn ghost" id="delCancel" data-a="tEditCancel" data-id="${id}">Cancel</button></div></div>`;
 }
-const TFILTERS=[["all","All tests"],["todo","Still to mark"],["done","Fully marked"]];
-VIEWS.check=function(){
-  const ids=pupilIds();
-  if(!ids.length)return emptyClass();
-  const U=S.ui.tests,today=localDate(),f=TFILTERS.some(x=>x[0]===U.filter)?U.filter:"all";
-  const all=allTests().map(t=>[t,testStats(t)]),plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`,kids=n=>n===1?"1 child":n+" children";
-  const show=([,st])=>f==="all"||(f==="todo"?st.marked<st.n:st.n>0&&st.marked===st.n);
-  let h=`<div class="tbar"><div class="row" role="group" aria-label="Show" style="gap:8px">${TFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="tFilter" data-f="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div>
-    <span style="flex:1"></span><span class="muted small">Every test stays open — print, mark or re-mark any of them at any time</span>
-    <button type="button" class="btn" data-a="tMarkOne" title="Mark one child on any words, without a test">1:1 check</button>
-    <button type="button" class="btn primary" data-a="tPlan" aria-expanded="${!!U.plan}">+ Plan the next tests</button></div>`;
-  if(U.plan){const next=testPlan().tests;
-    h+=`<section class="panel stack" id="tPlan" aria-labelledby="tPlanH"><div class="sechead"><h2 id="tPlanH">Plan the next tests</h2><span class="muted small">One whole-class test where most children are, then the shortest group tests for the rest</span></div>
-     ${next.length?`<div class="stack" style="gap:6px">${next.map(t=>`<div class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(setsLabel(t.sets))}</b><span class="muted small">${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")} · ${t.whole?`everyone · current set for ${t.target.length}`:kids(t.pids.length)}</span></div>`).join("")}</div>
+/* ----- Check: two modes, and a screen inside each -----
+   S.ui.check = { mode, view }; neither is stored.
+     mode "tests": class & group tests. Its screens are the list, planning
+                   a test, and marking one. checkView() names the one on show:
+                   "list" | "plan" | "mark".
+     mode "one":   the 1:1 check — one child, any words.
+   The hash stays #check for the list, planning and the 1:1 check. Marking
+   a test keeps the id it has always had, #mark, so an old link to Mark (or
+   to assess / quick before it) still opens marking; VIEWS.mark is this
+   same screen. With no test to mark, #mark opens the 1:1 check.
+   The two mode cards head every one of these screens. */
+function checkView(){const C=S.ui.check;return C.mode==="one"?"one":S.tab==="mark"?"mark":C.view==="plan"?"plan":"list"}
+const MODES=[["tests","Class &amp; group tests","You read the words out; children write them",'<circle cx="9" cy="7" r="3"/><circle cx="17" cy="8" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c3 0 6 2 6 5.5"/>'],
+  ["one","1:1 check","One child with you; tap each word",'<circle cx="12" cy="7" r="3.5"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/>']];
+function modeCards(){const m=S.ui.check.mode;
+  return `<div class="modes" role="group" aria-label="How are you checking?">${MODES.map(([k,t,d,ico])=>`<button type="button" class="mode" id="mode-${k}" data-a="cMode" data-k="${k}" aria-pressed="${m===k}"><span class="ico"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ico}</svg></span><span class="mt"><b>${t}</b><span>${d}</span></span></button>`).join("")}</div>`}
+function checkScreen(){
+  if(!pupilIds().length)return emptyClass();
+  const C=S.ui.check,q=S.ui.quick;
+  if(C.mode==="one"){if(q.test!=="one")markOne()}
+  /* marking a test: Mark picks the newest test still to mark when none is loaded, and falls back to the 1:1 check */
+  else if(S.tab==="mark"&&q.test==="one")q.test=null;
+  const body=C.mode==="one"||S.tab==="mark"?markView():C.view==="plan"?planScreen():testsList();
+  /* the cards are drawn last: markView() can change the mode */
+  return modeCards()+body;
+}
+VIEWS.check=VIEWS.mark=checkScreen;
+const kidsN=n=>n===1?"1 child":n+" children";
+const dayName=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",...(d.slice(0,4)===localDate().slice(0,4)?{}:{year:"numeric"})});
+/* The date the next test is planned for: this Thursday (today, on a
+   Thursday), as the planner has always offered — or the Thursday after,
+   when tests are already saved for that day. */
+function nextTestDate(){const has=new Set(allTests().filter(t=>t.saved).map(t=>t.date));let d=nextThursday();for(let k=0;k<52&&has.has(d);k++)d=addDays(d,7);return d}
+/* Planned or earlier. A date is on the main list ("planned") when it has
+   a saved test and is today or later, or is in the last 14 days and one of
+   its saved tests still has children to mark — so last Thursday's test
+   stays up while it is being marked, and a test left unfinished (a child
+   was away) drops to Earlier tests after a fortnight instead of staying on
+   top for good. Everything else is "earlier": the other saved tests, and
+   the past tests worked out from old sessions, which are a record of marks
+   and never a plan. "Nothing planned" — the Next test card — is when no
+   saved test dated today or later still has children to mark. */
+const TEST_OPEN_DAYS=14;
+function testDays(){
+  const today=localDate(),from=addDays(today,-TEST_OPEN_DAYS),by={};
+  for(const t of allTests()){const st=testStats(t);(by[t.date]=by[t.date]||[]).push([t,st])}
+  const planned=[],earlier=[];let ahead=false;
+  for(const d of Object.keys(by).sort()){
+    const saved=by[d].filter(([t])=>t.saved),rest=by[d].filter(([t])=>!t.saved),todo=saved.some(([,st])=>st.marked<st.n);
+    const cur=saved.length&&(d>=today||(d>=from&&todo));
+    if(cur){planned.push([d,saved]);if(d>=today&&todo)ahead=true;if(rest.length)earlier.push([d,rest])}
+    else earlier.push([d,by[d]]);
+  }
+  /* soonest first above; newest first below */
+  return {planned,earlier:earlier.reverse(),ahead};
+}
+/* children on a date with a test of theirs not fully marked */
+function dayLeft(rows){const s=new Set();for(const [t,st] of rows)for(const p of t.pids)if(st.done[p]!==2)s.add(p);return s.size}
+const leftPill=n=>`<span class="pill ${n?"rev":"ok"}">${n?`${kidsN(n)} still to mark`:"All marked"}</span>`;
+function testRow(t,st){
+  const U=S.ui.tests,id=esc(t.id),open=U.open===t.id,full=st.n>0&&st.marked===st.n,started=Object.values(st.done).some(Boolean),pct=st.n?Math.round(st.marked/st.n*100):0;
+  const bands=[...new Set(t.words.map(i=>bandOf(i).n))],bandTxt=bands.length>3?`${bands[0]} to ${bands[bands.length-1]}`:bands.join(" &amp; ");
+  const who=t.whole?`Everyone · ${bandTxt} words`:t.pids.length?t.pids.map(p=>esc(shortName(p))).join(", "):"No children";
+  const status=!st.marked?"Not marked yet":full?`All ${st.n} marked`:`${st.marked} of ${st.n} marked`;
+  let h=`<div class="trow" data-test="${id}">
+   <div class="tname"><span class="tk"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(t.title)}</b></span><span class="muted small">${who}</span></div>
+   <div class="tprog"><span>${status}</span><div class="bar" role="img" aria-label="${st.marked} of ${st.n} marked"><i class="${full?"full":""}" style="width:${pct}%"></i></div></div>
+   <div class="tacts"><button type="button" class="btn" data-a="tSheets" data-id="${id}">Print sheets</button><button type="button" class="btn${full?"":" primary"}" data-a="tMark" data-id="${id}">${full?"Results":started?"Carry on marking":"Mark"}</button><button type="button" class="btn tmore" id="tm-${id}" data-a="tOpen" data-id="${id}" aria-label="More for ${esc(t.title)}: dictation script, delete" aria-expanded="${open}">⋯</button></div></div>`;
+  if(U.confirm===t.id)h+=`<div class="tconf">${deleteConfirm(t)}</div>`;
+  else if(open)h+=`<div class="tmenu"><button type="button" class="btn" data-a="tScript" data-id="${id}">Dictation script</button><button type="button" class="btn no" data-a="tAskDelete" data-id="${id}">Delete test</button></div>`;
+  return h;
+}
+const EARLY_N=8;
+function testsList(){
+  const U=S.ui.tests,{planned,earlier,ahead}=testDays(),thisYear=localDate().slice(0,4);
+  let h=`<div class="stack" id="cList" style="gap:20px">`;
+  if(!ahead){const can=testPlan().tests.length>0;
+    h+=`<section class="panel tnext" id="tNext" aria-labelledby="tNextH"><div style="flex:1;min-width:min(280px,100%)"><h2 id="tNextH">Next test: ${dayName(nextTestDate())}</h2>
+     <p>${can?"Not planned yet. Planning shows which words the whole class will do, and who needs a smaller group test.":"Every child has finished every list, so there is nothing left to test."}</p></div>
+     ${can?`<button type="button" class="btn primary" data-a="tPlan">Plan the test</button>`:""}</section>`}
+  planned.forEach(([d,rows],k)=>{
+    h+=`<section class="panel day" aria-label="${dayName(d)}" data-date="${d}"><div class="dayhead"><h2>${dayName(d)}</h2>${leftPill(dayLeft(rows))}</div>${rows.map(([t,st])=>testRow(t,st)).join("")}
+     ${k===planned.length-1?`<div class="tfoot"><button type="button" class="linkbtn" data-a="tPlan">+ Plan another test</button></div>`:""}</section>`});
+  if(earlier.length){
+    const all=S.ui.showAll.tests||earlier.length<=EARLY_N+1||earlier.slice(EARLY_N).some(([d])=>d===U.early),show=all?earlier:earlier.slice(0,EARLY_N);
+    h+=`<section class="panel day" id="tEarlier" aria-labelledby="tEarlierH"><div class="dayhead"><h2 id="tEarlierH">Earlier tests</h2></div>`;
+    for(const [d,rows] of show){const open=U.early===d;
+      h+=`<div class="eday" data-date="${d}"><button type="button" class="eline" id="te-${d}" data-a="tEarly" data-d="${d}" aria-expanded="${open}"><span class="et"><b>${fmtDay(d)}${d.slice(0,4)===thisYear?"":" "+d.slice(0,4)}</b> · ${rows.map(([t])=>`${testKind(t)} ${esc(t.title)}`).join(" · ")}</span><span class="er">${leftPill(dayLeft(rows))}<svg class="chev" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button>${open?rows.map(([t,st])=>testRow(t,st)).join(""):""}</div>`}
+    if(!all)h+=`<div class="tfoot"><button type="button" class="linkbtn" data-a="tEarlyAll">Show all ${earlier.length} dates</button></div>`;
+    h+=`</section>`}
+  return h+`</div>`;
+}
+/* Planning, for now the form the old Tests screen had (step 3 rebuilds
+   it): what testPlan() proposes, and the date to save it for. */
+function planScreen(){
+  const U=S.ui.tests,next=testPlan().tests,plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+  if(!U.plan)U.plan={date:nextTestDate()};
+  return `<div><button type="button" class="linkbtn" id="pBack" data-a="cList">← Back to tests</button></div>
+   <section class="panel stack" id="tPlan" aria-labelledby="tPlanH"><div class="sechead"><h2 id="tPlanH">Plan the next tests</h2><span class="muted small">One whole-class test where most children are, then the shortest group tests for the rest</span></div>
+     ${next.length?`<div class="stack" style="gap:6px">${next.map(t=>`<div class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(setsLabel(t.sets))}</b><span class="muted small">${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")} · ${t.whole?`everyone · current set for ${t.target.length}`:kidsN(t.pids.length)}</span></div>`).join("")}</div>
      <div class="row" style="align-items:flex-end"><label class="fld" for="tPlanDate">Date of the tests<input type="date" id="tPlanDate" data-c="tPlanDate" value="${U.plan.date}"></label>
       <button type="button" class="btn primary" data-a="tPlanSave">Save ${plural(next.length,"test")}</button><button type="button" class="btn ghost" data-a="tPlanCancel">Cancel</button></div>`
-     :`<p class="muted">Every child has finished every list, so there is nothing left to test.</p><div><button type="button" class="btn ghost" data-a="tPlanCancel">Close</button></div>`}</section>`}
-  if(!all.length)h+=`<div class="panel empty" id="tNone"><h2>No tests yet</h2><p class="muted" style="max-width:54ch">Plan the next tests and they are listed here with their answer sheets, dictation script and marking. They stay here afterwards, so you can come back and re-mark any of them.</p><button type="button" class="btn" data-a="tMarkOne">Mark one child, any words</button></div>`;
-  const dates=[...new Set(all.map(([t])=>t.date))];
-  const dayName=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",...(d.slice(0,4)===today.slice(0,4)?{}:{year:"numeric"})});
-  const rel=d=>{if(d===today)return "today";const w=Math.round((new Date(weekStart(new Date(d+"T12:00"))+"T12:00")-new Date(weekStart()+"T12:00"))/6048e5);return w===0?"this week":w===1?"next week":w===-1?"last week":w>1?`in ${w} weeks`:""};
-  let shown=0;
-  for(const d of dates){
-    const day=all.filter(([t])=>t.date===d),rows=day.filter(show),left=day.reduce((n,[,st])=>n+st.n-st.marked,0);
-    if(!rows.length)continue;shown+=rows.length;
-    h+=`<section class="panel day" aria-label="${dayName(d)}" data-date="${d}"><div class="dayhead"><div class="row" style="align-items:baseline"><h2>${dayName(d)}</h2><span class="muted small">${rel(d)}</span></div><span class="pill ${left?"rev":"ok"}">${left?`${left} still to mark`:"All marked"}</span></div>`;
-    for(const [t,st] of rows){
-      const open=U.open===t.id,full=st.n>0&&st.marked===st.n,pct=st.n?Math.round(st.marked/st.n*100):0;
-      const bands=[...new Set(t.words.map(i=>bandOf(i).n))],cur=t.pids.filter(p=>{const l=summary(p).level;return l<NSETS&&t.words.includes(l*10)}).length;
-      const who=t.whole?`everyone${!full&&cur?` · current set for ${cur}`:""}`:kids(st.n);
-      h+=`<div class="trow" data-test="${esc(t.id)}">
-       <button type="button" class="tname" data-a="tOpen" data-id="${esc(t.id)}" aria-expanded="${open}"><span class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(t.title)}</b></span><span class="muted small">${bands.length>3?`${bands[0]} to ${bands[bands.length-1]}`:bands.join(" &amp; ")} · ${who}</span></button>
-       <div class="tprog"><span>${!st.marked?"Not marked yet":full?`All ${st.n} marked`:`${st.marked} of ${st.n} marked`}</span><div class="bar" role="img" aria-label="${st.marked} of ${st.n} marked"><i class="${full?"full":""}" style="width:${pct}%"></i></div></div>
-       <span class="tres">${st.marked?`avg ${st.avg}/${t.words.length}${st.moved?` · ${st.moved} moved on`:""}`:"—"}</span>
-       <div class="tacts"><button type="button" class="btn sm" data-a="tSheets" data-id="${esc(t.id)}">Sheets</button><button type="button" class="btn sm" data-a="tScript" data-id="${esc(t.id)}">Script</button><button type="button" class="btn sm${full?"":" primary"}" data-a="tMark" data-id="${esc(t.id)}">${full?"Results":st.marked||Object.values(st.done).some(Boolean)?"Carry on marking":"Mark"}</button></div></div>`;
-      if(open)h+=testDetail(t,st);
-    }
-    h+=`</section>`;
-  }
-  if(all.length&&!shown)h+=`<div class="panel"><p class="muted">${f==="todo"?"Every test is fully marked.":"No test is fully marked yet."}</p></div>`;
-  h+=`<section class="panel pcard" aria-labelledby="pH"><div style="flex:1;min-width:240px"><h3 id="pH">Practice</h3><p class="muted small">Practice sheets follow each child’s plan, so print them whenever you like — they always use the latest marks.</p></div>
-    <button type="button" class="btn" data-a="goPrint" data-k="practice">Print practice sheets</button></section>`;
-  return h;
-};
-/* an open test: its words and children, and changing or deleting it */
+     :`<p class="muted">Every child has finished every list, so there is nothing left to test.</p><div><button type="button" class="btn ghost" data-a="tPlanCancel">Close</button></div>`}</section>`;
+}
+/* an open test's words and children, with Change date and Edit words or
+   children. Kept, unreachable: the list no longer opens it. moveTest() is
+   still what Mark's date field uses. */
 function testDetail(t,st){
   const U=S.ui.tests,E=U.edit&&U.edit.id===t.id?U.edit:null,some=st.marked>0||Object.values(st.done).some(Boolean),nMarks=Object.values(st.done).filter(Boolean).length;
   const id=esc(t.id);
@@ -933,15 +1015,12 @@ function testDetail(t,st){
 }
 
 /* ----- Mark (was Assess and Quick check) -----
-   Opens from a test on Tests, with "← All tests" to go back; "one child,
-   any words" is the old Quick check. Re-opening a marked test shows the
-   saved marks, and they can be changed.
+   Opens from a test on Check, with "← All tests" to go back; "one child,
+   any words" (the 1:1 check card) is the old Quick check. Re-opening a
+   marked test shows the saved marks, and they can be changed. It is drawn
+   by checkScreen(), under the two mode cards.
    Classroom Hub: by hand only. Photo marking is not offered yet;
    photoView() is kept, unreachable, for when it comes back. */
-VIEWS.mark=function(){
-  if(!pupilIds().length)return `<div class="panel empty"><p>Add pupils on the Pupils page first.</p>${window.hwHub?`<button type="button" class="btn" data-a="hubPupils">Go to Pupils</button>`:""}</div>`;
-  return markView();
-};
 function photoView(){
   const canPhoto=sampleApi&&imgLimits;
   let h=`<div class="panel stack">
@@ -994,7 +1073,7 @@ function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]
 function markView(){
   const q=S.ui.quick,tests=allTests();
   /* reached without a test (an old link): the newest test still to mark, else one child */
-  if(!q.test){const t=tests.find(t=>{const st=testStats(t);return st.marked<st.n})||tests[0];if(t)loadTest(testFull(t));else markOne()}
+  if(!q.test){const t=tests.find(t=>{const st=testStats(t);return st.marked<st.n})||tests[0];if(t)loadTest(testFull(t));else{markOne();S.ui.check.mode="one"}}
   const T=q.test==="test"&&q.testId?findTest(q.testId):null;
   if(T&&T.saved){const f=testFull(T);q.only=f.words;q.onlyLabel=f.title;q.group=f.pids.slice();S.ui.date=f.date}
   const list=markPupils();
@@ -1008,7 +1087,7 @@ function markView(){
   const sts=list.map(id=>[id,...status(id)]),doneN=sts.filter(x=>x[2]).length;
   const right=shown.filter(i=>cur[i]&&cur[i].s==="c").length,wrong=shown.filter(i=>cur[i]&&cur[i].s==="x"),marked=right+wrong.length,n=Object.keys(cur).length;
   const k=list.indexOf(q.pid),next=list[k+1];
-  let h=`<div><button type="button" class="linkbtn" id="mBack" data-a="tab" data-k="check">← All tests</button></div>
+  let h=`${q.test==="one"?"":`<div><button type="button" class="linkbtn" id="mBack" data-a="cList">← All tests</button></div>`}
   <div class="markbar">
     <label for="mTest">Marking</label>
     <select id="mTest" data-c="markTest">${tests.map(t=>`<option value="${esc(t.id)}" ${T&&t.id===T.id?"selected":""}>${fmtShort(t.date)} · ${testKind(t)} · ${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&!T?`<option value="cur" selected>${esc(q.onlyLabel)} (${q.only.length} words)</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
@@ -1038,7 +1117,7 @@ function markView(){
      <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
      <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
      <span style="flex:1"></span>
-     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="check">Back to all tests</button>`}
+     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="cList">Back to all tests</button>`}
     </div>
    </section>
   </div>`;
@@ -1973,7 +2052,13 @@ function decide(sid,i,s){
   saveDoc("sessions",sid,{...ses,words});
 }
 const A={
-  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;S.ui.tests.confirm=null;window.scrollTo({top:0})},
+  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.check.view="list";window.scrollTo({top:0})},
+  /* the two mode cards. A 1:1 check is today's, not the date of the test last opened */
+  cMode:el=>{const C=S.ui.check,k=el.dataset.k==="one"?"one":"tests";Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.confirm=null;
+    if(k==="one"&&C.mode!=="one"){S.ui.date=localDate();markOne()}
+    C.mode=k;C.view="list";if(S.tab!=="check")setTab("check")},
+  /* back to the list of tests, from planning or from marking */
+  cList:()=>{Object.assign(S.ui.check,{mode:"tests",view:"list"});Object.assign(S.ui.tests,{confirm:null,plan:null});setTab("check");window.scrollTo({top:0})},
   openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null;S.ui.checksOpen=false;S.ui.panelFocus=true},
   closePupil:()=>{S.ui.pupil=null},
   pStep:el=>{const ids=pupilIds(),k=ids.indexOf(S.ui.pupil);if(k<0||!ids.length)return;S.ui.pupil=ids[(k+ +el.dataset.d+ids.length)%ids.length];S.ui.confirm=null;S.ui.checksOpen=false;$("#drawer").scrollTop=0},
@@ -2008,27 +2093,28 @@ const A={
   pfilter:el=>{S.ui.pfilter=el.dataset.f},
   goPrint:el=>{S.ui.print.item=el.dataset.k;setTab("print");window.scrollTo({top:0})},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
-  tFilter:el=>{S.ui.tests.filter=el.dataset.f},
-  tOpen:el=>{const U=S.ui.tests;U.open=U.open===el.dataset.id?null:el.dataset.id;U.edit=null;U.confirm=null},
+  /* ⋯ on a test: Dictation script and Delete test */
+  tOpen:el=>{const U=S.ui.tests;U.open=U.open===el.dataset.id&&U.confirm!==el.dataset.id?null:el.dataset.id;U.edit=null;U.confirm=null},
+  tEarly:el=>{const U=S.ui.tests;U.early=U.early===el.dataset.d?null:el.dataset.d;U.open=null;U.confirm=null},
+  tEarlyAll:()=>{S.ui.showAll.tests=true},
   tMark:el=>{const t=findTest(el.dataset.id);if(!t)return;
     /* with nobody in the test Mark would fall back to the whole class, and mark children who never sat it */
-    if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");S.ui.tests.open=t.id;return}
-    S.ui.tests.confirm=null;loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
-  tMarkOne:()=>{/* a 1:1 check is today's, not the date of the test last opened */S.ui.date=localDate();markOne();setTab("mark");window.scrollTo({top:0})},
-  tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children. Add them with Edit words or children.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
+    if(!t.pids.length){toast("This test has no children: they have left the class.");return}
+    S.ui.tests.confirm=null;S.ui.check.mode="tests";loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
+  tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children: they have left the class.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
   tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
-  tPlan:()=>{const U=S.ui.tests;U.plan=U.plan?null:{date:nextThursday()}},
-  tPlanCancel:()=>{S.ui.tests.plan=null},
+  tPlan:()=>{const U=S.ui.tests;U.plan={date:nextTestDate()};U.open=null;U.confirm=null;S.ui.check.view="plan";window.scrollTo({top:0})},
+  tPlanCancel:()=>{S.ui.tests.plan=null;S.ui.check.view="list"},
   /* save what testPlan() proposes as tests for the chosen date */
   tPlanSave:()=>{const U=S.ui.tests,date=U.plan&&U.plan.date;if(!date){toast("Choose a date for the tests");return}
     const have=allTests().filter(t=>t.saved&&t.date===date),same=(a,b)=>a.length===b.length&&a.every((v,k)=>v===b[k]);let n=0,first=null;
     for(const t of testPlan().tests){const pids=t.pids.slice().sort(byName);if(have.some(o=>same(o.words,t.words)&&same(o.pids,pids)))continue;
       const id=uid();saveTest(id,{date,title:setsLabel(t.sets),whole:t.whole,words:t.words,pids:t.pids,createdAt:Date.now()+n});first=first||id;n++}
-    U.plan=null;U.filter="all";if(first)U.open=null;toast(n?`Saved ${n} test${n===1?"":"s"} for ${fmtDay(date)}`:`Those tests are already planned for ${fmtDay(date)}`)},
+    U.plan=null;S.ui.check.view="list";U.open=null;window.scrollTo({top:0});toast(n?`Saved ${n} test${n===1?"":"s"} for ${fmtDay(date)}`:`Those tests are already planned for ${fmtDay(date)}`)},
   tEdit:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t)return;U.confirm=null;
     U.edit=el.dataset.mode==="date"?{id:t.id,mode:"date",date:t.date}:{id:t.id,mode:"edit",list:Math.max(0,listIdxOf(t.words[0]||0)),sets:[...new Set(t.words.map(i=>Math.floor(i/10)))],sets0:null,pids:t.pids.slice()};
     if(U.edit.sets)U.edit.sets0=U.edit.sets.join(",")},
-  tEditCancel:()=>{S.ui.tests.edit=null;S.ui.tests.confirm=null},
+  tEditCancel:el=>{S.ui.tests.edit=null;S.ui.tests.confirm=null;/* the focus goes back to what opened the confirm */if(el.dataset.id)S.ui.focusId=S.tab==="mark"?"mDel":"tm-"+el.dataset.id},
   tEditList:el=>{S.ui.tests.edit.list=+el.dataset.k},
   tEditSet:el=>{const E=S.ui.tests.edit,g=+el.dataset.g;E.sets=E.sets.includes(g)?E.sets.filter(x=>x!==g):[...E.sets,g].sort((a,b)=>a-b)},
   tEditPid:el=>{const E=S.ui.tests.edit,p=el.dataset.id;E.pids=E.pids.includes(p)?E.pids.filter(x=>x!==p):[...E.pids,p]},
@@ -2045,11 +2131,11 @@ const A={
     const clash=E.date===t.date?0:moveClashes(t,E.date).length;if(clash&&!el.dataset.force){E.clash=clash;return}
     const id=moveTest(t,E.date);U.edit=null;U.open=id;toast(`Test moved to ${fmtDay(E.date)}`)},
   tAskDelete:el=>{const U=S.ui.tests,on=U.confirm!==el.dataset.id;U.confirm=on?el.dataset.id:null;U.edit=null;S.ui.delFocus=on},
-  /* from Tests or from Mark; both end on Tests, with an Undo */
+  /* from the list or from Mark; both end on the list, with an Undo */
   tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;
     const n=testMarked(t),keep=!!el.dataset.keep&&t.saved,undo=deleteTest(t,keep);U.confirm=null;U.open=null;
     if(S.tab==="mark"){S.ui.quick.test=null;setTab("check");window.scrollTo({top:0})}
-    toast(!n?"Test deleted.":keep?`Test deleted. The marks for ${n===1?"1 child":n+" children"} were kept.`:"Test and its marks deleted.",()=>{undo();toast("Test put back")})},
+    toast(!n?"Test deleted":keep?"Test deleted. Its marks still count.":"Test and its marks deleted",()=>{undo();toast("Test put back")})},
   toastUndo:()=>{const f=toast.undo;if(f)f()},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
@@ -2114,13 +2200,13 @@ document.addEventListener("change",e=>{
       /* a test's date is the date of its marks: changing it here moves the test, as Change date does */
       if(S.tab==="mark"&&q.test==="test"&&q.only){const t=(q.testId&&findTest(q.testId))||(q.snap&&{...q.snap,date:S.ui.date});
         if(t&&d!==t.date){
-          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}. Change date on the Check tab can replace them.`);break}
+          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}.`);break}
           q.testId=moveTest(t,d);if(q.snap)q.snap.date=d;toast(`Test moved to ${fmtDay(d)}`)}}
       S.ui.date=d;break}
     case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
     case "tEditDate":if(S.ui.tests.edit){S.ui.tests.edit.date=el.value;S.ui.tests.edit.clash=0}break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "markTest":{const v=el.value;if(v==="one")markOne();else if(v!=="cur"){const t=findTest(v);if(t)loadTest(testFull(t))}break}
+    case "markTest":{const v=el.value;if(v==="one"){markOne();S.ui.check.mode="one"}else if(v!=="cur"){const t=findTest(v);if(t){loadTest(testFull(t));S.ui.check.mode="tests";if(S.tab!=="mark")setTab("mark")}}break}
     case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
@@ -2159,12 +2245,12 @@ function loadDemo(){
   });
   Object.assign(S,{pupils,sessions,practice,plans:{},tests:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
   /* a pending Undo belongs to the class that was on show: it must not write into this one */
-  toast("");S.ui.tests.confirm=null;
+  toast("");Object.assign(S.ui.tests,{confirm:null,open:null,early:null,plan:null});S.ui.check={mode:"tests",view:"list"};S.ui.quick.test=null;
   S.ui.jobs=[];S.ui.ai=null;setTab(DEFAULT_TAB);render();
 }
 function exitDemo(){
   if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,tests:saved.tests,settings:saved.settings,mode:saved.mode});saved=null}
-  toast("");S.ui.tests.confirm=null;
+  toast("");Object.assign(S.ui.tests,{confirm:null,open:null,early:null,plan:null});S.ui.check={mode:"tests",view:"list"};S.ui.quick.test=null;
   S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
 }
 
