@@ -98,7 +98,12 @@ or rewritten: they are worked out on screen from the sessions (per date, each ru
 ten the same children were marked on), and one gets a record only when the teacher changes it. Three
 teacher actions do edit sessions, all on that test's words and date only: changing a test's date moves
 its marks to `<pupilId>_<new date>`; deleting a test deletes its marks (after a confirm that says how many
-children); marking, as before. Other tab ids added since: `week` (→ Tests) and `mark` (a screen under Tests).
+children); marking, as before.
+**Tabs (Nov 2026 rebuild, navigation only: nothing stored changed).** The tabs are Check · Progress · Print
+(ids `check`, `progress`, `print`) and the settings cog (`settings`: class name, capitals, apostrophes, voice,
+how levels work); `mark` is a screen under Check. The Pupils tab has gone. Every earlier id still resolves, in
+the URL hash too (`TAB_ALIAS`): `tests`, `week`, `groups` → Check; `class`, `tracker`, `pupils`, `plans`,
+`plan` → Progress; `assess`, `quick` → the Mark screen.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 

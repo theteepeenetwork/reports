@@ -414,7 +414,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},tests:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
-  mode:"loading", tab:"tests",
+  mode:"loading", tab:"check",
   ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,tests:{open:null,filter:"all",plan:null,edit:null,confirm:null},
       print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing"],actsFor:"pupils",practiceLayout:"a5",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
@@ -531,29 +531,30 @@ function classList(){const c=LISTS.map(()=>0);for(const id of pupilIds())c[curLi
 
 const VIEWS={};
 /* ----- tabs -----
-   Tests · Class · Pupils · Print, and a settings cog. Mark is a screen, not
-   a tab: it opens from a test and sits under Tests. Every id the page has
+   Check · Progress · Print, and a settings cog. Mark is a screen, not a
+   tab: it opens from a test and sits under Check. Every id the page has
    ever used still works, so an old link or a tab remembered from then
-   lands on the screen that took its place: the first design's tracker,
-   groups, assess and plans, and "week" from the Nov 2026 redesign. The old
-   "class" (settings) id can't be told from the Class tab, so it opens
-   Class. Practise and Review are not in OPEN_TABS: nothing reaches them. */
-const TABS=[["tests","Tests"],["class","Class"],["pupils","Pupils"],["print","Print"]];
-const TAB_ALIAS={week:"tests",groups:"tests",tracker:"class",assess:"mark",quick:"mark",plans:"pupils",plan:"pupils"};
+   lands on the tab that took its place: the first design's tracker,
+   groups, assess and plans, "week" from the Nov 2026 redesign, and the
+   Tests · Class · Pupils tabs that followed it. Pupils has gone: its id
+   opens Progress. Practise, Review and the old Pupils view are not in
+   OPEN_TABS: nothing reaches them. */
+const TABS=[["check","Check"],["progress","Progress"],["print","Print"]];
+const TAB_ALIAS={tests:"check",week:"check",groups:"check",class:"progress",tracker:"progress",pupils:"progress",plans:"progress",plan:"progress",assess:"mark",quick:"mark"};
 const OPEN_TABS=new Set([...TABS.map(t=>t[0]),"mark","settings"]);
-const DEFAULT_TAB="tests";
+const DEFAULT_TAB="check";
 /* the tab that is lit for a screen */
-const tabOf=k=>k==="mark"?"tests":k;
+const tabOf=k=>k==="mark"?"check":k;
 function tabId(k){k=String(k||"").replace(/^#/,"").toLowerCase();k=TAB_ALIAS[k]||k;return OPEN_TABS.has(k)?k:null}
 function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"","#"+S.tab)}catch(e){}}
 S.tab=tabId(location.hash)||DEFAULT_TAB;
 window.addEventListener("hashchange",()=>{const k=tabId(location.hash);if(k&&k!==S.tab){S.tab=k;render()}});
-/* ----- Class (was Tracker) -----
+/* ----- Progress (was Class, and Tracker before it) -----
    Where everyone is, band by band, and set by set: a square per set of ten
    instead of a square per word. The word-by-word grid is still the A3
    class record and the CSV. */
 const fmtDay=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
-VIEWS.class=function(){
+VIEWS.progress=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const sums=ids.map(id=>[id,summary(id)]),assessed=sums.filter(([,s])=>s.sessions.length),nA=assessed.length;
@@ -718,7 +719,7 @@ function classNeeds(){
     if(p.reviewDate<=today)due.push(id);if(p.plateau)nogain.push(id);if(p.ready.length)ready.push(id)}
   return memo.needs={due,nogain,ready,unassessed};
 }
-/* ----- Tests -----
+/* ----- Check (was Tests) -----
    Every test the class has sat or is going to sit, newest first. Nothing
    locks and nothing moves on by itself: any test can be printed, marked or
    re-marked at any time.
@@ -860,7 +861,7 @@ function deleteConfirm(t){
   const n=testMarked(t),id=esc(t.id),sh=sharedMarks(t),shared=n&&t.pids.some(p=>{const w=marksOn(p,t.date);return t.words.some(i=>w[i]&&sh(p,i))});
   const kids=n===1?"1 child already has":n+" children already have";
   const why=!n?"Nothing has been marked for it yet."
-    :t.saved?`${kids} marks from it. Keeping the marks means they still count towards each child’s progress, and Tests goes on listing them as a past test on that date.`
+    :t.saved?`${kids} marks from it. Keeping the marks means they still count towards each child’s progress, and Check goes on listing them as a past test on that date.`
     :`${kids} marks from it. This test is made from those marks, so deleting it deletes them.`;
   return `<div class="delc" id="delC" role="alertdialog" aria-labelledby="delH" aria-describedby="delD">
    <div class="delh" id="delH">Delete “${esc(testKind(t))} · ${esc(t.title)}” on ${fmtDay(t.date)}?</div>
@@ -869,7 +870,7 @@ function deleteConfirm(t){
      :`${t.saved?`<button type="button" class="btn" data-a="tDelete" data-keep="1" data-id="${id}">Delete test, keep the marks</button>`:""}<button type="button" class="btn danger" data-a="tDelete" data-id="${id}">Delete test and its marks</button>`}<button type="button" class="btn ghost" id="delCancel" data-a="tEditCancel">Cancel</button></div></div>`;
 }
 const TFILTERS=[["all","All tests"],["todo","Still to mark"],["done","Fully marked"]];
-VIEWS.tests=function(){
+VIEWS.check=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const U=S.ui.tests,today=localDate(),f=TFILTERS.some(x=>x[0]===U.filter)?U.filter:"all";
@@ -1007,7 +1008,7 @@ function markView(){
   const sts=list.map(id=>[id,...status(id)]),doneN=sts.filter(x=>x[2]).length;
   const right=shown.filter(i=>cur[i]&&cur[i].s==="c").length,wrong=shown.filter(i=>cur[i]&&cur[i].s==="x"),marked=right+wrong.length,n=Object.keys(cur).length;
   const k=list.indexOf(q.pid),next=list[k+1];
-  let h=`<div><button type="button" class="linkbtn" id="mBack" data-a="tab" data-k="tests">← All tests</button></div>
+  let h=`<div><button type="button" class="linkbtn" id="mBack" data-a="tab" data-k="check">← All tests</button></div>
   <div class="markbar">
     <label for="mTest">Marking</label>
     <select id="mTest" data-c="markTest">${tests.map(t=>`<option value="${esc(t.id)}" ${T&&t.id===T.id?"selected":""}>${fmtShort(t.date)} · ${testKind(t)} · ${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&!T?`<option value="cur" selected>${esc(q.onlyLabel)} (${q.only.length} words)</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
@@ -1037,7 +1038,7 @@ function markView(){
      <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
      <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
      <span style="flex:1"></span>
-     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="tests">Back to all tests</button>`}
+     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="tab" data-k="check">Back to all tests</button>`}
     </div>
    </section>
   </div>`;
@@ -1262,7 +1263,7 @@ function printView(){
     desc=`Monday to Friday, one poster a day, from the five words most of the class still gets wrong${top.length?`: <span class="wd">${top.map(([i])=>esc(WORDS[i])).join(", ")}</span>.`:". They appear once a test has been marked."}`;
     out=plural(top.length,"poster");paper="A4 landscape"}
   else{const csv=P.gridFmt==="csv";
-    desc="Every child and every word, colour-coded with the latest results: the word-by-word record behind the Class tab.";
+    desc="Every child and every word, colour-coded with the latest results: the word-by-word record behind the Progress tab.";
     opts=(csv?"":listOpt)+seg("Format","gridFmt",P.gridFmt,[["pdf","A3 PDF"],["csv","Spreadsheet (CSV)"]]);
     out=csv?"1 spreadsheet · every list":`1 class grid · ${plural(Math.ceil((PL.b-PL.a)/100),"sheet")}`;paper=csv?"CSV, opens in Excel or Sheets":"A3 landscape · 100 words a sheet";if(csv)go="Download CSV"}
   return `${dl?"":`<div class="panel"><p class="muted">Saving files isn’t available in this view.</p></div>`}<div class="printlay">
@@ -1303,7 +1304,7 @@ function printGo(){
   else{if(!pupilIds().length){toast("Add pupils first");return}PDF.grid()}
 }
 
-/* ----- Settings (the cog; was the Class tab) ----- */
+/* ----- Settings (the cog; was the first Class tab) ----- */
 VIEWS.settings=function(){
   const ids=pupilIds(),st=S.settings;
   return `<h2>Spelling settings</h2><div class="cols">
@@ -1627,7 +1628,8 @@ function planWords(pid){const p=buildPlan(pid);let ws=[...p.focus,...p.revisit];
 function savePlan(pid,patch){saveDoc("plans",pid,{...(S.plans[pid]||{}),...patch,updated:Date.now()})}
 function patternList(p){return Object.entries(p.pats).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>({k,label:ERR[k],n:v.n,ex:v.ex}))}
 /* ----- Pupils (was Plans) ----- one card a child: where they are, their
-   focus and revisit words, when the plan is due a review. */
+   focus and revisit words, when the plan is due a review. No tab opens
+   this view now; its filters move to Progress. */
 const PFILTERS=[["all","Everyone"],["review","Review due"],["nogain","No gain"],["ready","Ready to re-check"]];
 function pupilFilter(k){const N=classNeeds();return k==="review"?N.due:k==="nogain"?N.nogain:k==="ready"?N.ready:pupilIds()}
 VIEWS.pupils=function(){
@@ -2046,7 +2048,7 @@ const A={
   /* from Tests or from Mark; both end on Tests, with an Undo */
   tDelete:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t||U.confirm!==t.id)return;
     const n=testMarked(t),keep=!!el.dataset.keep&&t.saved,undo=deleteTest(t,keep);U.confirm=null;U.open=null;
-    if(S.tab==="mark"){S.ui.quick.test=null;setTab("tests");window.scrollTo({top:0})}
+    if(S.tab==="mark"){S.ui.quick.test=null;setTab("check");window.scrollTo({top:0})}
     toast(!n?"Test deleted.":keep?`Test deleted. The marks for ${n===1?"1 child":n+" children"} were kept.`:"Test and its marks deleted.",()=>{undo();toast("Test put back")})},
   toastUndo:()=>{const f=toast.undo;if(f)f()},
   qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
@@ -2112,7 +2114,7 @@ document.addEventListener("change",e=>{
       /* a test's date is the date of its marks: changing it here moves the test, as Change date does */
       if(S.tab==="mark"&&q.test==="test"&&q.only){const t=(q.testId&&findTest(q.testId))||(q.snap&&{...q.snap,date:S.ui.date});
         if(t&&d!==t.date){
-          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}. Change date on Tests can replace them.`);break}
+          if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}. Change date on the Check tab can replace them.`);break}
           q.testId=moveTest(t,d);if(q.snap)q.snap.date=d;toast(`Test moved to ${fmtDay(d)}`)}}
       S.ui.date=d;break}
     case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
