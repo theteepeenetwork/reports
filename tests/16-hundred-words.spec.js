@@ -32,9 +32,9 @@ async function openHW(page, extra) {
   await expect(frame.locator('#nav button').first()).toBeVisible();
   return frame;
 }
-/* Mark is reached from a test on the Tests tab */
+/* Mark is reached from a test on the Check tab */
 async function openMark(frame) {
-  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('#nav button', { hasText: 'Check' }).click();
   await expect(frame.locator('.tbar')).toBeVisible();
   if (!(await frame.locator('.trow').count())) {
     await frame.getByRole('button', { name: '+ Plan the next tests' }).click();
@@ -49,21 +49,21 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   const frame = await openHW(page, twoClasses('b'));
 
   await expect(frame.locator('#cls')).toHaveText('Year 3');
-  /* four tabs and a settings cog; Tests opens first */
-  await expect(frame.locator('#nav button')).toHaveText(['Tests', 'Class', 'Pupils', 'Print']);
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  /* three tabs and a settings cog; Check opens first */
+  await expect(frame.locator('#nav button')).toHaveText(['Check', 'Progress', 'Print']);
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   /* a class with no tests at all says so, and can still mark one child */
   await expect(frame.locator('#tNone')).toContainText('No tests yet');
   await frame.getByRole('button', { name: 'Mark one child, any words' }).click();
   await expect(frame.locator('.tile')).toHaveCount(100);
   /* Mark opens from a test and sits under Tests. It is by hand only: no photo marking in the hub for now */
   await openMark(frame);
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   await expect(frame.locator('#main')).not.toContainText('Mark photos');
   await expect(frame.locator('#nav button', { hasText: 'Practise' }), 'no practice games in the hub').toHaveCount(0);
   await expect(frame.locator('#nav button', { hasText: 'Review' }), 'no photo review queue in the hub').toHaveCount(0);
   await expect(frame.locator('.pl', { hasText: 'Kit Marlow' })).toHaveCount(1);
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
   await expect(frame.locator('#main')).toContainText('Kit Marlow');
   await expect(frame.locator('#main')).toContainText('Nell Gwyn');
   await expect(frame.locator('#main')).not.toContainText('Ava Bell');   // the default class's roster
@@ -77,10 +77,15 @@ test('Hundred Words shows the active class from the hub and saves under that cla
   /* `storage` events only reach OTHER documents, which the frame is */
   await expect(frame.locator('#main')).toContainText('Tam Lin');
 
-  /* the settings cog holds what the Class tab used to */
+  /* the settings cog: class name, capitals, apostrophes, voice, how levels work */
   await frame.locator('#cog').click();
   await expect(frame.locator('#cog')).toHaveAttribute('aria-current', 'page');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveCount(0);
   await expect(frame.locator('#clsName')).toHaveValue('Year 3');
+  await expect(frame.getByLabel('Require capitals for I, I’m, Mr and Mrs')).toBeVisible();
+  await expect(frame.getByLabel('Accept it’s, don’t and I’m without the apostrophe')).toBeVisible();
+  await expect(frame.locator('#voiceSel, #main p:has-text("can’t speak words aloud")').first()).toBeVisible();
+  await expect(frame.getByRole('heading', { name: 'How levels work' })).toBeVisible();
   await frame.locator('[data-c="strictCaps"]').check();
   const saved = await page.waitForFunction(() => localStorage.getItem('tp_hundred_words::b'));
   const doc = JSON.parse(await saved.jsonValue());
@@ -94,7 +99,7 @@ test('Hundred Words shows the active class from the hub and saves under that cla
 test('Hundred Words on the default class reads the un-suffixed roster', async ({ page }) => {
   const frame = await openHW(page, twoClasses('default'));
   await expect(frame.locator('#cls')).toHaveText('Year 2');
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
   await expect(frame.locator('#main')).toContainText('Ava Bell');
   await expect(frame.locator('#main')).not.toContainText('Kit Marlow');
 });
@@ -181,7 +186,7 @@ test('Mark: the tap cycle, Mark the rest correct, what they wrote, and Next pupi
   await expect(frame.locator('.plist .phead')).toContainText('1 done');
   await frame.getByRole('button', { name: 'Back to all tests' }).click();
   await expect(frame.locator('.markcard')).toHaveCount(0);
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   await expect(frame.locator('.trow').first().locator('.tprog')).toContainText('1 of 2 marked');
 
   /* Kit got 9/10 on 1–10, so is still on it: "✗ last time" shows from tomorrow's check */
@@ -207,7 +212,7 @@ test('Mark opens from a test; a fully marked test re-opens with its marks, and t
   /* the past whole-class test is fully marked: Results opens it with the saved marks */
   const past = frame.locator('.day[data-date="2026-10-01"] .trow').nth(0);
   await past.getByRole('button', { name: 'Results' }).click();
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   await expect(frame.locator('#mTest option:checked')).toHaveText('1 Oct · Whole class · 100 HFW 1–20 (20 words)');
   await expect(frame.locator('#qDate')).toHaveValue('2026-10-01');
   await expect(frame.locator('.pl')).toHaveCount(2);
@@ -339,7 +344,7 @@ test('Tests: past tests are built from old sessions, and every test keeps Sheets
   const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
 
   /* no test was ever saved, yet 1 Oct shows its two tests: the one both children sat, and Nell's own */
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   const day = frame.locator('.day[data-date="2026-10-01"]');
   await expect(day.locator('h2')).toHaveText(/^Thursday 1 October( 2026)?$/);   // the year shows once it is no longer this year
   await expect(day.locator('.dayhead .pill')).toHaveText('All marked');
@@ -421,7 +426,7 @@ test('Tests: past tests are built from old sessions, and every test keeps Sheets
   await expect(next.locator('.trow').nth(1).locator('.tres')).toHaveText('avg 10/10 · 1 moved on');
   await next.locator('.trow').nth(0).getByRole('button', { name: 'Mark' }).click();
   await frame.locator('.tile[data-i="0"]').click();
-  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('#nav button', { hasText: 'Check' }).click();
   await expect(next.locator('.trow').nth(0).locator('.tacts button')).toHaveText(['Sheets', 'Script', 'Carry on marking']);
   await expect(next.locator('.dayhead .pill')).toHaveText('2 still to mark');
 
@@ -446,7 +451,7 @@ test('Tests: change the date, edit the words or children, and delete with a conf
   await row('t1').getByRole('button', { name: 'Mark' }).click();
   await frame.getByRole('button', { name: 'Mark the rest correct' }).click();
   await frame.getByRole('button', { name: /^Next/ }).click();
-  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('#nav button', { hasText: 'Check' }).click();
   await expect(row('t1').locator('.tprog')).toContainText('1 of 2 marked');
   await row('t1').locator('.tname').click();
   await expect(det.locator('.kid')).toHaveText(['Kit ✓', 'Nell — not marked']);
@@ -575,7 +580,7 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
     'x2_2026-10-01': { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: words(100) }
   }, practice: {}, plans: {}, settings: {} });
   const frame = await openHW(page, extra);
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
 
   /* the list switch and four tiles */
   await expect(frame.locator('.seg[aria-label="Word list"] button')).toHaveText(['100 HFW', 'Next 200 HFW', 'Y3/4 exception words']);
@@ -595,7 +600,7 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   await expect(frame.locator('section[aria-labelledby="i1"] .wchip')).toHaveText(['was1', 'you1']);
   await frame.locator('section[aria-labelledby="i1"]').getByRole('button', { name: /Word of the day/ }).click();
   await expect(frame.locator('#cfgH')).toHaveText('Word of the day');
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
   await frame.locator('.bandcol[data-set="1"] .nm').click();
   await expect(frame.locator('#drawer')).toContainText('Kit Marlow');
   await page.keyboard.press('Escape');
@@ -647,7 +652,9 @@ test('Class: band columns, set by set, and a square opens its ten words', async 
   expect(await frame.locator('body').evaluate(() => S.ui.print.list), 'Print keeps its own list, so its pages and bands still match it').toBe(0);
 });
 
-test('Pupils: a card each, the four filters, and practice sheets for everyone', async ({ page }) => {
+/* No tab opens the Pupils view since Check · Progress · Print: its filters move to Progress.
+   Until they do, this drives the kept view directly, for the plan and filter rules behind it. */
+test('Pupils view (kept, no tab): a card each, the four filters, and practice sheets for everyone', async ({ page }) => {
   /* Kit: no gain, wrote "sed", plan overdue · Nell: gaining, practised "the" to the top of the ladder · Tam: not assessed */
   const words = (n, wrong = []) => { const w = {}; for (let i = 0; i < n; i++) w[i] = wrong.includes(i) ? { s: 'x', r: i === 4 ? 'sed' : '' } : { s: 'c' }; return w; };
   const extra = twoClasses('b');
@@ -659,7 +666,8 @@ test('Pupils: a card each, the four filters, and practice sheets for everyone', 
     'x2_2026-09-20': { pupilId: 'x2', date: '2026-09-20', kind: 'spelling', words: words(20, [0, 15]) }
   }, practice: { x2: { boxes: { 0: 3 }, log: [] } }, plans: { x2: { reviewDate: '2099-01-01' } }, settings: {} });
   const frame = await openHW(page, extra);
-  await frame.locator('#nav button', { hasText: 'Pupils' }).click();
+  await expect(frame.locator('#nav button', { hasText: 'Pupils' }), 'the Pupils tab has gone').toHaveCount(0);
+  await frame.locator('body').evaluate(() => { S.tab = 'pupils'; render(); });
 
   const filters = frame.locator('.f');
   await expect(filters).toHaveText(['Everyone · 3', 'Review due · 1', 'No gain · 1', 'Ready to re-check · 1']);
@@ -717,9 +725,9 @@ test('Pupil panel: opens from any name, steps to the next child, and holds the p
   const stored = async () => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
   await expect(panel).toBeHidden();
 
-  /* from a Pupils card */
-  await frame.locator('#nav button', { hasText: 'Pupils' }).click();
-  await frame.locator('.pc', { hasText: 'Kit Marlow' }).click();
+  /* from a name on Progress */
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
+  await frame.locator('table.sg').getByRole('button', { name: 'Kit Marlow', exact: true }).click();
   await expect(panel).toBeVisible();
   await expect(panel).toHaveAttribute('role', 'dialog');
   await expect(panel.locator('#pName')).toHaveText('Kit Marlow');
@@ -785,14 +793,14 @@ test('Pupil panel: opens from any name, steps to the next child, and holds the p
   /* closing: the button, and Escape */
   await panel.getByRole('button', { name: 'Close' }).click();
   await expect(panel).toBeHidden();
-  await frame.locator('#nav button', { hasText: 'Class' }).click();
+  await frame.locator('#nav button', { hasText: 'Progress' }).click();
   await frame.locator('table.sg').getByRole('button', { name: 'Nell Gwyn', exact: true }).click();
   await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
   await panel.locator('#pClose').press('Escape');
   await expect(panel).toBeHidden();
 
   /* from a child in an open test, too */
-  await frame.locator('#nav button', { hasText: 'Tests' }).click();
+  await frame.locator('#nav button', { hasText: 'Check' }).click();
   await frame.locator('.trow .tname').first().click();
   await frame.locator('#tDet .kid', { hasText: 'Nell' }).click();
   await expect(panel.locator('#pName')).toHaveText('Nell Gwyn');
@@ -1039,40 +1047,58 @@ test('With every list finished there is no test, and Mark is still one tap away'
   await expect(frame.locator('#qDate')).toHaveValue(await frame.locator('body').evaluate(() => localDate()));
 });
 
-test('Old tab ids land on the screen that replaced them; Practise and Review stay unreachable', async ({ page }) => {
+test('Old tab ids land on the tab that replaced them; Pupils, Practise and Review stay unreachable', async ({ page }) => {
   const frame = await openHW(page, twoClasses('b'));
   const body = frame.locator('body');
   const land = id => body.evaluate((_, id) => { setTab(id); return S.tab; }, id);
-  /* the first design's ids, and "week" from the Nov 2026 redesign */
-  expect(await land('tracker')).toBe('class');
-  expect(await land('groups')).toBe('tests');
-  expect(await land('week')).toBe('tests');
-  expect(await land('assess')).toBe('mark');
-  expect(await land('quick')).toBe('mark');
-  expect(await land('mark')).toBe('mark');
-  expect(await land('plans')).toBe('pupils');
-  expect(await land('print')).toBe('print');
+  /* every id the page has used -> [the screen it opens, the tab that is lit] */
+  const OLD = {
+    /* the first design */
+    tracker: ['progress', 'Progress'], groups: ['check', 'Check'], assess: ['mark', 'Check'], plans: ['progress', 'Progress'],
+    /* the Nov 2026 redesign: This week · Mark · Class · Pupils · Print, then Tests · Class · Pupils · Print */
+    week: ['check', 'Check'], quick: ['mark', 'Check'], plan: ['progress', 'Progress'],
+    tests: ['check', 'Check'], class: ['progress', 'Progress'], pupils: ['progress', 'Progress'],
+    /* and today's */
+    check: ['check', 'Check'], progress: ['progress', 'Progress'], print: ['print', 'Print'], mark: ['mark', 'Check']
+  };
+  for (const [id, [screen]] of Object.entries(OLD)) expect(await land(id), id).toBe(screen);
   expect(await land('settings')).toBe('settings');
   const home = await body.evaluate(() => DEFAULT_TAB);
-  expect(home).toBe('tests');
+  expect(home).toBe('check');
   expect(await land('practise')).toBe(home);
   expect(await land('review')).toBe(home);
   expect(await land('nonsense')).toBe(home);
+  /* a button inside the page that still carries an old id works too */
+  await body.evaluate(() => { const b = document.createElement('button'); b.id = 'oldTab'; b.dataset.a = 'tab'; b.dataset.k = 'pupils'; document.getElementById('main').appendChild(b); });
+  await frame.locator('#oldTab').click();
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Progress');
+  await expect(frame.locator('table.sg')).toBeVisible();
 
-  /* and a link with an old id in it */
+  /* and a link with an old id in it: the right tab is lit and its screen is showing */
   await blockExternal(page);
-  await page.goto('/hundred-words.html#groups');
-  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
-  await page.goto('/hundred-words.html#week');
+  const SHOWS = { check: '.tbar, #tNone', progress: 'table.sg', print: '.pmenu', mark: '.markcard' };
+  for (const [id, [screen, lit]] of Object.entries(OLD)) {
+    await page.goto('/hundred-words.html#' + id);
+    await page.reload();
+    await expect(page.locator('#nav button[aria-current="page"]'), '#' + id).toHaveText(lit);
+    await expect(page.locator('#nav button[aria-current="page"]')).toHaveCount(1);
+    await expect(page.locator(SHOWS[screen]).first(), '#' + id).toBeVisible();
+    await expect(page.locator('.pcards'), 'the old Pupils cards are not a screen').toHaveCount(0);
+  }
+  await page.goto('/hundred-words.html#settings');
   await page.reload();
-  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
-  await page.goto('/hundred-words.html#assess');
-  await page.reload();
-  await expect(page.locator('#nav button[aria-current="page"]'), 'Mark sits under Tests').toHaveText('Tests');
+  await expect(page.locator('#cog')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveCount(0);
   await page.goto('/hundred-words.html#practise');
   await page.reload();
-  await expect(page.locator('#nav button[aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   await expect(page.locator('#main')).not.toContainText('Choose a game');
+
+  /* following a link while the page is open (hashchange) */
+  await page.evaluate(() => { location.hash = '#pupils'; });
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Progress');
+  await page.evaluate(() => { location.hash = '#tests'; });
+  await expect(page.locator('#nav button[aria-current="page"]')).toHaveText('Check');
 });
 
 /* A real account's data from before this redesign: it must load as it is, and
@@ -1104,7 +1130,7 @@ test('Data saved before the Tests redesign loads unchanged and gives every pupil
   expect(await results()).toEqual(snap.expected);
 
   /* looking at every screen writes nothing: the stored value is byte for byte what it was */
-  for (const tab of ['Class', 'Pupils', 'Print', 'Tests']) {
+  for (const tab of ['Progress', 'Print', 'Check']) {
     await frame.locator('#nav button', { hasText: tab }).click();
     await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText(tab);
   }
@@ -1136,7 +1162,7 @@ async function delOpen(page, over) {
   return { frame, before, stored, toMark, toDetail, dlg: frame.getByRole('alertdialog') };
 }
 const onTests = async frame => {
-  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Tests');
+  await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Check');
   await expect(frame.locator('.tbar')).toBeVisible();
 };
 
