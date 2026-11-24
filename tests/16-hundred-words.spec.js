@@ -1146,6 +1146,19 @@ test('Progress: the four tiles, band columns, the words to teach, and each child
   expect(errors).toEqual([]);
 });
 
+test('Progress: on a short screen, tapping a square leaves its ten words in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 420 });
+  const frame = await openHW(page, progressClass());
+  await openProgress(frame);
+  const cell = frame.locator('table.sg tbody tr .cell').first();
+  await cell.click();
+  await expect(cell).toBeFocused();
+  /* the focus going back to the square must not scroll the words off again */
+  await expect(frame.locator('#sqOne')).toBeInViewport();
+  await page.waitForTimeout(200);
+  await expect(frame.locator('#sqOne')).toBeInViewport();
+});
+
 test('Progress: a square shows its ten words, not as buttons, and the 1:1 link opens that child in Check', async ({ page }) => {
   const errors = collectErrors(page);
   const frame = await openHW(page, progressClass());
@@ -1370,6 +1383,7 @@ test('Child panel: opens from any name on Progress, view only, and its buttons g
 /* Marks are only ever made, changed or deleted in Check. Every button Progress and the child panel
    have is pressed here, in every state they can be in, and the stored sessions must not change. */
 test('Progress has no way to change a mark: every button on it and in the child panel leaves the sessions as they were', async ({ page }) => {
+  test.slow();   // it presses every button on the screen and in the panel: over 30s on a CI runner
   const errors = collectErrors(page);
   const frame = await openHW(page, needsClass()), body = frame.locator('body');
   await openProgress(frame);
