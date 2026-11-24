@@ -1383,6 +1383,7 @@ test('Child panel: opens from any name on Progress, view only, and its buttons g
 /* Marks are only ever made, changed or deleted in Check. Every button Progress and the child panel
    have is pressed here, in every state they can be in, and the stored sessions must not change. */
 test('Progress has no way to change a mark: every button on it and in the child panel leaves the sessions as they were', async ({ page }) => {
+  test.slow();   // it presses every button on the screen and in the panel: over 30s on a CI runner
   const errors = collectErrors(page);
   const frame = await openHW(page, needsClass()), body = frame.locator('body');
   await openProgress(frame);
