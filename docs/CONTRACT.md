@@ -70,98 +70,98 @@ never pulled or pushed as data, not in backups, untouched by sign-out.
 `resetSession` clears via an unhooked raw remove (`LS.removeItem` / a `CLOUD.resetting` flag that
 short-circuits the `Storage.prototype.setItem` hook) so a sign-out NEVER wipes the cloud account.
 
-## Spellings (Hundred Words): `tp_hundred_words` (Oct 2026)
+## Spellings (Hundred Words): `tp_hundred_words` (Oct 2026; rebuilt Nov 2026)
 The sidebar calls it **Spellings**; the file, route (`#hundred-words`) and key keep the old name.
 Word indices are permanent: 0–99 the 100 HFW, 100–299 the next 200 HFW, 300+ the Year 3/4
 common exception words. Append new lists after these; never reorder, or saved marks move word.
 `hundred-words.html` (framed on `#hundred-words`) was written as a claude.ai artifact.
-`js/hundred-words-runtime.js` stands in for its `window.claude.use("db")`: the whole database is
-one JSON value, `{ sessions, practice, plans, settings }`, under the per-class key
-**`tp_hundred_words`** (in `DATA_KEYS` and `TP_PER_CLASS`). Writes go through the hub window's
-`localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are read from the
-active class's `tp_roster`, and every record is keyed by roster pupil id.
-The Nov 2026 redesign (tabs This week · Mark · Class · Pupils · Print, a settings cog, one pupil
-panel) changed layout and navigation only: no key, collection or record shape changed, so there is no
-migration. A session is still `{ pupilId, date, kind, words:{ [index]:{ s:'c'|'x'|'?', src, r? } }, photos, updatedAt }`
-under `<pupilId>_<date>`; `r` (what the child wrote), once only written by photo marking, is now also
-typed in on Mark. A plan is `{ focusN?, reviewDate?, notes?, updated }`; settings may hold `wholeN`
-and `cardsPerChild`. Which tab is open is never stored; the old tab ids (`tracker`, `groups`, `assess`,
-`plans`) still resolve, in the URL hash too (`TAB_ALIAS` in `hundred-words.html`).
-**`tests` (Nov 2026, additive).** The Tests tab (which replaced This week) keeps a fifth collection in the same
-value: `tests: { [id]: { date:'YYYY-MM-DD', title, whole:boolean, words:[index], pids:[roster id], createdAt } }`.
-`title` is the word range only ("100 HFW 21–40"); `whole` says whole class or group. A value saved before
-this has no `tests` field and reads as none; nothing is migrated, and `js/hundred-words-runtime.js` (`?v=2`)
-must keep the field when it reads and writes the value. **A test holds no marks.** Marks stay in the session for
-(pupil, date), so a child is marked for a test when that day's session has a mark for each of its words; one
-session can serve several tests on a date. Tests sat before the collection existed are never given records
-or rewritten: they are worked out on screen from the sessions (per date, each run of neighbouring sets of
-ten the same children were marked on), and one gets a record only when the teacher changes it. Three
-teacher actions do edit sessions, all on that test's words and date only: changing a test's date moves
-its marks to `<pupilId>_<new date>`; deleting a test deletes its marks (after a confirm that says how many
-children); marking, as before.
-**Tabs (Nov 2026 rebuild, navigation only: nothing stored changed).** The tabs are Check · Progress · Print
-(ids `check`, `progress`, `print`) and the settings cog (`settings`: class name, capitals, apostrophes, voice,
-how levels work); `mark` is a screen under Check. The Pupils tab has gone. Every earlier id still resolves, in
-the URL hash too (`TAB_ALIAS`): `tests`, `week`, `groups` → Check; `class`, `tracker`, `pupils`, `plans`,
-`plan` → Progress; `assess`, `quick` → the Mark screen.
-**Check (Nov 2026 rebuild, step 2: nothing stored changed, no new key).** Check has two modes, chosen by two
-cards that head every Check screen: Class & group tests (the default) and 1:1 check. The mode and the screen
-inside it live in `S.ui.check` (`{mode: "tests"|"one", view: "list"|"plan"}`) and are never stored; the hash
-stays `#check` for the list, planning and the 1:1 check, and `#mark` is still marking a test (with no test to
-mark it opens the 1:1 check). The list is a view over the `tests` collection and the sessions, as before. A date
-is listed as *planned* when it has a saved test and is today or later, or is within the last 14 days with a
-saved test still to mark; everything else (and every test worked out from old sessions) is under Earlier tests,
-where each date opens to the same rows. Deleting a test offers "keep the marks" (only the `tests` record goes;
-the sessions are untouched) or "and its marks" (its marks leave the sessions, except any another saved test on
-that date also covers). Editing a test's words or children is not offered (and, since step 4, nor is
-changing its date).
-**Plan a test (Nov 2026 rebuild, step 3: nothing stored changed, no new key).** Planning shows one column per
-set of ten in a word list, a 10 / 20 / 30 / 40 words control and the group tests for everyone the whole-class
-test does not cover. Its choices (`S.ui.tests.plan`: date, start set, length, group tests on or off, the list on
-show) last for the visit and are never stored; the length opens on `settings.main.wholeN`, which is still only
-changed in Settings. Create writes the same `tests` records as before (`title` the word range, `whole`,
-`words`, `pids`, `createdAt`), one per test, and no session. `testPlan()` now takes `{start, len}` (the set
-the whole-class test starts on, and its length in words); with no arguments it returns what it always did.
-**Mark a test (Nov 2026 rebuild, step 4: nothing stored changed, no new key).** Marking a test shows only the
-test's children and words. Every tap writes the session for (child, the test's date) — the same
-`<pupilId>_<date>` record, and the same mark `{ s:'c'|'x', src:'manual' }`, the 1:1 check writes; clearing a
-mark removes that word from the session, and a session left with no words (and no photos) is removed. Marks
-in that session for words outside the test are left as they are, and so is `r` on a word that is not tapped.
-Which child is open is never stored. The test's date, Spelling/Reading (`kind`), and typing what a child wrote
-(`r`) are no longer offered on this screen (nor, since step 5, on the 1:1 check), and an existing
-`r` is kept until that word is marked again. `moveTest()` is kept but nothing calls it from the page.
-**1:1 check (Nov 2026 rebuild, step 5: nothing stored changed, no new key).** The second mode card shows one
-child and one whole word list, a row for each set of ten, every word in the colour of its state (`wordStates()`:
-secure, correct, not yet, slipped, not checked). A tap cycles *today's* mark for that word (none → `c` → `x` →
-none) and writes the session `<pupilId>_<today>` — the same record and the same mark `{ s:'c'|'x', src:'manual' }`
-as before; taking a mark back removes that word, and a session left with no words (and no photos) is removed.
-Marks already in today's session (a test sat today) are today's marks too and cycle the same way. Sessions of
-any other date are never written from this screen. A new session is `kind: "spelling"`; an existing one keeps
-its `kind`. The child and the list on show (`S.ui.one`) are never stored. No longer offered anywhere on the
-page: choosing the date of a 1:1 check (back-dating), `kind: "reading"`, and typing what a child wrote (`r`).
-Stored `kind` and `r` values still load and count exactly as before (`r` still feeds "What they wrote" and the
-plan), and an `r` is kept until that word is marked again. The action `data-a="one" data-id="<pupilId>"` opens
-Check › 1:1 check on that child from anywhere on the page.
-**Progress and the child panel (Nov 2026 rebuild, step 6: nothing stored changed, no new key).** Progress is
-read-only, for the word list chosen at its top: four tiles, a column of names per band, the words most children
-get wrong (`classMissed()`), and each child set by set with the filters Everyone · Review due · No gain · Ready
-to re-check (`classNeeds()`, as the Pupils tab had) and a label beside each flagged name. A square shows its
-ten words as ✓ / ✗ / not checked, with a link to Check › 1:1 check on that child. **Nothing reachable from
-Progress, the child panel or Print writes, changes or removes a session**: "Correct today / Not yet today"
-under a square and Delete on a child's list of checks have gone, with the actions behind them; marks are made,
-changed and cleared only in Check. Two tiles are about the visit and are never stored: "Moved up a set"
-compares each child's `summary().level` with the level they had when the page loaded its data, and "Marked this
-session" counts the word marks Check has written since then (both start again on reload). The child panel shows
-band and set, correct, secure, focus and slipped words (`buildPlan()`, unchanged) and the plan as it stands,
-view only: a stored `plans/<pupilId>` `{ focusN, reviewDate, notes, updated }` still loads and still drives
-`buildPlan()` exactly as before, but no screen edits it now (`savePlan()` is kept, uncalled). Its buttons open
-Check › 1:1 check, Print › Practice sheets and Print › Flash cards for that child. No longer on any screen
-(stored data they read is untouched): "What they wrote" and "Slipping" for the class, the written summary, the
-practice ladder, a child's checks chart and list of checks, and from Progress the A3 class grid and CSV buttons
-(Print › Class record has both). The old Pupils cards view has been removed; `pupils` and `plans` still open
-Progress.
-Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
-Cards per child is still `settings.main.cardsPerChild`.
+`js/hundred-words-runtime.js` (`?v=2`) stands in for its `window.claude.use("db")`: the whole database is
+one JSON value under the per-class key **`tp_hundred_words`** (in `DATA_KEYS` and `TP_PER_CLASS`). Writes go
+through the hub window's `localStorage` so the cloud hook sees them. Its pupils are NOT stored there: they are
+read from the active class's `tp_roster`, and every record is keyed by roster pupil id.
+
+**What is stored.** Five collections, `{ sessions, tests, practice, plans, settings }`. None of the page's
+redesigns (Nov 2026: This week · Mark · Class · Pupils · Print; then Tests · Class · Pupils · Print; then the
+rebuild described here) changed a key or a record shape, so there has never been a migration: an old value
+loads as it is and is not rewritten until the teacher changes something.
+- `sessions/<pupilId>_<date>`: `{ pupilId, date, kind, words:{ [index]:{ s:'c'|'x'|'?', src, r? } }, photos, updatedAt }`.
+  **These are the marks**, and the only place marks live. `r` is what the child wrote.
+- `tests/<id>` (Nov 2026, additive): `{ date:'YYYY-MM-DD', title, whole:boolean, words:[index], pids:[roster id], createdAt }`.
+  `title` is the word range only ("100 HFW 21–40"); `whole` says whole class or group. A value saved before
+  this has no `tests` field and reads as none, and the runtime must keep the field when it reads and writes
+  the value (it adds an empty `tests` the first time it writes anything). **A test holds no marks**: a child is
+  marked for a test when the session for (child, the test's date) has a mark for each of its words, and one
+  session can serve several tests on a date. Tests sat before the collection existed are never given records:
+  they are worked out on screen from the sessions (per date, each run of neighbouring sets of ten the same
+  children were marked on).
+- `plans/<pupilId>`: `{ focusN?, reviewDate?, notes?, updated }`. Still read by `buildPlan()`; no screen edits
+  it now (`savePlan()` is kept, uncalled).
+- `practice/<pupilId>`: `{ boxes, log }`. Still read (the plan's "ready to re-check"); the on-screen practice
+  games that wrote it are not reachable.
+- `settings/main`: `className`, `strictCaps`, `acceptNoApos`, `wholeN` (the whole-class test's length) and
+  `cardsPerChild`. Always saved whole. (The voice is not here: it is the device's own `hw-voice`.)
+
+**Tabs.** Check · Progress · Print (ids `check`, `progress`, `print`) and the settings cog (`settings`: class
+name, capitals, apostrophes, voice, how levels work). `mark` is a screen under Check. There is no Pupils tab.
+Every id the page has ever used still resolves, in the URL hash too (`TAB_ALIAS` in `hundred-words.html`):
+`tests`, `week`, `groups` → Check; `class`, `tracker`, `pupils`, `plans`, `plan` → Progress; `assess`,
+`quick` → the Mark screen. Anything else opens Check.
+
+**What writes marks: Check, and nothing else.** Sessions are created, changed and removed only from Check:
+- *Marking a test* (opened from a test's row; `#mark`) shows only that test's children and words. Every tap
+  writes the session for (child, the test's date) with `{ s:'c'|'x', src:'manual' }`; clearing a mark removes
+  that word, and a session left with no words (and no photos) is removed. Marks in that session for words
+  outside the test are left as they are, and so is `r` on a word that is not tapped.
+- *1:1 check* (the second mode card) shows one child and one whole word list, every word in the colour of its
+  state (`wordStates()`: secure, correct, not yet, slipped, not checked). A tap cycles *today's* mark for that
+  word (none → `c` → `x` → none) in `<pupilId>_<today>`, the same record and mark as above; marks already in
+  today's session (a test sat today) are today's marks too. Sessions of any other date are never written
+  from it. A new session is `kind: "spelling"`; an existing one keeps its `kind`. The action
+  `data-a="one" data-id="<pupilId>"` opens it on that child from anywhere on the page.
+- *Deleting a test* (under ⋯ on its row) offers "keep the marks" (only the `tests` record goes; the sessions
+  are untouched) or "and its marks" (its words leave the sessions of its date, except any another saved test
+  on that date also covers).
+
+Check also writes `tests` records, and only when the teacher creates tests: *Plan a test* shows one column per
+set of ten, a 10 / 20 / 30 / 40 words control (it opens on `settings.main.wholeN`, which is only changed in
+Settings) and the group tests for everyone the whole-class test does not cover; Create writes one `tests`
+record per test and no session. `testPlan()` takes `{start, len}` (the set the whole-class test starts on and
+its length in words); with no arguments it returns what it always did. On the list, a date is *planned* when it
+has a saved test and is today or later, or is within the last 14 days with a saved test still to mark;
+everything else (and every test worked out from old sessions) is under Earlier tests.
+
+**What never writes marks: Progress, the child panel and Print.** Nothing reachable from them writes, changes
+or removes a session, a test or a plan.
+- *Progress* is read-only, for the word list chosen at its top: four tiles, a column of names per band, the
+  words most children get wrong (`classMissed()`), and each child set by set with the filters Everyone ·
+  Review due · No gain · Ready to re-check (`classNeeds()`). A square shows its ten words as ✓ / ✗ / not
+  checked, with a link to Check › 1:1 check on that child.
+- *The child panel* (from any name) shows band and set, correct, secure, focus and slipped words and the plan
+  as it stands (`buildPlan()`), view only. Its buttons open Check › 1:1 check, Print › Practice sheets and
+  Print › Flash cards for that child.
+- *Print* is seven items in three groups: For a test (Answer sheets, Dictation script, Targeted check
+  sheets), For practice (Practice sheets, Flash cards), For the wall & records (Word of the day, Class record:
+  A3 PDF or CSV). Practice sheets is the practice book builder (ticked activities; an A5 book for 1 day,
+  1 week or 2 weeks, or A4 sheets); there is no separate daily-books item. The PDF generators are the ones
+  the page has always had. **The one thing Print saves is Flash cards' "Cards per child",
+  `settings.main.cardsPerChild`** (the settings record, saved whole); every other choice lasts for the visit.
+
+**Never stored.** Which tab, Check mode or screen is open (`S.ui.check`: `{mode: "tests"|"one", view:
+"list"|"plan"}`; the hash stays `#check` for the list, planning and the 1:1 check); the child and list on show
+in the 1:1 check (`S.ui.one`) and in Mark; what Plan a test has chosen before Create (`S.ui.tests.plan`); the
+Progress filter, list and open square; every Print choice except cards per child (`S.ui.print`); and the two
+Progress tiles about the visit, which start again on reload ("Moved up a set" compares each child's
+`summary().level` with the level they had when the page loaded its data; "Marked this session" counts the
+word marks Check has written since then). Levels, bands, word states, the plan and "who needs what" are
+always worked out from the sessions, never stored.
+
+**No longer offered on any screen** (stored data of these kinds still loads and counts exactly as before):
+editing a saved test's words, children or date (`moveTest()` is kept, uncalled); choosing the date of a 1:1
+check; `kind: "reading"`; typing what a child wrote (`r` still feeds the plan, and is kept until that word is
+marked again); photo marking (`photoView()` is kept, unreachable), so `'?'` marks and `photos` are only ever
+read; editing a child's plan; "Correct today / Not yet today" under a Progress square and Delete on a child's
+list of checks (with the actions behind them); the Pupils cards, the written summary, the practice ladder, a
+child's checks chart, and "What they wrote" / "Slipping" for the class.
 
 ## Mental Starter (CBM): `tp_cbm` (Oct 2026; individual sheets Nov 2026)
 A second morning starter (`js/cbm.js`, route `#cbm`), separate from Mental Starters: it never reads
