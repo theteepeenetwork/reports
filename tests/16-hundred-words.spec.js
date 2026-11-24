@@ -1440,9 +1440,74 @@ test('Progress has no way to change a mark: every button on it and in the child 
   expect(await body.evaluate(() => { S.ui.sq = { p: 'x1', g: 0 }; S.ui.pupil = 'x1'; doRender();
     return [...document.querySelectorAll('#main [data-a], #drawer [data-a]')].map(e => e.dataset.a).filter((v, i, a) => a.indexOf(v) === i).sort(); }))
     .toEqual(['cardsFor', 'closePupil', 'list', 'one', 'openPupil', 'pfilter', 'practiceFor', 'sq']);
-  /* each of those, read as source: none of them saves */
-  expect(await body.evaluate(() => ['closePupil', 'list', 'openPupil', 'pfilter', 'sq'].filter(k => /saveDoc|removeDoc|saveQuickWords|saveOneWords|savePlan/.test(String(A[k]))))).toEqual([]);
-  expect(await body.evaluate(() => /saveDoc|removeDoc|savePlan|saveOneWords|saveQuickWords/.test(String(VIEWS.progress) + String(panelHtml)))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+/* The same guard for Print: every item, every option in every form the item takes, and
+   Download. The one thing Print saves is Flash cards' "Cards per child"
+   (settings.main.cardsPerChild), as it always has. It never writes a mark. */
+test('Print never writes a mark: every option of every item, and Download, leave the sessions as they were', async ({ page }) => {
+  test.slow();
+  const errors = collectErrors(page);
+  const frame = await openHW(page, needsClass()), body = frame.locator('body');
+  await frame.locator('#nav button', { hasText: 'Print' }).click();
+  await expect(frame.locator('.pmenu')).toBeVisible();
+  const before = await storedHW(page);
+  const live = () => body.evaluate(() => JSON.parse(JSON.stringify(S.sessions)));
+  const liveBefore = await live();
+  await body.evaluate(() => {
+    window.__writes = [];
+    const sd = saveDoc, rd = removeDoc;
+    saveDoc = (c, id, d) => { window.__writes.push(['save', c, id]); return sd(c, id, d); };
+    removeDoc = (c, id) => { window.__writes.push(['remove', c, id]); return rd(c, id); };
+    window.__pdf = []; for (const k of Object.keys(PDF)) PDF[k] = () => { window.__pdf.push(k); };
+    window.__print0 = JSON.stringify(S.ui.print);
+  });
+  /* each item in each form it takes, so that every option it has is on the page */
+  const FORMS = {
+    answer: [{ ans: '0' }, { ans: 'list', named: true, who: { answer: 'pick' }, pids: ['x1'] }],
+    script: [{ scr: '0' }, { scr: 'list' }],
+    check: [{ who: { check: 'pick' }, pids: ['x1', 'x2'] }],
+    practice: [{ practiceLayout: 'a5', actsFor: 'pupils', who: { practice: 'pick' }, pids: ['x1'] }, { practiceLayout: 'a4', actsFor: 'pupils', who: { practice: 'pick' }, pids: ['x2'] },
+      { practiceLayout: 'a5', actsFor: 'levels' }, { practiceLayout: 'a4', actsFor: 'levels' }],
+    cards: [{ cardsFor: 'pupils', who: { cards: 'pick' }, pids: ['x1', 'x3'] }, { cardsFor: 'levels' }, { cardsFor: 'levels', cardLayout: 'sheet' }],
+    wotd: [{}],
+    grid: [{ gridFmt: 'pdf' }, { gridFmt: 'csv' }]
+  };
+  let pressed = 0;
+  for (const [item, forms] of Object.entries(FORMS)) for (const form of forms) {
+    const set = () => body.evaluate((_, st) => { S.ui.print = Object.assign(JSON.parse(window.__print0), st); doRender(); }, { item, ...form });
+    await set();
+    await frame.locator('#printGo').click();
+    const n = await frame.locator('.pcfg button').count();
+    for (let k = 0; k < n; k++) {
+      await set();
+      await frame.locator('.pcfg button').nth(k).click();
+      pressed++;
+      expect(await body.evaluate(() => S.tab), item + ': still on Print').toBe('print');
+    }
+    await frame.locator('#printGo').click();
+  }
+  for (const b of await frame.locator('.pmenu button').all()) await b.click();
+  expect(pressed).toBeGreaterThan(150);
+  /* Download reached every generator Print uses */
+  expect(await body.evaluate(() => [...new Set(window.__pdf)].sort())).toEqual(['acts', 'bandBooks', 'books', 'cards', 'csv', 'grid', 'script', 'sheets', 'stackLevels', 'stackPupils', 'targeted', 'testScript', 'testSheets', 'wotd']);
+
+  const writes = await body.evaluate(() => window.__writes);
+  expect(writes.length, 'cards per child was saved, once for each size').toBe(9);
+  expect(writes.filter(w => w.join() !== 'save,settings,main'), 'and nothing else, in any collection').toEqual([]);
+  expect(await live(), 'the sessions in memory').toEqual(liveBefore);
+  /* the settings record is saved whole, as it is from the cog: the stored setting is the last size pressed */
+  await expect.poll(async () => ((await storedHW(page)).settings.main || {}).cardsPerChild).toBe(20);
+  const after = await storedHW(page);
+  /* the only stored change is that setting (the first write of any kind also adds the empty `tests` collection) */
+  for (const c of ['sessions', 'practice', 'plans']) expect(after[c], c).toEqual(before[c]);
+  expect(Object.keys(after).sort()).toEqual(['plans', 'practice', 'sessions', 'settings', 'tests']);
+  expect(after.tests).toEqual({});
+  expect(Object.keys(after.settings)).toEqual(['main']);
+  /* read as source: nothing Print runs saves a session, a test or a plan */
+  expect(await body.evaluate(() => /removeDoc|saveQuickWords|saveOneWords|savePlan|saveTest|saveDoc\("(?!settings")/.test(String(printView) + String(printGo) + String(openPractice) + String(openCards)
+    + ['pitem', 'pset', 'ptoggle', 'printGo', 'pidsAll', 'pidsNone', 'printList'].map(k => String(A[k])).join('')))).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -1491,8 +1556,8 @@ test('Print: seven things in three groups, one set of options at a time, each ca
   const frame = await openHW(page, extra);
   await frame.locator('#nav button', { hasText: 'Print' }).click();
 
-  await expect(frame.locator('.pmenu .grp')).toHaveText(['For the test', 'For practice', 'For the wall and records']);
-  /* "Daily practice books" is gone: Practice sheets builds the book */
+  await expect(frame.locator('.pmenu .grp')).toHaveText(['For a test', 'For practice', 'For the wall & records']);
+  /* there is no separate daily-books item: Practice sheets builds the book */
   await expect(frame.locator('.pmenu .it b')).toHaveText(['Answer sheets', 'Dictation script', 'Targeted check sheets',
     'Practice sheets', 'Flash cards', 'Word of the day', 'Class record']);
 
@@ -1513,8 +1578,8 @@ test('Print: seven things in three groups, one set of options at a time, each ca
   /* Answer sheets: a test, every test, or pages of a whole list */
   await expect(frame.locator('.pmenu .it[aria-current="true"] b')).toHaveText('Answer sheets');
   await expect(labels()).toHaveText(['Which test']);
-  await expect(frame.locator('#pout')).toContainText('3 sheets, each with a child’s name · 100 HFW 41–60');
-  await expect(frame.locator('#ppaper')).toHaveText('A4 · boxes numbered 1–20');
+  await expect(frame.locator('#pout')).toHaveText('One sheet per child · 3 sheets');
+  await expect(frame.locator('#ppaper')).toHaveText('A4 · 100 HFW 41–60 · boxes numbered 1–20');
   await go();
   expect(await calls()).toEqual([['testSheets', 'Whole class · 100 HFW 41–60']]);
   await opt('Which test', 'All 2');
@@ -1553,8 +1618,8 @@ test('Print: seven things in three groups, one set of options at a time, each ca
 
   /* Practice sheets: the practice book builder. It opens as the daily A5 book, for everyone */
   await pick('Practice sheets');
-  await expect(labels()).toHaveText(['Activities to include', 'Layout', 'How long', 'Whose words', 'Who']);
-  const ticks = frame.locator('#popts [role="group"][aria-label="Activities to include"] button');
+  await expect(labels()).toHaveText(['Activities to include (tick any)', 'Layout', 'How long', 'Whose words', 'Who']);
+  const ticks = frame.locator('#popts [role="group"][aria-label="Activities to include (tick any)"] button');
   await expect(ticks).toHaveText(['Look, say, cover, write, check', 'Trace and write', 'Missing letters', 'Wordsearch', 'Sentences', 'Bingo boards']);
   await expect(ticks.and(frame.locator('[aria-pressed="true"]'))).toHaveText(['Look, say, cover, write, check', 'Trace and write', 'Missing letters']);
   await expect(frame.locator('#pout')).toHaveText('3 books · 1 week · 3 activities');
@@ -1562,9 +1627,9 @@ test('Print: seven things in three groups, one set of options at a time, each ca
   await go();
   expect(await calls()).toEqual([['books', ['x1', 'x2', 'x3'], 'practice-books.pdf', 5, ['lcwc', 'trace', 'missing']]]);
   /* other activities and another length; who can be the children due a review */
-  await opt('Activities to include', 'Trace and write');          // off
-  await opt('Activities to include', 'Wordsearch');               // on
-  await opt('Activities to include', 'Sentences');                // on
+  await opt('Activities to include (tick any)', 'Trace and write');          // off
+  await opt('Activities to include (tick any)', 'Wordsearch');               // on
+  await opt('Activities to include (tick any)', 'Sentences');                // on
   await opt('How long', '2 weeks');
   await expect(frame.locator('#popts [role="group"][aria-label="Who"] button')).toHaveText(['Everyone (3)', /^Review due \(\d\)$/, 'Choose children']);
   await opt('Who', 'Choose children');
@@ -1573,28 +1638,28 @@ test('Print: seven things in three groups, one set of options at a time, each ca
   await go();
   expect(await calls()).toEqual([['books', ['x2'], 'practice-books.pdf', 10, ['lcwc', 'missing', 'wordsearch', 'sentences']]]);
   /* just look, say, cover, write, check for a day: the page the daily books always printed. The last tick can't be taken off */
-  for (const a of ['Missing letters', 'Wordsearch', 'Sentences']) await opt('Activities to include', a);
-  await opt('Activities to include', 'Look, say, cover, write, check');
+  for (const a of ['Missing letters', 'Wordsearch', 'Sentences']) await opt('Activities to include (tick any)', a);
+  await opt('Activities to include (tick any)', 'Look, say, cover, write, check');
   await expect(ticks.and(frame.locator('[aria-pressed="true"]'))).toHaveText(['Look, say, cover, write, check']);
   await opt('How long', '1 day');
   await opt('Who', 'Everyone (3)');
   await go();
   expect(await calls()).toEqual([['books', ['x1', 'x2', 'x3'], 'practice-books.pdf', 1, ['lcwc']]]);
   /* A4 sheets: no "How long", and the practice-sheet generator */
-  await opt('Activities to include', 'Missing letters');
+  await opt('Activities to include (tick any)', 'Missing letters');
   await opt('Layout', 'A4 sheets');
-  await expect(labels()).toHaveText(['Activities to include', 'Layout', 'Whose words', 'Who']);
+  await expect(labels()).toHaveText(['Activities to include (tick any)', 'Layout', 'Whose words', 'Who']);
   await expect(frame.locator('#pout')).toHaveText('3 packs of A4 sheets · 2 activities');
   await expect(frame.locator('#ppaper')).toHaveText('A4');
   await go();
   expect(await calls()).toEqual([['acts', ['Kit Marlow', 'Nell Gwyn', 'Tam Lin'], 'practice-sheets.pdf', ['lcwc', 'missing']]]);
   /* a band's words instead of each child's (the Next 200 list is still chosen): as sheets, and as a book to copy */
   await opt('Whose words', 'A band');
-  await expect(labels()).toHaveText(['Activities to include', 'Layout', 'Whose words', 'Word list', 'Bands']);
+  await expect(labels()).toHaveText(['Activities to include (tick any)', 'Layout', 'Whose words', 'Word list', 'Bands']);
   await opt('Bands', 'Red 11–20');
   await go();
   await opt('Layout', 'A5 book · stack and cut');
-  await expect(labels()).toHaveText(['Activities to include', 'Layout', 'How long', 'Whose words', 'Word list', 'Bands']);
+  await expect(labels()).toHaveText(['Activities to include (tick any)', 'Layout', 'How long', 'Whose words', 'Word list', 'Bands']);
   await expect(frame.locator('#pout')).toHaveText('2 books to copy, one for each band · 1 day · 2 activities');
   await go();
   expect(await calls()).toEqual([['acts', ['', ''], 'practice-sheets.pdf', ['lcwc', 'missing']], ['bandBooks', [10, 11], 'band-practice-books.pdf', 1, ['lcwc', 'missing']]]);
@@ -1688,6 +1753,241 @@ test('Practice sheets: the A5 book is the old daily book plus the ticked activit
   });
   expect(drawn.length).toBe(12);
   expect(drawn.every(Boolean), 'no blank page').toBe(true);
+});
+
+/* A stand-in for the PDF tool (it is not loaded in tests): it counts the pages and
+   pictures a generator puts in a document, and dl.save records what was handed over. */
+const fakePdf = body => body.evaluate(() => {
+  window.__saved = [];
+  window.jspdf = { jsPDF: function (opts) {
+    const st = { opts, pages: 1, images: 0 };
+    const doc = new Proxy(st, {
+      get(t, k) {
+        if (k in t) return t[k];
+        if (k === 'addPage') return () => { t.pages++; return doc; };
+        if (k === 'addImage') return () => { t.images++; return doc; };
+        if (k === 'output') return () => new Blob(['%PDF-1.3 stand-in']);
+        if (k === 'internal') return { pageSize: { getWidth: () => 210, getHeight: () => 297, width: 210, height: 297 } };
+        if (typeof k === 'symbol' || k === 'then' || k.startsWith('__')) return undefined;
+        return () => doc;
+      },
+      set(t, k, v) { t[k] = v; return true; }
+    });
+    window.__docs = (window.__docs || []).concat(st);
+    return doc;
+  } };
+  dl = { save: async o => { const d = window.__docs[window.__docs.length - 1];
+    window.__saved.push({ filename: o.filename, blob: o.data instanceof Blob, format: d.opts.format, pages: d.pages, images: d.images }); } };
+});
+
+test('Print options and both Practice sheets layouts: three groups, seven items, each with only its own options, and a PDF from each layout', async ({ page }) => {
+  const errors = collectErrors(page);
+  const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
+  const extra = twoClasses('b');
+  extra['tp_roster::b'] = JSON.stringify([...OTHER, { id: 'x3', name: 'Tam Lin' }]);
+  extra['tp_hundred_words::b'] = JSON.stringify({ sessions: {
+    x1_2026: { pupilId: 'x1', date: '2026-10-01', kind: 'spelling', words: all(40) },
+    x2_2026: { pupilId: 'x2', date: '2026-10-01', kind: 'spelling', words: all(100) },
+    x3_2026: { pupilId: 'x3', date: '2026-10-01', kind: 'spelling', words: all(45) }
+  }, practice: {}, plans: {}, settings: {} });
+  const frame = await openHW(page, extra), body = frame.locator('body');
+  const before = await storedHW(page);
+  await frame.locator('#nav button', { hasText: 'Print' }).click();
+  const group = label => frame.locator(`#popts [role="group"][aria-label="${label}"]`);
+  const opt = (label, name) => group(label).getByRole('button', { name, exact: true }).click();
+  const pressed = label => group(label).locator('button[aria-pressed="true"]');
+  const labels = frame.locator('#popts .optl'), out = frame.locator('#pout'), paper = frame.locator('#ppaper'), go = frame.locator('#printGo');
+
+  /* the menu: three groups, seven items, each an icon tile, a name and one line; nothing else */
+  const menu = frame.getByRole('navigation', { name: 'What to print' });
+  expect(await menu.evaluate(nav => { const g = []; for (const el of nav.children) { if (el.matches('.grp')) g.push([el.textContent, []]); else g[g.length - 1][1].push(el.querySelector('b').textContent); } return g; })).toEqual([
+    ['For a test', ['Answer sheets', 'Dictation script', 'Targeted check sheets']],
+    ['For practice', ['Practice sheets', 'Flash cards']],
+    ['For the wall & records', ['Word of the day', 'Class record']]]);
+  await expect(menu.locator('button')).toHaveCount(7);
+  await expect(menu).not.toContainText(/daily practice book/i);
+  expect(await menu.locator('button').evaluateAll(els => els.every(e => e.type === 'button' && e.querySelector('.ic[aria-hidden="true"]') && e.querySelector('b').textContent && e.querySelector('small').textContent))).toBe(true);
+  await expect(menu.locator('small')).toHaveText(['20 numbered boxes a page', 'Word, sentence, word', 'Only words not got yet', 'A practice book you build', 'Colour-coded by band', 'A week of wall posters', 'A3 grid or spreadsheet']);
+
+  /* each item, as it opens: only its own options, one summary line, the paper, and one Download */
+  const OWN = {
+    'Answer sheets': [['Which test'], 'One sheet per child · 3 sheets', 'A4 · 100 HFW 41–60 · boxes numbered 1–20'],
+    'Dictation script': [['Which test'], '1 script · 20 words · 100 HFW 41–60', 'A4 · for you'],
+    'Targeted check sheets': [['Who', 'Words each'], '3 sheets, each with its script', 'A4'],
+    'Practice sheets': [['Activities to include (tick any)', 'Layout', 'How long', 'Whose words', 'Who'], '3 books · 1 week · 3 activities', 'A4 · A5 books print two to a page, then one cut'],
+    'Flash cards': [['Whose words', 'Word list', 'Bands', 'Layout', 'Size', 'Dictation sentence'], '10 cards · 1 band · 10 identical packs', 'A4 · 10 to a page · stack and cut'],
+    'Word of the day': [[], '0 posters', 'A4 landscape'],
+    'Class record': [['Word list', 'Format'], '1 class grid · 1 sheet', 'A3 landscape · 100 words a sheet']
+  };
+  for (const [name, [own, summary, on]] of Object.entries(OWN)) {
+    await menu.getByRole('button', { name }).click();
+    await expect(menu.locator('[aria-current="true"]')).toHaveCount(1);
+    await expect(menu.locator('[aria-current="true"] b')).toHaveText(name);
+    await expect(frame.locator('.pcfg h2')).toHaveText(name);
+    await expect(labels, name).toHaveText(own);
+    await expect(out, name).toHaveText(summary);
+    await expect(paper, name).toHaveText(on);
+    await expect(go).toHaveText('Download PDF');
+    await expect(frame.locator('.pcfg .outbar button')).toHaveCount(1);
+    /* every option is a labelled group of real buttons that say whether they are chosen */
+    expect(await frame.locator('#popts').evaluate(el => [...el.querySelectorAll('.popt')].every(o => { const g = o.querySelector('[role="group"]');
+      return g && g.getAttribute('aria-label') === o.querySelector('.optl').textContent && [...g.querySelectorAll('button')].every(b => b.type === 'button' && /^(true|false)$/.test(b.getAttribute('aria-pressed'))); })), name).toBe(true);
+    await expect(frame.locator('#popts input, #popts select')).toHaveCount(0);
+  }
+
+  /* Practice sheets: the activities are ticks, and the last one can't be taken off */
+  await menu.getByRole('button', { name: 'Practice sheets' }).click();
+  const ACT = 'Activities to include (tick any)';
+  await expect(group(ACT).locator('button').filter({ hasText: /^(Look, say, cover, write, check|Trace and write|Missing letters|Wordsearch|Sentences)$/ })).toHaveCount(5);
+  await expect(group(ACT).locator('button').first()).toHaveText('Look, say, cover, write, check');
+  await expect(pressed(ACT)).toHaveText(['Look, say, cover, write, check', 'Trace and write', 'Missing letters']);
+  await opt(ACT, 'Wordsearch');
+  await opt(ACT, 'Sentences');
+  await expect(out).toHaveText('3 books · 1 week · 5 activities');
+  for (const a of ['Look, say, cover, write, check', 'Trace and write', 'Missing letters', 'Wordsearch']) await opt(ACT, a);
+  await expect(pressed(ACT)).toHaveText(['Sentences']);
+  await expect(out).toHaveText('3 books · 1 week · 1 activity');
+  await opt(ACT, 'Sentences');
+  await expect(pressed(ACT), 'one stays ticked').toHaveText(['Sentences']);
+  await expect(frame.locator('#toast')).toContainText('Keep at least one ticked');
+  await opt(ACT, 'Look, say, cover, write, check');
+  await opt(ACT, 'Trace and write');
+  await expect(pressed(ACT)).toHaveText(['Look, say, cover, write, check', 'Trace and write', 'Sentences']);
+
+  /* A5 book: "How long" shows, and the summary follows it */
+  await expect(group('Layout').locator('button')).toHaveText(['A5 book · stack and cut', 'A4 sheets']);
+  await expect(pressed('Layout')).toHaveText('A5 book · stack and cut');
+  await expect(group('How long').locator('button')).toHaveText(['1 day', '1 week', '2 weeks']);
+  await expect(pressed('How long')).toHaveText('1 week');
+  await opt('How long', '2 weeks');
+  await expect(out).toHaveText('3 books · 2 weeks · 3 activities');
+  await opt('How long', '1 week');
+  await expect(group('Who').locator('button')).toHaveText(['Everyone (3)', /^Review due \(\d\)$/, 'Choose children']);
+
+  /* Download, A5: the practice-book generator makes a real document, two A5 books to an A4 page */
+  await fakePdf(body);
+  const saved = () => body.evaluate(() => window.__saved.splice(0));
+  const perBook = await body.evaluate(() => bookPages('x1', 5, S.ui.print.acts).length);
+  expect(perBook).toBe(11);                                    // a cover, and two pages a day for a week
+  await go.click();
+  await expect.poll(() => body.evaluate(() => window.__saved.length)).toBe(1);
+  expect(await saved()).toEqual([{ filename: 'practice-books.pdf', blob: true, format: 'a4', pages: 2 * perBook, images: 2 * perBook }]);   // 3 books, two to a page
+  await expect(frame.locator('.pcfg .note')).toContainText('cut once across the middle');
+
+  /* A4 sheets: "How long" goes, the summary and the paper line change, and the practice-sheet generator makes the PDF */
+  await opt('Layout', 'A4 sheets');
+  await expect(labels).toHaveText([ACT, 'Layout', 'Whose words', 'Who']);
+  await expect(group('How long')).toHaveCount(0);
+  await expect(out).toHaveText('3 packs of A4 sheets · 3 activities');
+  await expect(paper).toHaveText('A4');
+  await expect(frame.locator('.pcfg .note')).toHaveCount(0);
+  await go.click();
+  await expect.poll(() => body.evaluate(() => window.__saved.length)).toBe(1);
+  const a4 = await saved();
+  expect(a4[0]).toMatchObject({ filename: 'practice-sheets.pdf', blob: true, format: 'a4' });
+  expect(a4[0].pages).toBe(a4[0].images);
+  expect(a4[0].pages).toBe(await body.evaluate(() => { let n = 0; const d = { addPage() {}, addImage() { n++; } }; for (const id of pupilIds()) drawActPages(d, S.ui.print.acts, planWords(id), ''); return n; }));
+  expect(a4[0].pages).toBeGreaterThanOrEqual(9);               // at least a sheet an activity for each of 3 children
+  /* for one chosen child */
+  await opt('Who', 'Choose children');
+  await opt('Children', 'Nell Gwyn');
+  await expect(out).toHaveText('1 pack of A4 sheets · 3 activities');
+  await go.click();
+  await expect.poll(() => body.evaluate(() => window.__saved.length)).toBe(1);
+  expect((await saved())[0].pages).toBeLessThan(a4[0].pages);
+  /* and back to the book: "How long" returns with what was chosen */
+  await opt('Layout', 'A5 book · stack and cut');
+  await expect(pressed('How long')).toHaveText('1 week');
+  await expect(out).toHaveText('1 book · 1 week · 3 activities');
+  await go.click();
+  await expect.poll(() => body.evaluate(() => window.__saved.length)).toBe(1);
+  expect(await saved()).toEqual([{ filename: 'practice-books.pdf', blob: true, format: 'a4', pages: Math.ceil(perBook / 2), images: Math.ceil(perBook / 2) }]);   // one book: its two halves share each page
+
+  /* Flash cards: every option it has on main (origin/main at 0245172), in both "Whose words" modes */
+  await menu.getByRole('button', { name: 'Flash cards' }).click();
+  await expect(frame.locator('.pcfg h2')).toHaveText('Flash cards');
+  const optionSet = () => frame.locator('#popts').evaluate(el => [...el.querySelectorAll('.popt')].map(o => [o.querySelector('.optl').textContent, [...o.querySelectorAll('[role="group"] button')].map(b => b.textContent.trim())]));
+  expect(await optionSet()).toEqual([
+    ['Whose words', ['Each child’s focus', 'A band']],
+    ['Word list', ['100 HFW', 'Next 200 HFW', 'Y3/4 exception words']],
+    ['Bands', ['Pink 1–10', 'Red 11–20', 'Yellow 21–30', 'Blue 31–40', 'Green 41–50', 'Orange 51–60', 'Turquoise 61–70', 'Purple 71–80', 'Gold 81–90', 'White 91–100']],
+    ['Layout', ['Stack and cut', 'Sheet by sheet']],
+    ['Size', ['10 per page', '4 large per page']],
+    ['Dictation sentence', ['No', 'Yes']]]);
+  await opt('Whose words', 'Each child’s focus');
+  await opt('Who', 'Choose children');
+  await expect(group('Children')).toBeVisible();
+  expect(await optionSet()).toEqual([
+    ['Whose words', ['Each child’s focus', 'A band']],
+    ['Who', ['Everyone (3)', 'Choose children']],
+    ['Children', ['Kit Marlow', 'Nell Gwyn', 'Tam Lin']],
+    ['Cards per child', ['3', '4', '5', '6', '8', '10', '12', '15', '20']],
+    ['Layout', ['Stack and cut', 'Sheet by sheet']],
+    ['Size', ['10 per page', '4 large per page']],
+    ['Dictation sentence', ['No', 'Yes']]]);
+  await expect(frame.locator('#popts .linkbtn')).toHaveText(['Select all', 'Select none']);
+  /* cards per child opens on the stored setting (10 until one is stored), and choosing one stores it */
+  await expect(pressed('Cards per child')).toHaveText('10');
+  expect(await storedHW(page), 'nothing has been written so far').toEqual(before);
+  await opt('Cards per child', '8');
+  await expect(pressed('Cards per child')).toHaveText('8');
+  await expect.poll(async () => ((await storedHW(page)).settings.main || {}).cardsPerChild).toBe(8);
+  expect((await storedHW(page)).sessions, 'and no mark was touched').toEqual(before.sessions);
+
+  /* Class record: A3 PDF or a spreadsheet, and the button says which */
+  await menu.getByRole('button', { name: 'Class record' }).click();
+  await expect(group('Format').locator('button')).toHaveText(['A3 PDF', 'Spreadsheet (CSV)']);
+  await expect(go).toHaveText('Download PDF');
+  await expect(paper).toHaveText('A3 landscape · 100 words a sheet');
+  await opt('Format', 'Spreadsheet (CSV)');
+  await expect(go).toHaveText('Download CSV');
+  await expect(labels).toHaveText(['Format']);
+  await expect(out).toHaveText('1 spreadsheet · every list');
+  await expect(paper).toHaveText('CSV, opens in Excel or Sheets');
+  await go.click();
+  await expect.poll(() => body.evaluate(() => window.__saved.map(x => x.filename))).toEqual(['spellings.csv']);
+  await opt('Format', 'A3 PDF');
+  await expect(go).toHaveText('Download PDF');
+
+  /* arriving from the child panel: the item and the child are already chosen */
+  for (const [button, item, child] of [['Practice sheets', 'Practice sheets', 'Tam Lin'], ['Flash cards', 'Flash cards', 'Kit Marlow']]) {
+    await openProgress(frame);
+    await frame.locator('table.sg').getByRole('button', { name: child, exact: true }).click();
+    await frame.locator('#drawer').getByRole('button', { name: button, exact: true }).click();
+    await expect(frame.locator('#drawer')).toBeHidden();
+    await expect(frame.locator('#nav button[aria-current="page"]')).toHaveText('Print');
+    await expect(menu.locator('[aria-current="true"] b')).toHaveText(item);
+    await expect(pressed('Whose words')).toHaveText('Each child’s focus');
+    await expect(pressed('Who')).toHaveText('Choose children');
+    await expect(pressed('Children')).toHaveText([child]);
+  }
+  await expect(out).toHaveText('8 cards each for 1 child');
+  expect(errors).toEqual([]);
+});
+
+test('Print at phone width: the menu stacks above the options, options wrap, 44px targets, nothing runs off the side, in light and dark', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const frame = await openHW(page, needsClass()), body = frame.locator('body');
+  await frame.locator('#nav button', { hasText: 'Print' }).click();
+  for (const scheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const k of ['answer', 'script', 'check', 'practice', 'cards', 'wotd', 'grid']) {
+      await frame.locator(`.pmenu .it[data-k="${k}"]`).click();
+      /* the fullest form of each item */
+      await body.evaluate((_, k) => { const P = S.ui.print; P.ans = 'list'; P.named = true; P.who[k] = 'pick'; P.cardsFor = 'pupils'; P.actsFor = 'pupils'; doRender(); }, k);
+      const m = await body.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(), a = r('.pmenu'), b = r('.pcfg');
+        return { fits: document.documentElement.scrollWidth <= innerWidth, stacked: a.bottom <= b.top && Math.round(a.width) === Math.round(b.width), inside: [...document.querySelectorAll('.pcfg *')].every(e => e.getBoundingClientRect().right <= b.right + 1),
+          small: [...document.querySelectorAll('#main button')].filter(e => e.offsetHeight < 44 || e.offsetWidth < 44).map(e => e.textContent.trim()) }; });
+      expect(m, scheme + ' ' + k).toEqual({ fits: true, stacked: true, inside: true, small: [] });
+      const low = await body.evaluate(() => {
+        const lum = c => { const [r, g, b] = c.match(/[\d.]+/g).slice(0, 3).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * b; };
+        const bg = e => { for (; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (c && !/rgba\(.*, 0\)|transparent/.test(c)) return c; } return 'rgb(255,255,255)'; };
+        return [...document.querySelectorAll('.pmenu .grp, .pmenu b, .pmenu small, .pmenu .ic, .pcfg h2, .pcfg p, .optl, #popts button, #pout, #ppaper, #printGo')]
+          .map(e => { const a = lum(getComputedStyle(e).color), b = lum(bg(e)); return [e.textContent.trim().slice(0, 20), +((Math.max(a, b) + .05) / (Math.min(a, b) + .05)).toFixed(2)]; }).filter(x => x[1] < 4.5);
+      });
+      expect(low, scheme + ' ' + k).toEqual([]);
+    }
+  }
 });
 
 test('With every list finished there is no test, and Mark is still one tap away', async ({ page }) => {
@@ -1810,6 +2110,75 @@ test('Data saved before the Tests redesign loads unchanged and gives every pupil
   await frame.locator('.pcards, #clsName').first().waitFor();
   expect(await page.evaluate(() => localStorage.getItem('tp_hundred_words'))).toBe(before);
   expect(await results()).toEqual(snap.expected);
+  expect(errors).toEqual([]);
+});
+
+/* The same snapshot, checked against what origin/main (0245172, the page before this
+   seven-step rebuild: Tests · Class · Pupils · Print) worked out from it.
+
+   How hundred-words-before-tests.expected.json was made: a temporary `git worktree` of
+   origin/main was served with tests/server.py, opened at index.html#hundred-words with
+   the snapshot's `data` as tp_hundred_words and the fixtures' six-child roster, with the
+   clock fixed as below, and the function in `results` here was run in the page. The
+   worktree was then removed. Never regenerate it from newer code: it is the record of
+   the old page's answers. */
+test('A pre-change data snapshot gives every child the same results as main did, and loads unchanged', async ({ page }) => {
+  const errors = collectErrors(page);
+  const snap = require('./data/hundred-words-before-tests.json'), expected = require('./data/hundred-words-before-tests.expected.json');
+  const before = JSON.stringify(snap.data);
+  /* classNeeds() asks whether a review date has come: the day the expectation was recorded */
+  await page.clock.setFixedTime(new Date('2026-11-24T10:00:00'));
+  const frame = await openHW(page, { tp_hundred_words: before });
+  const body = frame.locator('body');
+  await expect(frame.locator('#main .panel').first()).toBeVisible();
+  const results = () => body.evaluate(() => {
+    const CODE = { none: '.', known: 'k', secure: 'S', notyet: 'n', slipped: 's', review: '?' }, pupils = {};
+    for (const id of pupilIds()) {
+      const s = summary(id), p = buildPlan(id);
+      pupils[id] = { known: s.known, secure: s.secure, review: s.review, assessed: s.assessed, level: s.level, setDone: s.setDone, knownIn: s.knownIn,
+        lastDate: s.lastDate, delta: s.delta, states: wordStates(id).map(w => CODE[w.st]).join(''), focus: p.focus, revisit: p.revisit, nextUp: p.nextUp };
+    }
+    return JSON.parse(JSON.stringify({ pupils, classNeeds: classNeeds() }));
+  });
+  const first = await results();
+  /* every child, and every word of every list for each */
+  expect(Object.keys(first.pupils).sort()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+  expect(Object.keys(expected.pupils).sort()).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+  const nWords = await body.evaluate(() => WORDS.length);
+  for (const id of Object.keys(first.pupils)) {
+    expect(first.pupils[id].states.length, id).toBe(nWords);
+    expect(first.pupils[id], id).toEqual(expected.pupils[id]);
+  }
+  expect(first.classNeeds).toEqual(expected.classNeeds);
+  expect(first).toEqual(expected);
+  /* the expectation is not an empty class: children at different places, some with slipped and secure words */
+  expect(new Set(Object.values(expected.pupils).map(p => p.known)).size).toBeGreaterThan(2);
+  expect(Object.values(expected.pupils).map(p => p.states).join('')).toMatch(/S.*s|s.*S/);
+
+  /* nothing is migrated: after every tab, both Check modes, every Print item, a child
+     panel and the settings, the stored value is byte for byte what it was */
+  const stored = () => page.evaluate(() => localStorage.getItem('tp_hundred_words'));
+  expect(await stored()).toBe(before);
+  await frame.locator('#nav button', { hasText: 'Check' }).click();
+  await frame.locator('#mode-one').click();
+  await expect(frame.locator('#one')).toBeVisible();
+  await frame.locator('#mode-tests').click();
+  await expect(frame.locator('#cList')).toBeVisible();
+  await openProgress(frame);
+  for (let l = 0; l < 3; l++) await frame.locator(`#main [data-a="list"][data-k="${l}"]`).click();
+  await frame.locator('table.sg tbody .cell').first().click();
+  await frame.locator('table.sg tbody th button').first().click();
+  await expect(frame.locator('#drawer #pName')).toBeVisible();
+  await frame.locator('#pClose').click();
+  await frame.locator('#nav button', { hasText: 'Print' }).click();
+  for (const k of ['answer', 'script', 'check', 'practice', 'cards', 'wotd', 'grid']) {
+    await frame.locator(`.pmenu .it[data-k="${k}"]`).click();
+    await expect(frame.locator('#pout')).toBeVisible();
+  }
+  await frame.locator('#cog').click();
+  await expect(frame.locator('#clsName')).toBeVisible();
+  expect(await stored(), 'byte for byte').toBe(before);
+  expect(await results()).toEqual(expected);
   expect(errors).toEqual([]);
 });
 

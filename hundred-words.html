@@ -91,7 +91,7 @@ textarea{width:100%;min-height:140px;resize:vertical;padding:10px 12px}
 label.chk{display:inline-flex;gap:10px;align-items:center;cursor:pointer;min-height:44px}
 label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .seg{display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--line-2);border-radius:10px;padding:3px}
-.seg button{border:0;background:transparent;padding:0 14px;min-height:44px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2)}
+.seg button{border:0;background:transparent;padding:0 14px;min-height:44px;min-width:44px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-2)}
 .seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 /* stats */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px}
@@ -247,6 +247,7 @@ label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600
 .ic.amber{background:var(--rev-soft);color:var(--rev-ink)}
 .it b{display:block;font-size:14px}
 .it small{font-size:12px;color:var(--muted)}
+.it:hover small,.it[aria-current="true"] small{color:var(--ink-2)}
 .pcfg{flex:999 1 480px;min-width:0;padding:24px;display:flex;flex-direction:column;gap:20px}
 .pcfg h2{font-size:22px}
 .popt{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
@@ -1457,15 +1458,17 @@ function finishAct(a){
 /* ----- Print -----
    Seven things in three groups. Picking one shows only its options, a line
    saying what will print and on what paper, and one Download button.
-   Practice sheets is the practice book builder: it took over Daily practice
-   books (A5 book) and the old Practice sheets (A4 sheets), and prints
-   through the same two generators. */
-const PRINT_GROUPS=[["For the test",["answer","script","check"]],["For practice",["practice","cards"]],["For the wall and records",["wotd","grid"]]];
+   Practice sheets is the practice book builder: tick the activities, then
+   an A5 book (the practice-book generator, with "How long") or A4 sheets
+   (the practice-sheet generator). There is no separate daily-books item.
+   Print never writes a mark; the one thing it saves is Flash cards' "Cards
+   per child", in settings (settings.main.cardsPerChild), as it always has. */
+const PRINT_GROUPS=[["For a test",["answer","script","check"]],["For practice",["practice","cards"]],["For the wall &amp; records",["wotd","grid"]]];
 const PRINT_ITEMS={
   answer:{ab:"Aa",tone:"blue",name:"Answer sheets",sub:"20 numbered boxes a page"},
   script:{ab:"“ ”",tone:"blue",name:"Dictation script",sub:"Word, sentence, word"},
   check:{ab:"1:1",tone:"blue",name:"Targeted check sheets",sub:"Only words not got yet"},
-  practice:{ab:"✎",tone:"green",name:"Practice sheets",sub:"A practice book you build: pick the activities"},
+  practice:{ab:"✎",tone:"green",name:"Practice sheets",sub:"A practice book you build"},
   cards:{ab:"▭",tone:"green",name:"Flash cards",sub:"Colour-coded by band"},
   wotd:{ab:"W",tone:"amber",name:"Word of the day",sub:"A week of wall posters"},
   grid:{ab:"A3",tone:"amber",name:"Class record",sub:"A3 grid or spreadsheet"}};
@@ -1504,7 +1507,7 @@ function printView(){
       opts+=listOpt+toggles("Pages","pages",P.pages,Array.from({length:pages},(_,k)=>[k,`Words ${k*20+1}–${Math.min(k*20+20,PL.b-PL.a)}`]),'data-n="1"')+seg("Names","named",P.named,[[false,"Blank"],[true,"Each child’s name on"]],'data-b="1"')+(P.named?who([everyone,pick]):"");
       out=P.named?`${plural(npick*P.pages.length,"sheet")} · ${plural(P.pages.length,"page")} for each of ${npick===1?"1 child":npick+" children"}`:`${plural(P.pages.length,"blank sheet")} to copy`;paper="A4 · 20 boxes a page"}
     else if(v==="all"){out=`${plural(tests.reduce((n,t)=>n+t.pids.length,0),"named sheet")} in ${tests.length} PDFs, one for each test`;paper="A4 · boxes numbered to match each script"}
-    else{const t=tests[+v];out=`${plural(t.pids.length,"sheet")}, each with a child’s name · ${esc(t.label)}`;paper=`A4 · boxes numbered 1–${t.words.length}`}}
+    else{const t=tests[+v];out=`One sheet per child · ${plural(t.pids.length,"sheet")}`;paper=`A4 · ${esc(t.label)} · boxes numbered 1–${t.words.length}`}}
   else if(item==="script"){const v=printTest("scr");
     desc="What you read aloud: each word, a sentence with it, then the word again."+forDate;
     opts=seg("Which test","scr",v,testChoices)+(v==="list"?listOpt:"");
@@ -1515,7 +1518,7 @@ function printView(){
     out=`${plural(npick,"sheet")}, each with its script`}
   else if(item==="practice"){const lv=P.actsFor==="levels",a5=P.practiceLayout!=="a4",d=+P.bookDays,k=P.acts.length,others=P.acts.filter(x=>x!=="lcwc").length;
     desc="Made from each child’s plan. Tick the activities to include — as a daily A5 book with a cover and tick chart, or as A4 sheets.";
-    opts=toggles("Activities to include","acts",P.acts,Object.entries(ACTS).map(([x,a])=>[x,ACT_TICK[x]||a.name]),'data-min="1"')
+    opts=toggles("Activities to include (tick any)","acts",P.acts,Object.entries(ACTS).map(([x,a])=>[x,ACT_TICK[x]||a.name]),'data-min="1"')
       +seg("Layout","practiceLayout",a5?"a5":"a4",[["a5","A5 book · stack and cut"],["a4","A4 sheets"]])
       +(a5?seg("How long","bookDays",d,[[1,"1 day"],[5,"1 week"],[10,"2 weeks"]],'data-n="1"'):"")
       +seg("Whose words","actsFor",P.actsFor,[["pupils","Each child’s focus"],["levels","A band"]])+(lv?listOpt+bands():who([everyone,["review",`Review due (${N.due.length})`],pick]))
