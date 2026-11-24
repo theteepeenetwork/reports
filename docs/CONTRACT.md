@@ -115,6 +115,13 @@ where each date opens to the same rows. Deleting a test offers "keep the marks" 
 the sessions are untouched) or "and its marks" (its marks leave the sessions, except any another saved test on
 that date also covers). Changing a test's date is now only Mark's date field; editing a test's words or
 children is not offered.
+**Plan a test (Nov 2026 rebuild, step 3: nothing stored changed, no new key).** Planning shows one column per
+set of ten in a word list, a 10 / 20 / 30 / 40 words control and the group tests for everyone the whole-class
+test does not cover. Its choices (`S.ui.tests.plan`: date, start set, length, group tests on or off, the list on
+show) last for the visit and are never stored; the length opens on `settings.main.wholeN`, which is still only
+changed in Settings. Create writes the same `tests` records as before (`title` the word range, `whole`,
+`words`, `pids`, `createdAt`), one per test, and no session. `testPlan()` now takes `{start, len}` (the set
+the whole-class test starts on, and its length in words); with no arguments it returns what it always did.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 
