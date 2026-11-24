@@ -1146,6 +1146,19 @@ test('Progress: the four tiles, band columns, the words to teach, and each child
   expect(errors).toEqual([]);
 });
 
+test('Progress: on a short screen, tapping a square leaves its ten words in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 420 });
+  const frame = await openHW(page, progressClass());
+  await openProgress(frame);
+  const cell = frame.locator('table.sg tbody tr .cell').first();
+  await cell.click();
+  await expect(cell).toBeFocused();
+  /* the focus going back to the square must not scroll the words off again */
+  await expect(frame.locator('#sqOne')).toBeInViewport();
+  await page.waitForTimeout(200);
+  await expect(frame.locator('#sqOne')).toBeInViewport();
+});
+
 test('Progress: a square shows its ten words, not as buttons, and the 1:1 link opens that child in Check', async ({ page }) => {
   const errors = collectErrors(page);
   const frame = await openHW(page, progressClass());

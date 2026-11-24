@@ -596,12 +596,13 @@ function doRender(){
   if(open)dr.setAttribute("aria-labelledby","pName");else dr.removeAttribute("aria-labelledby");
   drawCrops();
   /* the ten words open under the grid, which can be a screen or more below the square that was tapped */
-  if(S.ui.sqShow){S.ui.sqShow=false;const b=$("#sqbar");if(b&&b.scrollIntoView)b.scrollIntoView({block:"nearest"})}
+  /* …and the focus going back to the square must not scroll them off again */
+  let keepScroll=false;if(S.ui.sqShow){S.ui.sqShow=false;keepScroll=true;const b=$("#sqbar");if(b&&b.scrollIntoView)b.scrollIntoView({block:"nearest"})}
   /* at phone width Mark's pupils are a strip: keep the child being marked in view */
   const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
   if(S.ui.delFocus){S.ui.delFocus=false;S.ui.focusId=null;const c=$("#delCancel");if(c)c.focus()}
-  else if(S.ui.focusId){const f=S.ui.focusId,el=document.getElementById(f)||(/^[#.]/.test(f)?document.querySelector(f):null);S.ui.focusId=null;if(el)el.focus()}
+  else if(S.ui.focusId){const f=S.ui.focusId,el=document.getElementById(f)||(/^[#.]/.test(f)?document.querySelector(f):null);S.ui.focusId=null;if(el)el.focus({preventScroll:keepScroll})}
   else if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
   else if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
   /* Plan a test on a phone: the sets scroll sideways, so bring the test's first set into view */
