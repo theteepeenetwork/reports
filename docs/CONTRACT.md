@@ -142,6 +142,24 @@ page: choosing the date of a 1:1 check (back-dating), `kind: "reading"`, and typ
 Stored `kind` and `r` values still load and count exactly as before (`r` still feeds "What they wrote" and the
 plan), and an `r` is kept until that word is marked again. The action `data-a="one" data-id="<pupilId>"` opens
 Check › 1:1 check on that child from anywhere on the page.
+**Progress and the child panel (Nov 2026 rebuild, step 6: nothing stored changed, no new key).** Progress is
+read-only, for the word list chosen at its top: four tiles, a column of names per band, the words most children
+get wrong (`classMissed()`), and each child set by set with the filters Everyone · Review due · No gain · Ready
+to re-check (`classNeeds()`, as the Pupils tab had) and a label beside each flagged name. A square shows its
+ten words as ✓ / ✗ / not checked, with a link to Check › 1:1 check on that child. **Nothing reachable from
+Progress, the child panel or Print writes, changes or removes a session**: "Correct today / Not yet today"
+under a square and Delete on a child's list of checks have gone, with the actions behind them; marks are made,
+changed and cleared only in Check. Two tiles are about the visit and are never stored: "Moved up a set"
+compares each child's `summary().level` with the level they had when the page loaded its data, and "Marked this
+session" counts the word marks Check has written since then (both start again on reload). The child panel shows
+band and set, correct, secure, focus and slipped words (`buildPlan()`, unchanged) and the plan as it stands,
+view only: a stored `plans/<pupilId>` `{ focusN, reviewDate, notes, updated }` still loads and still drives
+`buildPlan()` exactly as before, but no screen edits it now (`savePlan()` is kept, uncalled). Its buttons open
+Check › 1:1 check, Print › Practice sheets and Print › Flash cards for that child. No longer on any screen
+(stored data they read is untouched): "What they wrote" and "Slipping" for the class, the written summary, the
+practice ladder, a child's checks chart and list of checks, and from Progress the A3 class grid and CSV buttons
+(Print › Class record has both). The old Pupils cards view has been removed; `pupils` and `plans` still open
+Progress.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 

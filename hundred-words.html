@@ -229,23 +229,10 @@ label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2)}
 .legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--line)}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--band);border:1px solid rgba(0,0,0,.18);flex:none}
-/* pupils */
+/* filters */
 .f{font-size:13px;font-weight:600;padding:0 14px;min-height:44px;border-radius:999px;border:1px solid var(--ctl);background:var(--card);color:var(--ink-2);cursor:pointer}
 .f[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
-.pcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-@media (max-width:1000px){.pcards{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:640px){.pcards{grid-template-columns:1fr}}
-.pc{padding:16px 18px;display:flex;flex-direction:column;gap:10px;text-align:left;color:var(--ink);cursor:pointer;align-items:stretch;font-size:15px}
-.pc:hover{border-color:var(--accent-mid)}
-.pc .pn{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;min-width:0}
-.pc .pn .dot{width:14px;height:14px}
-.pc .chips{min-height:32px}
 .wchip.again{border-color:var(--no-line)}
-details.more{position:relative}
-details.more>summary{list-style:none}
-details.more>summary::-webkit-details-marker{display:none}
-details.more .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:grid;gap:2px;min-width:230px}
-details.more .menu .btn{justify-content:flex-start;border-color:transparent}
 /* print */
 .printlay{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
 .pmenu{flex:1 1 300px;max-width:340px;min-width:0;padding:8px}
@@ -282,29 +269,37 @@ details.more .menu .btn{justify-content:flex-start;border-color:transparent}
 .nm{font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:0 6px;min-height:44px;color:var(--ink);cursor:pointer;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nm:hover{border-color:var(--accent-mid)}
 .nm.na{border-style:dashed;color:var(--ink-2)}
-.three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
-@media (max-width:900px){.three{grid-template-columns:1fr}}
 :root{--sq-d:#cdebd9;--sq-p:#f4e7c4}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--sq-d:#1f4a33;--sq-p:#4a3a14}}
 :root[data-theme="dark"]{--sq-d:#1f4a33;--sq-p:#4a3a14}
 table.sg{width:100%;border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums}
 table.sg th{font-size:12px;font-weight:700;color:var(--ink-2);padding:2px;min-width:64px;line-height:1.5}
-table.sg th.pn{text-align:left;min-width:120px;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
-table.sg th.pn .linkbtn{color:var(--ink)}
+table.sg th.pn{text-align:left;min-width:150px;font-size:14px;font-weight:600;color:var(--ink)}
+/* the names stay put while the sets scroll sideways */
+table.sg th.pn{position:sticky;left:0;z-index:1;background:var(--card)}
+@media (max-width:560px){table.sg th.pn{min-width:124px;max-width:150px}}
 table.sg td{text-align:center;padding:0}
-table.sg td.sc{font-size:14px;font-weight:700;padding-left:8px;white-space:nowrap;text-align:left}
-table.sg td.sc small{font-size:12px;font-weight:600}
+table.sg td.sc{font-size:14px;font-weight:700;padding:0 8px;white-space:nowrap;text-align:center}
 .cell{font-weight:700;font-size:13px;width:100%;min-width:44px;height:44px;border:0;border-radius:6px;cursor:pointer;padding:0}
 .cell.d{background:var(--sq-d);color:var(--ok-ink)}
 .cell.p{background:var(--sq-p);color:var(--rev-ink)}
 .cell.n{background:var(--paper);color:var(--muted)}
 .cell[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
-.sqbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 14px;border-radius:12px;background:var(--accent-soft)}
-.sqbar button.wchip{min-height:44px;cursor:pointer;background:var(--card)}
-.sqbar button.wchip.ok{background:var(--ok-soft);border-color:var(--ok)}
-.sqbar button.wchip.no{background:var(--no-soft);border-color:var(--no-line)}
-.sqbar button.wchip[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
-.cellbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);flex-basis:100%}
+.sqbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:10px 14px;border-radius:12px;background:var(--accent-soft)}
+.sqbar>b{font-size:14px}
+.sqbar .chips{flex:1 1 320px}
+.sqbar .wchip{background:var(--card)}
+.sqbar .wchip.ok{background:var(--ok-soft);border-color:var(--ok)}
+.sqbar .wchip.no{background:var(--no-soft);border-color:var(--no-line)}
+.sqbar .wchip.ok .sqm{color:var(--ok-ink)}.sqbar .wchip.no .sqm{color:var(--no-ink)}
+.sqbar .sqm{font-family:var(--f-ui);font-size:13px;font-weight:700}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.pnw{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}
+.pnb{color:var(--ink);white-space:nowrap}
+.flag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--line-2);color:var(--ink-2)}
+.flag.rev{background:var(--rev-soft);color:var(--rev-ink)}
+.flag.no{background:var(--no-soft);color:var(--no-ink)}
+.flag.blue{background:var(--accent-soft);color:var(--accent-text)}
 td.sel{outline:3px solid var(--accent)!important;outline-offset:-3px}
 th.score-h,td.score{position:sticky;right:0;background:var(--card);min-width:66px;text-align:center;font-variant-numeric:tabular-nums;z-index:1}
 th.score-h{z-index:3}
@@ -374,33 +369,18 @@ td.score small{display:block;font-size:11px;line-height:1}
 .ptop{padding:20px 24px 16px;display:flex;flex-direction:column;gap:14px}
 .ptop h2{font-size:24px}
 .iconbtn{width:44px;padding:0;font-size:20px;line-height:1}
-.avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;flex:none;background:var(--band);color:#14181d;border:1px solid rgba(0,0,0,.12)}
-.avatar.none{background:var(--line-2);color:var(--ink)}
-.mini3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.mini2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .mini{background:var(--paper);border-radius:10px;padding:10px 12px}
+.plevel{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2)}
+.wchip.slip{background:var(--w-slip);border-color:var(--w-slip-l)}
+.pdl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center;margin:0;font-size:13px}
+.pdl dt{font-weight:700}.pdl dd{margin:0}
 .mini b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.2}
 .mini b small{font-size:13px;color:var(--muted);font-weight:700}
 .mini span{font-size:12px;color:var(--muted)}
-.mini.bad{background:var(--no-soft)}.mini.bad b,.mini.bad span{color:var(--no-ink)}
-.mini.good{background:var(--ok-soft)}.mini.good b,.mini.good span{color:var(--ok-ink)}
 .pnote{font-size:14px;line-height:1.5;border-radius:10px;padding:12px 14px;background:var(--paper);color:var(--ink-2)}
-.pnote.warn{background:var(--rev-soft);color:var(--rev-ink)}
-.pnote.good{background:var(--ok-soft);color:var(--ok-ink)}
 .sec{padding:18px 24px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:10px}
 .sec h3{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
-.fw{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
-.fw .wd{font-size:20px}
-.fw small{font-size:12px;color:var(--muted);min-width:92px;text-align:right}
-.lad{display:flex;gap:4px}
-.lad i{width:22px;height:8px;border-radius:4px;background:var(--line)}
-.lad i.on{background:var(--accent)}
-.bars{display:flex;align-items:flex-end;gap:10px;height:96px}
-.bars div{flex:1;min-width:0;max-width:90px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px}
-.bars i{width:100%;border-radius:4px;background:var(--accent-soft);border:1px solid var(--line);min-height:3px}
-.bars div:last-child i{background:var(--accent);border-color:var(--accent)}
-.bars span{font-size:11px;color:var(--muted);white-space:nowrap}
-.sec summary{cursor:pointer;font-size:14px;font-weight:600;min-height:44px;display:flex;align-items:center}
-.sec label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600}
 .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;z-index:30;max-width:calc(100% - 32px)}
 .toast:empty{display:none}
 .tundo{font:inherit;font-weight:700;color:inherit;background:none;border:0;text-decoration:underline;cursor:pointer;min-height:36px;padding:0 6px}
@@ -522,8 +502,8 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},tests:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"check",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null},one:{pid:null,list:null},list:null,cell:null,sq:null,pupil:null,confirm:null,check:{mode:"tests",view:"list"},tests:{open:null,early:null,plan:null,edit:null,confirm:null},
-      print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing"],actsFor:"pupils",practiceLayout:"a5",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null},one:{pid:null,list:null},list:null,sq:null,pfilter:"all",pupil:null,pupilFrom:null,confirm:null,check:{mode:"tests",view:"list"},tests:{open:null,early:null,plan:null,edit:null,confirm:null},
+      print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing"],actsFor:"pupils",practiceLayout:"a5",bookDays:5},plan:null,practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
 let memo={};
@@ -609,10 +589,11 @@ function doRender(){
   $("#nav").innerHTML=TABS.map(([k,l])=>`<button type="button" data-a="tab" data-k="${k}" ${tabOf(S.tab)===k?'aria-current="page"':""}>${l}</button>`).join("");
   const cog=$("#cog");if(S.tab==="settings")cog.setAttribute("aria-current","page");else cog.removeAttribute("aria-current");
   $("#banner").innerHTML=bannerHtml();
+  if(S.mode!=="loading")visitBase();
   $("#main").innerHTML=S.mode==="loading"?`<div class="panel empty"><span class="spin"></span><p class="muted">Opening your class…</p></div>`:(VIEWS[S.tab]||VIEWS[DEFAULT_TAB])();
   const dr=$("#drawer"),open=S.ui.pupil&&S.pupils[S.ui.pupil];
   dr.innerHTML=open?panelHtml(S.ui.pupil):"";
-  if(open)dr.setAttribute("aria-label",S.pupils[S.ui.pupil].name+" — spellings");
+  if(open)dr.setAttribute("aria-labelledby","pName");else dr.removeAttribute("aria-labelledby");
   drawCrops();
   /* the ten words open under the grid, which can be a screen or more below the square that was tapped */
   if(S.ui.sqShow){S.ui.sqShow=false;const b=$("#sqbar");if(b&&b.scrollIntoView)b.scrollIntoView({block:"nearest"})}
@@ -647,7 +628,7 @@ const VIEWS={};
    lands on the tab that took its place: the first design's tracker,
    groups, assess and plans, "week" from the Nov 2026 redesign, and the
    Tests · Class · Pupils tabs that followed it. Pupils has gone: its id
-   opens Progress. Practise, Review and the old Pupils view are not in
+   opens Progress, where its filters now are. Practise and Review are not in
    OPEN_TABS: nothing reaches them. */
 const TABS=[["check","Check"],["progress","Progress"],["print","Print"]];
 const TAB_ALIAS={tests:"check",week:"check",groups:"check",class:"progress",tracker:"progress",pupils:"progress",plans:"progress",plan:"progress",assess:"mark",quick:"mark"};
@@ -660,62 +641,81 @@ function setTab(k){S.tab=tabId(k)||DEFAULT_TAB;try{history.replaceState(null,"",
 S.tab=tabId(location.hash)||DEFAULT_TAB;
 window.addEventListener("hashchange",()=>{const k=tabId(location.hash);if(k&&k!==S.tab){S.tab=k;render()}});
 /* ----- Progress (was Class, and Tracker before it) -----
-   Where everyone is, band by band, and set by set: a square per set of ten
-   instead of a square per word. The word-by-word grid is still the A3
-   class record and the CSV. */
+   Read-only. Where everyone is, band by band and set by set, for the list
+   chosen at the top. Nothing here, in the child panel or in Print writes
+   a mark: marks are made, changed and cleared in Check (a test or a 1:1
+   check), and this screen follows them.
+
+   Two of the tiles are about this visit to the page and are never stored
+   (see VISIT): "Moved up a set" compares each child's summary().level with
+   the level they had when the page loaded its data, and "Marked this
+   session" counts the word marks Check has written since then.
+
+   Gone from this screen (the functions behind them are kept): "Since
+   previous check", "Secure" and "Finished the list" tiles, "What they
+   wrote" and "Slipping", the written summary, the A3 class grid and CSV
+   buttons (Print › Class record has both) and "Correct today / Not yet
+   today" under a square. */
 const fmtDay=d=>new Date(d+"T12:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+/* this visit: the level each child had when the data loaded, and the marks Check has written since */
+const VISIT={base:null,marks:new Map()};
+function visitReset(){VISIT.base=null;VISIT.marks.clear()}
+function visitBase(){const b=VISIT.base||(VISIT.base={});for(const id of pupilIds())if(!(id in b))b[id]=summary(id).level;return b}
+/* called where Check saves a session's words: a word that gains or changes a mark counts once, a cleared one stops counting */
+function visitMarks(sid,before,after){
+  for(const i of new Set([...Object.keys(before||{}),...Object.keys(after||{})])){
+    const a=after&&after[i]&&after[i].s,b=before&&before[i]&&before[i].s;if(a===b)continue;
+    if(a)VISIT.marks.set(sid+"|"+i,[sid,i]);else VISIT.marks.delete(sid+"|"+i)}
+}
+function visitMarked(){let n=0;for(const [sid,i] of VISIT.marks.values()){const s=S.sessions[sid];if(s&&s.words&&s.words[i])n++}return n}
+/* the three things classNeeds() flags a child for; the filters and the labels beside names */
+const NEED_FLAGS=[["review","Review due","rev","due"],["nogain","No gain","no","nogain"],["ready","Ready to re-check","blue","ready"]];
+const PFILTERS=[["all","Everyone"],...NEED_FLAGS.map(f=>[f[0],f[1]])];
+function needFlags(id){const N=classNeeds();return NEED_FLAGS.filter(f=>N[f[3]].includes(id))}
 VIEWS.progress=function(){
   const ids=pupilIds();
   if(!ids.length)return emptyClass();
   const sums=ids.map(id=>[id,summary(id)]),assessed=sums.filter(([,s])=>s.sessions.length),nA=assessed.length;
   const li=S.ui.list==null?classList():S.ui.list,L=LISTS[li],LW=listWords(L),sets=listSets(L);
-  const avgL=nA?Math.round(assessed.reduce((n,[,s])=>n+s.knownIn[li],0)/nA):0,avgSec=nA?Math.round(assessed.reduce((n,[,s])=>n+s.secure,0)/nA):0;
-  const deltas=assessed.filter(([,s])=>s.delta!=null),avgDelta=deltas.length?deltas.reduce((n,[,s])=>n+s.delta,0)/deltas.length:null;
-  const fin=assessed.filter(([,s])=>s.knownIn[li]===LW.length),last=assessed.map(([,s])=>s.lastDate).sort().pop();
+  const avgL=nA?Math.round(assessed.reduce((n,[,s])=>n+s.knownIn[li],0)/nA):0,last=assessed.map(([,s])=>s.lastDate).sort().pop();
   const name=id=>esc(shortName(id)),range=g=>{const w=setWords(g);return `${num(w[0])}–${num(w[w.length-1])}`};
-  let h=`<div class="row" style="justify-content:space-between">${listSeg(li,"list")}<span class="muted small">${last?`Last check ${fmtDay(last)} · `:""}${nA} of ${ids.length} assessed</span></div>
-  <section class="stat4" aria-label="Summary">
-    <div class="stat"><span>Class average</span><b>${avgL}<small>/${LW.length}</small></b><span>correct, ${esc(LIST_TAB[li])}</span></div>
-    <div class="stat"><span>Since previous check</span><b class="${avgDelta>0?"up":avgDelta<0?"down":""}">${avgDelta==null?"–":(avgDelta>0?"+":"")+avgDelta.toFixed(1)}</b><span>words per child</span></div>
-    <div class="stat"><span>Secure (right twice)</span><b>${avgSec}</b><span>words per child, average</span></div>
-    <div class="stat"><span>Finished the list</span><b>${fin.length}</b><span>${fin.length?`${fin.slice(0,3).map(([id])=>name(id)).join(", ")}${fin.length>3?` +${fin.length-3}`:""}${LISTS[li+1]?` → ${esc(LIST_TAB[li+1])}`:""}`:"nobody yet"}</span></div>
-  </section>`;
+  const kids=n=>n===1?"1 child":n+" children";
   /* where everyone is: a column per band (set of ten) of this list */
   const by={};for(const [id,s] of sums)(by[s.level]=by[s.level]||[]).push(id);
+  const base=visitBase(),moved=sums.filter(([id,s])=>s.level>base[id]).length;
+  let topG=null;for(const g of sets)if((by[g]||[]).length>(topG==null?0:by[topG].length))topG=g;
+  let h=`<div class="row" style="justify-content:space-between">${listSeg(li,"list")}<span class="muted small">${last?`Last check ${fmtDay(last)} · `:""}${nA} of ${ids.length} assessed</span></div>
+  <section class="stat4" aria-label="Summary">
+    <div class="stat" id="tAvg"><span>Class average</span><b>${avgL}<small>/${LW.length}</small></b><span>words correct</span></div>
+    <div class="stat" id="tMoved"><span>Moved up a set</span><b class="up">${moved}</b><span>since you opened this page</span></div>
+    <div class="stat" id="tBand"><span>Most children on</span><b>${topG==null?"–":BANDS[topG%10].n}</b><span>${topG==null?"nobody is on this list":kids(by[topG].length)}</span></div>
+    <div class="stat" id="tMarks"><span>Marked this session</span><b>${visitMarked()}</b><span>words, tests and 1:1</span></div>
+  </section>`;
   const earlier=sums.filter(([,s])=>s.level<sets[0]).length,later=sums.filter(([,s])=>s.level>sets[sets.length-1]).length;
-  h+=`<section class="panel stack" aria-labelledby="bandH"><div class="sechead"><h3 id="bandH">Where everyone is</h3><span class="muted small">Each child is on the first set of ten they haven’t got 10/10 · tap a name for their panel</span></div>
-   <div class="scrollx"><div class="bands">${sets.map(g=>{const kids=by[g]||[];return `<div class="bandcol" data-set="${g}"><div class="bh">${bandDot(g)}<b>${BANDS[g%10].n}</b><span class="ct">${kids.length||"—"}</span></div><span class="rg">${range(g)}</span>${kids.map(id=>`<button type="button" class="nm${summary(id).sessions.length?"":" na"}" data-a="openPupil" data-id="${id}" title="${esc(S.pupils[id].name)}${summary(id).sessions.length?"":" · not assessed yet"}">${name(id)}</button>`).join("")}</div>`}).join("")}</div></div>
+  h+=`<section class="panel stack" aria-labelledby="bandH"><div class="sechead"><h3 id="bandH">Where everyone is</h3><span class="muted small">Each child is on the first set of ten they haven’t got 10/10 · tap a name</span></div>
+   <div class="scrollx"><div class="bands">${sets.map(g=>{const k=by[g]||[];return `<div class="bandcol" data-set="${g}"><div class="bh">${bandDot(g)}<b>${BANDS[g%10].n}</b><span class="ct">${k.length||"—"}</span></div><span class="rg">${range(g)}</span>${k.map(id=>`<button type="button" class="nm${summary(id).sessions.length?"":" na"}" data-a="openPupil" data-id="${id}" title="${esc(S.pupils[id].name)}${summary(id).sessions.length?"":" · not assessed yet"}">${name(id)}</button>`).join("")}</div>`}).join("")}</div></div>
    ${earlier||later?`<p class="muted small">${[earlier?`${earlier===1?"1 child is":earlier+" children are"} still on an earlier list`:"",later?`${later===1?"1 child has":later+" children have"} moved on past this list`:""].filter(Boolean).join(" · ")}.</p>`:""}</section>`;
-  /* three insights */
-  const slip=Array(WORDS.length).fill(0);for(const [,s] of assessed)s.ws.forEach((w,i)=>{if(w.st==="slipped")slip[i]++});
-  const top=classMissed(assessed).slice(0,5),wrote=classWrote(assessed).slice(0,4),slips=slip.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const none=t=>`<span class="muted small">${nA?t:"This appears after the first test is marked."}</span>`;
-  h+=`<div class="three">
-   <section class="panel stack" aria-labelledby="i1" style="align-content:start"><h3 id="i1">Teach to the class</h3><div class="chips">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Every assessed word is correct.")}</div>${top.length?'<p class="muted small">children still getting it wrong</p><div><button type="button" class="linkbtn" data-a="goPrint" data-k="wotd">Print these as Word of the day →</button></div>':""}</section>
-   <section class="panel stack" aria-labelledby="i2" style="align-content:start"><h3 id="i2">What they wrote</h3>${wrote.length?`<div style="font-size:14px;line-height:1.9">${wrote.map(([i,r,n])=>`<span class="wd">${esc(WORDS[i])} → “${esc(r)}”</span> <span class="muted small">×${n}</span>`).join("<br>")}</div>`:none("Add what children wrote in Mark to see their misspellings here.")}</section>
-   <section class="panel stack" aria-labelledby="i3" style="align-content:start"><h3 id="i3">Slipping</h3><div class="chips">${slips.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small>${n}</small></span>`).join("")||none("Nothing has slipped.")}</div>${slips.length?'<p class="muted small">right before, wrong last time</p>':""}</section>
-  </div>`;
-  /* set by set */
-  const sq=S.ui.sq&&S.pupils[S.ui.sq.p]&&sets.includes(S.ui.sq.g)?S.ui.sq:null,cell=S.ui.cell;
-  h+=`<section class="panel stack" aria-labelledby="gridH"><div class="row" style="justify-content:space-between"><h3 id="gridH">Set by set</h3>
-    <span class="legend"><span><i style="background:var(--sq-d)"></i>10/10</span><span><i style="background:var(--sq-p)"></i>working on it</span><span><i style="background:var(--paper)"></i>not reached</span></span></div>
-   <div class="scrollx"><table class="sg"><thead><tr><th scope="col" class="pn">Pupil</th>${sets.map(g=>`<th scope="col">${bandDot(g)}<br>${range(g)}</th>`).join("")}<th scope="col">Score</th></tr></thead><tbody>
-   ${sums.map(([id,s])=>`<tr><th scope="row" class="pn"><button type="button" class="linkbtn" data-a="openPupil" data-id="${id}">${esc(S.pupils[id].name)}</button></th>${sets.map(g=>{const w=setWords(g),k=w.filter(i=>isKnown(s.ws[i].st)).length,done=k===w.length,cur=s.sessions.length>0&&g===s.level;
-     return `<td><button type="button" class="cell ${done?"d":cur?"p":"n"}" data-a="sq" data-p="${id}" data-g="${g}" aria-pressed="${!!(sq&&sq.p===id&&sq.g===g)}" aria-label="${esc(S.pupils[id].name)}, ${BANDS[g%10].n} ${range(g)}: ${done?`${k} out of ${w.length}`:cur?`${k} out of ${w.length}, working on it`:"not reached"}">${done?"✓":cur?k:""}</button></td>`}).join("")}
-     <td class="sc">${s.sessions.length?`${s.knownIn[li]} ${s.delta?`<small class="${s.delta>0?"up":"down"}">${s.delta>0?"+":""}${s.delta}</small>`:""}`:'<span class="muted">–</span>'}</td></tr>`).join("")}
-   </tbody></table></div>`;
+  /* teach to the whole class: classMissed(), for the words of this list */
+  const top=classMissed(assessed).filter(([i])=>i>=L.a&&i<L.b).slice(0,8);
+  h+=`<section class="panel stack" aria-labelledby="teachH"><h3 id="teachH">Teach to the whole class</h3><p class="muted small">Words the most children still get wrong (updates as you mark)</p>
+   <div class="chips" id="teach">${top.map(([i,n])=>`<span class="wchip">${esc(WORDS[i])}<small title="${kids(n)}">${n}</small></span>`).join("")||`<span class="muted small">${nA?"Nobody has one of these words wrong.":"This appears after the first test is marked."}</span>`}</div></section>`;
+  /* each child, set by set */
+  const f=PFILTERS.some(x=>x[0]===S.ui.pfilter)?S.ui.pfilter:"all",N=classNeeds(),fl=NEED_FLAGS.find(x=>x[0]===f);
+  const rows=fl?sums.filter(([id])=>N[fl[3]].includes(id)):sums;
+  const sq=S.ui.sq&&S.pupils[S.ui.sq.p]&&sets.includes(S.ui.sq.g)&&rows.some(([id])=>id===S.ui.sq.p)?S.ui.sq:null;
+  h+=`<section class="panel stack" aria-labelledby="gridH"><div class="row" style="justify-content:space-between"><h3 id="gridH">Each child, set by set</h3>
+    <div class="row" role="group" aria-label="Show" id="pFilters" style="gap:6px">${PFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="pfilter" data-f="${k}" aria-pressed="${f===k}">${l}</button>`).join("")}</div></div>
+   ${rows.length?`<div class="scrollx"><table class="sg"><thead><tr><th scope="col" class="pn">Child</th>${sets.map(g=>`<th scope="col">${bandDot(g)}<br>${range(g)}</th>`).join("")}<th scope="col">Correct</th></tr></thead><tbody>
+   ${rows.map(([id,s])=>`<tr data-id="${id}"><th scope="row" class="pn"><span class="pnw"><button type="button" class="linkbtn pnb" data-a="openPupil" data-id="${id}">${esc(S.pupils[id].name)}</button>${needFlags(id).map(x=>`<span class="flag ${x[2]}">${x[1]}</span>`).join("")}</span></th>${sets.map(g=>{const w=setWords(g),k=w.filter(i=>isKnown(s.ws[i].st)).length,done=k===w.length,cur=s.sessions.length>0&&g===s.level;
+     return `<td><button type="button" class="cell ${done?"d":cur?"p":"n"}" data-a="sq" data-p="${id}" data-g="${g}" aria-pressed="${!!(sq&&sq.p===id&&sq.g===g)}" aria-label="${esc(S.pupils[id].name)}, ${BANDS[g%10].n} ${range(g)}: ${done||cur?`${k} out of ${w.length}`:"not reached"}">${done?"✓":cur?k:""}</button></td>`}).join("")}
+     <td class="sc">${s.sessions.length?s.knownIn[li]:'<span class="muted">–</span>'}</td></tr>`).join("")}
+   </tbody></table></div>`:`<p class="muted" id="pNoRows">No children here right now.</p>`}
+   <span class="legend"><span><i style="background:var(--sq-d)"></i>✓ 10/10, set done</span><span><i style="background:var(--sq-p)"></i>the set they’re working on, with how many correct</span><span><i style="background:var(--paper)"></i>not reached</span><span>Tap a square to see its ten words</span></span>`;
   if(sq){const s=summary(sq.p),w=setWords(sq.g),k=w.filter(i=>isKnown(s.ws[i].st)).length;
-    h+=`<div class="sqbar" id="sqbar"><b style="font-size:14px;margin-right:6px">${esc(S.pupils[sq.p].name)} · ${BANDS[sq.g%10].n} ${range(sq.g)} · ${k}/${w.length}</b>
-     ${w.map(i=>{const st=s.ws[i].st;return `<button type="button" class="wchip${isKnown(st)?" ok":st==="notyet"||st==="slipped"?" no":""}" data-a="cell" data-p="${sq.p}" data-i="${i}" aria-pressed="${!!(cell&&cell.p===sq.p&&cell.i===i)}" title="${STLABEL[st]}">${esc(WORDS[i])}<span class="small" aria-hidden="true">${isKnown(st)?"✓":st==="notyet"||st==="slipped"?"✗":""}</span></button>`}).join("")}
-     <button type="button" class="btn ghost sm" data-a="closeSq" style="margin-left:auto">Close</button>`;
-    if(cell&&cell.p===sq.p&&w.includes(cell.i)){const st=s.ws[cell.i];
-      h+=`<div class="cellbar"><span class="wchip">${esc(WORDS[cell.i])}<small>${esc(listOf(cell.i).short)} #${num(cell.i)}</small></span><span class="muted small">${STLABEL[st.st]}${st.last&&st.last.r!=null&&st.last.r!==""?` · wrote “${esc(st.last.r)}”`:""}</span>
-      <span class="row" style="margin-left:auto"><button type="button" class="btn sm ok" data-a="setCell" data-s="c">Correct today</button><button type="button" class="btn sm no" data-a="setCell" data-s="x">Not yet today</button><button type="button" class="btn sm ghost" data-a="closeCell">Close</button></span></div>`}
-    h+=`</div>`}
-  h+=`<div class="row" style="justify-content:space-between"><span class="muted small">Tap a square to see the ten words. Every word, one by one, is in the A3 class grid.</span>
-    <span class="row"><button type="button" class="btn" data-a="classGrid" data-k="${li}">A3 class grid</button><button type="button" class="btn" data-a="csv">Spreadsheet (CSV)</button></span></div></section>`;
-  if(sampleApi){const ai=S.ui.ai;h+=`<div class="panel stack"><div class="row" style="justify-content:space-between"><h3>Written summary</h3><button type="button" class="btn" data-a="aiSummary" ${ai&&ai.status==="thinking"?"disabled":""}>${ai&&ai.text?"Write again":"Write a summary with Claude"}</button></div>
-    <div class="ai-out" id="aiOut">${ai?(ai.text?esc(ai.text):ai.status==="thinking"?'<span class="spin"></span> Thinking…':esc(ai.err||"")):'<span class="muted">Claude reads the figures above and writes a short summary you can paste into notes or a report.</span>'}</div></div>`}
+    h+=`<div class="sqbar" id="sqbar"><b id="sqT">${esc(S.pupils[sq.p].name)} · ${BANDS[sq.g%10].n} ${range(sq.g)} · ${k}/${w.length}</b>
+     <span class="chips" role="list" aria-labelledby="sqT">${w.map(i=>{const st=s.ws[i].st,ok=isKnown(st),no=st==="notyet"||st==="slipped";return `<span role="listitem" class="wchip${ok?" ok":no?" no":""}" data-i="${i}" title="${STLABEL[st]}">${esc(WORDS[i])}${ok||no?`<span class="sqm" aria-hidden="true">${ok?"✓":"✗"}</span>`:""}<span class="vh">, ${ok?"correct":no?"not yet":"not checked"}</span></span>`}).join("")}</span>
+     <button type="button" class="linkbtn" id="sqOne" data-a="one" data-id="${sq.p}" data-k="${li}">1:1 check ${name(sq.p)} →</button></div>`}
+  h+=`<p class="muted small" id="roNote">Read-only. To change a mark, use Check — a test or a 1:1 check.</p></section>`;
   return h;
 };
 function emptyClass(){
@@ -731,60 +731,53 @@ function classMissed(sums){
   for(const [,s] of sums)if(s.sessions.length)s.ws.forEach((w,i)=>{if(w.st==="notyet"||w.st==="slipped")miss[i]++;for(const h of w.hist)if(h.s==="x")tries[i]++});
   return miss.map((n,i)=>[i,n]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]||tries[b[0]]-tries[a[0]]||a[0]-b[0]);
 }
-/* ----- Pupil panel -----
-   One side panel for a child, opened from any name: where they are, their
-   focus words, what they wrote, the two-week plan, their prints and their
-   checks. It replaces the old drawer and the full-page plan. Practice
-   sheets opens Print › Practice sheets for this child, where the
-   activities are chosen; flash cards and the check sheet download here. */
+/* ----- Child panel -----
+   One side panel for a child, opened from any name. View only: band and
+   set, correct and secure, the focus words and the slipped words (both
+   from buildPlan()), what the plan says today, and three buttons that go
+   to where the work is done: Check › 1:1 check on this child, and Print ›
+   Practice sheets or Flash cards for this child.
+
+   Nothing here saves. A stored plan { focusN, reviewDate, notes } still
+   loads and still drives buildPlan() exactly as before; no screen edits it
+   now. Also gone from the panel (their functions are kept): previous and
+   next child, the practice ladder, "what they wrote" chips, the checks
+   chart and the list of checks with Delete, the notes box, and the Check
+   sheet, Plan (PDF) and Practice pack downloads. */
 function panelHtml(pid){
-  const p=buildPlan(pid),s=p.s,pl=p.pl,name=S.pupils[pid].name,first=esc(p.first),draft=S.ui.planDraft[pid];
-  const li=curList(s),on=p.assessed&&s.level<NSETS,pats=patternList(p);
-  const dates=[...new Set(s.sessions.map(x=>x.date))],pts=dates.map(d=>[d,wordStates(pid,{upto:d}).filter(w=>isKnown(w.st)).length]).slice(-6),max=Math.max(10,...pts.map(x=>x[1]));
-  const mis=[];s.ws.forEach((w,i)=>w.hist.forEach(h=>{if(h.s==="x"&&h.r)mis.push([i,h.r,h.date])}));mis.sort((a,b)=>b[2].localeCompare(a[2]));
-  /* why the focus set is the size it is */
-  const note=!p.assessed?["","<b>Not checked yet.</b> Until the first test is marked, the plan starts from the first words on the list."]
-    :pl.focusN?["",`<b>You set the focus size to ${p.focusN} words.</b> Choose Automatic below to let it follow ${first}’s progress again.`]
-    :p.plateau?["warn",`<b>No gain since the last check</b>, so the focus set is down to ${p.focusN} words. Short daily 1:1 practice works better than a longer weekly session.`]
-    :p.gains?["good",`<b>Big gain since the last check (+${s.delta})</b>, so the focus set is up to ${p.focusN} words.`]:null;
-  let h=`<div class="ptop">
-    <div class="row" style="justify-content:space-between"><div class="row" style="gap:6px"><button type="button" class="btn iconbtn" data-a="pStep" data-d="-1" aria-label="Previous pupil">‹</button><button type="button" class="btn iconbtn" data-a="pStep" data-d="1" aria-label="Next pupil">›</button></div>
-     <button type="button" class="btn ghost iconbtn" id="pClose" data-a="closePupil" aria-label="Close">✕</button></div>
-    <div class="row" style="gap:14px;flex-wrap:nowrap"><span class="avatar${on?"":" none"}" ${on?`style="--band:${BANDS[s.level%10].c}"`:""} aria-hidden="true">${esc(name.trim()[0]||"")}</span>
-     <div style="min-width:0"><h2 id="pName">${esc(name)}</h2><div style="font-size:14px;color:var(--ink-2)">${esc(levelLabel(s))}</div></div></div>
-    <div class="mini3">
-     <div class="mini"><b>${s.knownIn[li]}<small>/${listWords(LISTS[li]).length}</small></b><span>correct</span></div>
-     <div class="mini"><b>${s.secure}</b><span>secure</span></div>
-     <div class="mini${s.delta==null?"":s.delta>0?" good":" bad"}"><b>${s.delta==null?"–":(s.delta>0?"+":"")+s.delta}</b><span>since last check</span></div>
+  const p=buildPlan(pid),s=p.s,pl=p.pl,name=S.pupils[pid].name,first=esc(p.first);
+  const li=curList(s),done=s.level>=NSETS,lv=Math.min(s.level,NSETS-1),pats=patternList(p);
+  const level=done?"Every list complete":`${BANDS[lv%10].n} · working on ${esc(setLabel(lv))} · ${s.setDone}/${setWords(lv).length}`;
+  const slipped=s.ws.map((w,i)=>i).filter(i=>s.ws[i].st==="slipped");
+  const chips=(a,cls="")=>a.map(i=>`<span class="wchip${cls}">${esc(WORDS[i])}</span>`).join("");
+  const why=!p.assessed?"Not checked yet, so the plan starts from the first words on the list."
+    :pl.focusN?`The focus size was set to ${p.focusN} words.`
+    :p.plateau?`No gain since the last check, so the focus set is down to ${p.focusN} words.`
+    :p.gains?`A big gain since the last check (+${s.delta}), so the focus set is up to ${p.focusN} words.`:`The focus set is ${p.focusN} words.`;
+  return `<div class="ptop">
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap"><h2 id="pName">${esc(name)}</h2><button type="button" class="btn ghost iconbtn" id="pClose" data-a="closePupil" aria-label="Close">✕</button></div>
+    <div class="plevel" id="pLevel">${done?bandDot(NSETS):bandDot(lv)}<span>${level}${p.assessed?"":" · not checked yet"}</span></div>
+    <div class="mini2">
+     <div class="mini" id="pCorrect"><b>${s.knownIn[li]}<small>/${listWords(LISTS[li]).length}</small></b><span>correct</span></div>
+     <div class="mini" id="pSecure"><b>${s.secure}</b><span>secure</span></div>
     </div>
-    ${note?`<p class="pnote ${note[0]}" id="pNote">${note[1]}</p>`:""}
   </div>
-  <section class="sec" aria-labelledby="f1"><div class="row" style="justify-content:space-between;align-items:baseline"><h3 id="f1">Focus words · practice ladder</h3><span class="muted" style="font-size:12px">New → Ready to check</span></div>
-    ${p.focus.map(i=>{const b=p.boxes[i]||0;return `<div class="fw"><span class="wd">${esc(WORDS[i])}</span><small>${LADDER[b]}</small><span class="lad" role="img" aria-label="${LADDER[b]}">${[1,2,3].map(k=>`<i class="${b>=k?"on":""}"></i>`).join("")}</span></div>`}).join("")||'<p class="muted small">No new words. Every word is correct.</p>'}
-    ${p.revisit.length||p.nextUp.length?`<div class="chips" style="align-items:center;font-size:13px">${p.revisit.length?`<b>Revisit</b>${p.revisit.map(i=>`<span class="wchip again">${esc(WORDS[i])}</span>`).join("")}`:""}${p.nextUp.length?`<b${p.revisit.length?' style="margin-left:8px"':""}>Next up</b>${p.nextUp.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}`:""}</div>`:""}
-  </section>
-  <section class="sec" aria-labelledby="f2"><h3 id="f2">What ${first} wrote</h3>
-    ${mis.length?`<div class="chips">${mis.slice(0,24).map(([i,r])=>`<span class="wchip">${esc(r)}<small>${esc(WORDS[i])}</small></span>`).join("")}</div>`:`<p class="muted small">${p.assessed?"Nothing typed in yet. Use “Add what they wrote” in Mark and the patterns show here.":"No spelling check yet."}</p>`}
+  <section class="sec" aria-labelledby="f1"><h3 id="f1">Focus words</h3>
+    <div class="chips" id="pFocus">${chips(p.focus)||'<span class="muted small">No new words. Every word is correct.</span>'}</div></section>
+  <section class="sec" aria-labelledby="f2"><h3 id="f2">Slipped — right before, wrong since</h3>
+    <div class="chips" id="pSlipped">${chips(slipped," slip")||'<span class="muted small">None</span>'}</div></section>
+  <section class="sec" aria-labelledby="f3" id="pPlan"><h3 id="f3">The plan</h3>
+    <p class="pnote">${why}</p>
+    ${p.revisit.length||p.nextUp.length?`<dl class="pdl">${p.revisit.length?`<dt>Revisit</dt><dd class="chips">${chips(p.revisit," slip")}</dd>`:""}${p.nextUp.length?`<dt>Next up</dt><dd class="chips">${chips(p.nextUp)}</dd>`:""}</dl>`:""}
     ${pats.length?`<p style="font-size:14px"><b>Pattern:</b> ${pats.map(x=>`${esc(x.label.toLowerCase())} (${x.n})`).join(" · ")}</p>`:""}
-  </section>
-  <section class="sec" aria-labelledby="f3"><h3 id="f3">Plan for the next two weeks</h3>
     <div class="stack" style="gap:10px;font-size:14px">${p.recs.map(r=>`<div><b>${esc(r.t)}</b> <span class="pill blue" style="font-size:12px;padding:3px 9px">${esc(r.f)}</span><div style="color:var(--ink-2)">${esc(r.d)}</div></div>`).join("")}</div>
-    <div class="row" style="align-items:flex-end"><label class="fld" for="pf${pid}">Focus size<select id="pf${pid}" data-c="planFocus" data-id="${pid}"><option value="">Automatic (${p.autoN})</option>${[3,5,8,10].map(v=>`<option value="${v}" ${pl.focusN==v?"selected":""}>${v} words</option>`).join("")}</select></label>
-     <label class="fld" for="pr${pid}">Review by<input type="date" id="pr${pid}" data-c="planReview" data-id="${pid}" value="${p.reviewDate}"></label></div>
-    <p class="note" style="font-size:14px"><b>Success looks like:</b> ${esc(p.criteria)} Review by ${fmtShort(p.reviewDate)}.</p>
+    <p class="note" style="font-size:14px"><b>Success looks like:</b> ${esc(p.criteria)} <span id="pReview">Review by ${fmtShort(p.reviewDate)}.</span></p>
+    ${pl.notes?`<p class="note" id="pNotes" style="font-size:14px;white-space:pre-wrap"><b>Notes:</b> ${esc(pl.notes)}</p>`:""}
   </section>
-  <section class="sec" aria-labelledby="f4"><h3 id="f4">Print for ${first}</h3>
-    <div class="row" style="gap:8px"><button type="button" class="btn" id="pOne" data-a="one" data-id="${pid}">1:1 check</button><button type="button" class="btn primary" data-a="practiceFor" data-id="${pid}">Practice sheets</button><button type="button" class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards</button><button type="button" class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet</button></div>
-    <div class="row" style="gap:4px 18px"><button type="button" class="linkbtn small" data-a="pdfPlan" data-id="${pid}">Plan (PDF)</button><button type="button" class="linkbtn small" data-a="pdfPack" data-id="${pid}">Practice pack</button></div>
-  </section>
-  <section class="sec" aria-labelledby="f5"><h3 id="f5">Checks</h3>
-    ${pts.length?`<div class="bars" role="img" aria-label="Words correct at each check: ${pts.map(([d,n])=>`${fmtShort(d)} ${n}`).join(", ")}">${pts.map(([d,n])=>`<div><i style="height:${Math.max(4,Math.round(n/max*68))}px"></i><span>${fmtShort(d)} · ${n}</span></div>`).join("")}</div>`:""}
-    ${s.sessions.length?`<details ${S.ui.checksOpen?"open":""}><summary data-a="toggleChecks">${s.sessions.length} check${s.sessions.length===1?"":"s"} — view or delete</summary><div class="stack" style="gap:0">${s.sessions.slice().reverse().map(x=>{const w=Object.values(x.words||{}),c=w.filter(v=>v.s==="c").length,q=w.filter(v=>v.s==="?").length,conf=S.ui.confirm==="ses"+x.id;
-      return `<div class="row" style="justify-content:space-between;border-top:1px solid var(--line-2);padding:4px 0"><span style="font-size:13px;color:var(--ink-2)"><b style="color:var(--ink)">${fmtDate(x.date)}</b> · ${x.kind==="reading"?"reading":"spelling"} · ${w.length} words · ${c} correct${q?` · ${q} to review`:""}</span><button type="button" class="btn sm ${conf?"no":"ghost"}" data-a="delSession" data-id="${x.id}">${conf?"Confirm delete":"Delete"}</button></div>`}).join("")}</div></details>`:'<p class="muted small">No checks yet.</p>'}
-    <textarea id="pn_${pid}" aria-label="Teacher notes" data-bind-plan="${pid}" data-c="planNotes" data-id="${pid}" placeholder="Notes, e.g. practising with TA on Tuesdays" style="min-height:76px">${esc(draft!=null?draft:(pl.notes||""))}</textarea>
-    <p class="muted" style="font-size:12px">Notes print on the plan. They save when you click away.</p>
+  <section class="sec" aria-labelledby="f4"><h3 id="f4">Check and print</h3>
+    <div class="row" style="gap:8px" id="pActs"><button type="button" class="btn primary" id="pOne" data-a="one" data-id="${pid}">1:1 check</button><button type="button" class="btn" data-a="practiceFor" data-id="${pid}">Practice sheets</button><button type="button" class="btn" data-a="cardsFor" data-id="${pid}">Flash cards</button></div>
+    <p class="muted small">To change a mark for ${first}, use Check.</p>
   </section>`;
-  return h;
 }
 
 /* ----- The test plan (shown on Tests) -----
@@ -1211,6 +1204,7 @@ function quickSid(){return S.ui.quick.pid+"_"+S.ui.date}
 function quickWords(){const ses=S.sessions[quickSid()];return {...((ses&&ses.words)||{})}}
 function saveQuickWords(words){
   const q=S.ui.quick;if(!q.pid)return;const sid=quickSid(),old=S.sessions[sid];
+  visitMarks(sid,old&&old.words,words);
   if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
   saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
 }
@@ -1285,6 +1279,7 @@ function onePid(){const o=S.ui.one,ids=pupilIds();if(!ids.includes(o.pid)){o.pid
 function oneWords(pid){const ses=S.sessions[pid+"_"+localDate()];return {...((ses&&ses.words)||{})}}
 function saveOneWords(pid,words){
   const date=localDate(),sid=pid+"_"+date,old=S.sessions[sid];
+  visitMarks(sid,old&&old.words,words);
   if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
   saveDoc("sessions",sid,{pupilId:pid,date,kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
 }
@@ -1553,6 +1548,7 @@ function printView(){
 VIEWS.print=function(){return printView()};
 /* Open Print › Practice sheets with each child's own words: everyone, or the children given. */
 const PRACTICE_ITEM="practice";
+function openCards(pids){const P=S.ui.print;P.item="cards";P.cardsFor="pupils";P.who.cards="pick";P.pids=pids.slice();P.stackNote="";S.ui.pupil=null;setTab("print")}
 function openPractice(pids){const P=S.ui.print;P.item=PRACTICE_ITEM;P.actsFor="pupils";P.who[PRACTICE_ITEM]=pids?"pick":"all";if(pids)P.pids=pids.slice();P.bookNote="";S.ui.pupil=null;setTab("print")}
 /* Download: hand the chosen options to the PDF function that item always used. */
 function printGo(){
@@ -1901,32 +1897,9 @@ function buildPlan(pid){
   return memo["plan"+pid]={s,pl,first,focusN,autoN,focus,nextUp,revisit,pats,recs,ready,reviewDate,criteria,plateau,gains,assessed,sessions:log.length,lastPractice:log.length?log[log.length-1].date:null,boxes};
 }
 function planWords(pid){const p=buildPlan(pid);let ws=[...p.focus,...p.revisit];if(ws.length<4)ws=[...ws,...p.nextUp].slice(0,Math.max(4,ws.length));return ws.slice(0,10)}
+/* kept for the stored shape { focusN, reviewDate, notes, updated }; no screen calls it now (the plan is view only) */
 function savePlan(pid,patch){saveDoc("plans",pid,{...(S.plans[pid]||{}),...patch,updated:Date.now()})}
 function patternList(p){return Object.entries(p.pats).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>({k,label:ERR[k],n:v.n,ex:v.ex}))}
-/* ----- Pupils (was Plans) ----- one card a child: where they are, their
-   focus and revisit words, when the plan is due a review. No tab opens
-   this view now; its filters move to Progress. */
-const PFILTERS=[["all","Everyone"],["review","Review due"],["nogain","No gain"],["ready","Ready to re-check"]];
-function pupilFilter(k){const N=classNeeds();return k==="review"?N.due:k==="nogain"?N.nogain:k==="ready"?N.ready:pupilIds()}
-VIEWS.pupils=function(){
-  const ids=pupilIds();
-  if(!ids.length)return emptyClass();
-  const today=localDate(),f=PFILTERS.some(x=>x[0]===S.ui.pfilter)?S.ui.pfilter:"all";
-  /* in the order they are working through the lists; not assessed yet last */
-  const show=pupilFilter(f).slice().sort((a,b)=>{const A=summary(a),B=summary(b);return (!A.sessions.length)-(!B.sessions.length)||A.level-B.level||S.pupils[a].name.localeCompare(S.pupils[b].name)});
-  return `<div class="row"><div class="row" role="group" aria-label="Show" style="gap:8px">${PFILTERS.map(([k,l])=>`<button type="button" class="f" data-a="pfilter" data-f="${k}" aria-pressed="${f===k}">${l} · ${pupilFilter(k).length}</button>`).join("")}</div>
-   <span style="flex:1"></span>
-   <button type="button" class="btn" data-a="practiceFor">Practice sheets for everyone</button>
-   <details class="more"><summary class="btn ghost">More prints</summary><div class="menu"><button type="button" class="btn" data-a="pdfAllPlans">All plans</button><button type="button" class="btn" data-a="pdfAllPacks">All practice packs</button><button type="button" class="btn" data-a="pdfAllCards">All flash cards (stack and cut)</button></div></details></div>
-  <p style="font-size:14px;color:var(--ink-2);max-width:80ch">Each child’s plan is built from their checks, what they wrote and their practice. The focus set shrinks to 3 when progress stalls and grows to 8 after a big gain. Tap a child to open their plan.</p>
-  <div class="pcards">${show.map(id=>{const p=buildPlan(id),s=p.s,top=patternList(p)[0],due=p.assessed&&p.reviewDate<=today,li=curList(s),done=s.level>=NSETS;
-    const where=!p.assessed?"Not assessed yet":done?"Every list complete":`${li?esc(LIST_TAB[li])+" · ":""}${BANDS[s.level%10].n} · ${esc(setLabel(s.level).replace(/^.* /,""))} · ${s.setDone}/${setWords(s.level).length}`;
-    return `<button type="button" class="panel pc" data-a="openPupil" data-id="${id}">
-     <span class="row" style="justify-content:space-between;flex-wrap:nowrap"><span class="pn">${p.assessed?bandDot(s.level):'<span class="dot" style="--band:transparent"></span>'}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(S.pupils[id].name)}</span></span><span class="pill ${due?"rev":""}">${due?"Review due":"Review "+fmtShort(p.reviewDate)}</span></span>
-     <span class="muted small">${where}${p.assessed?` · <b style="color:var(--ink)">${s.knownIn[li]}</b>/${listWords(LISTS[li]).length}${s.delta==null?"":s.delta>0?` <b class="up">+${s.delta}</b>`:` <b class="down">no gain</b>`}`:""}</span>
-     <span class="chips">${p.focus.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}${p.revisit.map(i=>`<span class="wchip again">${esc(WORDS[i])}<small>revisit</small></span>`).join("")||(p.focus.length?"":'<span class="muted small">All words secure</span>')}</span>
-     ${top?`<span class="small" style="color:var(--ink-2)">Most common: <b>${esc(top.label)}</b></span>`:""}</button>`}).join("")||'<div class="panel" style="grid-column:1/-1"><p class="muted">No children here right now.</p></div>'}</div>`;
-};
 /* ---------- printable sheets (canvas pages) ---------- */
 const CW=1240,CH=1754,FW="Andika, 'Comic Sans MS', sans-serif",FU="'Atkinson Hyperlegible', Arial, sans-serif";
 function np(doc){if(doc.__used)doc.addPage();doc.__used=true}
@@ -2249,24 +2222,17 @@ function decide(sid,i,s){
   saveDoc("sessions",sid,{...ses,words});
 }
 const A={
-  tab:el=>{setTab(el.dataset.k);S.ui.cell=null;Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.check.view="list";window.scrollTo({top:0})},
+  tab:el=>{setTab(el.dataset.k);S.ui.pupil=null;Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.check.view="list";window.scrollTo({top:0})},
   /* the two mode cards. The 1:1 check keeps the child chosen this visit, and is always today's */
   cMode:el=>{const C=S.ui.check,k=el.dataset.k==="one"?"one":"tests";Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.confirm=null;
     C.mode=k;C.view="list";if(S.tab!=="check")setTab("check")},
   /* back to the list of tests, from planning or from marking */
   cList:()=>{Object.assign(S.ui.check,{mode:"tests",view:"list"});Object.assign(S.ui.tests,{confirm:null,plan:null});setTab("check");window.scrollTo({top:0})},
-  openPupil:(el,e)=>{e.preventDefault();S.ui.pupil=el.dataset.id;S.ui.confirm=null;S.ui.checksOpen=false;S.ui.panelFocus=true},
-  closePupil:()=>{S.ui.pupil=null},
-  pStep:el=>{const ids=pupilIds(),k=ids.indexOf(S.ui.pupil);if(k<0||!ids.length)return;S.ui.pupil=ids[(k+ +el.dataset.d+ids.length)%ids.length];S.ui.confirm=null;S.ui.checksOpen=false;$("#drawer").scrollTop=0},
-  toggleChecks:(el,e)=>{e.preventDefault();S.ui.checksOpen=!S.ui.checksOpen},
-  cell:el=>{S.ui.cell={p:el.dataset.p,i:+el.dataset.i}},
-  sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.cell=null;S.ui.sqShow=!!S.ui.sq},
-  closeSq:()=>{S.ui.sq=null;S.ui.cell=null},
-  classGrid:el=>{if(!pupilIds().length){toast("Add pupils first");return "skip"}/* the grid prints the list on show here; Print keeps its own list, with the pages and bands that go with it */
-    const P=S.ui.print,keep=P.list;P.list=+el.dataset.k;try{PDF.grid()}finally{P.list=keep}return "skip"},
-  closeCell:()=>{S.ui.cell=null},
-  setCell:el=>{const {p,i}=S.ui.cell;const sid=p+"_"+localDate(),old=S.sessions[sid];const words={...((old&&old.words)||{})};words[i]={s:el.dataset.s,src:"manual"};
-    saveDoc("sessions",sid,{pupilId:p,date:localDate(),kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});toast(`${WORDS[i]} marked ${el.dataset.s==="c"?"correct":"not yet"} for today`)},
+  /* the child panel: it takes the focus when it opens, and gives it back to the name that opened it */
+  openPupil:(el,e)=>{e.preventDefault();const c=el.classList;S.ui.pupil=el.dataset.id;S.ui.pupilFrom=`${c.contains("nm")?".nm":c.contains("kid")?".kid":".pnb"}[data-id="${el.dataset.id}"]`;S.ui.confirm=null;S.ui.panelFocus=true},
+  closePupil:()=>{closePanel()},
+  /* a square on Progress shows its ten words; the same square again puts them away. Nothing is written */
+  sq:el=>{const p=el.dataset.p,g=+el.dataset.g,o=S.ui.sq;S.ui.sq=o&&o.p===p&&o.g===g?null:{p,g};S.ui.sqShow=!!S.ui.sq;S.ui.focusId=`.cell[data-p="${p}"][data-g="${g}"]`},
   addPupils,
   demo:()=>{loadDemo()},
   exitDemo:()=>{exitDemo()},
@@ -2281,16 +2247,15 @@ const A={
   qmark:el=>{const cur=quickWords(),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveQuickWords(cur);/* the keyboard stays on the word */S.ui.focusId=`.tile[data-i="${+i}"]`},
   qAll:()=>{const cur=quickWords();for(const i of quickShown())if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
   /* the 1:1 check: open it on a child; step to the child before or after (it goes round); the list; today's mark for a word */
-  one:el=>{openOne(el.dataset.id);S.ui.pupil=null;window.scrollTo({top:0})},
+  one:el=>{openOne(el.dataset.id);if(el.dataset.k!=null&&LISTS[+el.dataset.k])S.ui.one.list=+el.dataset.k;S.ui.pupil=null;window.scrollTo({top:0})},
   oStep:el=>{const o=S.ui.one,ids=pupilIds(),k=ids.indexOf(onePid());if(k<0)return;o.pid=ids[(k+ +el.dataset.d+ids.length)%ids.length];o.list=null},
   oList:el=>{S.ui.one.list=+el.dataset.k},
   oMark:el=>{const pid=onePid();if(!pid)return;const cur=oneWords(pid),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveOneWords(pid,cur)},
   qPick:el=>{pickQuick(el.dataset.id)},
   /* a test goes round again after its last child */
   qNext:()=>{const q=S.ui.quick,l=markPupils(),k=l.indexOf(q.pid),round=q.test==="test"&&S.tab==="mark",n=round?(k+1)%l.length:k+1;if(k>=0&&n<l.length){pickQuick(l[n]);if(round)S.ui.focusId="mNext"}window.scrollTo({top:0})},
-  list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null;S.ui.sq=null},
-  pfilter:el=>{S.ui.pfilter=el.dataset.f},
-  goPrint:el=>{S.ui.print.item=el.dataset.k;setTab("print");window.scrollTo({top:0})},
+  list:el=>{S.ui.list=+el.dataset.k;S.ui.sq=null},
+  pfilter:el=>{S.ui.pfilter=el.dataset.f;S.ui.focusId=`#pFilters [data-f="${el.dataset.f}"]`},
   printList:el=>{const P=S.ui.print;P.list=+el.dataset.k;P.pages=Array.from({length:Math.ceil((LISTS[P.list].b-LISTS[P.list].a)/20)},(_,k)=>k);P.levels=[listSets(LISTS[P.list])[0]]},
   /* ⋯ on a test: Dictation script and Delete test */
   tOpen:el=>{const U=S.ui.tests;U.open=U.open===el.dataset.id&&U.confirm!==el.dataset.id?null:el.dataset.id;U.edit=null;U.confirm=null},
@@ -2347,7 +2312,6 @@ const A={
     toast(`Saved ${Object.keys(q.marks).length} marks for ${S.pupils[q.pid].name}`);q.marks={}},
   decide:el=>decide(el.dataset.sid,+el.dataset.i,el.dataset.s),
   acceptAi:el=>{const ses=S.sessions[el.dataset.sid];if(!ses)return;const words={...ses.words};for(const [k,w] of Object.entries(words))if(w.s==="?")words[k]={...w,s:w.ai||"x",reviewed:true};saveDoc("sessions",el.dataset.sid,{...ses,words})},
-  delSession:el=>{const k="ses"+el.dataset.id;if(S.ui.confirm===k){removeDoc("sessions",el.dataset.id);S.ui.confirm=null}else S.ui.confirm=k},
   hubPupils:()=>{if(window.hwHub)window.hwHub.openPupils()},
   delPupil:el=>{const id=el.dataset.id,k="pup"+id;if(S.ui.confirm===k){S.ui.confirm=null;for(const [sid,s] of Object.entries(S.sessions))if(s.pupilId===id)removeDoc("sessions",sid);if(S.practice[id])removeDoc("practice",id);if(S.plans[id])removeDoc("plans",id);removeDoc("pupils",id)}else S.ui.confirm=k},
   pickKid:el=>{S.ui.practise.pid=el.dataset.id||null;S.ui.act=null},
@@ -2376,26 +2340,19 @@ const A={
   pidsAll:(el,e)=>{e.preventDefault();S.ui.print.pids=pupilIds()},
   pidsNone:(el,e)=>{e.preventDefault();S.ui.print.pids=[]},
   pdfWotd:()=>{PDF.wotd();return "skip"},
-  csv:()=>{PDF.csv();return "skip"},
-  pdfPupilCards:el=>{const id=el.dataset.id;const items=childCards(id);PDF.cards([{label:S.pupils[id].name.split(" ")[0],items}],`flash-cards-${S.pupils[id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   testVoice:()=>{say("Let’s practise. said. “Hello,” said Mum. said.");return "skip"},
   voiceSettings:(el,e)=>{e.preventDefault();setTab("settings");S.ui.act=null},
-  pdfAllCards:()=>{PDF.stackPupils(pupilIds(),"flash-cards-stack-and-cut.pdf");return "skip"},
-  pdfPlan:el=>{PDF.plans([el.dataset.id],`plan-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
-  pdfPack:el=>{PDF.packs([el.dataset.id],`practice-pack-${S.pupils[el.dataset.id].name.replace(/\W+/g,"-").toLowerCase()}.pdf`);return "skip"},
   /* Print › Practice sheets, set up for everyone, or for one child */
   practiceFor:el=>{openPractice(el.dataset.id?[el.dataset.id]:null);window.scrollTo({top:0})},
-  pdfAllPlans:()=>{PDF.plans(pupilIds(),"progression-plans.pdf");return "skip"},
-  pdfAllPacks:()=>{PDF.packs(pupilIds(),"practice-packs.pdf");return "skip"},
-  pdfPupilSheet:el=>{PDF.targeted([el.dataset.id]);return "skip"},
-  aiSummary:()=>{aiSummary();return "skip"},
+  /* Print › Flash cards, set up for one child's focus words */
+  cardsFor:el=>{openCards([el.dataset.id]);window.scrollTo({top:0})},
 };
 document.addEventListener("click",e=>{
   const el=e.target.closest("[data-a]");if(!el||el.disabled)return;
   const f=A[el.dataset.a];if(!f)return;
   const r=f(el,e);if(r!=="skip")render();
 });
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value;if(el.dataset.bindPlan)S.ui.planDraft[el.dataset.bindPlan]=el.value});
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.bind)S.ui[el.dataset.bind]=el.value});
 document.addEventListener("change",e=>{
   const el=e.target,c=el.dataset.c;if(!c)return;
   switch(c){
@@ -2413,9 +2370,6 @@ document.addEventListener("change",e=>{
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
     case "cardsPerChild":saveDoc("settings","main",{...S.settings,cardsPerChild:+el.value});break;
-    case "planFocus":savePlan(el.dataset.id,{focusN:el.value?+el.value:null});break;
-    case "planReview":if(el.value)savePlan(el.dataset.id,{reviewDate:el.value});break;
-    case "planNotes":savePlan(el.dataset.id,{notes:el.value.slice(0,2000)});delete S.ui.planDraft[el.dataset.id];break;
     case "rename":{const p=S.pupils[el.dataset.id];const v=el.value.trim();if(p&&v&&v!==p.name)saveDoc("pupils",el.dataset.id,{...p,name:v.slice(0,60)});break}
     case "wholeN":saveDoc("settings","main",{...S.settings,wholeN:+el.value});break;
     case "className":saveDoc("settings","main",{...S.settings,className:el.value.trim().slice(0,60)});break;
@@ -2427,12 +2381,13 @@ $("#fileIn").addEventListener("change",e=>{addFiles([...e.target.files]);e.targe
 document.addEventListener("dragover",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.add("over")}});
 document.addEventListener("dragleave",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d)d.classList.remove("over")});
 document.addEventListener("drop",e=>{const d=e.target.closest&&e.target.closest("#drop");if(d){e.preventDefault();d.classList.remove("over");addFiles([...e.dataTransfer.files])}});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.cell||S.ui.sq)){if(S.ui.pupil)S.ui.pupil=null;else if(S.ui.cell)S.ui.cell=null;else S.ui.sq=null;render()}});
+function closePanel(){if(S.ui.pupil&&S.ui.pupilFrom)S.ui.focusId=S.ui.pupilFrom;S.ui.pupil=null;S.ui.pupilFrom=null}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&(S.ui.pupil||S.ui.sq)){if(S.ui.pupil)closePanel();else S.ui.sq=null;render()}});
 
 /* ---------- example class ---------- */
 let saved=null;
 function loadDemo(){
-  saved={pupils:S.pupils,sessions:S.sessions,practice:S.practice,plans:S.plans,tests:S.tests,settings:S.settings,mode:S.mode};
+  saved={visit:{base:VISIT.base,marks:new Map(VISIT.marks)},pupils:S.pupils,sessions:S.sessions,practice:S.practice,plans:S.plans,tests:S.tests,settings:S.settings,mode:S.mode};
   let seed=7;const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
   const names=["Ava Smith","Noah Patel","Isla Jones","Leo Brown","Amelia Khan","Oliver Wilson","Freya Taylor","Arthur Davies","Mia Evans","Theo Thomas","Ivy Roberts","Jack Walker","Poppy Wright","Muhammad Ali","Grace Hughes","Harry Green","Zara Hussain","Oscar Hall","Ruby Clarke","Alfie Lewis","Sofia Lopez","Finley Scott","Aisha Begum","Reuben Wood"];
   const MIS={4:"sed",10:"wos",11:"yoo",12:"thay",32:"wot",33:"thair",36:"hav",40:"sum",43:"wer",45:"littel",51:"wun",53:"thim",64:"dont",65:"cum",59:"its",61:"lookt",70:"childen",74:"askt",80:"abowt",82:"thier",83:"peple",86:"cud",87:"hous",94:"Im",98:"cald"};
@@ -2448,12 +2403,12 @@ function loadDemo(){
   Object.assign(S,{pupils,sessions,practice,plans:{},tests:{},settings:{className:"Year 1 Oak (example)",strictCaps:false,acceptNoApos:false,cardsPerChild:10},mode:"demo"});
   /* a pending Undo belongs to the class that was on show: it must not write into this one */
   toast("");Object.assign(S.ui.tests,{confirm:null,open:null,early:null,plan:null});S.ui.check={mode:"tests",view:"list"};S.ui.quick.test=null;
-  S.ui.jobs=[];S.ui.ai=null;setTab(DEFAULT_TAB);render();
+  S.ui.jobs=[];S.ui.ai=null;S.ui.pupil=null;S.ui.sq=null;visitReset();setTab(DEFAULT_TAB);render();
 }
 function exitDemo(){
-  if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,tests:saved.tests,settings:saved.settings,mode:saved.mode});saved=null}
+  if(saved){Object.assign(S,{pupils:saved.pupils,sessions:saved.sessions,practice:saved.practice,plans:saved.plans,tests:saved.tests,settings:saved.settings,mode:saved.mode});VISIT.base=saved.visit.base;VISIT.marks=saved.visit.marks;saved=null}else visitReset();
   toast("");Object.assign(S.ui.tests,{confirm:null,open:null,early:null,plan:null});S.ui.check={mode:"tests",view:"list"};S.ui.quick.test=null;
-  S.ui.pupil=null;S.ui.cell=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
+  S.ui.pupil=null;S.ui.sq=null;S.ui.ai=null;S.ui.act=null;S.ui.practise.pid=null;S.ui.plan=null;setTab(pupilIds().length?DEFAULT_TAB:"settings");render();
 }
 
 /* ---------- boot ---------- */
