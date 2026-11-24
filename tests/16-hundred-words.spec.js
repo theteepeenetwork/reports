@@ -330,7 +330,7 @@ test('Marking a test, then Progress: ten out of ten on their set moves a child u
   await progress();
   expect(await cols(), 'the band columns change').toEqual([['Nell'], ['Kit'], []]);
   await expect(frame.locator('#tMoved b'), 'Moved up a set goes 0 → 1').toHaveText('1');
-  await expect(frame.locator('#tMoved')).toHaveText('Moved up a set1since you opened this page');
+  await expect(frame.locator('#tMoved')).toHaveText('Moved up a set1since you started marking here');
   /* 10 words for Kit, 10 for Nell: the second tap on "said" changed a mark, it did not add one */
   await expect(frame.locator('#tMarks')).toHaveText('Marked this session20words, tests and 1:1');
   await expect(frame.locator('#teach .wchip'), 'and the word to teach is the one Nell got wrong').toHaveText(['said1']);
@@ -1092,7 +1092,7 @@ test('Progress: the four tiles, band columns, the words to teach, and each child
   const tiles = frame.locator('.stat4 .stat');
   await expect(tiles).toHaveCount(4);
   await expect(tiles.nth(0)).toHaveText('Class average44/100words correct');          // (18 + 100 + 13) / 3
-  await expect(tiles.nth(1)).toHaveText('Moved up a set0since you opened this page');
+  await expect(tiles.nth(1)).toHaveText('Moved up a set0since you started marking here');
   await expect(tiles.nth(2)).toHaveText('Most children onRed2 children');
   await expect(tiles.nth(3)).toHaveText('Marked this session0words, tests and 1:1');
   await expect(frame.locator('#main')).toContainText('3 of 4 assessed');

@@ -115,7 +115,7 @@ label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .pcol[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
 .pcol .pn{font-size:15px;font-weight:800;text-align:center}
 .pcol .pbar{height:100px;display:flex;align-items:flex-end;justify-content:center}
-.pcol .pbar i{display:block;width:60%;border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--muted) 45%,var(--card))}
+.pcol .pbar i{display:block;width:60%;border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--accent-mid) 30%,var(--line))}
 .pcol[aria-pressed="true"] .pbar i{background:var(--accent)}
 .pcol .pband{display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;white-space:nowrap}
 .pcol .pband .dot{width:10px;height:10px;flex:none}
@@ -689,7 +689,7 @@ VIEWS.progress=function(){
   let h=`<div class="row" style="justify-content:space-between">${listSeg(li,"list")}<span class="muted small">${last?`Last check ${fmtDay(last)} · `:""}${nA} of ${ids.length} assessed</span></div>
   <section class="stat4" aria-label="Summary">
     <div class="stat" id="tAvg"><span>Class average</span><b>${avgL}<small>/${LW.length}</small></b><span>words correct</span></div>
-    <div class="stat" id="tMoved"><span>Moved up a set</span><b class="up">${moved}</b><span>since you opened this page</span></div>
+    <div class="stat" id="tMoved"><span>Moved up a set</span><b class="up">${moved}</b><span>since you started marking here</span></div>
     <div class="stat" id="tBand"><span>Most children on</span><b>${topG==null?"–":BANDS[topG%10].n}</b><span>${topG==null?"nobody is on this list":kids(by[topG].length)}</span></div>
     <div class="stat" id="tMarks"><span>Marked this session</span><b>${visitMarked()}</b><span>words, tests and 1:1</span></div>
   </section>`;
