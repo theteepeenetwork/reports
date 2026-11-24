@@ -128,8 +128,20 @@ test's children and words. Every tap writes the session for (child, the test's d
 mark removes that word from the session, and a session left with no words (and no photos) is removed. Marks
 in that session for words outside the test are left as they are, and so is `r` on a word that is not tapped.
 Which child is open is never stored. The test's date, Spelling/Reading (`kind`), and typing what a child wrote
-(`r`) are no longer offered on this screen: `kind` and `r` are still set from the 1:1 check, and an existing
+(`r`) are no longer offered on this screen (nor, since step 5, on the 1:1 check), and an existing
 `r` is kept until that word is marked again. `moveTest()` is kept but nothing calls it from the page.
+**1:1 check (Nov 2026 rebuild, step 5: nothing stored changed, no new key).** The second mode card shows one
+child and one whole word list, a row for each set of ten, every word in the colour of its state (`wordStates()`:
+secure, correct, not yet, slipped, not checked). A tap cycles *today's* mark for that word (none → `c` → `x` →
+none) and writes the session `<pupilId>_<today>` — the same record and the same mark `{ s:'c'|'x', src:'manual' }`
+as before; taking a mark back removes that word, and a session left with no words (and no photos) is removed.
+Marks already in today's session (a test sat today) are today's marks too and cycle the same way. Sessions of
+any other date are never written from this screen. A new session is `kind: "spelling"`; an existing one keeps
+its `kind`. The child and the list on show (`S.ui.one`) are never stored. No longer offered anywhere on the
+page: choosing the date of a 1:1 check (back-dating), `kind: "reading"`, and typing what a child wrote (`r`).
+Stored `kind` and `r` values still load and count exactly as before (`r` still feeds "What they wrote" and the
+plan), and an `r` is kept until that word is marked again. The action `data-a="one" data-id="<pupilId>"` opens
+Check › 1:1 check on that child from anywhere on the page.
 Print › Practice sheets (which took over Daily practice books) stores nothing: its choices last for the visit.
 Cards per child is still `settings.main.cardsPerChild`.
 

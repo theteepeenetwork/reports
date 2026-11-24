@@ -192,9 +192,6 @@ label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600
 /* mark */
 .mtop{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px}
 .mlevel{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:14px;color:var(--ink-2)}
-.markbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-.markbar label{font-size:14px;font-weight:600}
-.markbar select{flex:0 1 auto;min-width:0;max-width:100%}
 .marklay{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start;min-width:0}
 #tMark>*{min-width:0}
 .plist{flex:1 1 240px;max-width:270px;min-width:0;padding:12px}
@@ -213,7 +210,6 @@ label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600
 .tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:84px;min-width:0;padding:16px 4px 6px;border-radius:12px;border:2px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink)}
 .tile .wd{font-size:clamp(17px,2vw,26px);line-height:1.2;max-width:100%;overflow-wrap:anywhere}
 .tile.long .wd{font-size:clamp(13px,1.3vw,18px)}
-.tile .hint{font-size:11px;font-weight:600;color:var(--muted);min-height:14px}
 .tile .n{position:absolute;top:5px;left:9px;font-size:11px;font-weight:700;color:var(--muted)}
 .tile .tk{position:absolute;top:3px;right:9px;font-weight:800;font-size:16px}
 .tile.focus{border-color:var(--accent-mid)}
@@ -221,9 +217,6 @@ label.fld{display:grid;gap:4px;font-size:13px;color:var(--ink-2);font-weight:600
 .tile.c .tk{color:var(--ok-ink)}
 .tile.x{border-color:var(--no);background:var(--no-soft)}
 .tile.x .tk{color:var(--no-ink)}
-.wrote{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
-.wrote label{display:grid;gap:4px;font-size:13px;color:var(--ink-2)}
-.wrote input{font-family:var(--f-word);font-size:16px;width:100%}
 @media (max-width:760px){
   .plist{max-width:none;flex-basis:100%}
   .pls{flex-direction:row;overflow-x:auto;max-height:none;gap:6px;padding-bottom:4px}
@@ -415,10 +408,62 @@ td.score small{display:block;font-size:11px;line-height:1}
 .delc{border:1.5px solid var(--no-line);background:var(--no-soft);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
 .delc .delh{font-size:17px;font-weight:800;color:var(--no-ink)}
 .delc .deld{font-size:14px;color:var(--ink-2);max-width:75ch}
-.markbar .mdel{color:var(--no-ink);border-color:var(--no-line)}
 .empty{text-align:center;padding:30px 16px;display:grid;gap:10px;justify-items:center}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
+/* the 1:1 check: a word's state, as a fill and an edge. Dark values follow. */
+:root{--w-sec:#b8e6c9;--w-sec-l:#1f8a5b;--w-ok:#d4f0de;--w-ok-l:#6fcf97;--w-no:#fbdedb;--w-no-l:#e5928d;--w-slip:#fcefcf;--w-slip-l:#d8961a;--w-none:#f5f6f8;--w-none-l:#e6e9ee;--w-today:#2f55e0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--w-sec:#1f5a3c;--w-sec-l:#4cc38a;--w-ok:#173a28;--w-ok-l:#2f7d55;--w-no:#4a1f28;--w-no-l:#a8475a;--w-slip:#4a3a14;--w-slip-l:#c9952e;--w-none:#222831;--w-none-l:#3a414d;--w-today:#8fa6f3}}
+:root[data-theme="dark"]{--w-sec:#1f5a3c;--w-sec-l:#4cc38a;--w-ok:#173a28;--w-ok-l:#2f7d55;--w-no:#4a1f28;--w-no-l:#a8475a;--w-slip:#4a3a14;--w-slip-l:#c9952e;--w-none:#222831;--w-none-l:#3a414d;--w-today:#8fa6f3}
+.onecard{padding:22px;display:flex;flex-direction:column;gap:16px}
+.ohead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:16px}
+.owho{display:flex;flex-wrap:wrap;align-items:center;gap:10px;min-width:0}
+.owho h2{font-size:26px;font-weight:800;margin:0;overflow-wrap:anywhere}
+.owho .mlevel{margin-top:2px}
+.onm{min-width:0;flex:0 1 auto}
+.onav{width:44px;padding:0;flex:none;font-size:20px;justify-content:center}
+.ojump{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-2);margin-left:6px}
+.ojump select{min-width:0;max-width:220px}
+.ostats{display:flex;gap:22px;align-items:flex-end}
+.ostats .otoday{color:var(--w-today)}
+.olegend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:13px;color:var(--ink-2)}
+.olegend .lg{display:inline-flex;align-items:center;gap:6px}
+.osw{display:inline-block;width:12px;height:12px;border-radius:4px;border:1.5px solid var(--w-none-l);background:var(--w-none);flex:none}
+.orows{display:flex;flex-direction:column;gap:6px}
+.orow{display:grid;grid-template-columns:90px minmax(0,1fr) 54px;gap:6px;align-items:center}
+.olab{display:flex;flex-direction:column;font-size:12px;font-weight:700;color:var(--ink-2);min-width:0}
+.olab .ob{display:flex;align-items:center;gap:6px}
+.olab .or{font-weight:600;color:var(--muted)}
+.ots{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;min-width:0}
+.osc{font-size:13px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.t1{position:relative;min-height:56px;min-width:0;border-radius:9px;border:1.5px solid var(--w-none-l);background:var(--w-none);cursor:pointer;color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 2px}
+.t1 .wd{font-size:17px;line-height:1.15;max-width:100%;overflow-wrap:anywhere}
+.t1.l7 .wd{font-size:15px}.t1.l9 .wd{font-size:13px}.t1.l11 .wd{font-size:12px}
+.t1 .n{font-size:10px;font-weight:700;color:var(--ink-2)}
+.t1 .td{position:absolute;top:2px;right:5px;font-size:11px;font-weight:800;line-height:1.2;color:var(--ink)}
+.t1.s-s,.osw.s-s{background:var(--w-sec);border-color:var(--w-sec-l)}
+.t1.s-k,.osw.s-k{background:var(--w-ok);border-color:var(--w-ok-l)}
+.t1.s-x,.osw.s-x{background:var(--w-no);border-color:var(--w-no-l)}
+.t1.s-sl,.osw.s-sl{background:var(--w-slip);border-color:var(--w-slip-l)}
+.t1.s-r{background:var(--rev-soft);border-color:var(--rev);border-style:dashed}
+.t1.s-s .td,.t1.s-k .td{color:var(--ok-ink)}
+.t1.s-x .td,.t1.s-sl .td{color:var(--no-ink)}
+.t1.today{box-shadow:0 0 0 2.5px var(--w-today)}
+/* narrower than ten tiles can be read: the label and n/10 go above, and the ten words sit five to a row (four where the list has long words) */
+@media (max-width:900px){
+  .onecard{padding:14px 12px}
+  .orows{gap:12px}
+  .orow{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}
+  .olab{flex-direction:row;align-items:center;gap:8px;font-size:13px}
+  .ots{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(5,minmax(0,1fr))}
+  .orows.wide .ots{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .ojump{margin-left:0}
+}
+@media (max-width:560px){
+  .owho h2{font-size:22px}
+  .owho{width:100%}.onm{flex:1 1 0}.ojump{flex:1 1 100%}.ojump select{flex:1;max-width:none}
+  .t1 .wd{font-size:15px}.t1.l7 .wd{font-size:13px}.t1.l9 .wd{font-size:12.5px}.t1.l11 .wd{font-size:11.5px}
+}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -477,7 +522,7 @@ const pdfText=s=>String(s).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').rep
 /* ---------- state ---------- */
 const S={pupils:{},sessions:{},practice:{},plans:{},tests:{},settings:{className:"",strictCaps:false,acceptNoApos:false,cardsPerChild:10},
   mode:"loading", tab:"check",
-  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null,wrote:false},list:null,cell:null,sq:null,pupil:null,confirm:null,check:{mode:"tests",view:"list"},tests:{open:null,early:null,plan:null,edit:null,confirm:null},
+  ui:{date:localDate(),assessMode:"quick",jobs:[],quick:{pid:"",marks:{},kind:"spelling",list:null,only:null,group:null,test:null},one:{pid:null,list:null},list:null,cell:null,sq:null,pupil:null,confirm:null,check:{mode:"tests",view:"list"},tests:{open:null,early:null,plan:null,edit:null,confirm:null},
       print:{item:"answer",ans:"0",scr:"0",who:{},gridFmt:"pdf",list:0,cardLayout:"stack",pages:[0,1,2,3,4],named:false,pids:[],levels:[0],cardsFor:"levels",targetN:10,cardSize:10,cardSent:false,acts:["lcwc","trace","missing"],actsFor:"pupils",practiceLayout:"a5",bookDays:5},plan:null,planDraft:{},practise:{pid:null},act:null,ai:null,draft:"",showAll:{}}};
 let db=null,assetsApi=null,sampleApi=null,dl=null,imgLimits=null;
 const memPhotos={};
@@ -729,7 +774,7 @@ function panelHtml(pid){
     <p class="note" style="font-size:14px"><b>Success looks like:</b> ${esc(p.criteria)} Review by ${fmtShort(p.reviewDate)}.</p>
   </section>
   <section class="sec" aria-labelledby="f4"><h3 id="f4">Print for ${first}</h3>
-    <div class="row" style="gap:8px"><button type="button" class="btn primary" data-a="practiceFor" data-id="${pid}">Practice sheets</button><button type="button" class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards</button><button type="button" class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet</button></div>
+    <div class="row" style="gap:8px"><button type="button" class="btn" id="pOne" data-a="one" data-id="${pid}">1:1 check</button><button type="button" class="btn primary" data-a="practiceFor" data-id="${pid}">Practice sheets</button><button type="button" class="btn" data-a="pdfPupilCards" data-id="${pid}">Flash cards</button><button type="button" class="btn" data-a="pdfPupilSheet" data-id="${pid}">Check sheet</button></div>
     <div class="row" style="gap:4px 18px"><button type="button" class="linkbtn small" data-a="pdfPlan" data-id="${pid}">Plan (PDF)</button><button type="button" class="linkbtn small" data-a="pdfPack" data-id="${pid}">Practice pack</button></div>
   </section>
   <section class="sec" aria-labelledby="f5"><h3 id="f5">Checks</h3>
@@ -955,7 +1000,8 @@ function deleteConfirm(t){
      mode "tests": class & group tests. Its screens are the list, planning
                    a test, and marking one. checkView() names the one on show:
                    "list" | "plan" | "mark".
-     mode "one":   the 1:1 check — one child, any words.
+     mode "one":   the 1:1 check — one child, a whole word list, today's
+                   marks (oneView()).
    The hash stays #check for the list, planning and the 1:1 check. Marking
    a test keeps the id it has always had, #mark, so an old link to Mark (or
    to assess / quick before it) still opens marking; VIEWS.mark is this
@@ -968,11 +1014,9 @@ function modeCards(){const m=S.ui.check.mode;
   return `<div class="modes" role="group" aria-label="How are you checking?">${MODES.map(([k,t,d,ico])=>`<button type="button" class="mode" id="mode-${k}" data-a="cMode" data-k="${k}" aria-pressed="${m===k}"><span class="ico"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ico}</svg></span><span class="mt"><b>${t}</b><span>${d}</span></span></button>`).join("")}</div>`}
 function checkScreen(){
   if(!pupilIds().length)return emptyClass();
-  const C=S.ui.check,q=S.ui.quick;
-  if(C.mode==="one"){if(q.test!=="one")markOne()}
+  const C=S.ui.check;
   /* marking a test: Mark picks the newest test still to mark when none is loaded, and falls back to the 1:1 check */
-  else if(S.tab==="mark"&&q.test==="one")q.test=null;
-  const body=C.mode==="one"?markView():S.tab==="mark"?testMarkView():C.view==="plan"?planScreen():testsList();
+  const body=C.mode==="one"?oneView():S.tab==="mark"?testMarkView():C.view==="plan"?planScreen():testsList();
   /* the cards are drawn last: testMarkView() can change the mode */
   return modeCards()+body;
 }
@@ -1122,10 +1166,11 @@ function testDetail(t,st){
                      test's children and words; "← Back to tests" goes back.
                      Re-opening a marked test (Results) shows the saved
                      marks, and they can be changed.
-     markView()      the 1:1 check card — one child, any words, any date:
-                     the old Quick check.
-   Both read and write the session for (child, date) through quickWords()
-   and saveQuickWords(), on every tap.
+     oneView()       the 1:1 check card — one child, a whole word list,
+                     today's marks.
+   Both write the session for (child, date) on every tap: a test through
+   quickWords() and saveQuickWords() for the test's date, the 1:1 check
+   through oneWords() and saveOneWords() for today.
    Classroom Hub: by hand only. Photo marking is not offered yet;
    photoView() is kept, unreachable, for when it comes back. */
 function photoView(){
@@ -1174,21 +1219,19 @@ function quickShown(){const q=S.ui.quick;if(q.only)return q.only;const li=q.list
 /* Load a test into Mark. Its words and children are copied here; a saved
    test is read again on each render, so an edit made on Tests shows. */
 function loadTest(t){const q=S.ui.quick;if(t.date)S.ui.date=t.date;/* snap: the test as it was opened. A past test has no record and is found again by its words, which marking can change. */
-  Object.assign(q,{test:"test",testId:t.id||null,snap:{id:null,saved:false,date:t.date,title:t.label||t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:0},only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null,wrote:false});pickQuick(t.pids[0])}
-function markOne(group){const q=S.ui.quick;Object.assign(q,{test:"one",testId:null,snap:null,only:null,onlyLabel:"",group:group||null,list:null,wrote:false})}
+  Object.assign(q,{test:"test",testId:t.id||null,snap:{id:null,saved:false,date:t.date,title:t.label||t.title,whole:!!t.whole,words:t.words.slice(),pids:t.pids.slice(),createdAt:0},only:t.words,onlyLabel:t.title,group:t.pids.slice(),kind:"spelling",list:null});pickQuick(t.pids[0])}
 function markPupils(){const q=S.ui.quick,g=(q.group||[]).filter(id=>S.pupils[id]&&!S.pupils[id].archived);return g.length?g:pupilIds()}
 /* Marking a test. The test is S.ui.quick: its words in q.only, its children
    in q.group, its date in S.ui.date. A saved test is read again on each
    render; a past test worked out from sessions has no record, so it stays
    as it was opened (q.snap) while its marks are changed.
    Kept, unreachable from here: changing the test's date (moveTest(), the
-   "date" change handler), the Spelling/Reading switch, "what they wrote",
-   and Delete test, which is under ⋯ on the list. */
+   "date" change handler). Delete test is under ⋯ on the list. */
 function testMarkView(){
   const q=S.ui.quick;
   /* reached without a test (an old link): the newest test still to mark, else the 1:1 check */
   if(q.test!=="test"||!q.only){const tests=allTests(),t=tests.find(t=>{const st=testStats(t);return t.pids.length&&st.marked<st.n})||tests.find(t=>t.pids.length);
-    if(t)loadTest(testFull(t));else{markOne();S.ui.check.mode="one";return markView()}}
+    if(t)loadTest(testFull(t));else{S.ui.check.mode="one";return oneView()}}
   const T=q.testId?findTest(q.testId):null;
   if(T&&T.saved){const f=testFull(T);q.only=f.words;q.onlyLabel=f.title;q.group=f.pids.slice();S.ui.date=f.date}
   const info=T&&T.saved?T:q.snap||{title:q.onlyLabel,whole:false};
@@ -1222,59 +1265,60 @@ function testMarkView(){
    </section>
   </div></div>`;
 }
-/* the 1:1 check: one child, any words */
-function markView(){
-  const q=S.ui.quick,tests=allTests();
-  /* reached without a test: one child */
-  if(!q.test){markOne();S.ui.check.mode="one"}
-  const T=q.test==="test"&&q.testId?findTest(q.testId):null;
-  if(T&&T.saved){const f=testFull(T);q.only=f.words;q.onlyLabel=f.title;q.group=f.pids.slice();S.ui.date=f.date}
-  const list=markPupils();
-  if(!q.pid||!list.includes(q.pid))pickQuick(list[0]);
-  const date=S.ui.date,cur=quickWords(),before=wordStates(q.pid,{before:date}),sm=summary(q.pid);
-  const li=q.list==null?curList(sm):q.list,shown=quickShown(),focus=new Set(sm.level<NSETS?setWords(sm.level):[]);
-  /* each child's status for this test and date */
-  const status=id=>{const w=(S.sessions[id+"_"+date]||{}).words||{};
-    if(q.only){const m=q.only.filter(i=>w[i]).length;return m===q.only.length?["✓ done",true]:[m?`${m}/${q.only.length}`:"",false]}
-    const n=Object.keys(w).length;return [n?`${n} marked`:"",false]};
-  const sts=list.map(id=>[id,...status(id)]),doneN=sts.filter(x=>x[2]).length;
-  const right=shown.filter(i=>cur[i]&&cur[i].s==="c").length,wrong=shown.filter(i=>cur[i]&&cur[i].s==="x"),marked=right+wrong.length,n=Object.keys(cur).length;
-  const k=list.indexOf(q.pid),next=list[k+1];
-  let h=`${q.test==="one"?"":`<div><button type="button" class="linkbtn" id="mBack" data-a="cList">← All tests</button></div>`}
-  <div class="markbar">
-    <label for="mTest">Marking</label>
-    <select id="mTest" data-c="markTest">${tests.map(t=>`<option value="${esc(t.id)}" ${T&&t.id===T.id?"selected":""}>${fmtShort(t.date)} · ${testKind(t)} · ${esc(t.title)} (${t.words.length} words)</option>`).join("")}${q.only&&!T?`<option value="cur" selected>${esc(q.onlyLabel)} (${q.only.length} words)</option>`:""}<option value="one" ${q.only?"":"selected"}>One child, any words…</option></select>
-    <input type="date" id="qDate" data-c="date" value="${date}" aria-label="${q.only?"Date of this test":"Date"}">
-    <div class="seg" role="group" aria-label="Kind of check"><button type="button" data-a="qkind" data-k="spelling" aria-pressed="${q.kind==="spelling"}">Spelling</button><button type="button" data-a="qkind" data-k="reading" aria-pressed="${q.kind==="reading"}">Reading</button></div>
-    <span style="flex:1"></span><span class="muted small">Saved as you tap</span>
-    ${T?`<button type="button" class="btn mdel" id="mDel" data-a="tAskDelete" data-id="${esc(T.id)}" aria-expanded="${S.ui.tests.confirm===T.id}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Delete test</button>`:""}
+/* ----- The 1:1 check -----
+   One child beside you, and one whole word list: a row for each set of
+   ten, every word a tile in the colour of its state (wordStates(), so
+   today's marks count). A tap cycles TODAY's mark for that word:
+   none → ✓ → ✗ → none again, when the word shows what it was before.
+   Every tap saves the session for (child, today) — the same
+   <pupilId>_<date> record and {s,src:"manual"} mark a test writes — and a
+   session left with no words (and no photos) is removed.
+   Marks already in today's session, from a test sat today, are today's
+   marks too: they show as marked today and cycle the same way. Sessions
+   of any other date are never written here.
+   The child and the list on show are S.ui.one, for this visit only.
+   Gone from this screen (the stored data still reads as before): the
+   date, Spelling/Reading (a session keeps the kind it has; a new one is
+   "spelling"), typing what a child wrote (r), Clear and "last time". */
+const ONE_ST={secure:["s","secure"],known:["k","correct"],notyet:["x","not yet"],slipped:["sl","slipped"],review:["r","waiting for your review"],none:["n","not checked"]};
+function onePid(){const o=S.ui.one,ids=pupilIds();if(!ids.includes(o.pid)){o.pid=ids[0]||null;o.list=null}return o.pid}
+function oneWords(pid){const ses=S.sessions[pid+"_"+localDate()];return {...((ses&&ses.words)||{})}}
+function saveOneWords(pid,words){
+  const date=localDate(),sid=pid+"_"+date,old=S.sessions[sid];
+  if(!Object.keys(words).length&&!(old&&old.photos&&old.photos.length)){if(old)removeDoc("sessions",sid);return}
+  saveDoc("sessions",sid,{pupilId:pid,date,kind:(old&&old.kind)||"spelling",words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
+}
+/* open Check › 1:1 check on a child (the "one" action; Progress and the child panel use it) */
+function openOne(pid){const o=S.ui.one;if(pid&&S.pupils[pid]&&!S.pupils[pid].archived&&o.pid!==pid){o.pid=pid;o.list=null}
+  Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.confirm=null;Object.assign(S.ui.check,{mode:"one",view:"list"});if(S.tab!=="check")setTab("check")}
+function oneView(){
+  const o=S.ui.one,pid=onePid(),ids=pupilIds(),sm=summary(pid),ws=sm.ws,today=oneWords(pid),lv=sm.level;
+  const li=o.list==null?curList(sm):o.list,L=LISTS[li],LW=listWords(L),wide=LW.some(i=>WORDS[i].length>8);
+  const level=lv>=NSETS?"Every list complete":`${BANDS[lv%10].n} · working on ${esc(setLabel(lv))} · ${sm.setDone}/${setWords(lv).length}`;
+  const tile=i=>{const w=WORDS[i],[c,label]=ONE_ST[ws[i].st]||ONE_ST.none,t=today[i]&&today[i].s,n=w.length;
+    return `<button type="button" class="t1 s-${c}${t?" today":""}${n>=11?" l11":n>=9?" l9":n>=7?" l7":""}" id="ow${i}" data-a="oMark" data-i="${i}" aria-label="${esc(w)}, ${label}${t==="c"?", right today":t==="x"?", not yet today":""}"><span class="td" aria-hidden="true">${t==="c"?"✓":t==="x"?"✗":t?"?":""}</span><span class="wd">${esc(w)}</span><span class="n">${num(i)}</span></button>`};
+  const rows=listSets(L).map(g=>{const w=setWords(g),range=`${num(w[0])}–${num(w[w.length-1])}`;
+    return `<div class="orow" role="group" aria-label="${BANDS[g%10].n} ${range}"><span class="olab"><span class="ob">${bandDot(g)}${BANDS[g%10].n}</span><span class="or">${range}</span></span><div class="ots">${w.map(tile).join("")}</div><span class="osc" id="os${g}">${w.filter(i=>isKnown(ws[i].st)).length}/${w.length}</span></div>`}).join("");
+  const sw=(c,t)=>`<span class="lg"><i class="osw${c?" s-"+c:""}" aria-hidden="true"></i>${t}</span>`;
+  return `<section class="panel onecard" id="one" aria-labelledby="oName">
+  <div class="ohead">
+   <div class="owho">
+    <button type="button" class="btn onav" id="oPrev" data-a="oStep" data-d="-1" aria-label="Previous child">‹</button>
+    <div class="onm"><h2 id="oName">${esc(S.pupils[pid].name)}</h2><div class="mlevel" id="oLevel">${bandDot(lv)}<span>${level}</span></div></div>
+    <button type="button" class="btn onav" id="oNext" data-a="oStep" data-d="1" aria-label="Next child">›</button>
+    <label class="ojump" for="oJump">Go to<select id="oJump" data-c="oJump">${ids.map(id=>`<option value="${id}" ${id===pid?"selected":""}>${esc(S.pupils[id].name)}</option>`).join("")}</select></label>
+   </div>
+   <div class="ostats">
+    <div><div class="score" id="oKnown">${sm.knownIn[li]}<small>/${LW.length}</small></div><div class="muted small">correct</div></div>
+    <div><div class="score otoday" id="oToday">${Object.keys(today).length}</div><div class="muted small">marked today</div></div>
+   </div>
   </div>
-  ${T&&S.ui.tests.confirm===T.id?deleteConfirm(T):""}
-  <div class="marklay">
-   <section class="panel plist" aria-label="Pupils in this test">
-    <div class="phead"><b>${list.length} pupil${list.length===1?"":"s"}</b><span class="muted small">${q.only?`${doneN} done`:""}</span></div>
-    <div class="pls">${sts.map(([id,st,done])=>{const s2=summary(id);return `<button type="button" class="pl" data-a="qPick" data-id="${id}" aria-current="${id===q.pid}">${s2.sessions.length?bandDot(s2.level):'<span class="dot" style="--band:transparent"></span>'}<span>${esc(S.pupils[id].name)}</span><span class="st${done?" done":""}">${st}</span></button>`}).join("")}</div>
-   </section>
-   <section class="panel markcard" aria-labelledby="who">
-    <div class="row" style="justify-content:space-between;align-items:flex-end">
-     <div><h2 id="who">${esc(S.pupils[q.pid].name)}</h2><div class="row small" style="gap:8px;margin-top:6px;color:var(--ink-2);font-size:14px">${sm.sessions.length?bandDot(sm.level):""}${esc(levelLabel(sm))}</div></div>
-     <div style="text-align:right"><div class="score" id="mScore">${right}<small>/${shown.length}</small></div><div class="muted small">${marked} marked · ${wrong.length} not yet</div></div>
-    </div>
-    <p class="note" style="font-size:14px;padding:10px 14px">Tap once: <b class="up">✓ correct</b> · twice: <b class="down">✗ not yet</b> · three times: clear. Blue outline = the set they’re on.</p>
-    ${q.only?"":`<div class="row" style="justify-content:space-between"><span class="small muted">Any word from the list. Each tap is saved for ${fmtShort(date)}.</span>${listSeg(li,"qList")}</div>`}
-    <div class="tiles">${shown.map((i,j)=>{const w=WORDS[i],m=cur[i]&&cur[i].s,prev=before[i].st;
-      return `<button type="button" class="tile${m==="c"?" c":m==="x"?" x":""}${focus.has(i)?" focus":""}${w.length>8?" long":""}" data-a="qmark" data-i="${i}" aria-label="${esc(w)}, ${m==="c"?"correct":m==="x"?"not yet":"not marked"}"><span class="n">${q.only?j+1:num(i)}</span><span class="tk" aria-hidden="true">${m==="c"?"✓":m==="x"?"✗":""}</span><span class="wd">${esc(w)}</span><span class="hint">${prev==="none"?"":isKnown(prev)?"✓ last time":"✗ last time"}</span></button>`}).join("")}</div>
-    ${q.wrote?`<div class="stack"><h3>What ${esc(shortName(q.pid))} wrote</h3>${wrong.length?`<div class="wrote">${wrong.map(i=>`<label for="wr${i}"><span>for <b class="wd" style="font-size:16px;color:var(--ink)">${esc(WORDS[i])}</b></span><input type="text" id="wr${i}" data-c="qWrote" data-i="${i}" value="${esc(cur[i].r||"")}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>`).join("")}</div><p class="muted small">Type exactly what they wrote. It is saved when you leave each box, and feeds “What they wrote” and the child’s plan.</p>`:'<p class="muted small">Mark a word ✗ not yet first, then type what they wrote for it.</p>'}</div>`:""}
-    <div class="row">
-     <button type="button" class="btn" data-a="qAll" data-s="c">Mark the rest correct</button>
-     <button type="button" class="btn ghost" data-a="qWroteToggle" aria-expanded="${!!q.wrote}">Add what they wrote</button>
-     <button type="button" class="btn ${S.ui.confirm==="qclear"?"no":"ghost"}" data-a="qClear" ${n?"":"disabled"}>${S.ui.confirm==="qclear"?"Tap again to clear this date":"Clear"}</button>
-     <span style="flex:1"></span>
-     ${next?`<button type="button" class="btn primary" data-a="qNext">Next: ${esc(shortName(next))} →</button>`:`<button type="button" class="btn primary" data-a="cList">Back to all tests</button>`}
-    </div>
-   </section>
-  </div>`;
-  return h;
+  <div class="row" style="justify-content:space-between;gap:10px 16px">
+   <div class="olegend" id="oLegend">${sw("s","Secure")}${sw("k","Correct")}${sw("x","Not yet")}${sw("sl","Slipped")}${sw("","Not checked")}<span>Tap: ✓ today → ✗ today → back</span></div>
+   ${listSeg(li,"oList")}
+  </div>
+  <div class="orows${wide?" wide":""}" id="oRows">${rows}</div>
+ </section>`;
 }
 
 /* ----- Review ----- */
@@ -2206,9 +2250,8 @@ function decide(sid,i,s){
 }
 const A={
   tab:el=>{setTab(el.dataset.k);S.ui.cell=null;Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.check.view="list";window.scrollTo({top:0})},
-  /* the two mode cards. A 1:1 check is today's, not the date of the test last opened */
+  /* the two mode cards. The 1:1 check keeps the child chosen this visit, and is always today's */
   cMode:el=>{const C=S.ui.check,k=el.dataset.k==="one"?"one":"tests";Object.assign(S.ui.tests,{confirm:null,open:null,plan:null});S.ui.confirm=null;
-    if(k==="one"&&C.mode!=="one"){S.ui.date=localDate();markOne()}
     C.mode=k;C.view="list";if(S.tab!=="check")setTab("check")},
   /* back to the list of tests, from planning or from marking */
   cList:()=>{Object.assign(S.ui.check,{mode:"tests",view:"list"});Object.assign(S.ui.tests,{confirm:null,plan:null});setTab("check");window.scrollTo({top:0})},
@@ -2235,14 +2278,16 @@ const A={
   jobMark:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);const b=j.boxes[+el.dataset.k];b.s={c:"x",x:"?","?":"c"}[b.s]},
   saveJob:el=>{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)saveJob(j)},
   saveAll:async()=>{for(const j of S.ui.jobs.filter(x=>x.status==="done"&&x.pid))await saveJob(j);toast("Saved. Anything unclear is waiting in Review.")},
-  qkind:el=>{S.ui.quick.kind=el.dataset.k;const cur=quickWords();if(Object.keys(cur).length)saveQuickWords(cur)},
   qmark:el=>{const cur=quickWords(),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveQuickWords(cur);/* the keyboard stays on the word */S.ui.focusId=`.tile[data-i="${+i}"]`},
   qAll:()=>{const cur=quickWords();for(const i of quickShown())if(!cur[i])cur[i]={s:"c",src:"manual"};saveQuickWords(cur)},
-  qList:el=>{S.ui.quick.list=+el.dataset.k},
+  /* the 1:1 check: open it on a child; step to the child before or after (it goes round); the list; today's mark for a word */
+  one:el=>{openOne(el.dataset.id);S.ui.pupil=null;window.scrollTo({top:0})},
+  oStep:el=>{const o=S.ui.one,ids=pupilIds(),k=ids.indexOf(onePid());if(k<0)return;o.pid=ids[(k+ +el.dataset.d+ids.length)%ids.length];o.list=null},
+  oList:el=>{S.ui.one.list=+el.dataset.k},
+  oMark:el=>{const pid=onePid();if(!pid)return;const cur=oneWords(pid),i=el.dataset.i,m=cur[i]&&cur[i].s;const nx=m==="c"?"x":m==="x"?null:"c";if(nx)cur[i]={s:nx,src:"manual"};else delete cur[i];saveOneWords(pid,cur)},
   qPick:el=>{pickQuick(el.dataset.id)},
-  /* a test goes round again after its last child; the 1:1 check stops at the end */
+  /* a test goes round again after its last child */
   qNext:()=>{const q=S.ui.quick,l=markPupils(),k=l.indexOf(q.pid),round=q.test==="test"&&S.tab==="mark",n=round?(k+1)%l.length:k+1;if(k>=0&&n<l.length){pickQuick(l[n]);if(round)S.ui.focusId="mNext"}window.scrollTo({top:0})},
-  qWroteToggle:()=>{S.ui.quick.wrote=!S.ui.quick.wrote},
   list:el=>{S.ui.list=+el.dataset.k;S.ui.cell=null;S.ui.sq=null},
   pfilter:el=>{S.ui.pfilter=el.dataset.f},
   goPrint:el=>{S.ui.print.item=el.dataset.k;setTab("print");window.scrollTo({top:0})},
@@ -2296,7 +2341,6 @@ const A={
     if(S.tab==="mark"){S.ui.quick.test=null;setTab("check");window.scrollTo({top:0})}
     toast(!n?"Test deleted":keep?"Test deleted. Its marks still count.":"Test and its marks deleted",()=>{undo();toast("Test put back")})},
   toastUndo:()=>{const f=toast.undo;if(f)f()},
-  qClear:()=>{if(S.ui.confirm!=="qclear"){S.ui.confirm="qclear";return}S.ui.confirm=null;saveQuickWords({})},
   saveQuick:()=>{/* unused in Classroom Hub: Quick check saves on every tap */const q=S.ui.quick;if(!q.pid)return;const sid=q.pid+"_"+S.ui.date,old=S.sessions[sid];const words={...((old&&old.words)||{})};
     for(const [i,s] of Object.entries(q.marks))words[i]={s,src:"manual"};
     saveDoc("sessions",sid,{pupilId:q.pid,date:S.ui.date,kind:q.kind,words,photos:(old&&old.photos)||[],updatedAt:Date.now()});
@@ -2365,8 +2409,7 @@ document.addEventListener("change",e=>{
     case "tPlanDate":if(S.ui.tests.plan){S.ui.tests.plan.date=el.value;S.ui.focusId="tPlanDate"}break;
     case "tEditDate":if(S.ui.tests.edit){S.ui.tests.edit.date=el.value;S.ui.tests.edit.clash=0}break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
-    case "markTest":{const v=el.value;if(v==="one"){markOne();S.ui.check.mode="one"}else if(v!=="cur"){const t=findTest(v);if(t){loadTest(testFull(t));S.ui.check.mode="tests";if(S.tab!=="mark")setTab("mark")}}break}
-    case "qWrote":{const cur=quickWords(),i=el.dataset.i;if(cur[i]&&cur[i].s==="x"){const r=el.value.trim().slice(0,40);cur[i]={...cur[i]};if(r)cur[i].r=r;else delete cur[i].r;saveQuickWords(cur)}break}
+    case "oJump":{const o=S.ui.one;if(S.pupils[el.value]&&el.value!==o.pid){o.pid=el.value;o.list=null}break}
     case "voice":lsSet("hw-voice",el.value||null);say("Let’s practise. said. “Hello,” said Mum.");break;
     case "rate":lsSet("hw-rate",el.value);break;
     case "cardsPerChild":saveDoc("settings","main",{...S.settings,cardsPerChild:+el.value});break;
