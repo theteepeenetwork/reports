@@ -101,6 +101,45 @@ label.chk input{width:18px;height:18px;accent-color:var(--accent);flex:none}
 .up{color:var(--ok-ink)} .down{color:var(--no-ink)}
 /* tests */
 .sechead{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+/* plan a test */
+.phead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end}
+.phead h2{font-size:19px;font-weight:800;margin:4px 0 0}
+.pstep{font-size:13px;font-weight:700;color:var(--accent-text);letter-spacing:.04em;text-transform:uppercase}
+.psub{margin:4px 0 0;font-size:14px;color:var(--ink-2);max-width:70ch}
+.popt2{display:flex;flex-direction:column;gap:6px}
+.popt2 .optl{font-size:13px;font-weight:700;color:var(--ink-2)}
+.pscroll{position:relative;overflow-x:auto;max-width:100%;padding:3px;margin:-3px}
+.pcols{display:grid;grid-template-columns:repeat(var(--n),minmax(68px,1fr));gap:6px}
+.pcol{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;padding:8px 2px;border-radius:12px;border:2px solid transparent;background:transparent;cursor:pointer;color:var(--ink)}
+.pcol:hover{background:var(--line-2)}
+.pcol[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.pcol .pn{font-size:15px;font-weight:800;text-align:center}
+.pcol .pbar{height:100px;display:flex;align-items:flex-end;justify-content:center}
+.pcol .pbar i{display:block;width:60%;border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--muted) 45%,var(--card))}
+.pcol[aria-pressed="true"] .pbar i{background:var(--accent)}
+.pcol .pband{display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;white-space:nowrap}
+.pcol .pband .dot{width:10px;height:10px;flex:none}
+.pcol .prange{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap}
+.psum{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border-radius:12px;background:var(--accent-soft)}
+.psum>b{font-size:17px;font-weight:800}
+.psum span{font-size:14px;color:var(--accent-text)}
+.psum .pname{font-size:13px;color:var(--ink-2)}
+.swrow{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.sw{width:52px;height:44px;padding:0;border:0;background:none;cursor:pointer;position:relative;flex:none}
+.sw::before{content:"";position:absolute;left:0;top:7px;width:52px;height:30px;border-radius:999px;background:var(--muted)}
+.sw[aria-checked="true"]::before{background:var(--accent)}
+.sw i{position:absolute;top:10px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .12s}
+.sw[aria-checked="true"] i{left:25px}
+@media (prefers-reduced-motion:reduce){.sw i{transition:none}}
+.pgrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) auto;gap:6px 16px;align-items:center;padding:12px 0;border-top:1px solid var(--line-2)}
+.pgrow .pgt{display:flex;align-items:center;gap:8px}
+.pgrow .pgn{font-size:14px;color:var(--ink-2)}
+.pwarn{font-size:14px;color:var(--rev-ink);background:var(--rev-soft);border-radius:10px;padding:10px 14px}
+.pfoot{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 20px}
+.pfoot .pfs{flex:1;min-width:min(240px,100%)}
+.pfoot .pfs>b{font-size:16px}
+.pfoot .pdate{font-size:13px}
+@media (max-width:560px){.pgrow{grid-template-columns:minmax(0,1fr) auto}.pgrow .pgn{grid-column:1/-1;grid-row:2}}
 .modes{display:flex;flex-wrap:wrap;gap:12px}
 .mode{flex:1 1 300px;min-width:0;display:flex;gap:14px;align-items:center;padding:16px 18px;min-height:76px;border-radius:14px;cursor:pointer;color:var(--ink);text-align:left;border:1px solid var(--line);background:var(--card)}
 .mode:hover{border-color:var(--accent-mid)}
@@ -533,9 +572,11 @@ function doRender(){
   const pl=$('.pl[aria-current="true"]');if(pl){const box=pl.parentElement;if(box.scrollWidth>box.clientWidth)box.scrollLeft=pl.offsetLeft-box.offsetLeft-12}
   /* a panel that has just opened takes the focus; otherwise put it back where it was */
   if(S.ui.delFocus){S.ui.delFocus=false;S.ui.focusId=null;const c=$("#delCancel");if(c)c.focus()}
-  else if(S.ui.focusId){const el=document.getElementById(S.ui.focusId);S.ui.focusId=null;if(el)el.focus()}
+  else if(S.ui.focusId){const f=S.ui.focusId,el=document.getElementById(f)||(/^[#.]/.test(f)?document.querySelector(f):null);S.ui.focusId=null;if(el)el.focus()}
   else if(S.ui.panelFocus){S.ui.panelFocus=false;dr.scrollTop=0;const c=$("#pClose");if(c)c.focus({preventScroll:true})}
   else if(aid){const el=document.getElementById(aid);if(el){el.focus({preventScroll:true});if(sel&&el.setSelectionRange)try{el.setSelectionRange(sel[0],sel[1])}catch(e){}}}
+  /* Plan a test on a phone: the sets scroll sideways, so bring the test's first set into view */
+  {const sc=$(".pscroll"),on=sc&&sc.querySelector('[aria-pressed="true"]');if(on&&!sc.contains(document.activeElement))sc.scrollLeft=Math.max(0,on.offsetLeft-70)}
 }
 function bannerHtml(){
   if(S.mode==="demo")return `<b>Example class.</b><span>These pupils and results are made up so you can explore. Nothing is saved.</span><button class="btn sm" data-a="exitDemo">Start my own class</button>`;
@@ -706,16 +747,33 @@ function panelHtml(pid){
    group test is the lowest remaining set, plus the next set when children
    are waiting on it too, so neighbouring groups share one 20-word test. */
 function setsLabel(gs){const a=setWords(gs[0])[0],b=setWords(gs[gs.length-1]).slice(-1)[0];return listIdxOf(a)===listIdxOf(b)?`${listOf(a).short} ${num(a)}–${num(b)}`:`${setLabel(gs[0])} and ${setLabel(gs[gs.length-1])}`}
-function testPlan(){
+/* testPlan()            the plan as it has always been worked out: the
+                          whole-class test is settings.wholeN words long and
+                          starts where it covers the most children.
+   testPlan({start,len})  the same plan with the whole-class test chosen by
+                          the teacher (Plan a test). Both are optional:
+     len    how many words the whole-class test has (10, 20, 30…); left
+            out, settings.wholeN.
+     start  the set (0…NSETS-1) it starts on, moved back when needed so the
+            test fits inside that set's word list; left out, the set that
+            covers the most children.
+   The group tests are always worked out the same way, for everyone the
+   whole-class test does not cover. Nothing is stored. */
+function testPlan({start,len}={}){
   const ids=pupilIds(),lv={};for(const id of ids)lv[id]=summary(id).level;
-  const active=ids.filter(id=>lv[id]<NSETS),W=Math.max(1,Math.round((+S.settings.wholeN||20)/10));
+  const active=ids.filter(id=>lv[id]<NSETS),W=Math.max(1,Math.round((+(len==null?S.settings.wholeN:len)||20)/10));
   const tests=[];
   if(!active.length)return {tests,lv,W};
-  let best=-1,bestN=-1;
-  /* windows start on a set someone is on, so the test begins where they are */
-  for(const g of [...new Set(active.map(id=>lv[id]))].sort((a,b)=>a-b)){const n=active.filter(id=>lv[id]>=g&&lv[id]<g+W).length;if(n>bestN){best=g;bestN=n}}
-  const sets=[];for(let g=best;g<Math.min(best+W,NSETS);g++)sets.push(g);
-  const inWhole=active.filter(id=>lv[id]>=best&&lv[id]<best+W);
+  let best=-1,bestN=-1,end=NSETS;
+  if(start==null||isNaN(start)){
+    /* windows start on a set someone is on, so the test begins where they are */
+    for(const g of [...new Set(active.map(id=>lv[id]))].sort((a,b)=>a-b)){const n=active.filter(id=>lv[id]>=g&&lv[id]<g+W).length;if(n>bestN){best=g;bestN=n}}
+  }else{
+    const gs=listSets(LISTS[listIdxOf(Math.max(0,Math.min(Math.floor(start),NSETS-1))*10)]);
+    end=gs[gs.length-1]+1;best=Math.max(gs[0],Math.min(Math.floor(start),end-W));
+  }
+  const sets=[];for(let g=best;g<Math.min(best+W,end);g++)sets.push(g);
+  const inWhole=active.filter(id=>sets.includes(lv[id]));
   tests.push({whole:true,sets,words:sets.flatMap(setWords),pids:ids,target:inWhole,title:`Whole class · ${setsLabel(sets)}`});
   let rest=active.filter(id=>!inWhole.includes(id)).sort((a,b)=>lv[a]-lv[b]);
   while(rest.length){const g=lv[rest[0]];const two=rest.some(id=>lv[id]===g+1)&&g+1<NSETS&&listIdxOf(g*10)===listIdxOf((g+1)*10);
@@ -981,17 +1039,57 @@ function testsList(){
     h+=`</section>`}
   return h+`</div>`;
 }
-/* Planning, for now the form the old Tests screen had (step 3 rebuilds
-   it): what testPlan() proposes, and the date to save it for. */
+/* ----- Plan a test -----
+   S.ui.tests.plan = { date, start, len, groups, list }; none of it is stored.
+     start  the set tapped to start the whole-class test on (testPlan() moves
+            it back when the test would run off the end of the list); null
+            until a column is tapped, and then testPlan() chooses, as always
+     len    its length in words; opens on settings.wholeN and lasts for the
+            visit (the setting itself is only changed in Settings)
+     groups whether the group tests are created too
+     list   the word list whose sets are on show; null = the list the test is in
+   Everything on the screen — where the test starts, who it covers, the group
+   tests, what Create saves — is read from testPlan({start,len}). */
+const PLAN_LENS=[10,20,30,40];
+function newPlan(){const n=+S.settings.wholeN||20;return {date:nextTestDate(),start:null,len:PLAN_LENS.includes(n)?n:PLAN_LENS.reduce((a,b)=>Math.abs(b-n)<Math.abs(a-n)?b:a),groups:true,list:null}}
+/* the plan on show, and the tests Create would save */
+function planNow(){const U=S.ui.tests;if(!U.plan)U.plan=newPlan();const P=U.plan,tp=testPlan({start:P.start==null?undefined:P.start,len:P.len});
+  return {P,tp,whole:tp.tests[0],groups:tp.tests.slice(1),make:P.groups?tp.tests:tp.tests.slice(0,1)}}
+const nTests=n=>n===1?"1 test":n+" tests";
+const nameList=ids=>ids.slice().sort(byName).map(p=>esc(shortName(p))).join(", ");
 function planScreen(){
-  const U=S.ui.tests,next=testPlan().tests,plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
-  if(!U.plan)U.plan={date:nextTestDate()};
-  return `<div><button type="button" class="linkbtn" id="pBack" data-a="cList">← Back to tests</button></div>
-   <section class="panel stack" id="tPlan" aria-labelledby="tPlanH"><div class="sechead"><h2 id="tPlanH">Plan the next tests</h2><span class="muted small">One whole-class test where most children are, then the shortest group tests for the rest</span></div>
-     ${next.length?`<div class="stack" style="gap:6px">${next.map(t=>`<div class="row" style="gap:8px"><span class="pill${t.whole?" blue":""}">${testKind(t)}</span><b>${esc(setsLabel(t.sets))}</b><span class="muted small">${t.sets.map(g=>BANDS[g%10].n).join(" &amp; ")} · ${t.whole?`everyone · current set for ${t.target.length}`:kidsN(t.pids.length)}</span></div>`).join("")}</div>
-     <div class="row" style="align-items:flex-end"><label class="fld" for="tPlanDate">Date of the tests<input type="date" id="tPlanDate" data-c="tPlanDate" value="${U.plan.date}"></label>
-      <button type="button" class="btn primary" data-a="tPlanSave">Save ${plural(next.length,"test")}</button><button type="button" class="btn ghost" data-a="tPlanCancel">Cancel</button></div>`
-     :`<p class="muted">Every child has finished every list, so there is nothing left to test.</p><div><button type="button" class="btn ghost" data-a="tPlanCancel">Close</button></div>`}</section>`;
+  const {P,tp,whole,groups,make}=planNow(),back=`<div><button type="button" class="linkbtn" id="pBack" data-a="cList">← Back to tests</button></div>`;
+  if(!whole)return `<div class="stack" id="tPlan" style="gap:20px">${back}<section class="panel stack"><p class="muted">Every child has finished every list, so there is nothing left to test.</p><div><button type="button" class="btn" data-a="tPlanCancel">Close</button></div></section></div>`;
+  const ids=pupilIds(),sets=whole.sets,k=P.list==null?listIdxOf(sets[0]*10):P.list,cols=listSets(LISTS[k]);
+  const counts={};for(const id of ids)counts[tp.lv[id]]=(counts[tp.lv[id]]||0)+1;
+  const max=Math.max(1,...cols.map(g=>counts[g]||0)),here=cols.some(g=>sets.includes(g));
+  const a=sets[0]*10,z=setWords(sets[sets.length-1]).slice(-1)[0],bands=[...new Set(sets.map(g=>BANDS[g%10].n))].join(" &amp; ");
+  const rest=groups.reduce((n,t)=>n+t.pids.length,0),d=P.date||nextTestDate();
+  const col=g=>{const n=counts[g]||0,w=setWords(g),on=sets.includes(g),r=`${num(w[0])}–${num(w[w.length-1])}`;
+    return `<button type="button" class="pcol" data-a="pStart" data-g="${g}" aria-pressed="${on}" aria-label="${BANDS[g%10].n} ${num(w[0])} to ${num(w[w.length-1])}: ${kidsN(n)}. Start the test here."><span class="pn">${n||"–"}</span><span class="pbar"><i style="height:${Math.max(4,Math.round(n/max*100))}%"></i></span><span class="pband">${bandDot(g)}${BANDS[g%10].n}</span><span class="prange">${r}</span></button>`};
+  return `<div class="stack" id="tPlan" style="gap:20px">${back}
+   <section class="panel stack" id="pWhole" aria-labelledby="pWholeH" style="gap:18px">
+    <div class="phead"><div><div class="pstep">1 · The whole-class test · ${fmtDay(d).replace(",","")}</div><h2 id="pWholeH">Everyone sits the same words</h2><p class="psub">Each bar is how many children are working on that set of ten. Tap a set to start the test there.</p></div>
+     <div class="popt2"><span class="optl" id="pLenL">How many words</span><div class="seg" id="pLen" role="group" aria-labelledby="pLenL">${PLAN_LENS.map(n=>`<button type="button" data-a="pLen" data-n="${n}" aria-pressed="${P.len===n}">${n}</button>`).join("")}</div></div></div>
+    <div id="pList">${listSeg(k,"pList")}</div>
+    <div class="pscroll"><div class="pcols" id="pCols" role="group" aria-label="Sets of ten in ${esc(LISTS[k].name)}" style="--n:${cols.length}">${cols.map(col).join("")}</div></div>
+    ${here?"":`<p class="muted small" id="pElse">The test is set to start at ${esc(setLabel(sets[0]))}. Tap a set here to move it.</p>`}
+    <div class="psum" id="pSum" aria-live="polite"><b>Words ${num(a)}–${num(z)} · ${bands}</b><span>The set they’re working on for <b>${whole.target.length} of ${ids.length}</b> children. Everyone else sits it too.</span>${LISTS.length>1?`<span class="pname">${esc(listIdxOf(a)===listIdxOf(z)?listOf(a).name:setsLabel(sets))}</span>`:""}</div>
+    <div class="chips" id="pWords">${whole.words.map(i=>`<span class="wchip">${esc(WORDS[i])}</span>`).join("")}</div>
+   </section>
+   <section class="panel stack" id="pGroups" aria-labelledby="pGroupsH" style="gap:12px">
+    <div class="phead" style="align-items:flex-start"><div><div class="pstep">2 · Group tests</div><h2 id="pGroupsH">${rest?`For the ${kidsN(rest)} not working on those words`:"Everyone is working on those words"}</h2></div>
+     ${rest?`<span class="swrow"><button type="button" class="sw" id="pSw" role="switch" aria-checked="${!!P.groups}" aria-labelledby="pSwL" data-a="pGroups"><i></i></button><span id="pSwL">Add group tests</span></span>`:""}</div>
+    ${!rest?`<p class="muted" id="pNone" style="margin:0">No group tests are needed: the whole-class test covers the set every child is working on.</p>`
+     :P.groups?`<div id="pGList">${groups.map(t=>`<div class="pgrow">${`<span class="pgt">${bandDot(t.sets[0])}<b>Group · ${esc(setsLabel(t.sets))}</b></span>`}<span class="pgn">${nameList(t.pids)}</span><span class="muted">${t.words.length} words</span></div>`).join("")}</div>`
+     :`<div class="pwarn" id="pWarn">${rest===1?"This 1 child":`These ${rest} children`} will sit the whole-class test only, so they can’t move on this week.</div>`}
+   </section>
+   <div class="panel pfoot" id="pFoot">
+    <div class="pfs"><b id="pTotal">${nTests(make.length)} on ${dayName(d)}${make.length>1?`: the whole class + ${make.length-1} group${make.length>2?"s":""}`:""}</b><div class="muted">You can delete or re-plan from the test list.</div></div>
+    <label class="fld pdate" for="tPlanDate">Date of the tests<input type="date" id="tPlanDate" data-c="tPlanDate" value="${P.date}"></label>
+    <button type="button" class="btn" data-a="tPlanCancel">Cancel</button>
+    <button type="button" class="btn primary" id="pCreate" data-a="tPlanSave">Create ${nTests(make.length)}</button>
+   </div></div>`;
 }
 /* an open test's words and children, with Change date and Edit words or
    children. Kept, unreachable: the list no longer opens it. moveTest() is
@@ -2103,14 +2201,19 @@ const A={
     S.ui.tests.confirm=null;S.ui.check.mode="tests";loadTest(testFull(t));setTab("mark");window.scrollTo({top:0})},
   tSheets:el=>{const t=findTest(el.dataset.id);if(!t)return "skip";if(!t.pids.length){toast("This test has no children: they have left the class.");return "skip"}PDF.testSheets(testFull(t));return "skip"},
   tScript:el=>{const t=findTest(el.dataset.id);if(t)PDF.testScript(testFull(t));return "skip"},
-  tPlan:()=>{const U=S.ui.tests;U.plan={date:nextTestDate()};U.open=null;U.confirm=null;S.ui.check.view="plan";window.scrollTo({top:0})},
+  tPlan:()=>{const U=S.ui.tests;U.plan=newPlan();U.open=null;U.confirm=null;S.ui.check.view="plan";window.scrollTo({top:0})},
   tPlanCancel:()=>{S.ui.tests.plan=null;S.ui.check.view="list"},
-  /* save what testPlan() proposes as tests for the chosen date */
-  tPlanSave:()=>{const U=S.ui.tests,date=U.plan&&U.plan.date;if(!date){toast("Choose a date for the tests");return}
-    const have=allTests().filter(t=>t.saved&&t.date===date),same=(a,b)=>a.length===b.length&&a.every((v,k)=>v===b[k]);let n=0,first=null;
-    for(const t of testPlan().tests){const pids=t.pids.slice().sort(byName);if(have.some(o=>same(o.words,t.words)&&same(o.pids,pids)))continue;
-      const id=uid();saveTest(id,{date,title:setsLabel(t.sets),whole:t.whole,words:t.words,pids:t.pids,createdAt:Date.now()+n});first=first||id;n++}
-    U.plan=null;S.ui.check.view="list";U.open=null;window.scrollTo({top:0});toast(n?`Saved ${n} test${n===1?"":"s"} for ${fmtDay(date)}`:`Those tests are already planned for ${fmtDay(date)}`)},
+  /* Plan a test: start the whole-class test on a set, its length, the list on show, group tests on or off */
+  pStart:el=>{const P=planNow().P;P.start=+el.dataset.g;P.list=null;S.ui.focusId=`.pcol[data-g="${el.dataset.g}"]`},
+  pLen:el=>{const P=planNow().P;P.len=+el.dataset.n;S.ui.focusId=`#pLen button[data-n="${P.len}"]`},
+  pList:el=>{planNow().P.list=+el.dataset.k;S.ui.focusId=`#pList button[data-k="${+el.dataset.k}"]`},
+  pGroups:()=>{const P=planNow().P;P.groups=!P.groups;S.ui.focusId="#pSw"},
+  /* Create: save what testPlan({start,len}) gives as tests for the chosen date */
+  tPlanSave:()=>{const U=S.ui.tests,{P,make}=planNow(),date=P.date;if(!date){toast("Choose a date for the tests");return}
+    const have=allTests().filter(t=>t.saved&&t.date===date),same=(a,b)=>a.length===b.length&&a.every((v,i)=>v===b[i]);let n=0;
+    for(const t of make){const pids=t.pids.slice().sort(byName);if(have.some(o=>same(o.words,t.words)&&same(o.pids,pids)))continue;
+      saveTest(uid(),{date,title:setsLabel(t.sets),whole:t.whole,words:t.words,pids:t.pids,createdAt:Date.now()+n});n++}
+    U.plan=null;S.ui.check.view="list";U.open=null;window.scrollTo({top:0});toast(n?`${nTests(n)} created for ${dayName(date)}`:`Those tests are already planned for ${dayName(date)}`)},
   tEdit:el=>{const U=S.ui.tests,t=findTest(el.dataset.id);if(!t)return;U.confirm=null;
     U.edit=el.dataset.mode==="date"?{id:t.id,mode:"date",date:t.date}:{id:t.id,mode:"edit",list:Math.max(0,listIdxOf(t.words[0]||0)),sets:[...new Set(t.words.map(i=>Math.floor(i/10)))],sets0:null,pids:t.pids.slice()};
     if(U.edit.sets)U.edit.sets0=U.edit.sets.join(",")},
@@ -2203,7 +2306,7 @@ document.addEventListener("change",e=>{
           if(moveClashes(t,d).length){toast(`Not moved: some children already have marks for these words on ${fmtDay(d)}.`);break}
           q.testId=moveTest(t,d);if(q.snap)q.snap.date=d;toast(`Test moved to ${fmtDay(d)}`)}}
       S.ui.date=d;break}
-    case "tPlanDate":if(S.ui.tests.plan)S.ui.tests.plan.date=el.value;break;
+    case "tPlanDate":if(S.ui.tests.plan){S.ui.tests.plan.date=el.value;S.ui.focusId="tPlanDate"}break;
     case "tEditDate":if(S.ui.tests.edit){S.ui.tests.edit.date=el.value;S.ui.tests.edit.clash=0}break;
     case "jobPupil":{const j=S.ui.jobs.find(x=>x.id===el.dataset.j);if(j)j.pid=el.value;break}
     case "markTest":{const v=el.value;if(v==="one"){markOne();S.ui.check.mode="one"}else if(v!=="cur"){const t=findTest(v);if(t){loadTest(testFull(t));S.ui.check.mode="tests";if(S.tab!=="mark")setTab("mark")}}break}

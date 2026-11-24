@@ -39,7 +39,7 @@ async function openMark(frame) {
   await expect(frame.locator('#cList')).toBeVisible();
   if (!(await frame.locator('.trow').count())) {
     await frame.getByRole('button', { name: 'Plan the test' }).click();
-    await frame.locator('#tPlan').getByRole('button', { name: /^Save \d+ tests?$/ }).click();
+    await frame.locator('#tPlan').getByRole('button', { name: /^Create \d+ tests?$/ }).click();
   }
   await frame.locator('.trow .tacts button[data-a="tMark"]').first().click();
   await expect(frame.locator('.markcard')).toBeVisible();
@@ -328,10 +328,11 @@ test('The test plan: sets of ten in order across the three lists, and a whole-cl
   await expect(frame.locator('.mode')).toHaveCount(2);
   await expect(frame.locator('#cList')).toHaveCount(0);
   const form = frame.locator('#tPlan');
-  await expect(form).toContainText('100 HFW 41–60');
-  await expect(form).toContainText('everyone · current set for 2');
+  await expect(form.locator('#pSum')).toContainText('Words 41–60 · Green & Orange');
+  await expect(form.locator('#pSum')).toContainText('The set they’re working on for 2 of 3 children. Everyone else sits it too.');
+  await expect(form.locator('#pSum')).toContainText('100 high frequency words');
   await expect(form).toContainText('200 HFW 1–10');
-  await expect(form.getByRole('button', { name: 'Save 2 tests' })).toBeVisible();
+  await expect(form.getByRole('button', { name: 'Create 2 tests' })).toBeVisible();
   await form.getByRole('button', { name: 'Cancel' }).click();
   await expect(frame.locator('#tPlan')).toHaveCount(0);
   await expect(frame.locator('#cList')).toBeVisible();
@@ -415,7 +416,7 @@ test('Check: the next-test card, planned tests by date, a row from not marked to
   await frame.getByRole('button', { name: 'Plan the test' }).click();
   await expect(frame.locator('#tPlanDate')).toHaveValue(await frame.locator('body').evaluate(() => nextThursday()));
   await frame.locator('#tPlanDate').fill('2030-01-10');
-  await frame.locator('#tPlan').getByRole('button', { name: 'Save 2 tests' }).click();
+  await frame.locator('#tPlan').getByRole('button', { name: 'Create 2 tests' }).click();
   const tests = Object.values((await stored()).tests).sort((a, b) => a.createdAt - b.createdAt);
   expect(tests.map(t => [t.date, t.title, t.whole, t.words.length, t.words[0], t.pids])).toEqual([
     ['2030-01-10', '100 HFW 1–20', true, 20, 0, ['x1', 'x2']],        // Kit is on 1–10: most children... both sit it
@@ -447,7 +448,7 @@ test('Check: the next-test card, planned tests by date, a row from not marked to
   await next.getByRole('button', { name: '+ Plan another test' }).click();
   await expect(frame.locator('#tPlanDate'), 'that Thursday is taken, so the one after is offered').not.toHaveValue('2030-01-10');
   await frame.locator('#tPlanDate').fill('2030-01-10');
-  await frame.locator('#tPlan').getByRole('button', { name: 'Save 2 tests' }).click();
+  await frame.locator('#tPlan').getByRole('button', { name: 'Create 2 tests' }).click();
   await expect(next.locator('.trow')).toHaveCount(2);
 
   /* a row goes Not marked yet → x of y marked → All y marked, and its button Mark → Carry on marking → Results */
@@ -551,8 +552,8 @@ test('Check: the two mode cards head every Check screen, and switch at once', as
   await expect(frame.locator('#cList')).toBeVisible();
   /* marking a test */
   await frame.getByRole('button', { name: 'Plan the test' }).click();
-  await frame.locator('#tPlan').getByRole('button', { name: /^Save \d+ tests?$/ }).click();
-  await expect(frame.locator('#toast')).toContainText(/^Saved 1 test for /);
+  await frame.locator('#tPlan').getByRole('button', { name: /^Create \d+ tests?$/ }).click();
+  await expect(frame.locator('#toast')).toContainText(/^1 test created for /);
   await frame.locator('.trow [data-a="tMark"]').first().click();
   await pressed('true', 'false');
   await expect(frame.locator('.tile')).toHaveCount(20);
@@ -1412,4 +1413,356 @@ test('An Undo from the example class is gone once the example class is left', as
   /* and nothing from the example class reached this class's own data */
   const doc = JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')) || '{}');
   expect(Object.keys(doc.sessions || {})).toEqual([]);
+});
+
+/* ----- Plan a test ----- */
+/* eight children: Abe on 1–10, Bea and Cal on 11–20, Dee, Eli and Fay on 21–30, Gus on 41–50, Hal on the next 200 */
+const PLAN_KIDS = [['a1', 'Abe Ash', 0], ['a2', 'Bea Birch', 1], ['a3', 'Cal Cedar', 1], ['a4', 'Dee Elm', 2], ['a5', 'Eli Fir', 2], ['a6', 'Fay Gorse', 2], ['a7', 'Gus Holly', 4], ['a8', 'Hal Ivy', 10]];
+function planClass(settings) {
+  const extra = twoClasses('b'), sessions = {};
+  extra['tp_roster::b'] = J(PLAN_KIDS.map(([id, name]) => ({ id, name })));
+  for (const [id, , lv] of PLAN_KIDS) { if (!lv) continue; const words = {}; for (let i = 0; i < lv * 10; i++) words[i] = { s: 'c' };
+    sessions[id + '_2026'] = { pupilId: id, date: '2026-10-01', kind: 'spelling', words }; }
+  extra['tp_hundred_words::b'] = J({ sessions, practice: {}, plans: {}, settings: settings ? { main: settings } : {} });
+  return extra;
+}
+async function openPlan(page, settings) {
+  const frame = await openHW(page, planClass(settings));
+  await frame.getByRole('button', { name: 'Plan the test' }).click();
+  await expect(frame.locator('#tPlan')).toBeVisible();
+  return frame;
+}
+const pressedSets = frame => frame.locator('#pCols .pcol[aria-pressed="true"]').evaluateAll(els => els.map(e => +e.dataset.g));
+const storedB = async page => JSON.parse(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b')));
+
+test('Plan a test opens on what testPlan() proposes: its start, settings.wholeN words, and its group tests', async ({ page }) => {
+  const errors = collectErrors(page);
+  const frame = await openPlan(page), body = frame.locator('body');
+  const tp = await body.evaluate(() => testPlan().tests.map(t => ({ whole: t.whole, sets: t.sets, words: t.words, pids: t.pids, target: t.target.length, label: setsLabel(t.sets) })));
+  expect(tp.map(t => t.label)).toEqual(['100 HFW 11–30', '100 HFW 1–10', '100 HFW 41–50', '200 HFW 1–10']);
+  const day = await body.evaluate(() => [fmtDay(nextTestDate()).replace(',', ''), dayName(nextTestDate()), nextTestDate()]);
+
+  await expect(frame.getByRole('button', { name: '← Back to tests' })).toBeVisible();
+  await expect(frame.locator('#pWhole .pstep')).toHaveText(`1 · The whole-class test · ${day[0]}`);
+  await expect(frame.locator('#pWhole h2')).toHaveText('Everyone sits the same words');
+  await expect(frame.locator('#pWhole .psub')).toHaveText('Each bar is how many children are working on that set of ten. Tap a set to start the test there.');
+  /* 10 / 20 / 30 / 40, on settings.wholeN (20 when it has never been set) */
+  const len = frame.getByRole('group', { name: 'How many words' });
+  await expect(len.locator('button')).toHaveText(['10', '20', '30', '40']);
+  await expect(len.locator('button[aria-pressed="true"]')).toHaveText('20');
+  /* one column per set of ten in the list the test is in; the bar counts the children whose current set it is */
+  await expect(frame.locator('#pList button[aria-pressed="true"]')).toHaveText('100 HFW');
+  const cols = frame.locator('#pCols .pcol');
+  await expect(cols).toHaveCount(10);
+  await expect(cols.locator('.pn')).toHaveText(['1', '2', '3', '–', '1', '–', '–', '–', '–', '–']);
+  await expect(cols.locator('.pband')).toHaveText(['Pink', 'Red', 'Yellow', 'Blue', 'Green', 'Orange', 'Turquoise', 'Purple', 'Gold', 'White']);
+  await expect(cols.locator('.prange').first()).toHaveText('1–10');
+  await expect(cols.nth(1)).toHaveAttribute('aria-label', 'Red 11 to 20: 2 children. Start the test here.');
+  await expect(cols.nth(0)).toHaveAttribute('aria-label', 'Pink 1 to 10: 1 child. Start the test here.');
+  expect(await cols.locator('.pbar i').evaluateAll(els => els.slice(0, 4).map(e => e.style.height)), 'bars are scaled to the largest count').toEqual(['33%', '67%', '100%', '4%']);
+  /* the window is where testPlan() starts the whole-class test */
+  await expect.poll(() => pressedSets(frame)).toEqual(tp[0].sets);
+  expect(tp[0].sets).toEqual([1, 2]);
+  await expect(frame.locator('#pSum')).toContainText('Words 11–30 · Red & Yellow');
+  await expect(frame.locator('#pSum')).toContainText('The set they’re working on for 5 of 8 children. Everyone else sits it too.');
+  expect(await frame.locator('#pWords .wchip').allTextContents()).toEqual(await body.evaluate((el, w) => w.map(i => WORDS[i]), tp[0].words));
+  expect(await frame.locator('#pWords .wchip').first().evaluate(e => getComputedStyle(e).fontFamily)).toContain('Andika');
+  /* the group tests are testPlan()'s, for the three children the window does not cover */
+  await expect(frame.locator('#pGroups .pstep')).toHaveText('2 · Group tests');
+  await expect(frame.locator('#pGroups h2')).toHaveText('For the 3 children not working on those words');
+  const sw = frame.getByRole('switch', { name: 'Add group tests' });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  expect(await sw.evaluate(e => [e.tagName, e.offsetWidth >= 44, e.offsetHeight >= 44])).toEqual(['BUTTON', true, true]);
+  await expect(frame.locator('#pGList .pgrow')).toHaveText(['Group · 100 HFW 1–10Abe10 words', 'Group · 100 HFW 41–50Gus10 words', 'Group · 200 HFW 1–10Hal10 words']);
+  await expect(frame.locator('#pTotal')).toHaveText(`4 tests on ${day[1]}: the whole class + 3 groups`);
+  await expect(frame.locator('#pFoot')).toContainText('You can delete or re-plan from the test list.');
+  await expect(frame.getByLabel('Date of the tests')).toHaveValue(day[2]);
+  await expect(frame.locator('#pFoot button')).toHaveText(['Cancel', 'Create 4 tests']);
+  await expect(frame.locator('#pCreate')).toHaveClass(/primary/);
+  /* every control is a 44px target */
+  expect(await frame.locator('#tPlan button').evaluateAll(els => els.filter(e => e.offsetWidth < 44 || e.offsetHeight < 44).map(e => e.textContent))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test('Plan a test: the length opens on settings.wholeN, and changing it here does not change the setting', async ({ page }) => {
+  const frame = await openPlan(page, { wholeN: 30 }), body = frame.locator('body');
+  const before = await page.evaluate(() => localStorage.getItem('tp_hundred_words::b'));
+  const len = frame.getByRole('group', { name: 'How many words' });
+  await expect(len.locator('button[aria-pressed="true"]')).toHaveText('30');
+  await expect.poll(() => pressedSets(frame)).toEqual(await body.evaluate(() => testPlan().tests[0].sets));
+  await expect.poll(() => pressedSets(frame)).toEqual([0, 1, 2]);
+  await expect(frame.locator('#pSum')).toContainText('Words 1–30 · Pink & Red & Yellow');
+  await expect(frame.locator('#pSum')).toContainText('for 6 of 8 children');
+  await expect(frame.locator('#pWords .wchip')).toHaveCount(30);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 3 tests');
+
+  /* 10 words: the plan is testPlan({len:10}) — one set, where most children are */
+  await len.getByRole('button', { name: '10' }).click();
+  await expect(len.locator('button[aria-pressed="true"]')).toHaveText('10');
+  await expect(len.getByRole('button', { name: '10' }), 'the focus stays on the button').toBeFocused();
+  await expect.poll(() => pressedSets(frame)).toEqual(await body.evaluate(() => testPlan({ len: 10 }).tests[0].sets));
+  await expect.poll(() => pressedSets(frame)).toEqual([2]);
+  await expect(frame.locator('#pSum')).toContainText('Words 21–30 · Yellow');
+  await expect(frame.locator('#pSum')).toContainText('for 3 of 8 children');
+  await expect(frame.locator('#pWords .wchip')).toHaveCount(10);
+  await expect(frame.locator('#pGroups h2')).toHaveText('For the 5 children not working on those words');
+  await expect(frame.locator('#pGList .pgrow')).toHaveText(['Group · 100 HFW 1–20Abe, Bea, Cal20 words', 'Group · 100 HFW 41–50Gus10 words', 'Group · 200 HFW 1–10Hal10 words']);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 4 tests');
+  /* 40 words */
+  await len.getByRole('button', { name: '40' }).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([0, 1, 2, 3]);
+  await expect(frame.locator('#pSum')).toContainText('Words 1–40 · Pink & Red & Yellow & Blue');
+  await expect(frame.locator('#pWords .wchip')).toHaveCount(40);
+  await expect(frame.locator('#pGList .pgrow')).toHaveCount(2);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 3 tests');
+  /* a start that was tapped is kept when the length changes, moved back only so the test fits in the list */
+  await frame.locator('#pCols .pcol[data-g="8"]').click();
+  await expect.poll(() => pressedSets(frame)).toEqual([6, 7, 8, 9]);
+  await len.getByRole('button', { name: '20' }).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([8, 9]);
+
+  /* the setting is untouched, and so is everything else that is stored */
+  expect(await page.evaluate(() => localStorage.getItem('tp_hundred_words::b'))).toBe(before);
+  expect(await body.evaluate(() => S.settings.wholeN)).toBe(30);
+  /* the choice lasts for the visit: planning again opens on the setting */
+  await frame.getByRole('button', { name: 'Cancel' }).click();
+  await frame.getByRole('button', { name: 'Plan the test' }).click();
+  await expect(len.locator('button[aria-pressed="true"]')).toHaveText('30');
+  await expect.poll(() => pressedSets(frame)).toEqual([0, 1, 2]);
+});
+
+test('Plan a test: tapping a set moves the start, and the summary, words, covered count and groups follow', async ({ page }) => {
+  const errors = collectErrors(page);
+  const frame = await openPlan(page), body = frame.locator('body');
+  const col = g => frame.locator(`#pCols .pcol[data-g="${g}"]`);
+  await col(4).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([4, 5]);
+  await expect(col(4), 'the focus stays on the set that was tapped').toBeFocused();
+  await expect(frame.locator('#pSum')).toContainText('Words 41–60 · Green & Orange');
+  await expect(frame.locator('#pSum')).toContainText('for 1 of 8 children');
+  expect(await frame.locator('#pWords .wchip').allTextContents()).toEqual(await body.evaluate(() => WORDS.slice(40, 60)));
+  await expect(frame.locator('#pGroups h2')).toHaveText('For the 7 children not working on those words');
+  /* the lowest remaining set, paired with the next when children are waiting on it */
+  await expect(frame.locator('#pGList .pgrow')).toHaveText(['Group · 100 HFW 1–20Abe, Bea, Cal20 words', 'Group · 100 HFW 21–30Dee, Eli, Fay10 words', 'Group · 200 HFW 1–10Hal10 words']);
+  await expect(frame.locator('#pTotal')).toContainText(/^4 tests on .*: the whole class \+ 3 groups$/);
+  /* all of it is testPlan({start,len}) */
+  expect(await body.evaluate(() => testPlan({ start: 4, len: 20 }).tests.map(t => [t.whole, t.title, t.pids.length, t.target.length])))
+    .toEqual([[true, 'Whole class · 100 HFW 41–60', 8, 1], [false, 'Group · 100 HFW 1–20', 3, 3], [false, 'Group · 100 HFW 21–30', 3, 3], [false, 'Group · 200 HFW 1–10', 1, 1]]);
+
+  /* the last set: the start is moved back so 20 words fit in the list */
+  await col(9).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([8, 9]);
+  await expect(frame.locator('#pSum')).toContainText('Words 81–100 · Gold & White');
+  await expect(frame.locator('#pSum')).toContainText('for 0 of 8 children');
+  await expect(frame.locator('#pGroups h2')).toHaveText('For the 8 children not working on those words');
+  await expect(frame.locator('#pGList .pgrow')).toHaveCount(4);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 5 tests');
+
+  /* another list: its own sets of ten, and the test stays put until one is tapped */
+  await frame.locator('#pList').getByRole('button', { name: 'Next 200 HFW' }).click();
+  await expect(frame.locator('#pCols .pcol')).toHaveCount(20);
+  await expect.poll(() => pressedSets(frame)).toEqual([]);
+  await expect(frame.locator('#pElse')).toHaveText('The test is set to start at 100 HFW 81–90. Tap a set here to move it.');
+  await expect(frame.locator('#pSum')).toContainText('Words 81–100 · Gold & White');
+  await expect(col(10)).toHaveAttribute('aria-label', 'Pink 1 to 10: 1 child. Start the test here.');
+  await col(10).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([10, 11]);
+  await expect(frame.locator('#pElse')).toHaveCount(0);
+  await expect(frame.locator('#pSum')).toContainText('Words 1–20 · Pink & Red');
+  await expect(frame.locator('#pSum')).toContainText('Next 200 high frequency words');
+  await expect(frame.locator('#pSum')).toContainText('for 1 of 8 children');
+  expect(await frame.locator('#pWords .wchip').allTextContents()).toEqual(await body.evaluate(() => WORDS.slice(100, 120)));
+  await col(29).click();
+  await expect.poll(() => pressedSets(frame), 'the last set of the 200 list').toEqual([28, 29]);
+  await frame.locator('#pList').getByRole('button', { name: 'Y3/4 exception words' }).click();
+  await expect(frame.locator('#pCols .pcol')).toHaveCount(11);
+  await col(40).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([39, 40]);
+  await expect(frame.locator('#pSum')).toContainText('Words 91–109');
+  await expect(frame.locator('#pWords .wchip')).toHaveCount(19);
+  expect((await storedB(page)).tests, 'nothing is saved until Create').toBeUndefined();
+  expect(errors).toEqual([]);
+});
+
+test('Plan a test: group tests can be switched off, with a warning, and then only the whole-class test is created', async ({ page }) => {
+  const frame = await openPlan(page);
+  const sw = frame.getByRole('switch', { name: 'Add group tests' });
+  await expect(frame.locator('#pWarn')).toHaveCount(0);
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(sw, 'the focus stays on the switch').toBeFocused();
+  await expect(frame.locator('#pGList')).toHaveCount(0);
+  await expect(frame.locator('#pWarn')).toHaveText('These 3 children will sit the whole-class test only, so they can’t move on this week.');
+  await expect(frame.locator('#pTotal')).toContainText(/^1 test on [A-Z][a-z]+day \d+ [A-Z][a-z]+( \d{4})?$/);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 1 test');
+  /* the keyboard works it too, and it comes back on */
+  await sw.press('Space');
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(frame.locator('#pGList .pgrow')).toHaveCount(3);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 4 tests');
+  await sw.click();
+  await frame.getByLabel('Date of the tests').fill('2030-01-10');
+  await frame.locator('#pCreate').click();
+  await expect(frame.locator('#toast')).toHaveText('1 test created for Thursday 10 January 2030');
+  const tests = Object.values((await storedB(page)).tests);
+  expect(tests.map(t => [t.date, t.title, t.whole, t.words.length, t.pids.length])).toEqual([['2030-01-10', '100 HFW 11–30', true, 20, 8]]);
+  await expect(frame.locator('.day[data-date="2030-01-10"] .trow')).toHaveCount(1);
+});
+
+test('Plan a test: Create saves the whole-class test and the group tests for the date, and returns to the list', async ({ page }) => {
+  const errors = collectErrors(page);
+  const frame = await openPlan(page), body = frame.locator('body');
+  const before = await storedB(page);
+  await frame.locator('#pCols .pcol[data-g="4"]').click();
+  await frame.getByLabel('Date of the tests').fill('2030-01-10');
+  await expect(frame.locator('#pWhole .pstep')).toHaveText('1 · The whole-class test · Thu 10 Jan');
+  await expect(frame.locator('#pTotal')).toHaveText('4 tests on Thursday 10 January 2030: the whole class + 3 groups');
+  const plan = await body.evaluate(() => testPlan({ start: 4, len: 20 }).tests.map(t => ({ date: '2030-01-10', title: setsLabel(t.sets), whole: t.whole, words: t.words, pids: t.pids })));
+  await frame.getByRole('button', { name: 'Create 4 tests' }).click();
+  await expect(frame.locator('#toast')).toHaveText('4 tests created for Thursday 10 January 2030');
+  await expect(frame.locator('#tPlan')).toHaveCount(0);
+  await expect(frame.locator('#cList')).toBeVisible();
+
+  const doc = await storedB(page), tests = Object.values(doc.tests).sort((a, b) => a.createdAt - b.createdAt);
+  expect(tests.map(({ createdAt, ...t }) => t)).toEqual(plan);
+  const range = (a, b) => Array.from({ length: b - a }, (_, i) => a + i);
+  expect(tests.map(t => [t.date, t.title, t.whole, t.words, t.pids])).toEqual([
+    ['2030-01-10', '100 HFW 41–60', true, range(40, 60), ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8']],
+    ['2030-01-10', '100 HFW 1–20', false, range(0, 20), ['a1', 'a2', 'a3']],
+    ['2030-01-10', '100 HFW 21–30', false, range(20, 30), ['a4', 'a5', 'a6']],
+    ['2030-01-10', '200 HFW 1–10', false, range(100, 110), ['a8']]]);
+  for (const t of tests) expect(Object.keys(t).sort(), 'exactly the documented record').toEqual(['createdAt', 'date', 'pids', 'title', 'whole', 'words']);
+  expect(doc.sessions, 'planning writes no marks').toEqual(before.sessions);
+  expect(doc.settings).toEqual(before.settings);
+
+  /* the list shows them under their date */
+  const day = frame.locator('.day[data-date="2030-01-10"]');
+  await expect(day.locator('h2')).toHaveText('Thursday 10 January 2030');
+  await expect(day.locator('.trow .tname b')).toHaveText(['100 HFW 41–60', '100 HFW 1–20', '100 HFW 21–30', '200 HFW 1–10']);
+  await expect(day.locator('.trow .tname .pill')).toHaveText(['Whole class', 'Group', 'Group', 'Group']);
+  await expect(day.locator('.trow').nth(1).locator('.tname .muted')).toHaveText('Abe, Bea, Cal');
+  await expect(day.locator('.dayhead .pill')).toHaveText('8 children still to mark');
+
+  /* planning again opens fresh — testPlan()'s start, the next free Thursday — and Cancel saves nothing */
+  await day.getByRole('button', { name: '+ Plan another test' }).click();
+  await expect.poll(() => pressedSets(frame)).toEqual([1, 2]);
+  await expect(frame.getByLabel('Date of the tests')).not.toHaveValue('2030-01-10');
+  await frame.locator('#pFoot').getByRole('button', { name: 'Cancel' }).click();
+  await expect(frame.locator('#cList')).toBeVisible();
+  expect(Object.keys((await storedB(page)).tests)).toHaveLength(4);
+  expect(errors).toEqual([]);
+});
+
+test('Plan a test: when the whole-class test covers every child there are no group tests to add', async ({ page }) => {
+  const frame = await openHW(page, twoClasses('b'));     // Kit and Nell, neither checked yet: both on 1–10
+  await frame.getByRole('button', { name: 'Plan the test' }).click();
+  await expect(frame.locator('#pSum')).toContainText('for 2 of 2 children');
+  await expect(frame.locator('#pGroups h2')).toHaveText('Everyone is working on those words');
+  await expect(frame.locator('#pNone')).toHaveText('No group tests are needed: the whole-class test covers the set every child is working on.');
+  await expect(frame.getByRole('switch')).toHaveCount(0);
+  await expect(frame.locator('#pGList, #pWarn')).toHaveCount(0);
+  await expect(frame.locator('#pCreate')).toHaveText('Create 1 test');
+});
+
+test('Plan a test at phone width: the sets scroll inside their card and the page does not scroll sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const frame = await openPlan(page), body = frame.locator('body');
+  const fits = () => body.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  expect(await fits()).toBe(true);
+  expect(await frame.locator('#pCols .pcol').evaluateAll(els => els.every(e => e.offsetWidth >= 44 && e.offsetHeight >= 44))).toBe(true);
+  expect(await frame.locator('.pscroll').evaluate(e => e.scrollWidth > e.clientWidth), 'the sets scroll inside the card').toBe(true);
+  /* the chosen sets are inside the visible part of the strip, and stay there when the screen is redrawn */
+  const shown = g => frame.locator('.pscroll').evaluate((sc, g) => { const a = sc.getBoundingClientRect(), b = sc.querySelector(`.pcol[data-g="${g}"]`).getBoundingClientRect(); return b.left >= a.left - 1 && b.right <= a.right + 1; }, g);
+  expect(await shown(1)).toBe(true);
+  await frame.locator('#pCols .pcol[data-g="9"]').click();
+  await expect.poll(() => pressedSets(frame)).toEqual([8, 9]);
+  expect(await shown(9)).toBe(true);
+  await frame.getByRole('switch', { name: 'Add group tests' }).click();
+  await expect(frame.locator('#pWarn')).toBeVisible();
+  expect(await shown(8), 'the start of the test is brought into view').toBe(true);
+  expect(await fits()).toBe(true);
+});
+
+/* testPlan() now takes an optional start and length. Called with no
+   arguments it must give exactly what it always gave: the copy below is the
+   function as it was before the change, word for word, and the two are
+   compared on the example class, on data saved before the redesign, and on
+   classes spread across the lists, for every whole-class length.
+   The copy is named testPlan, so inside originalTestPlan() `testPlan()` is
+   the original and `window.testPlan()` is the page's. */
+function originalTestPlan() {
+  function testPlan(){
+    const ids=pupilIds(),lv={};for(const id of ids)lv[id]=summary(id).level;
+    const active=ids.filter(id=>lv[id]<NSETS),W=Math.max(1,Math.round((+S.settings.wholeN||20)/10));
+    const tests=[];
+    if(!active.length)return {tests,lv,W};
+    let best=-1,bestN=-1;
+    /* windows start on a set someone is on, so the test begins where they are */
+    for(const g of [...new Set(active.map(id=>lv[id]))].sort((a,b)=>a-b)){const n=active.filter(id=>lv[id]>=g&&lv[id]<g+W).length;if(n>bestN){best=g;bestN=n}}
+    const sets=[];for(let g=best;g<Math.min(best+W,NSETS);g++)sets.push(g);
+    const inWhole=active.filter(id=>lv[id]>=best&&lv[id]<best+W);
+    tests.push({whole:true,sets,words:sets.flatMap(setWords),pids:ids,target:inWhole,title:`Whole class · ${setsLabel(sets)}`});
+    let rest=active.filter(id=>!inWhole.includes(id)).sort((a,b)=>lv[a]-lv[b]);
+    while(rest.length){const g=lv[rest[0]];const two=rest.some(id=>lv[id]===g+1)&&g+1<NSETS&&listIdxOf(g*10)===listIdxOf((g+1)*10);
+      const gs=two?[g,g+1]:[g],pids=rest.filter(id=>gs.includes(lv[id]));
+      tests.push({whole:false,sets:gs,words:gs.flatMap(setWords),pids,target:pids,title:`Group · ${setsLabel(gs)}`});
+      rest=rest.filter(id=>!pids.includes(id))}
+    return {tests,lv,W};
+  }
+  const had = S.settings.wholeN, out = [];
+  for (const n of [undefined, 10, 20, 30, 40, 25, 0, 'x']) {
+    if (n === undefined) delete S.settings.wholeN; else S.settings.wholeN = n;
+    out.push({ wholeN: String(n), then: JSON.stringify(testPlan()), now: JSON.stringify(window.testPlan()), empty: JSON.stringify(window.testPlan({})) });
+  }
+  if (had === undefined) delete S.settings.wholeN; else S.settings.wholeN = had;
+  return out;
+}
+async function sameAsOriginal(frame, what) {
+  const rows = await frame.locator('body').evaluate(originalTestPlan);
+  expect(rows).toHaveLength(8);
+  for (const r of rows) {
+    expect(JSON.parse(r.now), `${what}, wholeN ${r.wholeN}`).toEqual(JSON.parse(r.then));
+    expect(r.now, `${what}, wholeN ${r.wholeN}: the same, key for key and in the same order`).toBe(r.then);
+    expect(r.empty, `${what}, wholeN ${r.wholeN}: testPlan({})`).toBe(r.then);
+  }
+  return rows.map(r => JSON.parse(r.now));
+}
+test('testPlan() with no arguments gives exactly what it gave before it took a start and a length', async ({ page }) => {
+  const errors = collectErrors(page);
+  /* data saved before the redesign */
+  const snap = require('./data/hundred-words-before-tests.json');
+  let frame = await openHW(page, { tp_hundred_words: JSON.stringify(snap.data) });
+  const old = await sameAsOriginal(frame, 'the snapshot');
+  expect(old[0].tests.map(t => ({ whole: t.whole, title: t.title, words: t.words, pids: t.pids, target: t.target })), 'and still what was recorded then').toEqual(snap.expected.testPlan);
+  /* the example class: 24 children across the first hundred words */
+  await frame.locator('body').evaluate(() => loadDemo());
+  await expect(frame.locator('#banner')).toContainText('Example class');
+  const demo = await sameAsOriginal(frame, 'the example class');
+  expect(demo[0].tests.length).toBeGreaterThan(1);
+  expect(Object.keys(demo[0].lv)).toHaveLength(24);
+  /* the example class later on: children moved on by different amounts, some into the next lists and some finished */
+  for (const step of [1, 3, 7, 13]) {
+    await frame.locator('body').evaluate((el, step) => { pupilIds().forEach((id, k) => { const n = Math.min(WORDS.length, (summary(id).level + (k % 5) * step) * 10), words = {};
+      for (let i = 0; i < n; i++) words[i] = { s: 'c' }; S.sessions[id + '_later'] = { pupilId: id, date: '2026-11-0' + (1 + step % 9), kind: 'spelling', words }; });
+      memo = {}; }, step);
+    await sameAsOriginal(frame, `the example class moved on by ${step}`);
+  }
+  expect(await frame.locator('body').evaluate(() => pupilIds().filter(id => summary(id).level >= NSETS).length), 'some children have finished every list').toBeGreaterThan(0);
+  expect(await frame.locator('body').evaluate(() => new Set(pupilIds().map(id => Math.min(2, listIdxOf(Math.min(summary(id).level, NSETS - 1) * 10)))).size), 'and the rest are spread over all three').toBe(3);
+  expect(errors).toEqual([]);
+});
+test('testPlan() with no arguments: the same as before for children at the ends of lists, and with nobody checked', async ({ page }) => {
+  let frame = await openHW(page, planClass());
+  const eight = await sameAsOriginal(frame, 'eight children');
+  expect(eight[0].tests.map(t => t.title)).toEqual(['Whole class · 100 HFW 11–30', 'Group · 100 HFW 1–10', 'Group · 100 HFW 41–50', 'Group · 200 HFW 1–10']);
+  /* with no start given the whole-class test may run on into the next list, as it always could; a start that is given keeps it inside one list */
+  const ends = await frame.locator('body').evaluate(() => { const all = n => { const w = {}; for (let i = 0; i < n; i++) w[i] = { s: 'c' }; return w; };
+    for (const k of Object.keys(S.sessions)) delete S.sessions[k];
+    pupilIds().forEach((id, k) => { S.sessions[id + '_z'] = { pupilId: id, date: '2026-10-01', kind: 'spelling', words: all(k < 6 ? 90 : 400) }; }); memo = {};
+    return [testPlan().tests.map(t => t.title), testPlan({ start: 9 }).tests.map(t => t.title), testPlan({ start: 9, len: 10 }).tests.map(t => t.title)]; });
+  expect(ends).toEqual([['Whole class · 100 HFW 91–100 and 200 HFW 1–10', 'Group · Y3/4 CEW 101–109'], ['Whole class · 100 HFW 81–100', 'Group · Y3/4 CEW 101–109'], ['Whole class · 100 HFW 91–100', 'Group · Y3/4 CEW 101–109']]);
+  await sameAsOriginal(frame, 'children at the ends of lists');
+  await frame.locator('body').evaluate(() => { for (const k of Object.keys(S.sessions)) delete S.sessions[k]; memo = {}; });
+  const none = await sameAsOriginal(frame, 'nobody checked yet');
+  expect(none[0].tests.map(t => t.title)).toEqual(['Whole class · 100 HFW 1–20']);
 });
